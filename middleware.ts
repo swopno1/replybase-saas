@@ -5,30 +5,36 @@ export async function middleware(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
   const { pathname } = req.nextUrl
 
-  // Define public routes
-  const publicPaths = ['/auth/login', '/auth/register', '/auth/forgot-password']
-  const isPublicPath =
-    publicPaths.includes(pathname) || pathname.startsWith('/chat/')
-
-  // If the user is trying to access a public path
-  if (isPublicPath) {
-    if (token) {
-      // If the user is logged in, redirect to the dashboard
-      return NextResponse.redirect(new URL('/dashboard', req.url))
-    }
-    // If the user is not logged in, allow access to the public path
+  // Allow chat routes to be public
+  if (pathname.startsWith('/chat/')) {
     return NextResponse.next()
   }
 
-  // If the user is trying to access a protected path
+  const authPaths = ['/auth/login', '/auth/register', '/auth/forgot-password']
+  const isAuthPath = authPaths.includes(pathname)
+
+  // If the user is logged in
+  if (token) {
+    // and tries to access an auth path, redirect to root
+    if (isAuthPath) {
+      return NextResponse.redirect(new URL('/', req.url))
+    }
+    // otherwise, allow access to the protected route
+    return NextResponse.next()
+  }
+
+  // If the user is not logged in
   if (!token) {
-    // If the user is not logged in, redirect to the login page
+    // and tries to access an auth path, allow them
+    if (isAuthPath) {
+      return NextResponse.next()
+    }
+    // and tries to access a protected route, redirect to login
     const loginUrl = new URL('/auth/login', req.url)
     loginUrl.searchParams.set('callbackUrl', pathname)
     return NextResponse.redirect(loginUrl)
   }
 
-  // If the user is logged in, allow access to the protected path
   return NextResponse.next()
 }
 
