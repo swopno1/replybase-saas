@@ -3,37 +3,50 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function middleware(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
-
   const { pathname } = req.nextUrl
 
-  // Routes accessible only to logged-out users
-  const authRoutes = ['/login', '/register'];
-
-  // Protected routes prefix
-  const protectedPrefix = '/dashboard';
-
-  const isProtectedRoute = pathname.startsWith(protectedPrefix);
-
-  if (!token && isProtectedRoute) {
-    // User is not logged in and is trying to access a protected route, redirect to login
-    const loginUrl = new URL('/login', req.url)
-    loginUrl.searchParams.set('callbackUrl', pathname) // Optionally, redirect back after login
-    return NextResponse.redirect(loginUrl)
+  // Allow chat routes to be public
+  if (pathname.startsWith('/chat/')) {
+    return NextResponse.next()
   }
 
-  if (token && authRoutes.includes(pathname)) {
-    // User is logged in and is trying to access login/register, redirect to dashboard
-    return NextResponse.redirect(new URL('/dashboard', req.url))
+  const authPaths = ['/auth/login', '/auth/register', '/auth/forgot-password']
+  const isAuthPath = authPaths.includes(pathname)
+
+  // If the user is logged in
+  if (token) {
+    // and tries to access an auth path, redirect to root
+    if (isAuthPath) {
+      return NextResponse.redirect(new URL('/', req.url))
+    }
+    // otherwise, allow access to the protected route
+    return NextResponse.next()
+  }
+
+  // If the user is not logged in
+  if (!token) {
+    // and tries to access an auth path, allow them
+    if (isAuthPath) {
+      return NextResponse.next()
+    }
+    // and tries to access a protected route, redirect to login
+    const loginUrl = new URL('/auth/login', req.url)
+    loginUrl.searchParams.set('callbackUrl', pathname)
+    return NextResponse.redirect(loginUrl)
   }
 
   return NextResponse.next()
 }
 
-// Configure which routes the middleware runs on
 export const config = {
-    matcher: [
-        '/dashboard/:path*',
-        '/login',
-        '/register',
-    ]
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+  ],
 }
