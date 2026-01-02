@@ -13,7 +13,7 @@ export default async function DashboardPage() {
     const isEngineUp = !!health;
 
     return (
-        <div className="space-y-6">
+        <>
             <div>
                 <h1 className="text-3xl font-bold">Welcome, {session?.user?.name || "User"}</h1>
                 <p className="text-muted-foreground">Manage your bots and integrations.</p>
@@ -76,7 +76,7 @@ export default async function DashboardPage() {
                     </pre>
                 </CardContent>
             </Card>
-        </div>
+        </>
     );
 }
 
