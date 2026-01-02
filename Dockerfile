@@ -9,7 +9,7 @@ WORKDIR /app
 # ------------------------------
 FROM base AS deps
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm install
 
 # ------------------------------
 # Build
@@ -18,6 +18,7 @@ FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+RUN npx prisma generate
 RUN npm run build
 
 # ------------------------------
@@ -26,21 +27,25 @@ RUN npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-ENV NODE_ENV=production
+ARG NODE_ENV=production
+ENV NODE_ENV=${NODE_ENV}
 ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN apk add --no-cache openssl
 
 # Security: non-root
 RUN addgroup -g 1001 nodejs \
- && adduser -u 1001 -G nodejs -s /bin/sh -D nextjs
+    && adduser -u 1001 -G nodejs -s /bin/sh -D nextjs
 
 # Copy build artifacts only
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/prisma ./prisma
 
 # Install prod-only deps
 COPY --from=builder /app/node_modules ./node_modules
-RUN npm prune --omit=dev
+# RUN npm prune --omit=dev  <-- Skip prune to ensure prisma engine is available for MVP stability
 
 USER nextjs
 EXPOSE 3000

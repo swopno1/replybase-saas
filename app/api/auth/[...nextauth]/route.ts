@@ -1,9 +1,23 @@
 import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import CredentialsProvider from "next-auth/providers/credentials"
+import { PrismaAdapter } from "@auth/prisma-adapter"
+import { prisma } from "@/lib/prisma"
 
-const handler = NextAuth({
+import FacebookProvider from "next-auth/providers/facebook"
+
+export const authOptions = {
+  adapter: PrismaAdapter(prisma),
   providers: [
+    FacebookProvider({
+      clientId: process.env.FACEBOOK_CLIENT_ID as string,
+      clientSecret: process.env.FACEBOOK_CLIENT_SECRET as string,
+      authorization: {
+        params: {
+          scope: "email,public_profile,pages_show_list,pages_messaging",
+        },
+      },
+    }),
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID as string,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
@@ -27,12 +41,28 @@ const handler = NextAuth({
   ],
   // TODO: Configure database adapter when backend is ready
   session: {
-    strategy: "jwt",
+    strategy: "jwt" as const,
+  },
+  callbacks: {
+    async jwt({ token, user }: any) {
+      if (user) {
+        token.id = user.id;
+      }
+      return token;
+    },
+    async session({ session, token }: any) {
+      if (session.user) {
+        (session.user as any).id = token.id as string;
+      }
+      return session;
+    },
   },
   pages: {
     signIn: '/login',
   },
   secret: process.env.NEXTAUTH_SECRET,
-})
+}
+
+const handler = NextAuth(authOptions)
 
 export { handler as GET, handler as POST }
