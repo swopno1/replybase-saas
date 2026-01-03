@@ -1,6 +1,6 @@
-
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
+import { SiteHeader } from "@/components/site-header"
 
 export default function Layout({ children }: { children: React.ReactNode }) {
     return (
@@ -12,20 +12,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           }>
             <AppSidebar variant="inset" />
             <SidebarInset>
-            <SiteHeader />
-            <main className="w-full">
-            <div className="flex flex-1 flex-col">
-          <div className="@container/main flex flex-1 flex-col gap-2">
-            <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6"><div className="p-4 bg-muted/20 min-h-screen">
-                    <SidebarTrigger />
-                    <div className="mt-4">
+                <SiteHeader />
+                <main className="flex flex-1 flex-col">
+                    <div className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6">
                         {children}
                     </div>
-                    </div>
-                    </div>
-                    </div>
-                </div>
-            </main></SidebarInset>
+                </main>
+            </SidebarInset>
         </SidebarProvider>
     )
 }

@@ -1,0 +1,63 @@
+import { getServerSession } from "next-auth";
+import { authOptions } from "../auth/[...nextauth]/route";
+import { prisma } from "@/lib/prisma";
+import { NextResponse } from "next/server";
+
+export async function POST(req: Request) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session || !session.user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const userId = (session.user as any).id;
+        if (!userId) {
+            return NextResponse.json({ error: "User ID missing" }, { status: 400 });
+        }
+
+        const body = await req.json();
+        const { pageId, facebookId, enabled, botId } = body;
+
+        if (!pageId || typeof enabled !== "boolean") {
+            return NextResponse.json(
+                { error: "Missing required fields: pageId, enabled" },
+                { status: 400 }
+            );
+        }
+
+        // Verify the page belongs to the user
+        const page = await prisma.facebookPage.findFirst({
+            where: {
+                id: pageId,
+                userId: userId,
+            },
+        });
+
+        if (!page) {
+            return NextResponse.json(
+                { error: "Page not found or access denied" },
+                { status: 404 }
+            );
+        }
+
+        // Update the page's engine connection status
+        await prisma.facebookPage.update({
+            where: { id: pageId },
+            data: {
+                engineConnected: enabled,
+            },
+        });
+
+        return NextResponse.json({
+            success: true,
+            message: enabled ? "AI enabled for page" : "AI disabled for page",
+        });
+    } catch (error) {
+        console.error("[AI Status API] Error:", error);
+        return NextResponse.json(
+            { error: "Internal server error" },
+            { status: 500 }
+        );
+    }
+}
+
