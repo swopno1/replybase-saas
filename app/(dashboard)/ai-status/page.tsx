@@ -38,7 +38,7 @@ export default async function AIStatusPage() {
         <div className="space-y-6">
             {/* Header */}
             <div>
-                <Link href="/dashboard">
+                <Link href="/">
                     <Button variant="ghost" size="sm" className="mb-4">
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Back to Dashboard
@@ -143,7 +143,7 @@ export default async function AIStatusPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Link href="/dashboard/integrations/facebook">
+                        <Link href="/integrations/facebook">
                             <Button>
                                 Connect Facebook Page
                             </Button>

@@ -84,7 +84,7 @@ export default function FacebookIntegrationPage() {
         <div className="space-y-6">
             {/* Header */}
             <div>
-                <Link href="/dashboard">
+                <Link href="/">
                     <Button variant="ghost" size="sm" className="mb-4">
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Back to Dashboard
@@ -237,7 +237,7 @@ export default function FacebookIntegrationPage() {
                                                             <Button variant="secondary" disabled>
                                                                 Connected
                                                             </Button>
-                                                            <Link href="/dashboard/ai-status">
+                                                            <Link href="/ai-status">
                                                                 <Button variant="ghost" size="sm" className="text-xs">
                                                                     Manage AI
                                                                     <ExternalLink className="ml-1 h-3 w-3" />
@@ -245,7 +245,7 @@ export default function FacebookIntegrationPage() {
                                                             </Link>
                                                         </div>
                                                     ) : isConnected ? (
-                                                        <Link href="/dashboard/ai-status">
+                                                        <Link href="/ai-status">
                                                             <Button variant="default">
                                                                 Enable AI
                                                             </Button>

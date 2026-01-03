@@ -19,27 +19,27 @@ import {
 const items = [
   {
     title: "Dashboard",
-    url: "/dashboard",
+    url: "/",
     icon: LayoutDashboard,
   },
   {
     title: "Facebook Pages",
-    url: "/dashboard/integrations/facebook",
+    url: "/integrations/facebook",
     icon: MessageSquare,
   },
   {
     title: "AI Status",
-    url: "/dashboard/ai-status",
+    url: "/ai-status",
     icon: Zap,
   },
   {
     title: "Activity",
-    url: "/dashboard/activity",
+    url: "/activity",
     icon: Activity,
   },
   {
     title: "Settings",
-    url: "/dashboard/settings",
+    url: "/settings",
     icon: Settings,
   },
 ]
@@ -56,7 +56,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenu>
               {items.map((item) => {
                 const isActive = pathname === item.url || 
-                  (item.url !== "/dashboard" && pathname?.startsWith(item.url))
+                  (item.url !== "/" && pathname?.startsWith(item.url))
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={isActive}>

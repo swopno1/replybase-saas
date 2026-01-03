@@ -82,7 +82,7 @@ export default function ActivityPage() {
         <div className="space-y-6">
             {/* Header */}
             <div>
-                <Link href="/dashboard">
+                <Link href="/">
                     <Button variant="ghost" size="sm" className="mb-4">
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Back to Dashboard
@@ -133,7 +133,7 @@ export default function ActivityPage() {
                             <p className="text-sm text-muted-foreground mb-4">
                                 Once you receive messages on your connected Facebook Pages, they'll appear here.
                             </p>
-                            <Link href="/dashboard/integrations/facebook">
+                            <Link href="/integrations/facebook">
                                 <Button variant="outline">
                                     Connect Facebook Page
                                 </Button>
