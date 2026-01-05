@@ -46,6 +46,10 @@ model User {
   
   // Custom Fields for ReplyBase
   facebookPages FacebookPage[]
+  subscription  Subscription?
+  bots          Bot[]
+  usageLogs     UsageLog[]
+  executionLogs ExecutionLog[]
 }
 
 model VerificationToken {
@@ -105,4 +109,150 @@ model MessageLog {
   createdAt DateTime @default(now())
   
   @@index([conversationId, createdAt])
+}
+
+// Subscription & Plans
+model Subscription {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  planId        String
+  status        String   @default("active") // "active", "canceled", "past_due", "trialing"
+  currentPeriodStart DateTime @default(now())
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd Boolean @default(false)
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan Plan @relation(fields: [planId], references: [id])
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([userId])
+}
+
+model Plan {
+  id          String   @id @default(cuid())
+  name        String   @unique // "free", "starter", "pro", "enterprise"
+  displayName String
+  price       Float    @default(0) // Monthly price in USD
+  currency    String   @default("USD")
+  
+  // Limits
+  dailyMessageLimit    Int      @default(100)
+  monthlyMessageLimit  Int      @default(3000)
+  flowExecutionCap     Int      @default(100) // Max flows per day
+  maxBots              Int      @default(1)
+  maxChannelsPerBot    Int      @default(1)
+  
+  // Features
+  features Json @default("{}") // Flexible feature flags
+  
+  subscriptions Subscription[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Bot Management (SaaS Layer - not Botpress)
+model Bot {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?  @db.Text
+  enabled     Boolean  @default(true)
+  
+  // Botpress integration
+  botpressBotId String? // ID in Botpress workspace
+  
+  // Configuration stored in our DB (not Botpress)
+  entryFlow     String?  // Flow name to start with
+  welcomeMessage String? @db.Text
+  
+  // Triggers
+  triggers Json @default("[]") // ["hi", "hello", "start"]
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channels BotChannel[]
+  executionLogs ExecutionLog[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([botpressBotId])
+}
+
+model BotChannel {
+  id        String   @id @default(cuid())
+  botId     String
+  type      String   // "facebook", "whatsapp", "web", etc.
+  enabled   Boolean  @default(true)
+  killSwitch Boolean @default(false) // Emergency stop
+  
+  // Channel-specific config
+  channelId     String   // e.g., Facebook Page ID
+  accessToken   String?  @db.Text // Encrypted
+  config        Json     @default("{}") // Flexible channel config
+  
+  bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([botId, type, channelId])
+  @@index([botId])
+}
+
+// Execution Logs (per project/bot)
+model ExecutionLog {
+  id        String   @id @default(cuid())
+  botId     String
+  userId    String
+  sessionId String?  // Botpress session ID
+  
+  // Execution details
+  flowName      String?
+  nodeId        String?
+  direction     String   // "inbound", "outbound"
+  status        String   @default("success") // "success", "error", "timeout", "rate_limited"
+  errorMessage  String?  @db.Text
+  executionTime Int?     // Milliseconds
+  
+  // Request/Response
+  input         String?  @db.Text
+  output        String?  @db.Text
+  
+  bot  Bot  @relation(fields: [botId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@index([botId, createdAt])
+  @@index([userId, createdAt])
+  @@index([sessionId])
+}
+
+// Usage Tracking (for limits)
+model UsageLog {
+  id        String   @id @default(cuid())
+  userId    String
+  botId     String?
+  channelId String?
+  
+  // Usage type
+  type      String   // "message", "flow_execution", "webhook"
+  
+  // Counts
+  count     Int      @default(1)
+  
+  // Time window
+  date      DateTime @db.Date // For daily limits
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([userId, type, date, botId, channelId])
+  @@index([userId, date, type])
+  @@index([botId, date])
 }
