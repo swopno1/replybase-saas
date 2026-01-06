@@ -6,7 +6,9 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("APP_DATABASE_URL")
+  schemas  = ["app"]
 }
+
 
 model Account {
   id                String  @id @default(cuid())
