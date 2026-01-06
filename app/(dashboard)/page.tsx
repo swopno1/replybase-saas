@@ -3,6 +3,7 @@ import { authOptions } from "../api/auth/[...nextauth]/route";
 import { BotpressService } from "@/lib/botpress";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SubscriptionStatus } from '@/components/subscription-status';
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Activity, MessageSquare, Zap, AlertCircle, CheckCircle2, ArrowRight, Clock } from "lucide-react";
@@ -162,6 +163,9 @@ export default async function DashboardPage() {
             )}
 
             {/* Status Cards */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <SubscriptionStatus />
+            </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 {/* AI Status */}
                 <Card>
