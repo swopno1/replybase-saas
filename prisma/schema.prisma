@@ -1,14 +1,11 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("APP_DATABASE_URL")
-  schemas  = ["app"]
 }
-
 
 model Account {
   id                String  @id @default(cuid())
@@ -257,4 +254,23 @@ model UsageLog {
   @@unique([userId, type, date, botId, channelId])
   @@index([userId, date, type])
   @@index([botId, date])
+}
+
+model Lead {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  phone     String?
+  status    String
+  notes     Note[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  content   String
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id])
+  createdAt DateTime @default(now())
 }
