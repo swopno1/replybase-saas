@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]/route';
-import { prisma } from '@/lib/prisma';
-import { canCreateBot } from '@/lib/subscription';
-import { z } from 'zod';
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { prisma } from "@/lib/prisma";
+import { canCreateBot } from "@/lib/subscription";
+import { z } from "zod";
+import { authOptions } from "@/lib/auth";
 
 const createBotSchema = z.object({
   name: z.string().min(1).max(100),
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const userId = (session.user as any).id;
@@ -42,14 +42,14 @@ export async function GET(req: NextRequest) {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     return NextResponse.json({ bots });
   } catch (error) {
-    console.error('[Bots API] Error fetching bots:', error);
+    console.error("[Bots API] Error fetching bots:", error);
     return NextResponse.json(
-      { error: 'Failed to fetch bots' },
+      { error: "Failed to fetch bots" },
       { status: 500 }
     );
   }
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const userId = (session.user as any).id;
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
     const canCreate = await canCreateBot(userId);
     if (!canCreate) {
       return NextResponse.json(
-        { error: 'Bot limit reached. Please upgrade your plan.' },
+        { error: "Bot limit reached. Please upgrade your plan." },
         { status: 403 }
       );
     }
@@ -96,16 +96,15 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Invalid input', details: error.errors },
+        { error: "Invalid input", details: error.errors },
         { status: 400 }
       );
     }
 
-    console.error('[Bots API] Error creating bot:', error);
+    console.error("[Bots API] Error creating bot:", error);
     return NextResponse.json(
-      { error: 'Failed to create bot' },
+      { error: "Failed to create bot" },
       { status: 500 }
     );
   }
 }
-

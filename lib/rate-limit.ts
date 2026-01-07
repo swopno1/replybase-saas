@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { checkLimit, incrementUsage } from './subscription';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { NextRequest, NextResponse } from "next/server";
+import { checkLimit, incrementUsage } from "./subscription";
+import { getServerSession } from "next-auth";
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -15,7 +14,7 @@ export interface RateLimitResult {
  */
 export async function rateLimitMiddleware(
   req: NextRequest,
-  type: 'message' | 'flow_execution',
+  type: "message" | "flow_execution",
   botId?: string,
   channelId?: string
 ): Promise<RateLimitResult | null> {
@@ -39,7 +38,7 @@ export async function rateLimitMiddleware(
 
     return limitCheck;
   } catch (error) {
-    console.error('[RateLimit] Error:', error);
+    console.error("[RateLimit] Error:", error);
     // Fail open in case of errors (don't block requests)
     return {
       allowed: true,
@@ -52,18 +51,20 @@ export async function rateLimitMiddleware(
 /**
  * Create rate limit response
  */
-export function createRateLimitResponse(rateLimit: RateLimitResult): NextResponse {
+export function createRateLimitResponse(
+  rateLimit: RateLimitResult
+): NextResponse {
   const headers = new Headers();
-  headers.set('X-RateLimit-Limit', rateLimit.limit.toString());
-  headers.set('X-RateLimit-Remaining', rateLimit.remaining.toString());
-  
+  headers.set("X-RateLimit-Limit", rateLimit.limit.toString());
+  headers.set("X-RateLimit-Remaining", rateLimit.remaining.toString());
+
   if (rateLimit.retryAfter) {
-    headers.set('Retry-After', rateLimit.retryAfter.toString());
+    headers.set("Retry-After", rateLimit.retryAfter.toString());
   }
 
   return NextResponse.json(
     {
-      error: 'Rate limit exceeded',
+      error: "Rate limit exceeded",
       message: `You have exceeded your ${rateLimit.limit} requests limit. Please try again later.`,
       limit: rateLimit.limit,
       remaining: rateLimit.remaining,
@@ -76,7 +77,8 @@ export function createRateLimitResponse(rateLimit: RateLimitResult): NextRespons
   );
 }
 
-import { prisma } from './prisma';
+import { prisma } from "./prisma";
+import { authOptions } from "./auth";
 
 /**
  * Check channel kill switch
@@ -100,4 +102,3 @@ export async function isChannelKillSwitchEnabled(
 
   return channel?.killSwitch === true || channel?.enabled === false;
 }
-
