@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkLimit, incrementUsage } from "./subscription";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "next-auth/next";
 
 export interface RateLimitResult {
   allowed: boolean;

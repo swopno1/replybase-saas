@@ -143,7 +143,6 @@ export async function checkLimit(userId: string, type: 'message' | 'flow_executi
 }> {
   const limits = await getUserLimits(userId);
   const usage = await getUserUsage(userId);
-  const date = new Date();
 
   if (type === 'message') {
     const limit = limits.dailyMessageLimit;
@@ -189,8 +188,8 @@ export async function incrementUsage(
         userId,
         type,
         date,
-        botId: botId || null,
-        channelId: channelId || null,
+        botId: botId || '',
+        channelId: channelId || '',
       },
     },
     create: {

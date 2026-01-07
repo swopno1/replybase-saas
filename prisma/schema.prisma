@@ -59,6 +59,7 @@ model User {
   bots          Bot[]
   usageLogs     UsageLog[]
   executionLogs ExecutionLog[]
+  leads         Lead[]
 
   @@index([tenantId])
   @@map("users")
@@ -145,6 +146,7 @@ model Subscription {
   currentPeriodStart DateTime @default(now())
   currentPeriodEnd   DateTime
   cancelAtPeriodEnd  Boolean  @default(false)
+  stripeCustomerId   String?  @unique
 
   // Add trial fields
   trialEndsAt DateTime? // Make it optional
@@ -311,6 +313,8 @@ model Lead {
   notes     Note[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model Note {

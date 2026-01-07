@@ -1,4 +1,4 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "next-auth/next";
 import {
   Card,
   CardContent,
@@ -12,6 +12,9 @@ import { authOptions } from "@/lib/auth";
 
 export default async function SettingsPage() {
   const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">

@@ -131,7 +131,7 @@ export default function ActivityPage() {
                             <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
                             <h3 className="text-lg font-medium mb-2">No messages yet</h3>
                             <p className="text-sm text-muted-foreground mb-4">
-                                Once you receive messages on your connected Facebook Pages, they'll appear here.
+                                Once you receive messages on your connected Facebook Pages, they&apos;ll appear here.
                             </p>
                             <Link href="/integrations/facebook">
                                 <Button variant="outline">

@@ -11,9 +11,9 @@ interface BotpressResponse {
     responses: Array<{
         type: string;
         text?: string;
-        [key: string]: any;
+        [key: string]: unknown;
     }>;
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 interface SendMessageResult {

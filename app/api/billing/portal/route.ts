@@ -3,7 +3,10 @@ import { getServerSession } from 'next-auth';
 import { stripe } from '@/lib/stripe';
 import { prisma } from '@/lib/prisma';
 
-export async function POST(req: NextRequest) {
+export async function POST(_req: NextRequest) {
+  if (!stripe) {
+    return NextResponse.json({ error: 'Stripe is not configured' }, { status: 500 });
+  }
   try {
     const session = await getServerSession();
     if (!session?.user?.email) {
@@ -11,7 +14,7 @@ export async function POST(req: NextRequest) {
     }
 
     const subscription = await prisma.subscription.findUnique({
-      where: { user: { email: session.user.email } }
+        where: { userId: session.user.id },
     });
 
     if (!subscription?.stripeCustomerId) {
@@ -24,7 +27,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ url: portalSession.url });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: 'Failed to create portal session' }, { status: 500 });
   }
 }

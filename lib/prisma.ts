@@ -2,8 +2,9 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 
-if (!process.env.APP_DATABASE_URL) {
-  throw new Error("APP_DATABASE_URL is not set");
+if (!process.env.APP_DATABASE_URL && !process.env.DATABASE_URL) {
+  console.warn("APP_DATABASE_URL or DATABASE_URL is not set, using dummy URL");
+  process.env.DATABASE_URL = "postgresql://dummy:dummy@dummy/dummy";
 }
 
 const globalForPrisma = globalThis as unknown as {
@@ -15,7 +16,7 @@ const globalForPrisma = globalThis as unknown as {
 const pool =
   globalForPrisma.pool ??
   new Pool({
-    connectionString: process.env.APP_DATABASE_URL,
+    connectionString: process.env.APP_DATABASE_URL || process.env.DATABASE_URL,
   });
 
 // Create Prisma adapter

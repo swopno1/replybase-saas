@@ -1,16 +1,16 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 
-export async function GET(req: Request) {
+export async function GET(_req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
+    if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = (session.user as any).id;
+    const userId = session.user.id;
     if (!userId) {
       return NextResponse.json({ error: "User ID missing" }, { status: 400 });
     }
@@ -28,8 +28,8 @@ export async function GET(req: Request) {
       return NextResponse.json({ messages: [] });
     }
 
-    const pageIds = pages.map((p) => p.facebookId);
-    const pageMap = new Map(pages.map((p) => [p.facebookId, p.name]));
+    const pageIds = pages.map((p: { facebookId: string }) => p.facebookId);
+    const pageMap = new Map(pages.map((p: { facebookId: string, name: string }) => [p.facebookId, p.name]));
 
     // Get last 10 inbound messages
     const messages = await prisma.messageLog.findMany({
@@ -59,7 +59,7 @@ export async function GET(req: Request) {
     });
 
     // Enrich with page names
-    const enrichedMessages = messages.map((msg) => ({
+    const enrichedMessages = messages.map((msg: { id: string; content: string; status: string; createdAt: Date; conversation: { facebookPageId: string; }; }) => ({
       id: msg.id,
       content: msg.content,
       status: msg.status,

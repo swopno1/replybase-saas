@@ -1,6 +1,6 @@
 "use client"
 
-import { MoreVertical, LogOut, User, CreditCard } from "lucide-react"
+import { LogOut, User, CreditCard } from "lucide-react"
 import { signOut } from "next-auth/react"
 
 import {

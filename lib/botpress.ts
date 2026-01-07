@@ -7,6 +7,12 @@ const BP_URL =
 
 const BP_TOKEN = process.env.BOTPRESS_ADMIN_TOKEN;
 
+export type BotpressMessengerConfig = {
+  pageId: string;
+  accessToken: string;
+  appSecret: string;
+  verifyToken: string;
+};
 export class BotpressService {
   private static get headers() {
     return {
@@ -35,7 +41,7 @@ export class BotpressService {
     return null; // offline but app continues
   }
 
-  static async configureMessenger(botId: string, config: any) {
+  static async configureMessenger(botId: string, config: BotpressMessengerConfig) {
     const url = `${BP_URL}/api/v1/admin/bots/${botId}/config/channel-messenger`;
     const res = await fetch(url, {
       method: "POST",
