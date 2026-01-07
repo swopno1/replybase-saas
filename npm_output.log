@@ -1,0 +1,76 @@
+
+> replybase-saas@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+
+✓ Starting...
+✓ Ready in 5.3s
+○ Compiling /auth/login ...
+ GET /auth/login?callbackUrl=%2F 200 in 10.6s (compile: 9.7s, proxy.ts: 15ms, render: 897ms)
+○ Compiling /api/auth/[...nextauth] ...
+✓ Finished writing to filesystem cache in 17.4s
+APP_DATABASE_URL or DATABASE_URL is not set, using dummy URL
+[next-auth][warn][NEXTAUTH_URL]
+https://next-auth.js.org/warnings#nextauth_url
+[next-auth][warn][NO_SECRET]
+https://next-auth.js.org/warnings#no_secret
+ GET /auth/login 200 in 205ms (compile: 7ms, proxy.ts: 10ms, render: 188ms)
+ GET /api/auth/session 200 in 53ms (compile: 36ms, render: 17ms)
+ GET /auth/login 200 in 132ms (compile: 5ms, proxy.ts: 7ms, render: 120ms)
+ GET /api/auth/session 200 in 43ms (compile: 28ms, render: 15ms)
+ GET /api/auth/providers 200 in 36ms (compile: 20ms, render: 17ms)
+ GET /api/auth/csrf 200 in 16ms (compile: 4ms, render: 12ms)
+ POST /api/auth/callback/credentials 200 in 27ms (compile: 4ms, render: 23ms)
+ GET /api/auth/session 200 in 35ms (compile: 5ms, render: 30ms)
+ GET /auth/login?callbackUrl=%2F 200 in 53ms (compile: 11ms, proxy.ts: 6ms, render: 37ms)
+ GET /auth/login 200 in 134ms (compile: 4ms, proxy.ts: 5ms, render: 125ms)
+ GET /api/auth/session 200 in 45ms (compile: 33ms, render: 12ms)
+ GET /api/auth/providers 200 in 19ms (compile: 4ms, render: 14ms)
+ GET /api/auth/csrf 200 in 12ms (compile: 3ms, render: 9ms)
+ POST /api/auth/callback/credentials 200 in 14ms (compile: 3ms, render: 11ms)
+ GET /api/auth/session 200 in 13ms (compile: 3ms, render: 10ms)
+ GET /auth/login?callbackUrl=%2F 200 in 42ms (compile: 4ms, proxy.ts: 7ms, render: 32ms)
+ GET /auth/login?callbackUrl=%2F 200 in 73ms (compile: 4ms, proxy.ts: 7ms, render: 62ms)
+ GET /auth/login 200 in 117ms (compile: 8ms, proxy.ts: 7ms, render: 102ms)
+ GET /api/auth/session 200 in 46ms (compile: 31ms, render: 15ms)
+ GET /api/auth/providers 200 in 20ms (compile: 7ms, render: 14ms)
+ GET /api/auth/csrf 200 in 11ms (compile: 3ms, render: 9ms)
+ POST /api/auth/callback/credentials 200 in 14ms (compile: 3ms, render: 11ms)
+ GET /api/auth/session 200 in 22ms (compile: 3ms, render: 19ms)
+ GET /auth/login?callbackUrl=%2F 200 in 70ms (compile: 4ms, proxy.ts: 4ms, render: 62ms)
+ GET /auth/login?callbackUrl=%2F 200 in 107ms (compile: 17ms, proxy.ts: 13ms, render: 77ms)
+ GET /auth/login 200 in 97ms (compile: 4ms, proxy.ts: 5ms, render: 89ms)
+ GET /api/auth/session 200 in 38ms (compile: 26ms, render: 12ms)
+ GET /api/auth/providers 200 in 13ms (compile: 3ms, render: 11ms)
+ GET /api/auth/csrf 200 in 9ms (compile: 3ms, render: 6ms)
+ POST /api/auth/callback/credentials 200 in 14ms (compile: 2ms, render: 12ms)
+ GET /api/auth/session 200 in 12ms (compile: 2ms, render: 9ms)
+ GET /auth/login?callbackUrl=%2F 200 in 33ms (compile: 4ms, proxy.ts: 4ms, render: 24ms)
+ GET /auth/login?callbackUrl=%2F 200 in 50ms (compile: 8ms, proxy.ts: 6ms, render: 36ms)
+ GET /auth/login 200 in 119ms (compile: 9ms, proxy.ts: 7ms, render: 102ms)
+ GET /api/auth/session 200 in 56ms (compile: 36ms, render: 20ms)
+ GET /api/auth/providers 200 in 11ms (compile: 3ms, render: 8ms)
+ GET /api/auth/csrf 200 in 10ms (compile: 3ms, render: 8ms)
+ POST /api/auth/callback/credentials 200 in 15ms (compile: 3ms, render: 13ms)
+ GET /api/auth/session 200 in 13ms (compile: 2ms, render: 10ms)
+ GET /auth/login?callbackUrl=%2F 200 in 36ms (compile: 4ms, proxy.ts: 6ms, render: 27ms)
+ GET /auth/login?callbackUrl=%2F 200 in 51ms (compile: 4ms, proxy.ts: 7ms, render: 40ms)
+ GET /auth/login 200 in 108ms (compile: 5ms, proxy.ts: 6ms, render: 97ms)
+ GET /api/auth/session 200 in 40ms (compile: 28ms, render: 12ms)
+ GET /api/auth/providers 200 in 24ms (compile: 9ms, render: 15ms)
+ GET /api/auth/csrf 200 in 14ms (compile: 3ms, render: 11ms)
+ POST /api/auth/callback/credentials 200 in 15ms (compile: 4ms, render: 11ms)
+ GET /api/auth/session 200 in 17ms (compile: 4ms, render: 13ms)
+ GET /auth/login?callbackUrl=%2F 200 in 43ms (compile: 8ms, proxy.ts: 6ms, render: 30ms)
+ GET /auth/login?callbackUrl=%2F 200 in 104ms (compile: 6ms, proxy.ts: 12ms, render: 86ms)
+ GET /auth/login 200 in 173ms (compile: 13ms, proxy.ts: 12ms, render: 149ms)
+ GET /api/auth/session 200 in 47ms (compile: 37ms, render: 10ms)
+ GET /api/auth/providers 200 in 10ms (compile: 3ms, render: 8ms)
+ GET /api/auth/csrf 200 in 12ms (compile: 3ms, render: 9ms)
+ POST /api/auth/callback/credentials 200 in 15ms (compile: 2ms, render: 13ms)
+ GET /api/auth/session 200 in 10ms (compile: 2ms, render: 8ms)
+ GET /auth/login?callbackUrl=%2F 200 in 49ms (compile: 4ms, proxy.ts: 8ms, render: 37ms)
+ GET /auth/login?callbackUrl=%2F 200 in 49ms (compile: 3ms, proxy.ts: 4ms, render: 41ms)

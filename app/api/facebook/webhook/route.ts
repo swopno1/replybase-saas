@@ -92,10 +92,22 @@ export async function POST(req: NextRequest) {
     }
 }
 
+interface FacebookMessagingEvent {
+  sender?: { id: string };
+  recipient?: { id: string };
+  message?: {
+    text?: string;
+    is_echo?: boolean;
+  };
+  delivery?: unknown;
+  read?: unknown;
+  postback?: unknown;
+}
+
 /**
  * Handles a single messaging event from Facebook
  */
-async function handleMessagingEvent(event: any) {
+async function handleMessagingEvent(event: FacebookMessagingEvent) {
     try {
         // Skip delivery receipts
         if (event.delivery) {

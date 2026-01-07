@@ -23,7 +23,6 @@ import Link from "next/link";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
@@ -34,7 +33,7 @@ export default function LoginPage() {
     // Attempt sign in
     const res = await signIn("credentials", {
       email,
-      password,
+      password: (e.currentTarget.elements.namedItem("password") as HTMLInputElement).value,
       redirect: false,
     });
 

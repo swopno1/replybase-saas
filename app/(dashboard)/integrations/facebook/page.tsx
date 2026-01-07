@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { signIn } from "next-auth/react";
 import { useEffect, useState } from "react";
-import { Loader2, MessageSquare, CheckCircle2, XCircle, ArrowLeft, AlertCircle, ExternalLink } from "lucide-react";
+import { Loader2, MessageSquare, CheckCircle2, XCircle, ArrowLeft, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -116,7 +116,7 @@ export default function FacebookIntegrationPage() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <p className="text-sm text-muted-foreground">
-                            You'll need to authorize ReplyBase to access your Facebook Pages and send messages on your behalf.
+                            You&apos;ll need to authorize ReplyBase to access your Facebook Pages and send messages on your behalf.
                         </p>
                         <Button onClick={() => signIn("facebook")} size="lg" className="w-full sm:w-auto">
                             <MessageSquare className="mr-2 h-4 w-4" />
@@ -171,7 +171,7 @@ export default function FacebookIntegrationPage() {
                                     <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
                                     <h3 className="text-lg font-medium mb-2">No pages found</h3>
                                     <p className="text-sm text-muted-foreground mb-4 max-w-md">
-                                        We couldn't find any Facebook Pages associated with your account. Make sure you're an admin of at least one Facebook Page.
+                                        We couldn&apos;t find any Facebook Pages associated with your account. Make sure you&apos;re an admin of at least one Facebook Page.
                                     </p>
                                     <Button variant="outline" onClick={() => signIn("facebook")}>
                                         Re-connect Facebook Account

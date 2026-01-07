@@ -1,4 +1,4 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "next-auth/next";
 import { BotpressService } from "@/lib/botpress";
 import { prisma } from "@/lib/prisma";
 import {
@@ -39,7 +39,10 @@ function formatTimeAgo(date: Date): string {
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
-  const userId = (session?.user as any)?.id;
+  if (!session?.user) {
+    return null;
+  }
+  const userId = session.user.id;
 
   // Get engine health
   const health = await BotpressService.getHealth();
@@ -60,14 +63,14 @@ export default async function DashboardPage() {
 
   const connectedPagesCount = connectedPages.length;
   const activePagesCount = connectedPages.filter(
-    (p) => p.engineConnected
+      (p: { engineConnected: boolean }) => p.engineConnected
   ).length;
   const isAIActive = activePagesCount > 0 && isEngineUp;
 
   // Get last message timestamp
   let lastMessageTimestamp: Date | null = null;
   if (userId && connectedPages.length > 0) {
-    const facebookPageIds = connectedPages.map((p) => p.facebookId);
+      const facebookPageIds = connectedPages.map((p: { facebookId: string }) => p.facebookId);
     const lastMessage = await prisma.messageLog.findFirst({
       where: {
         conversation: {

@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "next-auth/next";
 import { getUserUsage, getUserLimits } from "@/lib/subscription";
 import { authOptions } from "@/lib/auth";
 
 // GET: Get usage statistics
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = (session.user as any).id;
+    const userId = session.user.id;
 
     const [usage, limits] = await Promise.all([
       getUserUsage(userId),

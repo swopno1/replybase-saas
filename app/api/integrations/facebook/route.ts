@@ -1,15 +1,15 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
-  if (!session || !session.user) {
+  if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const userId = (session.user as any).id;
+  const userId = session.user.id;
   if (!userId) {
     return NextResponse.json({ error: "User ID missing" }, { status: 400 });
   }

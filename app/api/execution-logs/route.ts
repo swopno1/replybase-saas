@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "next-auth/next";
 import { getUserExecutionLogs } from "@/lib/execution-logger";
 import { authOptions } from "@/lib/auth";
 
@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = (session.user as any).id;
+    const userId = session.user.id;
 
     const searchParams = req.nextUrl.searchParams;
     const limit = parseInt(searchParams.get("limit") || "100");

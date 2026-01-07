@@ -1,4 +1,4 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
 import { BotpressService } from "@/lib/botpress";
 import {
@@ -23,7 +23,10 @@ import { authOptions } from "@/lib/auth";
 
 export default async function AIStatusPage() {
   const session = await getServerSession(authOptions);
-  const userId = (session?.user as any)?.id;
+  if (!session?.user) {
+    return null;
+  }
+  const userId = session.user.id;
 
   // Get engine health
   const health = await BotpressService.getHealth();
@@ -47,7 +50,7 @@ export default async function AIStatusPage() {
     : [];
 
   const activePagesCount = connectedPages.filter(
-    (p) => p.engineConnected
+    (p: { engineConnected: boolean }) => p.engineConnected
   ).length;
   const isAIActive = activePagesCount > 0 && isEngineUp;
 
@@ -174,7 +177,7 @@ export default async function AIStatusPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {connectedPages.map((page) => (
+            {connectedPages.map((page: { id: string; name: string; engineConnected: boolean; facebookId: string; botId: string | null }) => (
               <div
                 key={page.id}
                 className="flex items-center justify-between p-4 border rounded-lg"
@@ -218,7 +221,7 @@ export default async function AIStatusPage() {
           </p>
           <p>
             The engine must be online for AI replies to work. If the engine is
-            offline, you'll see a warning above.
+            offline, you&apos;ll see a warning above.
           </p>
         </CardContent>
       </Card>

@@ -4,7 +4,7 @@ interface SignedRequestPayload {
     user_id?: string;
     algorithm: string;
     issued_at: number;
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 export function parseSignedRequest(signedRequest: string, appSecret: string): SignedRequestPayload | null {

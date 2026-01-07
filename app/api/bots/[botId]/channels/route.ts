@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { getUserLimits } from "@/lib/subscription";
@@ -9,7 +9,7 @@ const createChannelSchema = z.object({
   type: z.enum(["facebook", "whatsapp", "web"]),
   channelId: z.string().min(1),
   accessToken: z.string().optional(),
-  config: z.record(z.any()).optional(),
+  config: z.record(z.string(), z.unknown()).optional(),
 });
 
 // GET: List channels for a bot
@@ -19,7 +19,7 @@ export async function GET(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+  if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -65,7 +65,7 @@ export async function POST(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+  if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -113,7 +113,8 @@ export async function POST(
         type: validated.type,
         channelId: validated.channelId,
         accessToken: validated.accessToken || null,
-        config: validated.config || {},
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        config: (validated.config as any) || {},
         enabled: true,
         killSwitch: false,
       },
@@ -123,7 +124,7 @@ export async function POST(
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Invalid input", details: error.errors },
+        { error: "Invalid input", details: error.issues },
         { status: 400 }
       );
     }
