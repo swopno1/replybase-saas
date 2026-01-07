@@ -1,201 +1,76 @@
 # Repeatable Update Playbook
 
-## Quick Reference: Update Flow
+## Quick Reference: Standard Update Flow
 
-When you update the SaaS app code, follow these steps in order:
+Follow these steps for routine app updates:
 
----
+1. **Pull Code**: `cd ~/replybase-infra/sites/app && git pull origin main`
+2. **Build App**: `cd ~/replybase-infra && docker compose build app`
+3. **Restart App**: `docker compose up -d app`
+4. **Migrate DB (if schema changed)**: `docker compose exec -u root app npx prisma migrate deploy`
+5. **Verify**: `docker ps && docker logs replybase-app --tail=50`
 
-### Step 1: Pull Latest Code
-
-```bash
-cd ~/replybase-infra/sites/app
-git pull origin main
-```
-
----
-
-### Step 2: Rebuild ONLY the App Image
-
-```bash
-cd ~/replybase-infra
-docker compose build app
-```
-
-**Note:** Do not rebuild `nginx`, `postgres`, or `botpress` unless their configurations have changed.
-
----
-
-### Step 3: Restart the App Container
-
-```bash
-docker compose up -d app
-```
-
----
-
-### Step 4: Run Database Migrations (If Schema Changed)
-
-If the update includes Prisma schema changes, run migrations manually (temporary until automated in Dockerfile):
-
-```bash
-docker compose exec -u root app npx prisma migrate deploy
-```
-
-**Note:** Use `-u root` to avoid permission errors writing to `/app/node_modules/@prisma/engines`. Skip if no schema changes.
-
----
-
-### Step 5: Verify Deployment
-
-```bash
-# Check container status
-docker ps
-
-# View recent logs
-docker logs replybase-app --tail=50
-
-# Check database logs for errors
-docker logs replybase-postgres --tail=50
-```
-
----
-
-## When Prisma Schema Changes
-
-### ✅ Preferred Method (Future-Proof)
-
-1. Ensure migrations run automatically in the `Dockerfile` (e.g., add `RUN npx prisma migrate deploy` after installing dependencies).
-2. Rebuild the image (Step 2 above)
-3. Restart the container (Step 3 above)
-
-### ⚠️ Temporary Method (Manual - Use Only if Needed)
-
-```bash
-docker compose exec -u root app npx prisma migrate deploy
-```
-
-**Note:** Requires root permissions due to container setup. Automate this in the Dockerfile for production.
-
----
-
-## Critical Strategic Guidelines
-
-### Current State Issues
-
-- ❌ Manual SSH commands
-- ❌ Running commands from host machine
-- ❌ Inconsistent service name usage
-- ❌ Non-repeatable deployment process
-
-### Production-Ready Requirements
-
-#### 1. Create `DEPLOY.md`
-
-Document the standardized deployment process for the team.
-
-#### 2. Standardize Commands
-
-Always use:
-
-```bash
-docker compose build app
-docker compose up -d app
-```
-
-#### 3. Never Run Prisma from Host
-
-All Prisma commands should run inside containers or via CI/CD.
-
-#### 4. Automate Everything
-
-- Database migrations should run automatically on container startup
-- No manual intervention should be required for standard deployments
-
----
-
-## Next Steps to Production-Grade
-
-1. **Add CI/CD Pipeline**
-
-   - Automate build on git push
-   - Run tests before deployment
-   - Auto-deploy to staging/production
-
-2. **Environment-Specific Configs**
-
-   - Separate `.env` files for dev/staging/prod
-   - Use secrets management (e.g., Docker secrets, AWS Secrets Manager)
-
-3. **Health Checks**
-
-   - Add health check endpoints to the app
-   - Configure Docker health checks
-   - Set up monitoring/alerting
-
-4. **Rollback Strategy**
-   - Tag Docker images with version numbers
-   - Keep previous images for quick rollback
-   - Document rollback procedure
-
----
+**Notes**:
+- Only rebuild `app`; skip `nginx`, `postgres`, `botpress` unless configs change.
+- Use root for Prisma to avoid permission errors.
 
 ## Troubleshooting
 
-### Container Won't Start
+### Container Issues
+- **Won't Start**: `docker logs replybase-app --tail=100 && docker ps -a`
+- **Restart All**: `docker compose down && docker compose up -d`
 
-```bash
-# Check logs
-docker logs replybase-app --tail=100
+### Database Issues
+- **Connection Errors**: `docker logs replybase-postgres --tail=50`
+- **Test from App**: `docker compose exec -u root app npx prisma migrate deploy`
+- **Role/User Errors**: Use correct user from .env (e.g., -U rb_admin, not postgres).
 
-# Check container status
-docker ps -a
+### Nginx Issues
+- **Site Not Updating**: `docker compose restart nginx && docker logs replybase-nginx --tail=50`
 
-# Restart all services
-docker compose down && docker compose up -d
-```
+### Build Failures
+- **Clean Cache**: `docker builder prune && docker compose build --no-cache app`
+- **Missing '@tailwindcss/postcss' or 'stripe'**:
+  - Add to `package.json` dependencies.
+  - Change Dockerfile `RUN npm install --production` to `RUN npm install`.
+  - Run `npm install` in `./sites/app`.
+  - Disable Turbopack in `next.config.js`: `experimental: { turbo: false }`.
 
-### Database Connection Issues
+## Advanced: Full Redeploy from Scratch
 
-```bash
-# Verify postgres is running
-docker ps | grep postgres
+For complete reset (drops all data—backup first).
 
-# Check database logs
-docker logs replybase-postgres --tail=50
+1. **Stop All**: `docker compose down -v`
+2. **Remove Volumes**: `docker volume rm replybase-infra_postgres_data replybase-infra_botpress_data`
+3. **Redeploy Postgres**: `docker compose up -d postgres` (wait for healthy)
+4. **Reset DB**: `docker compose exec -u root postgres psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "DROP SCHEMA IF EXISTS app CASCADE; CREATE SCHEMA app;"`  
+   *Note: If env vars not loaded, replace with actual values (e.g., -U postgres -d replybase).*
+5. **Push Schema**: `docker compose exec -u root app npx prisma db push --skip-generate`
+6. **Deploy Botpress**: `docker compose up -d botpress`
+7. **Deploy Rest**: `docker compose up -d marketing app nginx`
+8. **Verify**: `docker ps && curl -i https://app.replybase.co.uk/`
 
-# Test connection from app container
-docker compose exec -u root app npx prisma migrate deploy
-```
+## Advanced: Clean Droplet Redeploy
 
-### Nginx Proxy Issues (If Site Not Updating)
+Fresh droplet start.
 
-```bash
-# Restart nginx if configs changed or app container recreated
-docker compose restart nginx
+1. **Clean Droplet**: `docker compose down -v && docker system prune -a --volumes && sudo apt clean && sudo apt autoremove -y`
+2. **Deploy Marketing**: `docker compose up -d marketing nginx`
+3. **Deploy DB/Botpress**: `docker compose up -d postgres` (wait), then `docker compose up -d botpress`
+4. **Deploy App**: Pull code, `docker compose build app && docker compose up -d app && docker compose exec -u root app npx prisma db push --skip-generate`
+5. **Verify**: `docker ps && docker logs replybase-app --tail=50 && curl -i https://app.replybase.co.uk/`
 
-# Check nginx logs
-docker logs replybase-nginx --tail=50
-```
+## Strategic Guidelines
 
-### Image Build Failures
-
-```bash
-# Clean build cache
-docker builder prune
-
-# Rebuild without cache
-docker compose build --no-cache app
-```
-
----
+- **Issues**: Manual commands, inconsistent names, non-repeatable process.
+- **Requirements**: Automate migrations, use CI/CD, secure configs, add health checks/monitoring.
+- **Never Run Prisma from Host**: Always in containers.
 
 ## TODO: Next Phase Improvements
 
-- [ ] Create `DEPLOY.md` with team deployment guidelines
-- [ ] Set up automated migrations in Dockerfile
-- [ ] Implement CI/CD pipeline
-- [ ] Add health check endpoints
-- [ ] Configure monitoring and alerts
-- [ ] Document rollback procedures
-- [ ] Set up staging environment
+- [ ] Create `DEPLOY.md` for team guidelines
+- [ ] Automate migrations in Dockerfile
+- [ ] Set up CI/CD pipeline
+- [ ] Add health endpoints and monitoring
+- [ ] Document rollback
+- [ ] Configure staging environment
