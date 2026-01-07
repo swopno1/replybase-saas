@@ -1,4 +1,4 @@
-import { getServerSession } from "next-auth/next";
+import { getServerSession } from "next-auth";
 import { BotpressService } from "@/lib/botpress";
 import { prisma } from "@/lib/prisma";
 import {
@@ -21,6 +21,7 @@ import {
   Clock,
 } from "lucide-react";
 import { authOptions } from "@/lib/auth";
+
 // Simple date formatter
 function formatTimeAgo(date: Date): string {
   const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
@@ -39,38 +40,44 @@ function formatTimeAgo(date: Date): string {
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
-  if (!session?.user) {
+  if (!session?.user?.id) {
     return null;
   }
-  const userId = session.user.id;
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    include: { tenant: true },
+  });
+
+  if (!user?.tenantId) {
+    return null; // No tenant found
+  }
 
   // Get engine health
   const health = await BotpressService.getHealth();
   const isEngineUp = !!health;
 
-  // Get connected Facebook pages
-  const connectedPages = userId
-    ? await prisma.facebookPage.findMany({
-        where: { userId },
-        select: {
-          id: true,
-          facebookId: true,
-          name: true,
-          engineConnected: true,
-        },
-      })
-    : [];
+  // Get connected Facebook pages (tenant-scoped)
+  const connectedPages = await prisma.facebookPage.findMany({
+    where: { userId: session.user.id }, // Already scoped to user, which is tenant-safe
+    select: {
+      id: true,
+      facebookId: true,
+      name: true,
+      engineConnected: true,
+    },
+  });
 
   const connectedPagesCount = connectedPages.length;
   const activePagesCount = connectedPages.filter(
-      (p: { engineConnected: boolean }) => p.engineConnected
+    (p) => p.engineConnected
   ).length;
   const isAIActive = activePagesCount > 0 && isEngineUp;
 
-  // Get last message timestamp
+  // Get last message timestamp (tenant-scoped via facebookPageId)
   let lastMessageTimestamp: Date | null = null;
-  if (userId && connectedPages.length > 0) {
-      const facebookPageIds = connectedPages.map((p: { facebookId: string }) => p.facebookId);
+  if (connectedPages.length > 0) {
+    const facebookPageIds = connectedPages.map((p) => p.facebookId);
     const lastMessage = await prisma.messageLog.findFirst({
       where: {
         conversation: {
@@ -89,15 +96,13 @@ export default async function DashboardPage() {
     lastMessageTimestamp = lastMessage?.createdAt || null;
   }
 
-  // Determine setup status
-  const hasFacebookAccount = userId
-    ? await prisma.account.findFirst({
-        where: {
-          userId,
-          provider: "facebook",
-        },
-      })
-    : null;
+  // Determine setup status (tenant-scoped)
+  const hasFacebookAccount = await prisma.account.findFirst({
+    where: {
+      userId: session.user.id,
+      provider: "facebook",
+    },
+  });
 
   const setupComplete =
     hasFacebookAccount &&

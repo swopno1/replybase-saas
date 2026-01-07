@@ -1,27 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
+import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
 
 export async function GET(_req: NextRequest) {
   try {
-    const session = await getServerSession();
-  if (!session?.user) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // First get user by email
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true },
+      where: { id: session.user.id },
+      include: { tenant: true },
     });
 
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (!user?.tenantId) {
+      return NextResponse.json({ error: "No tenant found" }, { status: 403 });
     }
 
-    // Then get subscription by userId
+    // Get subscription by tenantId
     const subscription = await prisma.subscription.findUnique({
-      where: { userId: user.id },
+      where: { tenantId: user.tenantId },
       include: { plan: true },
     });
 
@@ -44,8 +44,9 @@ export async function GET(_req: NextRequest) {
 
       const created = await prisma.subscription.create({
         data: {
-          userId: user.id,
+          tenantId: user.tenantId,
           planId: freePlan.id,
+          stripeId: "", // Placeholder for free plan
           status: "active",
           currentPeriodStart: new Date(),
           currentPeriodEnd,

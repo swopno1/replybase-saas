@@ -33,7 +33,11 @@ export default function LoginPage() {
     // Attempt sign in
     const res = await signIn("credentials", {
       email,
-      password: (e.currentTarget.elements.namedItem("password") as HTMLInputElement).value,
+      password: (
+        (e.currentTarget as HTMLFormElement).elements.namedItem(
+          "password"
+        ) as HTMLInputElement
+      ).value,
       redirect: false,
     });
 

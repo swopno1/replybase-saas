@@ -88,7 +88,7 @@ export async function isChannelKillSwitchEnabled(
   channelType: string,
   channelId: string
 ): Promise<boolean> {
-  const channel = await prisma.botChannel.findFirst({
+  const channel = await prisma.channel.findFirst({
     where: {
       botId,
       type: channelType,

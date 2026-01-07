@@ -1,4 +1,4 @@
-import { prisma } from './prisma';
+import { prisma } from "./prisma";
 
 export interface SubscriptionLimits {
   dailyMessageLimit: number;
@@ -16,32 +16,41 @@ export interface UsageStats {
 }
 
 /**
- * Get user's subscription plan or default to free
+ * Get tenant's subscription plan or default to free
  */
 export async function getUserSubscription(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { tenant: true },
+  });
+
+  if (!user?.tenantId) {
+    throw new Error("User not found or no tenant");
+  }
+
   const subscription = await prisma.subscription.findUnique({
-    where: { userId },
+    where: { tenantId: user.tenantId },
     include: { plan: true },
   });
 
-  if (subscription && subscription.status === 'active') {
+  if (subscription && subscription.status === "active") {
     return subscription;
   }
 
   // Return free plan if no active subscription
   const freePlan = await prisma.plan.findUnique({
-    where: { name: 'free' },
+    where: { name: "free" },
   });
 
   if (!freePlan) {
-    throw new Error('Free plan not found in database');
+    throw new Error("Free plan not found in database");
   }
 
   return {
-    id: 'free',
-    userId,
+    id: "free",
+    tenantId: user.tenantId,
     planId: freePlan.id,
-    status: 'active' as const,
+    status: "active" as const,
     currentPeriodStart: new Date(),
     currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     cancelAtPeriodEnd: false,
@@ -54,7 +63,9 @@ export async function getUserSubscription(userId: string) {
 /**
  * Get subscription limits for a user
  */
-export async function getUserLimits(userId: string): Promise<SubscriptionLimits> {
+export async function getUserLimits(
+  userId: string
+): Promise<SubscriptionLimits> {
   const subscription = await getUserSubscription(userId);
   const plan = subscription.plan;
 
@@ -68,9 +79,23 @@ export async function getUserLimits(userId: string): Promise<SubscriptionLimits>
 }
 
 /**
- * Get current usage stats for a user
+ * Get current usage stats for a tenant
  */
-export async function getUserUsage(userId: string, date: Date = new Date()): Promise<UsageStats> {
+export async function getUserUsage(
+  userId: string,
+  date: Date = new Date()
+): Promise<UsageStats> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { tenant: true },
+  });
+
+  if (!user?.tenantId) {
+    throw new Error("User not found or no tenant");
+  }
+
+  const tenantId = user.tenantId;
+
   const startOfDay = new Date(date);
   startOfDay.setHours(0, 0, 0, 0);
 
@@ -79,8 +104,8 @@ export async function getUserUsage(userId: string, date: Date = new Date()): Pro
   // Daily message count
   const dailyMessages = await prisma.usageLog.aggregate({
     where: {
-      userId,
-      type: 'message',
+      tenantId,
+      type: "message",
       date: {
         gte: startOfDay,
       },
@@ -93,8 +118,8 @@ export async function getUserUsage(userId: string, date: Date = new Date()): Pro
   // Monthly message count
   const monthlyMessages = await prisma.usageLog.aggregate({
     where: {
-      userId,
-      type: 'message',
+      tenantId,
+      type: "message",
       date: {
         gte: startOfMonth,
       },
@@ -107,8 +132,8 @@ export async function getUserUsage(userId: string, date: Date = new Date()): Pro
   // Daily flow executions
   const dailyFlowExecutions = await prisma.usageLog.aggregate({
     where: {
-      userId,
-      type: 'flow_execution',
+      tenantId,
+      type: "flow_execution",
       date: {
         gte: startOfDay,
       },
@@ -121,7 +146,7 @@ export async function getUserUsage(userId: string, date: Date = new Date()): Pro
   // Bot count
   const botCount = await prisma.bot.count({
     where: {
-      userId,
+      tenantId,
     },
   });
 
@@ -134,9 +159,12 @@ export async function getUserUsage(userId: string, date: Date = new Date()): Pro
 }
 
 /**
- * Check if user has exceeded their limits
+ * Check if tenant has exceeded their limits
  */
-export async function checkLimit(userId: string, type: 'message' | 'flow_execution'): Promise<{
+export async function checkLimit(
+  userId: string,
+  type: "message" | "flow_execution"
+): Promise<{
   allowed: boolean;
   remaining: number;
   limit: number;
@@ -144,7 +172,7 @@ export async function checkLimit(userId: string, type: 'message' | 'flow_executi
   const limits = await getUserLimits(userId);
   const usage = await getUserUsage(userId);
 
-  if (type === 'message') {
+  if (type === "message") {
     const limit = limits.dailyMessageLimit;
     const used = usage.dailyMessages;
     const remaining = Math.max(0, limit - used);
@@ -154,7 +182,7 @@ export async function checkLimit(userId: string, type: 'message' | 'flow_executi
       remaining,
       limit,
     };
-  } else if (type === 'flow_execution') {
+  } else if (type === "flow_execution") {
     const limit = limits.flowExecutionCap;
     const used = usage.dailyFlowExecutions;
     const remaining = Math.max(0, limit - used);
@@ -174,26 +202,37 @@ export async function checkLimit(userId: string, type: 'message' | 'flow_executi
  */
 export async function incrementUsage(
   userId: string,
-  type: 'message' | 'flow_execution',
+  type: "message" | "flow_execution",
   count: number = 1,
   botId?: string,
   channelId?: string
 ) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { tenant: true },
+  });
+
+  if (!user?.tenantId) {
+    throw new Error("User not found or no tenant");
+  }
+
+  const tenantId = user.tenantId;
+
   const date = new Date();
   date.setHours(0, 0, 0, 0);
 
   await prisma.usageLog.upsert({
     where: {
-      userId_type_date_botId_channelId: {
-        userId,
+      tenantId_type_date_botId_channelId: {
+        tenantId,
         type,
         date,
-        botId: botId || '',
-        channelId: channelId || '',
+        botId: botId || "",
+        channelId: channelId || "",
       },
     },
     create: {
-      userId,
+      tenantId,
       type,
       date,
       count,
@@ -209,7 +248,7 @@ export async function incrementUsage(
 }
 
 /**
- * Check if user can create more bots
+ * Check if tenant can create more bots
  */
 export async function canCreateBot(userId: string): Promise<boolean> {
   const limits = await getUserLimits(userId);
@@ -217,4 +256,3 @@ export async function canCreateBot(userId: string): Promise<boolean> {
 
   return usage.botCount < limits.maxBots;
 }
-

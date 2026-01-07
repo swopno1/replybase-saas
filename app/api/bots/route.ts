@@ -17,14 +17,21 @@ const createBotSchema = z.object({
 export async function GET(_req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { tenant: true },
+    });
+
+    if (!user?.tenantId) {
+      return NextResponse.json({ error: "No tenant found" }, { status: 403 });
+    }
 
     const bots = await prisma.bot.findMany({
-      where: { userId },
+      where: { tenantId: user.tenantId },
       include: {
         channels: {
           select: {
@@ -59,14 +66,21 @@ export async function GET(_req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { tenant: true },
+    });
+
+    if (!user?.tenantId) {
+      return NextResponse.json({ error: "No tenant found" }, { status: 403 });
+    }
 
     // Check if user can create more bots
-    const canCreate = await canCreateBot(userId);
+    const canCreate = await canCreateBot(session.user.id);
     if (!canCreate) {
       return NextResponse.json(
         { error: "Bot limit reached. Please upgrade your plan." },
@@ -79,7 +93,7 @@ export async function POST(req: NextRequest) {
 
     const bot = await prisma.bot.create({
       data: {
-        userId,
+        tenantId: user.tenantId,
         name: validated.name,
         description: validated.description || null,
         entryFlow: validated.entryFlow || null,
@@ -96,7 +110,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Invalid input", details: error.errors },
+        { error: "Invalid input", details: error.issues },
         { status: 400 }
       );
     }

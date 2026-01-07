@@ -1,13 +1,12 @@
 generator client {
-  provider      = "prisma-client-js"
-  engineType    = "binary"
-  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
+// NextAuth.js models
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -53,9 +52,8 @@ model User {
   accounts Account[]
   sessions Session[]
 
-  // Custom Fields for ReplyBase
+  // ReplyBase-specific relations
   facebookPages FacebookPage[]
-  subscription  Subscription?
   bots          Bot[]
   usageLogs     UsageLog[]
   executionLogs ExecutionLog[]
@@ -72,8 +70,10 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users User[]
-  bots  Bot[]
+  users         User[]
+  bots          Bot[]
+  subscriptions Subscription[]
+  usageLogs     UsageLog[]
 
   @@map("tenants")
 }
@@ -87,77 +87,85 @@ model VerificationToken {
   @@map("verificationtokens")
 }
 
+// Facebook integration models
 model FacebookPage {
   id          String @id @default(cuid())
-  facebookId  String @unique // The actual FB Page ID
+  facebookId  String @unique // External Facebook Page ID
   name        String
-  accessToken String @db.Text // Encrypted (conceptually, or raw for MVP)
+  accessToken String @db.Text
   userId      String
   user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Engine Integration
-  botId           String? // ID of the bot in Botpress (workspace)
-  engineConnected Boolean @default(false)
+  botId           String? // Optional link to a Bot
+  bot             Bot?    @relation(fields: [botId], references: [id])
+  engineConnected Boolean @default(false) // AI engine connection status
 
-  // Relations
   conversations Conversation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([facebookId])
+  @@map("facebook_pages")
 }
 
 model Conversation {
-  id             String   @id @default(cuid())
-  facebookPageId String // FK to FacebookPage
+  id             String       @id @default(cuid())
+  facebookPageId String // References FacebookPage.id
+  facebookPage   FacebookPage @relation(fields: [facebookPageId], references: [id], onDelete: Cascade)
   userPsid       String // Facebook User PSID
-  sessionId      String   @unique // Botpress session ID: fb_{pageId}_{psid}
-  lastActivityAt DateTime @default(now())
+  sessionId      String       @unique // Botpress session ID
+  lastActivityAt DateTime     @default(now())
 
-  facebookPage FacebookPage @relation(fields: [facebookPageId], references: [facebookId], onDelete: Cascade)
-  messageLogs  MessageLog[]
+  messageLogs MessageLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([facebookPageId, userPsid])
   @@index([sessionId])
+  @@index([facebookPageId])
+  @@map("conversations")
 }
 
 model MessageLog {
-  id             String  @id @default(cuid())
+  id             String       @id @default(cuid())
   conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   direction      String // "inbound" or "outbound"
-  content        String  @db.Text
-  status         String  @default("success") // "success", "error", "timeout"
-  errorDetails   String? @db.Text
-
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  messageId      String       @unique // External message ID
+  content        String       @db.Text
+  status         String       @default("success") // "success", "error", "timeout"
+  errorDetails   String?      @db.Text
 
   createdAt DateTime @default(now())
 
   @@index([conversationId, createdAt])
+  @@index([messageId])
+  @@map("message_logs")
 }
 
 model Subscription {
-  id                 String   @id @default(cuid())
-  userId             String   @unique
-  planId             String
-  status             String   @default("active") // "active", "canceled", "past_due", "trialing"
-  currentPeriodStart DateTime @default(now())
+  id                 String    @id @default(cuid())
+  stripeId           String    @unique // Stripe subscription ID
+  stripeCustomerId   String?   @unique // Stripe customer ID
+  status             String    @default("active") // "active", "canceled", "past_due", "trialing"
+  currentPeriodStart DateTime  @default(now())
   currentPeriodEnd   DateTime
-  cancelAtPeriodEnd  Boolean  @default(false)
-  stripeCustomerId   String?  @unique
+  cancelAtPeriodEnd  Boolean   @default(false)
+  trialEndsAt        DateTime? // Trial end date
 
-  // Add trial fields
-  trialEndsAt DateTime? // Make it optional
+  planId String
+  plan   Plan   @relation(fields: [planId], references: [id])
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan Plan @relation(fields: [planId], references: [id])
+  tenantId String @unique
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([userId])
+  @@map("subscriptions")
 }
 
 model Plan {
@@ -181,6 +189,36 @@ model Plan {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@map("plans")
+}
+
+// Bot and channel models
+model Bot {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+
+  // Added fields for bot configuration
+  entryFlow      String?
+  welcomeMessage String?
+  triggers       Json    @default("[]")
+  enabled        Boolean @default(true)
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  channels      Channel[]
+  executionLogs ExecutionLog[]
+  facebookPages FacebookPage[] // Linked Facebook pages
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+
+  @@index([tenantId])
+  @@map("bots")
 }
 
 model Channel {
@@ -188,12 +226,12 @@ model Channel {
   type        String // e.g., "facebook", "telegram"
   name        String
   accessToken String? @db.Text
-  pageId      String?
-  channelId   String?
+  pageId      String? // External page/channel ID
+  channelId   String? // Alternative external ID
   isActive    Boolean @default(true)
-  enabled     Boolean @default(true)
-  killSwitch  Boolean @default(false)
-  config      Json    @default("{}")
+  enabled     Boolean @default(true) // Enable/disable channel
+  killSwitch  Boolean @default(false) // Emergency stop
+  config      Json    @default("{}") // Flexible config
 
   botId String
   bot   Bot    @relation(fields: [botId], references: [id], onDelete: Cascade)
@@ -207,54 +245,13 @@ model Channel {
   @@map("channels")
 }
 
-model Bot {
-  id          String  @id @default(cuid())
-  name        String
-  description String?
-  isActive    Boolean @default(true)
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  channels Channel[]
-
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  user          User?          @relation(fields: [userId], references: [id])
-  userId        String?
-  botChannels   BotChannel[]
-  executionLogs ExecutionLog[]
-
-  @@index([tenantId])
-  @@map("bots")
-}
-
-model BotChannel {
-  id         String  @id @default(cuid())
-  botId      String
-  type       String // "facebook", "whatsapp", "web", etc.
-  enabled    Boolean @default(true)
-  killSwitch Boolean @default(false) // Emergency stop
-
-  // Channel-specific config
-  channelId   String // e.g., Facebook Page ID
-  accessToken String? @db.Text // Encrypted
-  config      Json    @default("{}") // Flexible channel config
-
-  bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([botId, type, channelId])
-  @@index([botId])
-}
-
-// Execution Logs (per project/bot)
+// Logging and usage models
 model ExecutionLog {
   id        String  @id @default(cuid())
   botId     String
+  bot       Bot     @relation(fields: [botId], references: [id], onDelete: Cascade)
   userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessionId String? // Botpress session ID
 
   // Execution details
@@ -269,20 +266,18 @@ model ExecutionLog {
   input  String? @db.Text
   output String? @db.Text
 
-  bot  Bot  @relation(fields: [botId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   createdAt DateTime @default(now())
 
   @@index([botId, createdAt])
   @@index([userId, createdAt])
   @@index([sessionId])
+  @@map("execution_logs")
 }
 
-// Usage Tracking (for limits)
 model UsageLog {
   id        String  @id @default(cuid())
-  userId    String
+  tenantId  String
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   botId     String?
   channelId String?
 
@@ -295,32 +290,38 @@ model UsageLog {
   // Time window
   date DateTime @db.Date // For daily limits
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
 
-  @@unique([userId, type, date, botId, channelId])
-  @@index([userId, date, type])
+  @@unique([tenantId, type, date, botId, channelId])
+  @@index([tenantId, date, type])
   @@index([botId, date])
+  @@map("usage_logs")
 }
 
+// CRM models
 model Lead {
   id        String   @id @default(cuid())
   name      String
   email     String   @unique
   phone     String?
-  status    String
+  status    String // e.g., "new", "contacted", "qualified"
   notes     Note[]
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("leads")
 }
 
 model Note {
   id        String   @id @default(cuid())
   content   String
   leadId    String
-  lead      Lead     @relation(fields: [leadId], references: [id])
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+
+  @@map("notes")
 }

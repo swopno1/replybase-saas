@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
+import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { getUserLimits } from "@/lib/subscription";
@@ -7,9 +7,10 @@ import { authOptions } from "@/lib/auth";
 
 const createChannelSchema = z.object({
   type: z.enum(["facebook", "whatsapp", "web"]),
+  name: z.string().min(1),
   channelId: z.string().min(1),
   accessToken: z.string().optional(),
-  config: z.record(z.string(), z.unknown()).optional(),
+  config: z.record(z.string(), z.any()).optional(),
 });
 
 // GET: List channels for a bot
@@ -19,7 +20,7 @@ export async function GET(
 ) {
   try {
     const session = await getServerSession(authOptions);
-  if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -43,7 +44,7 @@ export async function GET(
       return NextResponse.json({ error: "Bot not found" }, { status: 404 });
     }
 
-    const channels = await prisma.botChannel.findMany({
+    const channels = await prisma.channel.findMany({
       where: { botId },
       orderBy: { createdAt: "desc" },
     });
@@ -65,7 +66,7 @@ export async function POST(
 ) {
   try {
     const session = await getServerSession(authOptions);
-  if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -91,7 +92,7 @@ export async function POST(
 
     // Check channel limit
     const limits = await getUserLimits(session.user.id);
-    const channelCount = await prisma.botChannel.count({
+    const channelCount = await prisma.channel.count({
       where: { botId },
     });
 
@@ -107,14 +108,14 @@ export async function POST(
     const body = await req.json();
     const validated = createChannelSchema.parse(body);
 
-    const channel = await prisma.botChannel.create({
+    const channel = await prisma.channel.create({
       data: {
         botId,
         type: validated.type,
+        name: validated.name,
         channelId: validated.channelId,
         accessToken: validated.accessToken || null,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        config: (validated.config as any) || {},
+        config: (validated.config || {}) as any,
         enabled: true,
         killSwitch: false,
       },
