@@ -1,33 +1,86 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { prisma } from '@/lib/prisma';
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession();
     if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // First get user by email
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Then get subscription by userId
     const subscription = await prisma.subscription.findUnique({
-      where: { 
-        user: { email: session.user.email }
-      }
+      where: { userId: user.id },
+      include: { plan: true },
     });
 
     if (!subscription) {
-      return NextResponse.json({ error: 'Subscription not found' }, { status: 404 });
+      // Ensure a free plan exists
+      const freePlan = await prisma.plan.upsert({
+        where: { name: "free" },
+        update: {},
+        create: {
+          name: "free",
+          displayName: "Free",
+          price: 0,
+          currency: "USD",
+        },
+      });
+
+      const now = Date.now();
+      const trialEndsAt = new Date(now + 14 * 24 * 60 * 60 * 1000); // 14 days
+      const currentPeriodEnd = new Date(now + 30 * 24 * 60 * 60 * 1000); // 30 days
+
+      const created = await prisma.subscription.create({
+        data: {
+          userId: user.id,
+          planId: freePlan.id,
+          status: "active",
+          currentPeriodStart: new Date(),
+          currentPeriodEnd,
+          trialEndsAt,
+        },
+        include: { plan: true },
+      });
+
+      const trialDaysRemaining = Math.max(
+        0,
+        Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+      );
+
+      return NextResponse.json({
+        ...created,
+        trialDaysRemaining,
+      });
     }
 
     const trialDaysRemaining = subscription.trialEndsAt
-      ? Math.ceil((subscription.trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+      ? Math.ceil(
+          (subscription.trialEndsAt.getTime() - Date.now()) /
+            (1000 * 60 * 60 * 24)
+        )
       : 0;
 
     return NextResponse.json({
       ...subscription,
-      trialDaysRemaining: Math.max(0, trialDaysRemaining)
+      trialDaysRemaining: Math.max(0, trialDaysRemaining),
     });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch subscription' }, { status: 500 });
+    console.error("Subscription fetch error:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch subscription" },
+      { status: 500 }
+    );
   }
 }

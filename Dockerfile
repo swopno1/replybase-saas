@@ -9,7 +9,7 @@ WORKDIR /app
 # ------------------------------
 FROM base AS deps
 COPY package.json package-lock.json* ./
-RUN npm install
+RUN npm install --production
 
 # ------------------------------
 # Build
@@ -18,8 +18,11 @@ FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# Ensure Prisma is installed globally (if not already in dependencies)
+RUN npm install -g prisma
 RUN npx prisma generate
-RUN npx prisma migrate deploy
+# RUN npx prisma migrate deploy
 RUN npm run build
 
 # ------------------------------
@@ -32,7 +35,8 @@ ARG NODE_ENV=production
 ENV NODE_ENV=${NODE_ENV}
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN apk add --no-cache openssl
+# Engines prerequisites
+RUN apk add --no-cache openssl libstdc++
 
 # Security: non-root
 RUN addgroup -g 1001 nodejs \
@@ -44,10 +48,13 @@ COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/prisma ./prisma
 
+# Prisma CLI for runtime migrations
+RUN npm install -g prisma
+
 # Install prod-only deps
-COPY --from=builder /app/node_modules ./node_modules
+# COPY --from=builder /app/node_modules ./node_modules
 # RUN npm prune --omit=dev  <-- Skip prune to ensure prisma engine is available for MVP stability
 
 USER nextjs
 EXPOSE 3000
-CMD ["npm", "start"]
+CMD ["sh", "-c", "prisma migrate deploy && npm start"]

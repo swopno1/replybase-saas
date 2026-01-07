@@ -1,12 +1,19 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { TrialBadge } from './trial-badge';
-import Link from 'next/link';
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { TrialBadge } from "./trial-badge";
+import Link from "next/link";
+
+interface PlanInfo {
+  name: string;
+  displayName?: string | null;
+  price?: number | null;
+  currency?: string | null;
+}
 
 interface Subscription {
-  plan: string;
+  plan: PlanInfo | string;
   status: string;
   trialEndsAt: string | null;
   trialDaysRemaining: number;
@@ -19,11 +26,11 @@ export function SubscriptionStatus() {
   useEffect(() => {
     const fetchSubscription = async () => {
       try {
-        const res = await fetch('/api/billing/subscription');
+        const res = await fetch("/api/billing/subscription");
         const data = await res.json();
         setSubscription(data);
       } catch (error) {
-        console.error('Failed to fetch subscription:', error);
+        console.error("Failed to fetch subscription:", error);
       } finally {
         setLoading(false);
       }
@@ -35,7 +42,15 @@ export function SubscriptionStatus() {
   if (loading) return <div>Loading subscription...</div>;
   if (!subscription) return null;
 
-  const isTrialUser = subscription.plan === 'trial';
+  const planObj =
+    typeof subscription.plan === "string" ? null : subscription.plan;
+  const planName =
+    planObj?.name ??
+    (typeof subscription.plan === "string" ? subscription.plan : "Free");
+  const planLabel = planObj?.displayName ?? planName ?? "Free";
+  const planPrice =
+    planObj?.price != null ? `$${planObj.price.toFixed(2)}` : "$0.00";
+  const isTrialUser = planName === "trial";
   const daysRemaining = subscription.trialDaysRemaining;
 
   return (
@@ -45,9 +60,11 @@ export function SubscriptionStatus() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-gray-600 capitalize">
-              {isTrialUser ? '14-Day Free Trial' : subscription.plan}
+              {isTrialUser ? "14-Day Free Trial" : planLabel}
             </p>
-            {isTrialUser && <TrialBadge trialEndsAt={subscription.trialEndsAt} />}
+            {isTrialUser && (
+              <TrialBadge trialEndsAt={subscription.trialEndsAt} />
+            )}
           </div>
           {isTrialUser && daysRemaining <= 3 && (
             <Link href="/pricing">
@@ -57,9 +74,17 @@ export function SubscriptionStatus() {
         </div>
       </div>
 
+      <div className="text-lg font-semibold">{planLabel}</div>
+      <div className="text-sm text-muted-foreground">{planPrice}</div>
+
       {!isTrialUser && (
         <div>
-          <p className="text-sm text-gray-600 mb-2">Status: <span className="capitalize font-medium">{subscription.status}</span></p>
+          <p className="text-sm text-gray-600 mb-2">
+            Status:{" "}
+            <span className="capitalize font-medium">
+              {subscription.status}
+            </span>
+          </p>
           <Link href="/billing-portal">
             <Button variant="outline">Manage Subscription</Button>
           </Link>
