@@ -34,7 +34,19 @@ docker compose up -d app
 
 ---
 
-### Step 4: Verify Deployment
+### Step 4: Run Database Migrations (If Schema Changed)
+
+If the update includes Prisma schema changes, run migrations manually (temporary until automated in Dockerfile):
+
+```bash
+docker compose exec -u root app npx prisma migrate deploy
+```
+
+**Note:** Use `-u root` to avoid permission errors writing to `/app/node_modules/@prisma/engines`. Skip if no schema changes.
+
+---
+
+### Step 5: Verify Deployment
 
 ```bash
 # Check container status
@@ -42,6 +54,9 @@ docker ps
 
 # View recent logs
 docker logs replybase-app --tail=50
+
+# Check database logs for errors
+docker logs replybase-postgres --tail=50
 ```
 
 ---
@@ -50,7 +65,7 @@ docker logs replybase-app --tail=50
 
 ### ✅ Preferred Method (Future-Proof)
 
-1. Ensure migrations run automatically in the `Dockerfile`
+1. Ensure migrations run automatically in the `Dockerfile` (e.g., add `RUN npx prisma migrate deploy` after installing dependencies).
 2. Rebuild the image (Step 2 above)
 3. Restart the container (Step 3 above)
 
@@ -59,6 +74,8 @@ docker logs replybase-app --tail=50
 ```bash
 docker compose exec -u root app npx prisma migrate deploy
 ```
+
+**Note:** Requires root permissions due to container setup. Automate this in the Dockerfile for production.
 
 ---
 
@@ -148,7 +165,17 @@ docker ps | grep postgres
 docker logs replybase-postgres --tail=50
 
 # Test connection from app container
-docker compose exec app npx prisma db push --skip-generate
+docker compose exec -u root app npx prisma migrate deploy
+```
+
+### Nginx Proxy Issues (If Site Not Updating)
+
+```bash
+# Restart nginx if configs changed or app container recreated
+docker compose restart nginx
+
+# Check nginx logs
+docker logs replybase-nginx --tail=50
 ```
 
 ### Image Build Failures
