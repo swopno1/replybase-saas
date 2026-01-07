@@ -22,6 +22,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Ensure Prisma is installed globally (if not already in dependencies)
 RUN npm install -g prisma
 RUN npx prisma generate
+
+ARG RESEND_API_KEY
+ENV RESEND_API_KEY=$RESEND_API_KEY
+
 # RUN npx prisma migrate deploy
 RUN npm run build
 
