@@ -61,4 +61,4 @@ RUN npm install -g prisma
 
 USER nextjs
 EXPOSE 3000
-CMD ["sh", "-c", "prisma migrate deploy && npm start"]
+CMD ["npm", "start"]
