@@ -61,4 +61,4 @@ RUN npm install -g prisma
 
 USER nextjs
 EXPOSE 3000
-CMD ["npm", "start"]
+CMD ["node", ".next/standalone/server.js"]
