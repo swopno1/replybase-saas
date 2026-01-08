@@ -12,7 +12,7 @@
  GET /auth/login?callbackUrl=%2F 200 in 10.6s (compile: 9.7s, proxy.ts: 15ms, render: 897ms)
 ○ Compiling /api/auth/[...nextauth] ...
 ✓ Finished writing to filesystem cache in 17.4s
-APP_DATABASE_URL or DATABASE_URL is not set, using dummy URL
+ DATABASE_URL is not set, using dummy URL
 [next-auth][warn][NEXTAUTH_URL]
 https://next-auth.js.org/warnings#nextauth_url
 [next-auth][warn][NO_SECRET]
