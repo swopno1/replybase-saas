@@ -2,8 +2,12 @@ import { defineConfig } from "prisma/config";
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
-  migrations: { path: "prisma/migrations" },
+  migrations: {
+    path: "prisma/migrations",
+  },
   datasource: {
-    url: process.env.DATABASE_URL || "postgresql://dummy:dummy@dummy/dummy",
+    // We use process.env here to ensure it picks up
+    // the variable injected by Coolify at runtime
+    url: process.env.DATABASE_URL,
   },
 });
