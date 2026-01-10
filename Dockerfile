@@ -2,11 +2,9 @@ FROM node:22.12-slim AS base
 
 # 1. Install dependencies
 FROM base AS deps
-# Prisma needs openssl to run
 RUN apt-get update && apt-get install -y openssl libssl-dev && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package.json package-lock.json* ./
-# We need the prisma folder for the generate command
 COPY prisma ./prisma/ 
 RUN npm ci
 
@@ -20,7 +18,6 @@ COPY . .
 ARG NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 ARG NEXT_PUBLIC_APP_URL
 
-# Generate client and build app
 RUN npx prisma generate
 RUN npm run build
 
@@ -29,21 +26,31 @@ FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV production
 
-# Ensure openssl is in the final image too
+# FIX: Set HOME to /app so npm/npx has a place to write temp files
+ENV HOME=/app
+
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
+# FIX: Create the user with a real home directory
 RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN adduser --system --uid 1001 --home /app nextjs
 
+# Copy the standalone build
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-# Copy prisma schema so we can run migrations at runtime
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+
+# FIX: Pre-install prisma in the runner stage so 'npx' doesn't try to download it at runtime
+RUN npm install prisma@7.2.0
+
+# Ensure permissions are correct for the nextjs user
+RUN chown -R nextjs:nodejs /app
 
 USER nextjs
 EXPOSE 3000
 ENV PORT 3000
 
-# MAGIC STEP: Run migrations then start the server
-CMD npx prisma migrate deploy && node server.js
+# Run migration and start the app
+# Using the local prisma binary directly is safer than npx
+CMD ./node_modules/.bin/prisma migrate deploy && node server.js
