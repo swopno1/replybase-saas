@@ -1,9 +1,8 @@
 const BP_URL =
-  process.env.BOTPRESS_URL ||
-  process.env.BP_BASE_URL ||
+  process.env.AI_ENGINE_URL ||
   (process.env.NODE_ENV === "production"
-    ? "http://replybase-botpress:3002"
-    : "http://localhost:3002");
+    ? process.env.AI_ENGINE_URL
+    : "http://localhost:3001");
 
 const BP_TOKEN = process.env.BOTPRESS_ADMIN_TOKEN;
 
@@ -41,7 +40,10 @@ export class BotpressService {
     return null; // offline but app continues
   }
 
-  static async configureMessenger(botId: string, config: BotpressMessengerConfig) {
+  static async configureMessenger(
+    botId: string,
+    config: BotpressMessengerConfig
+  ) {
     const url = `${BP_URL}/api/v1/admin/bots/${botId}/config/channel-messenger`;
     const res = await fetch(url, {
       method: "POST",
