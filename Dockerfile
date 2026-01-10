@@ -56,4 +56,7 @@ ENV PORT 3000
 
 # FIX: Run migrations and start. 
 # We use 'sh -c' to ensure environment variables like DATABASE_URL are expanded correctly.
-CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node server.js"]
+# CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node server.js"]
+
+# This prints the first 10 characters of the DB URL for safety, then tries the migration
+CMD ["sh", "-c", "echo 'DB_URL starts with: ' ${DATABASE_URL:0:10}... && ./node_modules/.bin/prisma migrate deploy && node server.js"]
