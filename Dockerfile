@@ -58,4 +58,5 @@ ENV HOSTNAME="0.0.0.0"
 
 # FIX: Run migrations and start. 
 # We use 'sh -c' to ensure environment variables like DATABASE_URL are expanded correctly.
-CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node server.js"]
+# CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node server.js"]
+CMD ["sh", "-c", "./node_modules/.bin/prisma db push --accept-data-loss && node server.js"]
