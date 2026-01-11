@@ -43,6 +43,7 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./
 
 # Install Prisma CLI in the runner so it is available for migrations
 RUN npm install prisma@7.2.0
@@ -56,7 +57,4 @@ ENV PORT 3000
 
 # FIX: Run migrations and start. 
 # We use 'sh -c' to ensure environment variables like DATABASE_URL are expanded correctly.
-CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node server.js"]
-
-# This prints the first 10 characters of the DB URL for safety, then tries the migration
-# CMD ["sh", "-c", "echo 'DB_URL starts with: ' ${DATABASE_URL:0:10}... && ./node_modules/.bin/prisma migrate deploy && node server.js"]
+CMD ["sh", "-c", "echo 'Checking DB_URL...'; if [ -z \"$DATABASE_URL\" ]; then echo 'CRITICAL ERROR: DATABASE_URL is missing in runtime!'; else echo 'OK: DATABASE_URL is present.'; fi; ./node_modules/.bin/prisma migrate deploy && node server.js"]
