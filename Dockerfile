@@ -54,7 +54,8 @@ RUN chown -R nextjs:nodejs /app
 USER nextjs
 EXPOSE 3000
 ENV PORT 3000
+ENV HOSTNAME="0.0.0.0"
 
 # FIX: Run migrations and start. 
 # We use 'sh -c' to ensure environment variables like DATABASE_URL are expanded correctly.
-CMD ["sh", "-c", "echo 'Checking DB_URL...'; if [ -z \"$DATABASE_URL\" ]; then echo 'CRITICAL ERROR: DATABASE_URL is missing in runtime!'; else echo 'OK: DATABASE_URL is present.'; fi; ./node_modules/.bin/prisma migrate deploy && node server.js"]
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node server.js"]
