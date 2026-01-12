@@ -218,9 +218,8 @@ export default async function DashboardPage() {
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               {isAIActive
-                ? `${activePagesCount} page${
-                    activePagesCount !== 1 ? "s" : ""
-                  } active`
+                ? `${activePagesCount} page${activePagesCount !== 1 ? "s" : ""
+                } active`
                 : "No pages connected"}
             </p>
           </CardContent>
@@ -259,7 +258,7 @@ export default async function DashboardPage() {
               {isEngineUp ? "Online" : "Offline"}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {health?.version ? `v${health.version}` : "Connection failed"}
+              {isEngineUp ? "System operational" : "Connection failed"}
             </p>
           </CardContent>
         </Card>
