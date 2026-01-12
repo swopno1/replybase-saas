@@ -6,7 +6,21 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  adapter: {
+    ...PrismaAdapter(prisma),
+    createUser: async (data: any) => {
+      return prisma.user.create({
+        data: {
+          ...data,
+          tenant: {
+            create: {
+              name: `${data.name || "User"}'s Workspace`,
+            },
+          },
+        },
+      }) as any;
+    },
+  },
   providers: [
     FacebookProvider({
       clientId: process.env.FACEBOOK_CLIENT_ID as string,
