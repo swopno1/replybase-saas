@@ -14,7 +14,7 @@ const createBotSchema = z.object({
 });
 
 // GET: List user's bots
-export async function GET(_req: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {

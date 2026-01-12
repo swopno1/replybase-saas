@@ -58,7 +58,7 @@ export async function GET() {
     );
 
     // Enrich pages with connection status
-    const enrichedPages = pages.map((page: any) => ({
+    const enrichedPages = pages.map((page: { id: string }) => ({
       ...page,
       connected: connectedMap.has(page.id),
       engineConnected: connectedMap.get(page.id) || false,
