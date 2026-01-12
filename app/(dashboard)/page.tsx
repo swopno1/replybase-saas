@@ -1,5 +1,5 @@
 import { getServerSession } from "next-auth";
-import { BotpressService } from "@/lib/botpress";
+import { checkHealth } from "@/lib/ai-engine";
 import { prisma } from "@/lib/prisma";
 import {
   Card,
@@ -54,8 +54,8 @@ export default async function DashboardPage() {
   }
 
   // Get engine health
-  const health = await BotpressService.getHealth();
-  const isEngineUp = !!health;
+  const health = await checkHealth();
+  const isEngineUp = health.engine === "ok";
 
   // Get connected Facebook pages (tenant-scoped)
   const connectedPages = await prisma.facebookPage.findMany({

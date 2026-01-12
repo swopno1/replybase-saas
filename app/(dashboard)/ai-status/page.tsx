@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
-import { BotpressService } from "@/lib/botpress";
+import { checkHealth } from "@/lib/ai-engine";
 import {
   Card,
   CardContent,
@@ -29,8 +29,8 @@ export default async function AIStatusPage() {
   const userId = session.user.id;
 
   // Get engine health
-  const health = await BotpressService.getHealth();
-  const isEngineUp = !!health;
+  const health = await checkHealth();
+  const isEngineUp = health.engine === "ok";
 
   // Get connected Facebook pages
   const connectedPages = userId
