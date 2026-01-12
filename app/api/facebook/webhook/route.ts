@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resolveSession } from "@/lib/session-resolver";
-import { sendMessage } from "@/lib/botpress-engine";
+import { converse } from "@/lib/ai-engine";
 import { sendTextMessage } from "@/lib/facebook-sender";
 import { verifyWebhookSignature } from "@/lib/facebook-utils";
 
@@ -214,30 +214,39 @@ async function handleMessagingEvent(event: FacebookMessagingEvent) {
       },
     });
 
-    // Send message to Botpress engine
-    console.log(
-      `[Facebook Webhook] Sending to Botpress bot ${facebookPage.botId}`
-    );
-    const engineResponse = await sendMessage(
-      facebookPage.botId,
-      session.sessionId,
-      messageText
-    );
-
+    // Send message to AI engine
     let replyText: string;
-    let logStatus: string;
+    let logStatus: "success" | "error" = "success";
     let errorDetails: string | null = null;
 
-    if (engineResponse.success && engineResponse.text) {
-      replyText = engineResponse.text;
-      logStatus = "success";
-      console.log(`[Facebook Webhook] Engine replied: ${replyText}`);
-    } else {
+    try {
+      console.log(
+        `[Facebook Webhook] Sending to AI engine bot ${facebookPage.botId}`
+      );
+      const engineResponse = await converse(
+        facebookPage.botId,
+        session.sessionId,
+        messageText
+      );
+
+      // Extract the text from the first 'text' type response
+      const textResponse = engineResponse.responses?.find(
+        (r: any) => r.type === "text"
+      );
+
+      if (textResponse?.text) {
+        replyText = textResponse.text;
+        console.log(`[Facebook Webhook] Engine replied: ${replyText}`);
+      } else {
+        throw new Error("No text response from engine");
+      }
+    } catch (error) {
       // Fallback message
       replyText =
         "Sorry, I'm having trouble responding right now. Please try again later.";
       logStatus = "error";
-      errorDetails = engineResponse.error || "No text response from engine";
+      errorDetails =
+        error instanceof Error ? error.message : "Unknown engine error";
       console.error(`[Facebook Webhook] Engine error: ${errorDetails}`);
     }
 
