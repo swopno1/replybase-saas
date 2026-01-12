@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 
-export async function POST(_req: NextRequest) {
+export async function POST() {
   if (!stripe) {
     return NextResponse.json(
       { error: "Stripe is not configured" },
@@ -43,7 +43,7 @@ export async function POST(_req: NextRequest) {
     });
 
     return NextResponse.json({ url: portalSession.url });
-  } catch (_error) {
+  } catch {
     return NextResponse.json(
       { error: "Failed to create portal session" },
       { status: 500 }

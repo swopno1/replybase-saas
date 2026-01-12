@@ -28,7 +28,7 @@ export async function rateLimitMiddleware(
       };
     }
 
-    const userId = (session.user as any).id;
+    const userId = session.user.id;
     const limitCheck = await checkLimit(userId, type);
 
     if (limitCheck.allowed) {

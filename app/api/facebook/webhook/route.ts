@@ -231,7 +231,7 @@ async function handleMessagingEvent(event: FacebookMessagingEvent) {
 
       // Extract the text from the first 'text' type response
       const textResponse = engineResponse.responses?.find(
-        (r: any) => r.type === "text"
+        (r: { type: string; text: string }) => r.type === "text"
       );
 
       if (textResponse?.text) {

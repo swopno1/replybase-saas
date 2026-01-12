@@ -20,7 +20,7 @@ import { useState } from "react";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
-  const [isLoading, _setIsLoading] = useState(false);
+  const [isLoading] = useState(false);
 
   return (
     <Card>

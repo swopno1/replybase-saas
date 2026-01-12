@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { getUserUsage, getUserLimits } from "@/lib/subscription";
 import { authOptions } from "@/lib/auth";
 
 // GET: Get usage statistics
-export async function GET(_req: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {

@@ -4,13 +4,14 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { getUserLimits } from "@/lib/subscription";
 import { authOptions } from "@/lib/auth";
+import { JsonObject } from "@prisma/client/runtime/library";
 
 const createChannelSchema = z.object({
   type: z.enum(["facebook", "whatsapp", "web"]),
   name: z.string().min(1),
   channelId: z.string().min(1),
   accessToken: z.string().optional(),
-  config: z.record(z.string(), z.any()).optional(),
+  config: z.record(z.string(), z.unknown()).optional(),
 });
 
 // GET: List channels for a bot
@@ -115,7 +116,7 @@ export async function POST(
         name: validated.name,
         channelId: validated.channelId,
         accessToken: validated.accessToken || null,
-        config: (validated.config || {}) as any,
+        config: (validated.config || {}) as JsonObject,
         enabled: true,
         killSwitch: false,
       },
