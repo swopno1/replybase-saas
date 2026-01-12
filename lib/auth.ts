@@ -19,7 +19,7 @@ export const authOptions: NextAuthOptions = {
             },
           },
         },
-      }) as AdapterUser;
+      }) as unknown as AdapterUser;
     },
   },
   providers: [

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import prisma from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 
 const AI_ENGINE_URL = process.env.AI_ENGINE_URL;
