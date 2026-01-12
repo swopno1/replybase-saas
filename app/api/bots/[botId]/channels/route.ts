@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { getUserLimits } from "@/lib/subscription";
 import { authOptions } from "@/lib/auth";
-import { JsonObject } from "@prisma/client/runtime/library";
 
 const createChannelSchema = z.object({
   type: z.enum(["facebook", "whatsapp", "web"]),
@@ -116,7 +116,7 @@ export async function POST(
         name: validated.name,
         channelId: validated.channelId,
         accessToken: validated.accessToken || null,
-        config: (validated.config || {}) as JsonObject,
+        config: (validated.config || {}) as Prisma.JsonObject,
         enabled: true,
         killSwitch: false,
       },
