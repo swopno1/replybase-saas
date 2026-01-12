@@ -1,13 +1,14 @@
-const BP_URL = process.env.AI_ENGINE_URL || "http://localhost:3001";
+const BP_URL = process.env.AI_ENGINE_URL || "http://localhost:3000";
+const BP_TOKEN = process.env.BOTPRESS_TOKEN; // SaaS Service Token
 
-const BP_TOKEN = process.env.BOTPRESS_ADMIN_TOKEN;
+export interface BotpressConverseResponse {
+  responses: Array<{
+    type: string;
+    text: string;
+    [key: string]: any;
+  }>;
+}
 
-export type BotpressMessengerConfig = {
-  pageId: string;
-  accessToken: string;
-  appSecret: string;
-  verifyToken: string;
-};
 export class BotpressService {
   private static get headers() {
     return {
@@ -16,45 +17,72 @@ export class BotpressService {
     };
   }
 
-  static async getHealth() {
-    const candidates = [
-      `${BP_URL}/status`, // Common v12 health check
-      `${BP_URL}/api/v1/info`,
-      `${BP_URL}/api/v1/admin/server/status`, // v12 Admin status
-    ];
-    for (const url of candidates) {
-      try {
-        console.log(`[Botpress] Checking health at: ${url}`);
-        const res = await fetch(url, {
-          headers: this.headers,
-          next: { revalidate: 0 },
-        });
-        if (!res.ok) {
-          console.error(`[Botpress] Health check failed at ${url}: ${res.status} ${res.statusText}`);
-          continue;
-        }
-        const data = await res.json();
-        console.log(`[Botpress] Health check passed at ${url}`);
-        return data;
-      } catch (error) {
-        console.error(`[Botpress] Health check connection error at ${url}:`, error);
-        continue;
+  /**
+   * STRICT HEALTH CHECK
+   * Target: GET /
+   * Expected: 200 "quack!"
+   * 
+   * @returns true if healthy, false otherwise
+   */
+  static async getHealth(): Promise<boolean> {
+    try {
+      console.log(`[Botpress] Checking health at: ${BP_URL}/`);
+      const res = await fetch(`${BP_URL}/`, {
+        method: "GET",
+        next: { revalidate: 0 },
+      });
+
+      if (!res.ok) {
+        console.error(`[Botpress] Health check failed: ${res.status} ${res.statusText}`);
+        return false;
       }
+
+      const text = await res.text();
+      // Valid Botpress v12 root response
+      if (text.includes("quack!")) {
+        console.log(`[Botpress] Health check passed: quack!`);
+        return true;
+      }
+
+      console.error(`[Botpress] Invalid response body: ${text.substring(0, 50)}...`);
+      return false;
+    } catch (error) {
+      console.error(`[Botpress] Health check connection error:`, error);
+      return false;
     }
-    return null; // offline but app continues
   }
 
-  static async configureMessenger(
+  /**
+   * CONVERSE API
+   * Endpoint: POST /api/v1/bots/{botId}/converse/{conversationId}
+   * ID Strategy: {userId}:{botId} (Deterministic)
+   */
+  static async converse(
     botId: string,
-    config: BotpressMessengerConfig
-  ) {
-    const url = `${BP_URL}/api/v1/admin/bots/${botId}/config/channel-messenger`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: this.headers,
-      body: JSON.stringify({ ...config, enabled: true }),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    return true;
+    userId: string,
+    text: string
+  ): Promise<BotpressConverseResponse> {
+    const conversationId = `${userId}:${botId}`;
+    const url = `${BP_URL}/api/v1/bots/${botId}/converse/${conversationId}`;
+
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: this.headers,
+        body: JSON.stringify({
+          type: "text",
+          text: text,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Botpress Converse Error: ${res.status} ${await res.text()}`);
+      }
+
+      return await res.json();
+    } catch (error) {
+      console.error("[Botpress] Converse error:", error);
+      throw error;
+    }
   }
 }
