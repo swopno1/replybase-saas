@@ -22,19 +22,27 @@ export class BotpressService {
 
   static async getHealth() {
     const candidates = [
+      `${BP_URL}/status`, // Common v12 health check
       `${BP_URL}/api/v1/info`,
-      `${BP_URL}/api/v1/admin/status`,
+      `${BP_URL}/api/v1/admin/server/status`, // v12 Admin status
     ];
     for (const url of candidates) {
       try {
+        console.log(`[Botpress] Checking health at: ${url}`);
         const res = await fetch(url, {
           headers: this.headers,
           next: { revalidate: 0 },
         });
-        if (!res.ok) continue; // try next
-        return await res.json();
-      } catch {
-        continue; // non-blocking
+        if (!res.ok) {
+          console.error(`[Botpress] Health check failed at ${url}: ${res.status} ${res.statusText}`);
+          continue;
+        }
+        const data = await res.json();
+        console.log(`[Botpress] Health check passed at ${url}`);
+        return data;
+      } catch (error) {
+        console.error(`[Botpress] Health check connection error at ${url}:`, error);
+        continue;
       }
     }
     return null; // offline but app continues
