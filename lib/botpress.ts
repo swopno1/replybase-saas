@@ -1,8 +1,4 @@
-const BP_URL =
-  process.env.AI_ENGINE_URL ||
-  (process.env.NODE_ENV === "production"
-    ? process.env.AI_ENGINE_URL
-    : "http://localhost:3001");
+const BP_URL = process.env.AI_ENGINE_URL || "http://localhost:3001";
 
 const BP_TOKEN = process.env.BOTPRESS_ADMIN_TOKEN;
 

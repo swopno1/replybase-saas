@@ -42,8 +42,10 @@ export async function GET(_req: NextRequest) {
       const trialEndsAt = new Date(now + 14 * 24 * 60 * 60 * 1000); // 14 days
       const currentPeriodEnd = new Date(now + 30 * 24 * 60 * 60 * 1000); // 30 days
 
-      const created = await prisma.subscription.create({
-        data: {
+      const created = await prisma.subscription.upsert({
+        where: { tenantId: user.tenantId },
+        update: {},
+        create: {
           tenantId: user.tenantId,
           planId: freePlan.id,
           stripeId: `free_${user.tenantId}`,
