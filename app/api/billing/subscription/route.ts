@@ -46,7 +46,7 @@ export async function GET(_req: NextRequest) {
         data: {
           tenantId: user.tenantId,
           planId: freePlan.id,
-          stripeId: "", // Placeholder for free plan
+          stripeId: `free_${user.tenantId}`,
           status: "active",
           currentPeriodStart: new Date(),
           currentPeriodEnd,
@@ -68,9 +68,9 @@ export async function GET(_req: NextRequest) {
 
     const trialDaysRemaining = subscription.trialEndsAt
       ? Math.ceil(
-          (subscription.trialEndsAt.getTime() - Date.now()) /
-            (1000 * 60 * 60 * 24)
-        )
+        (subscription.trialEndsAt.getTime() - Date.now()) /
+        (1000 * 60 * 60 * 24)
+      )
       : 0;
 
     return NextResponse.json({
