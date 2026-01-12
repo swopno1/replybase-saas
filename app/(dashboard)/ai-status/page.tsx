@@ -35,18 +35,18 @@ export default async function AIStatusPage() {
   // Get connected Facebook pages
   const connectedPages = userId
     ? await prisma.facebookPage.findMany({
-        where: { userId },
-        select: {
-          id: true,
-          facebookId: true,
-          name: true,
-          engineConnected: true,
-          botId: true,
-        },
-        orderBy: {
-          name: "asc",
-        },
-      })
+      where: { userId },
+      select: {
+        id: true,
+        facebookId: true,
+        name: true,
+        engineConnected: true,
+        botId: true,
+      },
+      orderBy: {
+        name: "asc",
+      },
+    })
     : [];
 
   const activePagesCount = connectedPages.filter(
@@ -88,9 +88,7 @@ export default async function AIStatusPage() {
                   <div>
                     <div className="font-medium">Online</div>
                     <div className="text-sm text-muted-foreground">
-                      {health?.version
-                        ? `Version ${health.version}`
-                        : "Connected"}
+                      Connected
                     </div>
                   </div>
                 </>
