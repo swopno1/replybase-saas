@@ -325,3 +325,14 @@ model Note {
 
   @@map("notes")
 }
+
+// System health monitoring
+model SystemHealth {
+  id          String   @id @default(cuid())
+  system      String   @unique // e.g., "ai-engine", "database", "stripe"
+  isHealthy   Boolean  @default(true)
+  lastChecked DateTime @updatedAt
+  details     Json?    // Store additional details, e.g., error messages
+
+  @@map("system_health")
+}
