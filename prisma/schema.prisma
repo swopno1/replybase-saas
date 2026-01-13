@@ -336,3 +336,10 @@ model SystemHealth {
 
   @@map("system_health")
 }
+
+model StripeEvent {
+  id        String   @id @unique // Stripe Event ID
+  createdAt DateTime @default(now())
+
+  @@map("stripe_events")
+}
