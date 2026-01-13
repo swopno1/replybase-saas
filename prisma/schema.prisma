@@ -74,6 +74,7 @@ model Tenant {
   bots          Bot[]
   subscriptions Subscription[]
   usageLogs     UsageLog[]
+  contacts      Contact[]
 
   @@map("tenants")
 }
@@ -335,4 +336,63 @@ model SystemHealth {
   details     Json?    // Store additional details, e.g., error messages
 
   @@map("system_health")
+}
+
+// CRM Data Primitives
+model Contact {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String?
+  email     String?
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  identities    ContactIdentity[]
+  conversations CrmConversation[]
+
+  @@unique([tenantId, email])
+  @@unique([tenantId, phone])
+  @@index([tenantId])
+  @@map("contacts")
+}
+
+model ContactIdentity {
+  id        String   @id @default(cuid())
+  contactId String
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  type      String // e.g., "email", "phone", "facebook_psid"
+  value     String
+  createdAt DateTime @default(now())
+
+  @@unique([contactId, type, value])
+  @@index([contactId])
+  @@map("contact_identities")
+}
+
+model CrmConversation {
+  id        String   @id @default(cuid())
+  contactId String
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  channel   String // e.g., "email", "sms", "chat"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages CrmMessage[]
+
+  @@index([contactId])
+  @@map("crm_conversations")
+}
+
+model CrmMessage {
+  id             String          @id @default(cuid())
+  conversationId String
+  conversation   CrmConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  direction      String // "inbound" or "outbound"
+  content        String          @db.Text
+  createdAt      DateTime        @default(now())
+
+  @@index([conversationId])
+  @@map("crm_messages")
 }
