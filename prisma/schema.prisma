@@ -212,6 +212,7 @@ model Bot {
   channels      Channel[]
   executionLogs ExecutionLog[]
   facebookPages FacebookPage[] // Linked Facebook pages
+  crmConversations CrmConversation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -378,6 +379,9 @@ model CrmConversation {
   channel   String // e.g., "email", "sms", "chat"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  botId String?
+  bot   Bot?     @relation(fields: [botId], references: [id])
 
   messages CrmMessage[]
 
