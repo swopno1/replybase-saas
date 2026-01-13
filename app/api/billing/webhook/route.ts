@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import Stripe from "stripe";
-import { stripe } from "@/lib/stripe";
+import { stripe, PLANS } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -10,6 +10,7 @@ const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 interface ExtendedStripeSubscription extends Stripe.Subscription {
   current_period_start: number;
   current_period_end: number;
+  trial_end: number | null;
 }
 
 export async function POST(req: NextRequest) {
@@ -228,47 +229,74 @@ async function handlePaymentFailure(invoice: Stripe.Invoice) {
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   try {
-    const customerId = session.customer as string;
+    const tenantId = session.client_reference_id;
     const subscriptionId = session.subscription as string;
+    const customerId = session.customer as string;
 
-    if (!customerId || !subscriptionId) {
-      console.log("Checkout session missing customer or subscription ID");
+    if (!tenantId || !subscriptionId) {
+      console.error("Missing tenantId or subscriptionId in checkout session");
       return;
     }
 
-    // Get subscription details from Stripe
     if (!stripe) {
       console.error("Stripe not configured");
       return;
     }
+
     const stripeSubscription = (await stripe.subscriptions.retrieve(
       subscriptionId
     )) as unknown as ExtendedStripeSubscription;
 
-    // Find subscription in database
-    const existingSubscription = await prisma.subscription.findFirst({
-      where: { stripeCustomerId: customerId },
-    });
+    const priceId = stripeSubscription.items.data[0]?.price.id;
+    const planKey = Object.keys(PLANS).find(
+      (key) => PLANS[key as keyof typeof PLANS].priceId === priceId
+    );
+    const plan = await prisma.plan.findUnique({ where: { name: planKey } });
 
-    if (existingSubscription) {
-      // Update existing subscription
-      await prisma.subscription.update({
-        where: { id: existingSubscription.id },
-        data: {
-          stripeId: stripeSubscription.id,
-          status: stripeSubscription.status,
-          currentPeriodStart: new Date(
-            stripeSubscription.current_period_start * 1000
-          ),
-          currentPeriodEnd: new Date(
-            stripeSubscription.current_period_end * 1000
-          ),
-          cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
-        },
-      });
+    if (!plan) {
+      console.error(`Plan not found for price ID: ${priceId}`);
+      return;
     }
 
-    console.log(`Processed checkout completion for customer ${customerId}`);
+    // Upsert subscription
+    await prisma.subscription.upsert({
+      where: { tenantId },
+      update: {
+        stripeId: stripeSubscription.id,
+        stripeCustomerId: customerId,
+        status: stripeSubscription.status,
+        currentPeriodStart: new Date(
+          stripeSubscription.current_period_start * 1000
+        ),
+        currentPeriodEnd: new Date(
+          stripeSubscription.current_period_end * 1000
+        ),
+        cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
+        trialEndsAt: stripeSubscription.trial_end
+          ? new Date(stripeSubscription.trial_end * 1000)
+          : null,
+        planId: plan.id,
+      },
+      create: {
+        tenantId,
+        stripeId: stripeSubscription.id,
+        stripeCustomerId: customerId,
+        status: stripeSubscription.status,
+        currentPeriodStart: new Date(
+          stripeSubscription.current_period_start * 1000
+        ),
+        currentPeriodEnd: new Date(
+          stripeSubscription.current_period_end * 1000
+        ),
+        cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
+        trialEndsAt: stripeSubscription.trial_end
+          ? new Date(stripeSubscription.trial_end * 1000)
+          : null,
+        planId: plan.id,
+      },
+    });
+
+    console.log(`Processed checkout completion for tenant ${tenantId}`);
   } catch (error) {
     console.error("Error handling checkout completion:", error);
   }

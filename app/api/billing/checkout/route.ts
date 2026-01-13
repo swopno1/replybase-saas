@@ -37,35 +37,12 @@ export async function POST(req: NextRequest) {
       where: { tenantId: user.tenantId },
     });
 
-    let customerId = subscription?.stripeCustomerId;
-
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: session.user.email || undefined,
-      });
-      customerId = customer.id;
-
-      if (subscription) {
-        await prisma.subscription.update({
-          where: { tenantId: user.tenantId },
-          data: { stripeCustomerId: customerId },
-        });
-      } else {
-        // If no subscription exists, create one with customer ID
-        await prisma.subscription.create({
-          data: {
-            tenantId: user.tenantId,
-            stripeCustomerId: customerId,
-            planId: plan.priceId, // Assuming plan.id is available
-            stripeId: "", // Placeholder, will be updated after Stripe
-            currentPeriodEnd: new Date(), // Placeholder
-          },
-        });
-      }
-    }
+    const customerId = subscription?.stripeCustomerId;
 
     const checkoutSession = await stripe.checkout.sessions.create({
-      customer: customerId,
+      customer: customerId || undefined,
+      customer_email: customerId ? undefined : user.email || undefined,
+      client_reference_id: user.tenantId,
       mode: "subscription",
       payment_method_types: ["card"],
       line_items: [{ price: plan.priceId, quantity: 1 }],
