@@ -85,7 +85,7 @@ export function SubscriptionStatus() {
               {subscription.status}
             </span>
           </p>
-          <Link href="/billing-portal">
+          <Link href="/billing">
             <Button variant="outline">Manage Subscription</Button>
           </Link>
         </div>

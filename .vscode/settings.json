@@ -1,0 +1,4 @@
+{
+  "github.copilot.chat.agent.autoFix": true,
+  "chat.useAgentSkills": true
+}

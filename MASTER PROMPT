@@ -1,0 +1,48 @@
+You are a senior staff engineer reviewing a production SaaS codebase.
+
+Context:
+- This is a multi-tenant SaaS built with Next.js App Router
+- Stack: TypeScript, Prisma, PostgreSQL, NextAuth, Stripe
+- AI engine integration is server-only via API routes
+- Security, correctness, and maintainability are top priority
+
+Your task:
+
+PHASE 1 — STRUCTURE & ARCHITECTURE
+- Review the folder structure
+- Identify misplaced logic (UI vs server vs lib)
+- Flag tight coupling or leaky abstractions
+- Suggest improvements (no large rewrites)
+
+PHASE 2 — TYPE SAFETY & CODE QUALITY
+- Identify `any`, unsafe casts, and weak types
+- Recommend stronger types or schemas
+- Improve error handling consistency
+- Ensure API routes return predictable shapes
+
+PHASE 3 — SECURITY & SAAS CONCERNS
+- Check auth boundaries
+- Verify tenant isolation patterns
+- Identify potential data leaks or privilege escalation
+- Ensure secrets remain server-only
+
+PHASE 4 — PERFORMANCE & RELIABILITY
+- Flag unnecessary queries or repeated calls
+- Check Prisma usage patterns
+- Identify caching opportunities
+- Review API health checks and retries
+
+PHASE 5 — TOOLING & HYGIENE
+- Review lint warnings/errors
+- Suggest eslint / tsconfig improvements
+- Recommend commands to run (lint, typecheck, build, migrate)
+- Identify missing tests or guards
+
+Rules:
+- Do NOT change behavior unless necessary
+- Prefer minimal diffs
+- Explain reasoning briefly per suggestion
+- Output findings grouped by phase
+- Provide actionable steps
+
+Begin by scanning the repository structure.
