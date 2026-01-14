@@ -35,18 +35,18 @@ export default async function AIStatusPage() {
   // Get connected Facebook pages
   const connectedPages = userId
     ? await prisma.facebookPage.findMany({
-      where: { userId },
-      select: {
-        id: true,
-        facebookId: true,
-        name: true,
-        engineConnected: true,
-        botId: true,
-      },
-      orderBy: {
-        name: "asc",
-      },
-    })
+        where: { userId },
+        select: {
+          id: true,
+          facebookId: true,
+          name: true,
+          engineConnected: true,
+          botId: true,
+        },
+        orderBy: {
+          name: "asc",
+        },
+      })
     : [];
 
   const activePagesCount = connectedPages.filter(
@@ -175,34 +175,40 @@ export default async function AIStatusPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {connectedPages.map((page: { id: string; name: string; engineConnected: boolean; facebookId: string; botId: string | null }) => (
-              <div
-                key={page.id}
-                className="flex items-center justify-between p-4 border rounded-lg"
-              >
-                <div className="flex items-center gap-3">
-                  <div>
-                    <div className="font-medium">{page.name}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {page.engineConnected ? (
-                        <span className="text-green-600">AI Enabled</span>
-                      ) : (
-                        <span className="text-muted-foreground">
-                          AI Disabled
-                        </span>
-                      )}
+            {connectedPages.map(
+              (page: {
+                id: string;
+                name: string;
+                engineConnected: boolean;
+                facebookId: string;
+                botId: string | null;
+              }) => (
+                <div
+                  key={page.id}
+                  className="flex items-center justify-between p-4 border rounded-lg"
+                >
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <div className="font-medium">{page.name}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {page.engineConnected ? (
+                          <span className="text-green-600">AI Enabled</span>
+                        ) : (
+                          <span className="text-muted-foreground">
+                            AI Disabled
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
+                  <AIToggle
+                    pageId={page.id}
+                    enabled={page.engineConnected}
+                    disabled={!isEngineUp}
+                  />
                 </div>
-                <AIToggle
-                  pageId={page.id}
-                  facebookId={page.facebookId}
-                  enabled={page.engineConnected}
-                  botId={page.botId}
-                  disabled={!isEngineUp}
-                />
-              </div>
-            ))}
+              )
+            )}
           </CardContent>
         </Card>
       )}
