@@ -68,15 +68,22 @@ export async function getExecutionLogs(
 }
 
 /**
- * Get execution logs for a user
+ * Get execution logs for a tenant
  */
-export async function getUserExecutionLogs(
-  userId: string,
+export async function getTenantExecutionLogs(
+  tenantId: string,
   limit: number = 100,
   offset: number = 0
 ) {
+  const bots = await prisma.bot.findMany({
+    where: { tenantId },
+    select: { id: true },
+  });
+
+  const botIds = bots.map((b) => b.id);
+
   return prisma.executionLog.findMany({
-    where: { userId },
+    where: { botId: { in: botIds } },
     orderBy: { createdAt: 'desc' },
     take: limit,
     skip: offset,

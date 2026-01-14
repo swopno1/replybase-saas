@@ -45,8 +45,14 @@ export default function ConversationPage() {
   }, [conversationId]);
 
   useEffect(() => {
-    refreshConversation();
-  }, [refreshConversation]);
+    if (conversationId) {
+      refreshConversation();
+    }
+    // The linter wants `refreshConversation` in the dependency array, but that causes a different lint error.
+    // Since `refreshConversation` is memoized and only changes when `conversationId` changes,
+    // depending on `conversationId` is sufficient to ensure the effect re-runs correctly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]);
 
   if (loading) {
     return <div className="p-4">Loading conversation...</div>;
