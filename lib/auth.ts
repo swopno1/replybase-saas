@@ -7,20 +7,23 @@ import { PrismaAdapter } from "next-auth-prisma-adapter";
 import { prisma } from "@/lib/prisma";
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
-  events: {
-    createUser: async ({ user }) => {
-      // Create tenant for the new user
+  adapter: {
+    ...PrismaAdapter(prisma),
+    createUser: async (data: any) => {
+      // Create tenant first
       const tenant = await prisma.tenant.create({
         data: {
-          name: `${user.name || "User"}'s Workspace`,
+          name: `${data.name || "User"}'s Workspace`,
         },
       });
-      // Update user with tenantId
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { tenantId: tenant.id },
+      // Create user with tenantId
+      const user = await prisma.user.create({
+        data: {
+          ...data,
+          tenantId: tenant.id,
+        },
       });
+      return user;
     },
   },
   providers: [
