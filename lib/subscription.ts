@@ -63,7 +63,7 @@ export async function getTenantSubscription(tenantId: string) {
 
   return {
     id: "free",
-    tenantId: user.tenantId,
+    tenantId: tenantId,
     planId: freePlan.id,
     status: "active" as const,
     currentPeriodStart: new Date(),
@@ -203,8 +203,11 @@ export async function checkLimit(
   remaining: number;
   limit: number;
 }> {
-  const limits = await getUserLimits(userId);
-  const usage = await getUserUsage(userId);
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user?.tenantId) throw new Error("User not found or no tenant");
+
+  const limits = await getTenantLimits(user.tenantId);
+  const usage = await getTenantUsage(user.tenantId);
 
   if (type === "message") {
     const limit = limits.dailyMessageLimit;
@@ -285,8 +288,11 @@ export async function incrementUsage(
  * Check if tenant can create more bots
  */
 export async function canCreateBot(userId: string): Promise<boolean> {
-  const limits = await getUserLimits(userId);
-  const usage = await getUserUsage(userId);
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user?.tenantId) throw new Error("User not found or no tenant");
+
+  const limits = await getTenantLimits(user.tenantId);
+  const usage = await getTenantUsage(user.tenantId);
 
   return usage.botCount < limits.maxBots;
 }

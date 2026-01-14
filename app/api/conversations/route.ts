@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { withAuthAndTenant } from "@/lib/route-helpers";
-import { getUserSubscription } from "@/lib/subscription";
+import { getTenantSubscription } from "@/lib/subscription";
 
 const createConversationSchema = z.object({
   contactId: z.string().cuid(),
@@ -53,7 +53,7 @@ export const POST: (
       const validated = createConversationSchema.parse(body);
 
       // Check plan limits
-      const subscription = await getUserSubscription(userId);
+      const subscription = await getTenantSubscription(tenantId);
       const conversationCount = await prisma.crmConversation.count({
         where: {
           contact: {

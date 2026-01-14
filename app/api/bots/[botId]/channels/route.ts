@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { getUserLimits } from "@/lib/subscription";
+import { getTenantLimits } from "@/lib/subscription";
 import { authOptions } from "@/lib/auth";
 
 const createChannelSchema = z.object({
@@ -92,7 +92,7 @@ export async function POST(
     }
 
     // Check channel limit
-    const limits = await getUserLimits(session.user.id);
+    const limits = await getTenantLimits(user.tenantId);
     const channelCount = await prisma.channel.count({
       where: { botId },
     });

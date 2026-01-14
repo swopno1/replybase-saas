@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { getUserUsage, getUserLimits } from "@/lib/subscription";
+import { getTenantUsage, getTenantLimits } from "@/lib/subscription";
 import { authOptions } from "@/lib/auth";
 import {
   getConversationsPerBot,
@@ -40,8 +40,8 @@ export async function GET() {
       aiVsHumanRatio,
       resolutionTime,
     ] = await Promise.all([
-      getUserUsage(userId),
-      getUserLimits(userId),
+      getTenantUsage(tenantId),
+      getTenantLimits(tenantId),
       getConversationsPerBot(tenantId),
       getMessagesPerChannel(tenantId),
       getAiVsHumanRatio(tenantId),
