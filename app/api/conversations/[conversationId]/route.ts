@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { withAuthAndTenant } from "@/lib/route-helpers";
+import { ConversationStatus } from "@prisma/client";
 
 const updateConversationSchema = z.object({
-  channel: z.string().min(1).max(50).optional(),
-  botId: z.string().cuid().optional(),
+  assigneeId: z.string().cuid().nullable().optional(),
+  status: z.nativeEnum(ConversationStatus).optional(),
+  botPaused: z.boolean().optional(),
 });
 
 async function getConversation(conversationId: string, tenantId: string) {
@@ -15,6 +17,35 @@ async function getConversation(conversationId: string, tenantId: string) {
       contact: {
         tenantId: tenantId,
       },
+    },
+    include: {
+      messages: {
+        orderBy: {
+          createdAt: "asc",
+        },
+      },
+      internalNotes: {
+        orderBy: {
+          createdAt: "asc",
+        },
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            },
+          },
+        },
+      },
+      assignee: {
+        select: {
+          id: true,
+          name: true,
+          image: true,
+        },
+      },
+      contact: true,
     },
   });
 }
@@ -28,12 +59,14 @@ export async function GET(
   return withAuthAndTenant(async ({ tenantId }) => {
     try {
       const conversation = await getConversation(conversationId, tenantId);
+
       if (!conversation) {
         return NextResponse.json(
           { error: "Conversation not found" },
           { status: 404 }
         );
       }
+
       return NextResponse.json({ conversation });
     } catch (error) {
       console.error("[Conversations API] Error fetching conversation:", error);
@@ -67,8 +100,7 @@ export async function PUT(
       const updatedConversation = await prisma.crmConversation.update({
         where: { id: conversationId },
         data: {
-          channel: validated.channel,
-          botId: validated.botId,
+          ...validated,
         },
       });
 
