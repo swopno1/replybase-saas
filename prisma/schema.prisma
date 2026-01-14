@@ -53,8 +53,6 @@ model User {
   sessions Session[]
 
   // ReplyBase-specific relations
-  facebookPages FacebookPage[]
-  bots          Bot[]
   usageLogs     UsageLog[]
   executionLogs ExecutionLog[]
 
@@ -101,58 +99,16 @@ model FacebookPage {
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
-
   botId           String? // Optional link to a Bot
   bot             Bot?    @relation(fields: [botId], references: [id])
   engineConnected Boolean @default(false) // AI engine connection status
-
-  conversations Conversation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([tenantId])
-  @@index([userId])
   @@index([facebookId])
   @@map("facebook_pages")
-}
-
-model Conversation {
-  id             String       @id @default(cuid())
-  facebookPageId String // References FacebookPage.id
-  facebookPage   FacebookPage @relation(fields: [facebookPageId], references: [id], onDelete: Restrict)
-  userPsid       String // Facebook User PSID
-  sessionId      String       @unique // Botpress session ID
-  lastActivityAt DateTime     @default(now())
-
-  messageLogs MessageLog[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([facebookPageId, userPsid])
-  @@index([sessionId])
-  @@index([facebookPageId])
-  @@map("conversations")
-}
-
-model MessageLog {
-  id             String       @id @default(cuid())
-  conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Restrict)
-  direction      String // "inbound" or "outbound"
-  messageId      String       @unique // External message ID
-  content        String       @db.Text
-  status         String       @default("success") // "success", "error", "timeout"
-  errorDetails   String?      @db.Text
-
-  createdAt DateTime @default(now())
-
-  @@index([conversationId, createdAt])
-  @@index([messageId])
-  @@map("message_logs")
 }
 
 model Subscription {
@@ -225,8 +181,6 @@ model Bot {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
-  userId    String
 
   @@index([tenantId])
   @@map("bots")

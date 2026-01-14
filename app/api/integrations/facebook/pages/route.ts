@@ -1,20 +1,10 @@
-import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { authOptions } from "@/lib/auth";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const userId = session.user.id;
-  if (!userId) {
-    return NextResponse.json({ error: "User ID missing" }, { status: 400 });
-  }
-
-  // Get FB Account
+export const GET = withAuthAndTenant(
+  async ({ tenantId, userId }) => {
+  // Get FB Account - this is user-specific, not tenant-specific
   const account = await prisma.account.findFirst({
     where: {
       userId: userId,
@@ -43,9 +33,9 @@ export async function GET() {
     const data = await fbRes.json();
     const pages = data.data || [];
 
-    // Get connected pages from database
+    // Get connected pages from database, scoped by tenant
     const connectedPages = await prisma.facebookPage.findMany({
-      where: { userId: userId },
+      where: { tenantId: tenantId },
       select: {
         facebookId: true,
         engineConnected: true,
@@ -72,4 +62,4 @@ export async function GET() {
     console.error("[Facebook Pages] Error:", e);
     return NextResponse.json({ error: "Internal Error" }, { status: 500 });
   }
-}
+});

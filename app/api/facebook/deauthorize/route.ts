@@ -27,25 +27,35 @@ export async function POST(req: NextRequest) {
         console.log(`[Facebook Deauthorization] received for FB User ID: ${facebookUserId}`);
 
         // Find the user associated with this Facebook ID
-        // We look up via Account table (provider = 'facebook', providerAccountId = facebookUserId)
         const account = await prisma.account.findFirst({
             where: {
                 provider: 'facebook',
                 providerAccountId: facebookUserId,
             },
-            select: { userId: true },
+            include: { user: { select: { tenantId: true } } },
         });
 
-        if (account) {
-            console.log(`[Facebook Deauthorization] Disabling engine connection for User ID: ${account.userId}`);
+        if (account && account.user) {
+            const tenantId = account.user.tenantId;
+            console.log(`[Facebook Deauthorization] Disabling engine for Tenant ID: ${tenantId}`);
 
-            // Disable integrations for this user
-            await prisma.facebookPage.updateMany({
-                where: { userId: account.userId },
-                data: { engineConnected: false },
+            // Find all Facebook pages connected to this tenant
+            const pages = await prisma.facebookPage.findMany({
+                where: { tenantId: tenantId },
+                select: { id: true },
             });
+
+            if (pages.length > 0) {
+                const pageIds = pages.map(p => p.id);
+                // Disable engine connection for all pages of the tenant
+                await prisma.facebookPage.updateMany({
+                    where: { id: { in: pageIds } },
+                    data: { engineConnected: false },
+                });
+                console.log(`[Facebook Deauthorization] Disabled engine for ${pages.length} pages in tenant ${tenantId}`);
+            }
         } else {
-            console.warn(`[Facebook Deauthorization] No matching user found for FB User ID: ${facebookUserId}`);
+            console.warn(`[Facebook Deauthorization] No matching user or tenant found for FB User ID: ${facebookUserId}`);
         }
 
         return NextResponse.json({ success: true });
