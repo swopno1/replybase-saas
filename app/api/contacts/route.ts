@@ -13,14 +13,18 @@ const createContactSchema = z
     if (!data.name && !data.email && !data.phone) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "At least one of 'name', 'email', or 'phone' must be provided.",
+        message:
+          "At least one of 'name', 'email', or 'phone' must be provided.",
       });
     }
   });
 
 // GET: List tenant's contacts
-export async function GET() {
-  return withAuthAndTenant(async ({ tenantId }) => {
+export const GET: (
+  request: NextRequest,
+  context: { params: Promise<Record<string, string | string[]>> }
+) => Promise<Response> = withAuthAndTenant(
+  async ({ tenantId }, request, context) => {
     try {
       const contacts = await prisma.contact.findMany({
         where: { tenantId },
@@ -34,14 +38,17 @@ export async function GET() {
         { status: 500 }
       );
     }
-  });
-}
+  }
+);
 
 // POST: Create a new contact
-export async function POST(req: NextRequest) {
-  return withAuthAndTenant(async ({ tenantId }) => {
+export const POST: (
+  request: NextRequest,
+  context: { params: Promise<Record<string, string | string[]>> }
+) => Promise<Response> = withAuthAndTenant(
+  async ({ tenantId }, request, context) => {
     try {
-      const body = await req.json();
+      const body = await request.json();
       const validated = createContactSchema.parse(body);
 
       const contact = await prisma.contact.create({
@@ -67,5 +74,5 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
-  });
-}
+  }
+);

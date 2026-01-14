@@ -8,16 +8,16 @@ const createMessageSchema = z.object({
 });
 
 // POST: Create a new message (manual reply)
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ conversationId: string }> }
-) {
-  const { conversationId } = await params;
-  return withAuthAndTenant(async ({ tenantId }) => {
+export const POST: (
+  request: NextRequest,
+  context: { params: Promise<Record<string, string | string[]>> }
+) => Promise<Response> = withAuthAndTenant(
+  async ({ tenantId }, request, context) => {
+    const { conversationId } = await context.params;
     try {
       const conversation = await prisma.crmConversation.findFirst({
         where: {
-          id: conversationId,
+          id: conversationId as string,
           contact: {
             tenantId: tenantId,
           },
@@ -31,12 +31,12 @@ export async function POST(
         );
       }
 
-      const body = await req.json();
+      const body = await request.json();
       const validated = createMessageSchema.parse(body);
 
       const message = await prisma.crmMessage.create({
         data: {
-          conversationId: conversationId,
+          conversationId: conversationId as string,
           direction: "outbound",
           content: validated.content,
         },
@@ -56,5 +56,5 @@ export async function POST(
         { status: 500 }
       );
     }
-  });
-}
+  }
+);

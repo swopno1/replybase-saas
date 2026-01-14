@@ -8,16 +8,16 @@ const createNoteSchema = z.object({
 });
 
 // GET: List internal notes for a conversation
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ conversationId: string }> }
-) {
-  const { conversationId } = await params;
-  return withAuthAndTenant(async ({ tenantId }) => {
+export const GET: (
+  request: NextRequest,
+  context: { params: Promise<Record<string, string | string[]>> }
+) => Promise<Response> = withAuthAndTenant(
+  async ({ tenantId }, request, context) => {
+    const { conversationId } = await context.params;
     try {
       const notes = await prisma.internalNote.findMany({
         where: {
-          conversationId: conversationId,
+          conversationId: conversationId as string,
           conversation: {
             contact: {
               tenantId: tenantId,
@@ -34,20 +34,20 @@ export async function GET(
         { status: 500 }
       );
     }
-  });
-}
+  }
+);
 
 // POST: Create a new internal note
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ conversationId: string }> }
-) {
-  const { conversationId } = await params;
-  return withAuthAndTenant(async ({ tenantId, id: userId }) => {
+export const POST: (
+  request: NextRequest,
+  context: { params: Promise<Record<string, string | string[]>> }
+) => Promise<Response> = withAuthAndTenant(
+  async ({ tenantId, id: userId }, request, context) => {
+    const { conversationId } = await context.params;
     try {
       const conversation = await prisma.crmConversation.findFirst({
         where: {
-          id: conversationId,
+          id: conversationId as string,
           contact: {
             tenantId: tenantId,
           },
@@ -61,12 +61,12 @@ export async function POST(
         );
       }
 
-      const body = await req.json();
+      const body = await request.json();
       const validated = createNoteSchema.parse(body);
 
       const note = await prisma.internalNote.create({
         data: {
-          conversationId: conversationId,
+          conversationId: conversationId as string,
           authorId: userId,
           content: validated.content,
         },
@@ -86,5 +86,5 @@ export async function POST(
         { status: 500 }
       );
     }
-  });
-}
+  }
+);

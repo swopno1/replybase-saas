@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 import {
   getConversationsPerBot,
@@ -7,8 +7,11 @@ import {
   getResolutionTime,
 } from "@/lib/analytics";
 
-export async function GET() {
-  return withAuthAndTenant(async ({ tenantId }) => {
+export const GET: (
+  request: NextRequest,
+  context: { params: Promise<Record<string, string | string[]>> }
+) => Promise<Response> = withAuthAndTenant(
+  async ({ tenantId }, request, context) => {
     try {
       const [
         conversationsPerBot,
@@ -35,5 +38,5 @@ export async function GET() {
         { status: 500 }
       );
     }
-  });
-}
+  }
+);

@@ -3,23 +3,24 @@ import GoogleProvider from "next-auth/providers/google";
 import FacebookProvider from "next-auth/providers/facebook";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { AdapterUser } from "next-auth/adapters";
-import { PrismaAdapter } from "@auth/prisma-adapter";
+import { PrismaAdapter } from "next-auth-prisma-adapter";
 import { prisma } from "@/lib/prisma";
 
 export const authOptions: NextAuthOptions = {
-  adapter: {
-    ...PrismaAdapter(prisma),
-    createUser: async (data: Omit<AdapterUser, "id">) => {
-      return prisma.user.create({
+  adapter: PrismaAdapter(prisma),
+  events: {
+    createUser: async ({ user }) => {
+      // Create tenant for the new user
+      const tenant = await prisma.tenant.create({
         data: {
-          ...data,
-          tenant: {
-            create: {
-              name: `${data.name || "User"}'s Workspace`,
-            },
-          },
+          name: `${user.name || "User"}'s Workspace`,
         },
-      }) as unknown as AdapterUser;
+      });
+      // Update user with tenantId
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { tenantId: tenant.id },
+      });
     },
   },
   providers: [
@@ -54,7 +55,12 @@ export const authOptions: NextAuthOptions = {
           credentials?.email === "test@example.com" &&
           credentials?.password === "password"
         ) {
-          return { id: "1", name: "Test User", email: "test@example.com" };
+          return {
+            id: "1",
+            name: "Test User",
+            email: "test@example.com",
+            tenantId: "test-tenant",
+          };
         }
         return null;
       },
@@ -71,7 +77,7 @@ export const authOptions: NextAuthOptions = {
           select: { tenantId: true },
         });
         token.id = user.id;
-        token.tenantId = dbUser?.tenantId as string;
+        token.tenantId = dbUser?.tenantId || "";
       }
       return token;
     },

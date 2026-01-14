@@ -11,8 +11,11 @@ const createConversationSchema = z.object({
 });
 
 // GET: List tenant's conversations
-export async function GET() {
-  return withAuthAndTenant(async ({ tenantId }) => {
+export const GET: (
+  request: NextRequest,
+  context: { params: Promise<Record<string, string | string[]>> }
+) => Promise<Response> = withAuthAndTenant(
+  async ({ tenantId }, request, context) => {
     try {
       const conversations = await prisma.crmConversation.findMany({
         where: {
@@ -38,14 +41,17 @@ export async function GET() {
         { status: 500 }
       );
     }
-  });
-}
+  }
+);
 
 // POST: Create a new conversation
-export async function POST(req: NextRequest) {
-  return withAuthAndTenant(async ({ tenantId, id: userId }) => {
+export const POST: (
+  request: NextRequest,
+  context: { params: Promise<Record<string, string | string[]>> }
+) => Promise<Response> = withAuthAndTenant(
+  async ({ tenantId, id: userId }, request, context) => {
     try {
-      const body = await req.json();
+      const body = await request.json();
       const validated = createConversationSchema.parse(body);
 
       // Check plan limits
@@ -107,5 +113,5 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
-  });
-}
+  }
+);

@@ -51,14 +51,17 @@ async function getConversation(conversationId: string, tenantId: string) {
 }
 
 // GET: Retrieve a specific conversation
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ conversationId: string }> }
-) {
-  const { conversationId } = await params;
-  return withAuthAndTenant(async ({ tenantId }) => {
+export const GET: (
+  request: NextRequest,
+  context: { params: Promise<Record<string, string | string[]>> }
+) => Promise<Response> = withAuthAndTenant(
+  async ({ tenantId }, request, context) => {
+    const { conversationId } = await context.params;
     try {
-      const conversation = await getConversation(conversationId, tenantId);
+      const conversation = await getConversation(
+        conversationId as string,
+        tenantId
+      );
 
       if (!conversation) {
         return NextResponse.json(
@@ -75,18 +78,21 @@ export async function GET(
         { status: 500 }
       );
     }
-  });
-}
+  }
+);
 
 // PUT: Update a specific conversation
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: Promise<{ conversationId: string }> }
-) {
-  const { conversationId } = await params;
-  return withAuthAndTenant(async ({ tenantId }) => {
+export const PUT: (
+  request: NextRequest,
+  context: { params: Promise<Record<string, string | string[]>> }
+) => Promise<Response> = withAuthAndTenant(
+  async ({ tenantId }, request, context) => {
+    const { conversationId } = await context.params;
     try {
-      const conversation = await getConversation(conversationId, tenantId);
+      const conversation = await getConversation(
+        conversationId as string,
+        tenantId
+      );
       if (!conversation) {
         return NextResponse.json(
           { error: "Conversation not found" },
@@ -94,11 +100,11 @@ export async function PUT(
         );
       }
 
-      const body = await req.json();
+      const body = await request.json();
       const validated = updateConversationSchema.parse(body);
 
       const updatedConversation = await prisma.crmConversation.update({
-        where: { id: conversationId },
+        where: { id: conversationId as string },
         data: {
           ...validated,
         },
@@ -118,18 +124,21 @@ export async function PUT(
         { status: 500 }
       );
     }
-  });
-}
+  }
+);
 
 // DELETE: Delete a specific conversation
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ conversationId: string }> }
-) {
-  const { conversationId } = await params;
-  return withAuthAndTenant(async ({ tenantId }) => {
+export const DELETE: (
+  request: NextRequest,
+  context: { params: Promise<Record<string, string | string[]>> }
+) => Promise<Response> = withAuthAndTenant(
+  async ({ tenantId }, request, context) => {
+    const { conversationId } = await context.params;
     try {
-      const conversation = await getConversation(conversationId, tenantId);
+      const conversation = await getConversation(
+        conversationId as string,
+        tenantId
+      );
       if (!conversation) {
         return NextResponse.json(
           { error: "Conversation not found" },
@@ -138,7 +147,7 @@ export async function DELETE(
       }
 
       await prisma.crmConversation.delete({
-        where: { id: conversationId },
+        where: { id: conversationId as string },
       });
 
       return NextResponse.json({ success: true }, { status: 200 });
@@ -149,5 +158,5 @@ export async function DELETE(
         { status: 500 }
       );
     }
-  });
-}
+  }
+);

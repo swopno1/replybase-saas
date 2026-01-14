@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { canCreateBot } from "@/lib/subscription";
 import { z } from "zod";
@@ -13,84 +13,94 @@ const createBotSchema = z.object({
 });
 
 // GET: List user's bots
-export const GET = withAuthAndTenant(async (_req, res, context) => {
-  try {
-    const bots = await prisma.bot.findMany({
-      where: { tenantId: context.tenantId },
-      include: {
-        channels: {
-          select: {
-            id: true,
-            type: true,
-            enabled: true,
-            killSwitch: true,
-            channelId: true,
+export const GET: (
+  request: NextRequest,
+  context: { params: Promise<Record<string, string | string[]>> }
+) => Promise<Response> = withAuthAndTenant(
+  async ({ tenantId }, request, context) => {
+    try {
+      const bots = await prisma.bot.findMany({
+        where: { tenantId },
+        include: {
+          channels: {
+            select: {
+              id: true,
+              type: true,
+              enabled: true,
+              killSwitch: true,
+              channelId: true,
+            },
+          },
+          _count: {
+            select: {
+              channels: true,
+              executionLogs: true,
+            },
           },
         },
-        _count: {
-          select: {
-            channels: true,
-            executionLogs: true,
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        orderBy: { createdAt: "desc" },
+      });
 
-    return NextResponse.json({ bots });
-  } catch (error) {
-    console.error("[Bots API] Error fetching bots:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch bots" },
-      { status: 500 }
-    );
+      return NextResponse.json({ bots });
+    } catch (error) {
+      console.error("[Bots API] Error fetching bots:", error);
+      return NextResponse.json(
+        { error: "Failed to fetch bots" },
+        { status: 500 }
+      );
+    }
   }
-});
+);
 
 // POST: Create a new bot
-export const POST = withAuthAndTenant(async (req, res, context) => {
-  try {
-    // Check if user can create more bots
-    const canCreate = await canCreateBot(context.session.user.id);
-    if (!canCreate) {
+export const POST: (
+  request: NextRequest,
+  context: { params: Promise<Record<string, string | string[]>> }
+) => Promise<Response> = withAuthAndTenant(
+  async ({ tenantId, id: userId }, request, context) => {
+    try {
+      // Check if user can create more bots
+      const canCreate = await canCreateBot(userId);
+      if (!canCreate) {
+        return NextResponse.json(
+          { error: "Bot limit reached. Please upgrade your plan." },
+          { status: 403 }
+        );
+      }
+
+      const body = await request.json();
+      const validated = createBotSchema.parse(body);
+
+      const bot = await prisma.bot.create({
+        data: {
+          tenantId,
+          userId,
+          name: validated.name,
+          description: validated.description || null,
+          entryFlow: validated.entryFlow || null,
+          welcomeMessage: validated.welcomeMessage || null,
+          triggers: validated.triggers,
+          enabled: true,
+        },
+        include: {
+          channels: true,
+        },
+      });
+
+      return NextResponse.json({ bot }, { status: 201 });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return NextResponse.json(
+          { error: "Invalid input", details: error.issues },
+          { status: 400 }
+        );
+      }
+
+      console.error("[Bots API] Error creating bot:", error);
       return NextResponse.json(
-        { error: "Bot limit reached. Please upgrade your plan." },
-        { status: 403 }
+        { error: "Failed to create bot" },
+        { status: 500 }
       );
     }
-
-    const body = await req.json();
-    const validated = createBotSchema.parse(body);
-
-    const bot = await prisma.bot.create({
-      data: {
-        tenantId: context.tenantId,
-        userId: context.session.user.id,
-        name: validated.name,
-        description: validated.description || null,
-        entryFlow: validated.entryFlow || null,
-        welcomeMessage: validated.welcomeMessage || null,
-        triggers: validated.triggers,
-        enabled: true,
-      },
-      include: {
-        channels: true,
-      },
-    });
-
-    return NextResponse.json({ bot }, { status: 201 });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Invalid input", details: error.issues },
-        { status: 400 }
-      );
-    }
-
-    console.error("[Bots API] Error creating bot:", error);
-    return NextResponse.json(
-      { error: "Failed to create bot" },
-      { status: 500 }
-    );
   }
-});
+);

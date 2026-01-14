@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { converse, AiEngineError, ConverseInputSchema } from "@/lib/ai-engine";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 
-export async function POST(req: Request) {
-  return withAuthAndTenant(async ({ tenantId, id: userId }) => {
+export const POST = withAuthAndTenant(
+  async ({ tenantId, id: userId }, request, context) => {
     try {
-      const json = await req.json();
+      const json = await request.json();
       const validation = ConverseInputSchema.safeParse({
         ...json,
         tenantId,
@@ -40,5 +40,5 @@ export async function POST(req: Request) {
         { status: 500 }
       );
     }
-  });
-}
+  }
+);

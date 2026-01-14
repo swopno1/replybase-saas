@@ -16,14 +16,14 @@ async function getContact(contactId: string, tenantId: string) {
 }
 
 // GET: Retrieve a specific contact
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ contactId: string }> }
-) {
-  const { contactId } = await params;
-  return withAuthAndTenant(async ({ tenantId }) => {
+export const GET: (
+  request: NextRequest,
+  context: { params: Promise<Record<string, string | string[]>> }
+) => Promise<Response> = withAuthAndTenant(
+  async ({ tenantId }, request, context) => {
+    const { contactId } = await context.params;
     try {
-      const contact = await getContact(contactId, tenantId);
+      const contact = await getContact(contactId as string, tenantId);
       if (!contact) {
         return NextResponse.json(
           { error: "Contact not found" },
@@ -38,18 +38,18 @@ export async function GET(
         { status: 500 }
       );
     }
-  });
-}
+  }
+);
 
 // PUT: Update a specific contact
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: Promise<{ contactId: string }> }
-) {
-  const { contactId } = await params;
-  return withAuthAndTenant(async ({ tenantId }) => {
+export const PUT: (
+  request: NextRequest,
+  context: { params: Promise<Record<string, string | string[]>> }
+) => Promise<Response> = withAuthAndTenant(
+  async ({ tenantId }, request, context) => {
+    const { contactId } = await context.params;
     try {
-      const contact = await getContact(contactId, tenantId);
+      const contact = await getContact(contactId as string, tenantId);
       if (!contact) {
         return NextResponse.json(
           { error: "Contact not found" },
@@ -57,11 +57,11 @@ export async function PUT(
         );
       }
 
-      const body = await req.json();
+      const body = await request.json();
       const validated = updateContactSchema.parse(body);
 
       const updatedContact = await prisma.contact.update({
-        where: { id: contactId },
+        where: { id: contactId as string },
         data: validated,
       });
 
@@ -79,18 +79,18 @@ export async function PUT(
         { status: 500 }
       );
     }
-  });
-}
+  }
+);
 
 // DELETE: Delete a specific contact
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ contactId: string }> }
-) {
-  const { contactId } = await params;
-  return withAuthAndTenant(async ({ tenantId }) => {
+export const DELETE: (
+  request: NextRequest,
+  context: { params: Promise<Record<string, string | string[]>> }
+) => Promise<Response> = withAuthAndTenant(
+  async ({ tenantId }, request, context) => {
+    const { contactId } = await context.params;
     try {
-      const contact = await getContact(contactId, tenantId);
+      const contact = await getContact(contactId as string, tenantId);
       if (!contact) {
         return NextResponse.json(
           { error: "Contact not found" },
@@ -99,7 +99,7 @@ export async function DELETE(
       }
 
       await prisma.contact.delete({
-        where: { id: contactId },
+        where: { id: contactId as string },
       });
 
       return NextResponse.json({ success: true }, { status: 200 });
@@ -110,5 +110,5 @@ export async function DELETE(
         { status: 500 }
       );
     }
-  });
-}
+  }
+);
