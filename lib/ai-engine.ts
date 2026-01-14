@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { getUserSubscription } from "./subscription";
+import { getTenantSubscription } from "./subscription";
 
 const AI_ENGINE_URL = process.env.AI_ENGINE_URL;
 const BOTPRESS_SERVICE_TOKEN = process.env.BOTPRESS_SERVICE_TOKEN;
@@ -90,7 +90,6 @@ export async function checkHealth() {
 export const ConverseInputSchema = z
   .object({
     botId: z.string().min(1),
-    userId: z.string().min(1), // Added userId to check subscription
     tenantId: z.string().min(1),
     contact: z.object({
       name: z.string().optional(),
@@ -148,7 +147,6 @@ async function logAiUsage(tenantId: string, botId: string) {
 async function upsertCrmData(
   botId: string,
   tenantId: string,
-  userId: string,
   contact: { name?: string; email?: string; phone?: string }
 ) {
   // 1. Find or create the Contact
@@ -182,7 +180,7 @@ async function upsertCrmData(
 
   if (!conversation) {
     // Check plan limits before creating a new conversation
-    const subscription = await getUserSubscription(userId);
+    const subscription = await getTenantSubscription(tenantId);
     const conversationCount = await prisma.crmConversation.count({
       where: {
         contact: {
@@ -219,12 +217,11 @@ async function upsertCrmData(
  */
 export async function converse(input: ConverseInput) {
   assertServerConfig();
-  const { botId, tenantId, userId, contact, message } = input;
+  const { botId, tenantId, contact, message } = input;
 
   const { conversation } = await upsertCrmData(
     botId,
     tenantId,
-    userId,
     contact
   );
   const conversationId = conversation.id; // Use our internal ID for the AI engine session

@@ -16,9 +16,10 @@ export interface UsageStats {
 }
 
 /**
- * Get tenant's subscription plan or default to free
+ * DEPRECATED: Use getTenantSubscription instead.
+ * @deprecated
  */
-export async function getUserSubscription(userId: string) {
+export async function _DEPRECATED_getUserSubscription(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: { tenant: true },
@@ -28,8 +29,22 @@ export async function getUserSubscription(userId: string) {
     throw new Error("User not found or no tenant");
   }
 
+  return getTenantSubscription(user.tenantId);
+}
+
+/**
+ * Get a tenant's active subscription plan or a default free plan.
+ * This is the source of truth for all plan-related limits and features.
+ * @param tenantId The ID of the tenant.
+ * @returns The tenant's subscription object, including the plan details.
+ */
+export async function getTenantSubscription(tenantId: string) {
+  if (!tenantId) {
+    throw new Error("Tenant ID is required");
+  }
+
   const subscription = await prisma.subscription.findUnique({
-    where: { tenantId: user.tenantId },
+    where: { tenantId: tenantId },
     include: { plan: true },
   });
 
@@ -61,12 +76,26 @@ export async function getUserSubscription(userId: string) {
 }
 
 /**
- * Get subscription limits for a user
+ * DEPRECATED: Use getTenantLimits instead.
+ * @deprecated
  */
-export async function getUserLimits(
+export async function _DEPRECATED_getUserLimits(
   userId: string
 ): Promise<SubscriptionLimits> {
-  const subscription = await getUserSubscription(userId);
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user?.tenantId) throw new Error("User not found or no tenant");
+  return getTenantLimits(user.tenantId);
+}
+
+/**
+ * Get subscription limits for a tenant.
+ * @param tenantId The ID of the tenant.
+ * @returns The subscription limits based on the tenant's plan.
+ */
+export async function getTenantLimits(
+  tenantId: string
+): Promise<SubscriptionLimits> {
+  const subscription = await getTenantSubscription(tenantId);
   const plan = subscription.plan;
 
   return {
@@ -79,23 +108,28 @@ export async function getUserLimits(
 }
 
 /**
- * Get current usage stats for a tenant
+ * DEPRECATED: Use getTenantUsage instead.
+ * @deprecated
  */
-export async function getUserUsage(
+export async function _DEPRECATED_getUserUsage(
   userId: string,
   date: Date = new Date()
 ): Promise<UsageStats> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: { tenant: true },
-  });
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user?.tenantId) throw new Error("User not found or no tenant");
+  return getTenantUsage(user.tenantId, date);
+}
 
-  if (!user?.tenantId) {
-    throw new Error("User not found or no tenant");
-  }
-
-  const tenantId = user.tenantId;
-
+/**
+ * Get current usage stats for a tenant.
+ * @param tenantId The ID of the tenant.
+ * @param date The date to calculate usage for (defaults to now).
+ * @returns An object with the tenant's current usage stats.
+ */
+export async function getTenantUsage(
+  tenantId: string,
+  date: Date = new Date()
+): Promise<UsageStats> {
   const startOfDay = new Date(date);
   startOfDay.setHours(0, 0, 0, 0);
 

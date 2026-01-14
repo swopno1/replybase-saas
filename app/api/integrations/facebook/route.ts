@@ -73,13 +73,11 @@ export async function POST(req: Request) {
       update: {
         name: verifiedPageName,
         accessToken: accessToken,
-        userId: userId,
       },
       create: {
         facebookId: verifiedPageId,
         name: verifiedPageName,
         accessToken: accessToken,
-        userId: userId,
         tenantId: tenantId,
         engineConnected: false,
       },

@@ -72,7 +72,6 @@ export const POST: (
       const bot = await prisma.bot.create({
         data: {
           tenantId,
-          userId,
           name: validated.name,
           description: validated.description || null,
           entryFlow: validated.entryFlow || null,
