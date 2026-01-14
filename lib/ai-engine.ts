@@ -47,7 +47,6 @@ async function updateHealthStatus(isHealthy: boolean, details?: object) {
  * @returns A promise that resolves to an object indicating the engine status.
  */
 export async function checkHealth() {
-  assertServerConfig();
   try {
     const healthStatus = await prisma.systemHealth.findUnique({
       where: { system: "ai-engine" },
@@ -81,33 +80,140 @@ export async function checkHealth() {
     return { engine: "ok", provider: "ai-engine" };
   } catch (error) {
     console.error("[AI Engine] Health check failed:", error);
+    // This indicates a problem with our database, not the AI engine.
+    // However, from the client's perspective, the system is down.
     return { engine: "down", reason: "unreachable" };
   }
 }
 
-export const ConverseInputSchema = z.object({
-  botId: z.string().min(1),
-  userId: z.string().min(1),
-  message: z.string().min(1),
-});
+export const ConverseInputSchema = z
+  .object({
+    botId: z.string().min(1),
+    tenantId: z.string().min(1),
+    contact: z.object({
+      name: z.string().optional(),
+      email: z.string().email().optional(),
+      phone: z.string().optional(),
+    }),
+    message: z.string().min(1),
+  })
+  .refine(
+    (data) =>
+      !!data.contact.name || !!data.contact.email || !!data.contact.phone,
+    {
+      message:
+        "At least one contact identifier (name, email, or phone) must be provided",
+    }
+  );
+
+type ConverseInput = z.infer<typeof ConverseInputSchema>;
+
+async function logAiUsage(tenantId: string, botId: string) {
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0); // Normalize to the start of the day in UTC
+
+  try {
+    await prisma.usageLog.upsert({
+      where: {
+        tenantId_type_date_botId_channelId: {
+          tenantId,
+          type: "message",
+          date: today,
+          botId,
+          channelId: "api", // Earmark API-based interactions
+        },
+      },
+      create: {
+        tenantId,
+        botId,
+        type: "message",
+        count: 1,
+        date: today,
+        channelId: "api",
+      },
+      update: {
+        count: {
+          increment: 1,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("[UsageLog] Failed to log AI usage:", error);
+    // Non-fatal. We don't want to interrupt the conversation for a billing-related issue.
+  }
+}
+
+async function upsertCrmData(
+  botId: string,
+  tenantId: string,
+  contact: { name?: string; email?: string; phone?: string }
+) {
+  // 1. Find or create the Contact
+  let dbContact = await prisma.contact.findFirst({
+    where: {
+      tenantId,
+      OR: [{ email: contact.email }, { phone: contact.phone }].filter(
+        (c) => Object.values(c)[0]
+      ),
+    },
+  });
+
+  if (!dbContact) {
+    dbContact = await prisma.contact.create({
+      data: {
+        tenantId,
+        name: contact.name,
+        email: contact.email,
+        phone: contact.phone,
+      },
+    });
+  }
+
+  // 2. Find or create the Conversation
+  let conversation = await prisma.crmConversation.findFirst({
+    where: {
+      contactId: dbContact.id,
+      botId,
+    },
+  });
+
+  if (!conversation) {
+    conversation = await prisma.crmConversation.create({
+      data: {
+        contactId: dbContact.id,
+        botId,
+        channel: "api", // Earmark API-based conversations
+      },
+    });
+  }
+
+  return { contact: dbContact, conversation };
+}
 
 /**
- * Sends a message to a bot and returns the response.
- * @param botId The ID of the bot.
- * @param userId The ID of the user.
- * @param message The message to send.
+ * Sends a message to a bot and returns the response, while also handling CRM and logging.
+ * @param input The validated input data from the API.
  * @returns A promise that resolves to the bot's response.
  */
-export async function converse(
-  botId: string,
-  userId: string,
-  message: string
-) {
+export async function converse(input: ConverseInput) {
   assertServerConfig();
+  const { botId, tenantId, contact, message } = input;
+
+  const { conversation } = await upsertCrmData(botId, tenantId, contact);
+  const conversationId = conversation.id; // Use our internal ID for the AI engine session
+
+  // Log the inbound message
+  await prisma.crmMessage.create({
+    data: {
+      conversationId,
+      direction: "inbound",
+      content: message,
+    },
+  });
 
   try {
     const response = await fetch(
-      `${AI_ENGINE_URL}/api/v1/bots/${botId}/converse/${userId}`,
+      `${AI_ENGINE_URL}/api/v1/bots/${botId}/converse/${conversationId}`,
       {
         method: "POST",
         headers: {
@@ -119,23 +225,48 @@ export async function converse(
     );
 
     if (!response.ok) {
+      const errorDetails = await response.text();
       console.error(
-        `[AI Engine] Converse request failed with status: ${response.status}`
+        `[AI Engine] Converse request failed with status: ${response.status}`,
+        errorDetails
       );
       await updateHealthStatus(false, {
         status: response.status,
         statusText: response.statusText,
+        body: errorDetails,
       });
       throw new AiEngineError("Failed to communicate with AI engine");
     }
 
+    const responseData = await response.json();
     await updateHealthStatus(true);
-    return await response.json();
+    await logAiUsage(tenantId, botId);
+
+    // Log the outbound message(s)
+    if (responseData.responses && Array.isArray(responseData.responses)) {
+      for (const res of responseData.responses) {
+        if (res.type === "text") {
+          await prisma.crmMessage.create({
+            data: {
+              conversationId,
+              direction: "outbound",
+              content: res.text,
+            },
+          });
+        }
+      }
+    }
+
+    return responseData;
   } catch (error) {
     console.error("[AI Engine] Converse request failed:", error);
     await updateHealthStatus(false, {
       error: error instanceof Error ? error.message : "Unknown error",
     });
+
+    if (error instanceof AiEngineError) {
+      throw error;
+    }
     throw new AiEngineError("Service unavailable");
   }
 }
