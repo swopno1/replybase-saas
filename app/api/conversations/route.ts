@@ -43,7 +43,7 @@ export async function GET() {
 
 // POST: Create a new conversation
 export async function POST(req: NextRequest) {
-  return withAuthAndTenant(async ({ tenantId, userId }) => {
+  return withAuthAndTenant(async ({ tenantId, id: userId }) => {
     try {
       const body = await req.json();
       const validated = createConversationSchema.parse(body);
@@ -64,8 +64,7 @@ export async function POST(req: NextRequest) {
       ) {
         return NextResponse.json(
           {
-            error:
-              "Conversation limit reached. Please upgrade your plan.",
+            error: "Conversation limit reached. Please upgrade your plan.",
           },
           { status: 403 }
         );

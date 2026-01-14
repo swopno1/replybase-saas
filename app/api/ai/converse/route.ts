@@ -3,7 +3,7 @@ import { converse, AiEngineError, ConverseInputSchema } from "@/lib/ai-engine";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export async function POST(req: Request) {
-  return withAuthAndTenant(async ({ tenantId, userId }) => {
+  return withAuthAndTenant(async ({ tenantId, id: userId }) => {
     try {
       const json = await req.json();
       const validation = ConverseInputSchema.safeParse({
