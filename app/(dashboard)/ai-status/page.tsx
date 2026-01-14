@@ -26,16 +26,16 @@ export default async function AIStatusPage() {
   if (!session?.user) {
     return null;
   }
-  const userId = session.user.id;
+  const { tenantId } = session.user;
 
   // Get engine health
   const health = await checkHealth();
   const isEngineUp = health.engine === "ok";
 
   // Get connected Facebook pages
-  const connectedPages = userId
+  const connectedPages = tenantId
     ? await prisma.facebookPage.findMany({
-        where: { userId },
+        where: { tenantId },
         select: {
           id: true,
           facebookId: true,

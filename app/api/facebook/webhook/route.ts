@@ -156,7 +156,20 @@ async function handleMessagingEvent(event: FacebookMessagingEvent) {
 
     const { tenantId, botId, accessToken } = facebookPage;
 
-    // 2. Find or create Contact and Conversation
+    // 2. Fetch user profile from Facebook to get their name
+    let userName: string | undefined;
+    try {
+      const userProfileUrl = `https://graph.facebook.com/${senderPsid}?fields=first_name,last_name&access_token=${accessToken}`;
+      const profileResponse = await fetch(userProfileUrl);
+      if (profileResponse.ok) {
+        const profileData = await profileResponse.json();
+        userName = `${profileData.first_name || ''} ${profileData.last_name || ''}`.trim();
+      }
+    } catch (error) {
+      console.warn("[Facebook Webhook] Could not fetch user profile:", error);
+    }
+
+    // 3. Find or create Contact and Conversation
     let contact = await prisma.contact.findFirst({
       where: {
         tenantId: tenantId,
@@ -168,15 +181,22 @@ async function handleMessagingEvent(event: FacebookMessagingEvent) {
       contact = await prisma.contact.create({
         data: {
           tenantId: tenantId,
+          name: userName || senderPsid, // Fallback to PSID if name fetch fails
           identities: {
             create: { type: 'facebook_psid', value: senderPsid },
           },
         },
       });
+    } else if (userName && contact.name !== userName) {
+      // Update contact name if it has changed
+      await prisma.contact.update({
+        where: { id: contact.id },
+        data: { name: userName },
+      });
     }
 
     let conversation = await prisma.crmConversation.findFirst({
-      where: { contactId: contact.id, channel: 'facebook' },
+      where: { contactId: contact.id, facebookPageId: facebookPage.id },
     });
 
     if (!conversation) {
@@ -185,11 +205,12 @@ async function handleMessagingEvent(event: FacebookMessagingEvent) {
           contactId: contact.id,
           channel: 'facebook',
           botId: botId,
+          facebookPageId: facebookPage.id, // Correctly link the conversation to the page
         },
       });
     }
 
-    // 3. Log inbound message to CRM
+    // 4. Log inbound message to CRM
     await prisma.crmMessage.create({
       data: {
         conversationId: conversation.id,
@@ -199,13 +220,15 @@ async function handleMessagingEvent(event: FacebookMessagingEvent) {
       },
     });
 
-    // 4. Send to AI Engine
+    // 5. Send to AI Engine
     let replyText: string;
     try {
       const engineResponse = await converse({
         botId,
         tenantId,
-        conversationId: conversation.id,
+        contact: {
+          name: userName || senderPsid,
+        },
         message: messageText,
       });
 

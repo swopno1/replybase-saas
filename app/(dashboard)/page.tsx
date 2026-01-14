@@ -59,7 +59,7 @@ export default async function DashboardPage() {
 
   // Get connected Facebook pages (tenant-scoped)
   const connectedPages = await prisma.facebookPage.findMany({
-    where: { userId: session.user.id }, // Already scoped to user, which is tenant-safe
+    where: { tenantId: user.tenantId },
     select: {
       id: true,
       facebookId: true,
@@ -74,15 +74,15 @@ export default async function DashboardPage() {
   ).length;
   const isAIActive = activePagesCount > 0 && isEngineUp;
 
-  // Get last message timestamp (tenant-scoped via facebookPageId)
+  // Get last message timestamp (tenant-scoped via the new facebookPageId relation)
   let lastMessageTimestamp: Date | null = null;
   if (connectedPages.length > 0) {
-    const facebookPageIds = connectedPages.map((p) => p.facebookId);
-    const lastMessage = await prisma.messageLog.findFirst({
+    const pageIds = connectedPages.map((p) => p.id);
+    const lastMessage = await prisma.crmMessage.findFirst({
       where: {
         conversation: {
           facebookPageId: {
-            in: facebookPageIds,
+            in: pageIds,
           },
         },
       },

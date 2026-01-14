@@ -103,6 +103,8 @@ model FacebookPage {
   bot             Bot?    @relation(fields: [botId], references: [id])
   engineConnected Boolean @default(false) // AI engine connection status
 
+  crmConversations CrmConversation[] // Back-relation
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -319,6 +321,10 @@ model CrmConversation {
 
   botId String?
   bot   Bot?     @relation(fields: [botId], references: [id])
+
+  // Optional link to a specific Facebook Page for channel-specific context
+  facebookPageId String?
+  facebookPage   FacebookPage? @relation(fields: [facebookPageId], references: [id])
 
   messages CrmMessage[]
 
