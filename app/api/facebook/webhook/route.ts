@@ -184,6 +184,7 @@ async function handleMessagingEvent(event: FacebookMessagingEvent) {
         accessToken: true,
         botId: true,
         engineConnected: true,
+        userId: true,
         user: {
           select: {
             tenantId: true,
@@ -231,6 +232,7 @@ async function handleMessagingEvent(event: FacebookMessagingEvent) {
       const engineResponse = await converse({
         botId: facebookPage.botId!,
         tenantId: facebookPage.user.tenantId,
+        userId: facebookPage.userId,
         contact: {}, // No contact info available from Facebook webhook
         message: messageText,
       });

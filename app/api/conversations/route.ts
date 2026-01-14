@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { withAuthAndTenant } from "@/lib/route-helpers";
+import { getUserSubscription } from "@/lib/subscription";
 
 const createConversationSchema = z.object({
   contactId: z.string().cuid(),
@@ -42,10 +43,33 @@ export async function GET() {
 
 // POST: Create a new conversation
 export async function POST(req: NextRequest) {
-  return withAuthAndTenant(async ({ tenantId }) => {
+  return withAuthAndTenant(async ({ tenantId, userId }) => {
     try {
       const body = await req.json();
       const validated = createConversationSchema.parse(body);
+
+      // Check plan limits
+      const subscription = await getUserSubscription(userId);
+      const conversationCount = await prisma.crmConversation.count({
+        where: {
+          contact: {
+            tenantId: tenantId,
+          },
+        },
+      });
+
+      if (
+        subscription.plan.maxConversations > 0 &&
+        conversationCount >= subscription.plan.maxConversations
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Conversation limit reached. Please upgrade your plan.",
+          },
+          { status: 403 }
+        );
+      }
 
       // Verify contact exists and belongs to the tenant
       const contact = await prisma.contact.findFirst({
