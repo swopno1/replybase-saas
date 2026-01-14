@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { resolveSession } from "@/lib/session-resolver";
 import { converse } from "@/lib/ai-engine";
 import { sendTextMessage } from "@/lib/facebook-sender";
 import { verifyWebhookSignature } from "@/lib/facebook-utils";
@@ -120,185 +119,122 @@ interface FacebookMessagingEvent {
  */
 async function handleMessagingEvent(event: FacebookMessagingEvent) {
   try {
-    // Skip delivery receipts
-    if (event.delivery) {
-      console.log("[Facebook Webhook] Skipping delivery receipt");
+    // Skip non-message events, echoes, and receipts for MVP
+    if (event.delivery || event.read || event.postback || !event.message || event.message.is_echo) {
       return;
     }
 
-    // Skip read receipts
-    if (event.read) {
-      console.log("[Facebook Webhook] Skipping read receipt");
-      return;
-    }
+    const { sender, recipient, message } = event;
+    const senderPsid = sender?.id;
+    const pageId = recipient?.id;
+    const messageText = message?.text;
 
-    // Skip postbacks (button clicks, etc.)
-    if (event.postback) {
-      console.log("[Facebook Webhook] Skipping postback event");
-      return;
-    }
-
-    // Only process message events
-    if (!event.message) {
-      console.log("[Facebook Webhook] Skipping non-message event");
-      return;
-    }
-
-    // Ignore echoes (messages sent by the page)
-    if (event.message.is_echo) {
-      console.log("[Facebook Webhook] Ignoring echo");
-      return;
-    }
-
-    // Extract message data
-    const senderPsid = event.sender?.id;
-    const pageId = event.recipient?.id;
-    const messageText = event.message?.text;
-
-    // Skip messages without text (attachments, quick replies, etc.) - MVP only handles text
     if (!messageText) {
-      console.log(
-        "[Facebook Webhook] Skipping non-text message (attachments/quick replies not supported in MVP)"
-      );
+      // For MVP, we only handle text messages.
       return;
     }
 
     if (!senderPsid || !pageId) {
-      console.warn("[Facebook Webhook] Missing required fields:", {
-        senderPsid,
-        pageId,
-      });
+      console.warn("[Facebook Webhook] Missing sender or recipient ID");
       return;
     }
 
-    console.log(
-      `[Facebook Webhook] Processing message from PSID ${senderPsid} to Page ${pageId}`
-    );
-
-    // Look up the Facebook Page configuration
+    // 1. Find the page and tenant
     const facebookPage = await prisma.facebookPage.findUnique({
       where: { facebookId: pageId },
-      select: {
-        id: true,
-        facebookId: true,
-        accessToken: true,
-        botId: true,
-        engineConnected: true,
-        userId: true,
-        user: {
-          select: {
-            tenantId: true,
-          },
-        },
-      },
     });
 
     if (!facebookPage) {
-      console.warn(`[Facebook Webhook] Page ${pageId} not found in database`);
+      console.warn(`[Facebook Webhook] Page ${pageId} not found`);
       return;
     }
 
-    if (!facebookPage.engineConnected || !facebookPage.botId) {
-      console.warn(`[Facebook Webhook] Page ${pageId} not connected to engine`);
+    if (!facebookPage.engineConnected || !facebookPage.botId || !facebookPage.tenantId) {
+      console.warn(`[Facebook Webhook] Page ${pageId} is not configured for AI.`);
       return;
     }
 
-    // Resolve or create conversation session
-    const session = await resolveSession(pageId, senderPsid);
-    console.log(
-      `[Facebook Webhook] Session resolved: ${session.sessionId} (new: ${session.isNew})`
-    );
+    const { tenantId, botId, accessToken } = facebookPage;
 
-    // Log inbound message
-    await prisma.messageLog.create({
-      data: {
-        conversationId: session.conversationId,
-        direction: "inbound",
-        messageId: event.message?.mid || `inbound-${Date.now()}`, // Use Facebook's message ID or fallback
-        content: messageText,
-        status: "success",
+    // 2. Find or create Contact and Conversation
+    let contact = await prisma.contact.findFirst({
+      where: {
+        tenantId: tenantId,
+        identities: { some: { type: 'facebook_psid', value: senderPsid } },
       },
     });
 
-    // Send message to AI engine
-    let replyText: string;
-    let logStatus: "success" | "error" = "success";
-    let errorDetails: string | null = null;
+    if (!contact) {
+      contact = await prisma.contact.create({
+        data: {
+          tenantId: tenantId,
+          identities: {
+            create: { type: 'facebook_psid', value: senderPsid },
+          },
+        },
+      });
+    }
 
+    let conversation = await prisma.crmConversation.findFirst({
+      where: { contactId: contact.id, channel: 'facebook' },
+    });
+
+    if (!conversation) {
+      conversation = await prisma.crmConversation.create({
+        data: {
+          contactId: contact.id,
+          channel: 'facebook',
+          botId: botId,
+        },
+      });
+    }
+
+    // 3. Log inbound message to CRM
+    await prisma.crmMessage.create({
+      data: {
+        conversationId: conversation.id,
+        direction: 'inbound',
+        content: messageText,
+        source: 'human',
+      },
+    });
+
+    // 4. Send to AI Engine
+    let replyText: string;
     try {
-      console.log(
-        `[Facebook Webhook] Sending to AI engine bot ${facebookPage.botId}`
-      );
       const engineResponse = await converse({
-        botId: facebookPage.botId!,
-        tenantId: facebookPage.user.tenantId,
-        userId: facebookPage.userId,
-        contact: {}, // No contact info available from Facebook webhook
+        botId,
+        tenantId,
+        conversationId: conversation.id,
         message: messageText,
       });
 
-      // Extract the text from the first 'text' type response
-      const textResponse = engineResponse.responses?.find(
-        (r: { type: string; text: string }) => r.type === "text"
-      );
+      type TextResponse = { type: 'text', text: string };
+      const textResponse = engineResponse.responses?.find((r: TextResponse) => r.type === 'text');
+      replyText = textResponse?.text;
 
-      if (textResponse?.text) {
-        replyText = textResponse.text;
-        console.log(`[Facebook Webhook] Engine replied: ${replyText}`);
-      } else {
+      if (!replyText) {
         throw new Error("No text response from engine");
       }
     } catch (error) {
-      // Fallback message
-      replyText =
-        "Sorry, I'm having trouble responding right now. Please try again later.";
-      logStatus = "error";
-      errorDetails =
-        error instanceof Error ? error.message : "Unknown engine error";
-      console.error(`[Facebook Webhook] Engine error: ${errorDetails}`);
+      console.error("[Facebook Webhook] AI Engine Error:", error);
+      replyText = "Sorry, I'm having trouble responding right now.";
     }
 
-    // Send reply to Facebook
-    const sendResult = await sendTextMessage(
-      facebookPage.accessToken,
-      senderPsid,
-      replyText
-    );
+    // 5. Send reply to Facebook
+    await sendTextMessage(accessToken, senderPsid, replyText);
 
-    if (sendResult.success) {
-      console.log(
-        `[Facebook Webhook] Reply sent successfully (Message ID: ${sendResult.messageId})`
-      );
+    // 6. Log outbound message to CRM
+    await prisma.crmMessage.create({
+      data: {
+        conversationId: conversation.id,
+        direction: 'outbound',
+        content: replyText,
+        source: 'ai',
+      },
+    });
 
-      // Log outbound message
-      await prisma.messageLog.create({
-        data: {
-          conversationId: session.conversationId,
-          direction: "outbound",
-          messageId: sendResult.messageId || `outbound-${Date.now()}`, // Use the sent message ID or fallback
-          content: replyText,
-          status: logStatus,
-          errorDetails,
-        },
-      });
-    } else {
-      console.error(
-        `[Facebook Webhook] Failed to send reply: ${sendResult.error}`
-      );
-
-      // Log failed outbound message
-      await prisma.messageLog.create({
-        data: {
-          conversationId: session.conversationId,
-          direction: "outbound",
-          messageId: `failed-${Date.now()}`, // Fallback for failed sends
-          content: replyText,
-          status: "error",
-          errorDetails: sendResult.error || "Unknown send error",
-        },
-      });
-    }
   } catch (error) {
-    console.error("[Facebook Webhook] Error handling messaging event:", error);
+    console.error("[Facebook Webhook] Unhandled error in handleMessagingEvent:", error);
   }
 }
