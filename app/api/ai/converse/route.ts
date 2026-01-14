@@ -3,10 +3,14 @@ import { converse, AiEngineError, ConverseInputSchema } from "@/lib/ai-engine";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export async function POST(req: Request) {
-  return withAuthAndTenant(async ({ tenantId }) => {
+  return withAuthAndTenant(async ({ tenantId, userId }) => {
     try {
       const json = await req.json();
-      const validation = ConverseInputSchema.safeParse({ ...json, tenantId });
+      const validation = ConverseInputSchema.safeParse({
+        ...json,
+        tenantId,
+        userId,
+      });
 
       if (!validation.success) {
         return NextResponse.json(

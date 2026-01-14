@@ -185,6 +185,7 @@ model Plan {
   flowExecutionCap    Int @default(100) // Max flows per day
   maxBots             Int @default(1)
   maxChannelsPerBot   Int @default(1)
+  maxConversations    Int @default(100)
 
   // Features
   features Json @default("{}") // Flexible feature flags
@@ -406,6 +407,7 @@ model CrmMessage {
   direction      String // "inbound" or "outbound"
   content        String          @db.Text
   createdAt      DateTime        @default(now())
+  source         String          @default("human") // "human" or "ai"
 
   @@index([conversationId])
   @@map("crm_messages")

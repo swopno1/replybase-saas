@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { getUserUsage, getUserLimits } from "@/lib/subscription";
 import { authOptions } from "@/lib/auth";
+import {
+  getConversationsPerBot,
+  getMessagesPerChannel,
+  getAiVsHumanRatio,
+  getResolutionTime,
+} from "@/lib/analytics";
+import { prisma } from "@/lib/prisma";
 
 // GET: Get usage statistics
 export async function GET() {
@@ -12,15 +19,44 @@ export async function GET() {
     }
 
     const userId = session.user.id;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { tenantId: true },
+    });
 
-    const [usage, limits] = await Promise.all([
+    if (!user?.tenantId) {
+      return NextResponse.json(
+        { error: "User not associated with a tenant" },
+        { status: 400 }
+      );
+    }
+    const tenantId = user.tenantId;
+
+    const [
+      usage,
+      limits,
+      conversationsPerBot,
+      messagesPerChannel,
+      aiVsHumanRatio,
+      resolutionTime,
+    ] = await Promise.all([
       getUserUsage(userId),
       getUserLimits(userId),
+      getConversationsPerBot(tenantId),
+      getMessagesPerChannel(tenantId),
+      getAiVsHumanRatio(tenantId),
+      getResolutionTime(tenantId),
     ]);
 
     return NextResponse.json({
       usage,
       limits,
+      analytics: {
+        conversationsPerBot,
+        messagesPerChannel,
+        aiVsHumanRatio,
+        resolutionTime,
+      },
       percentages: {
         dailyMessages: Math.min(
           100,
