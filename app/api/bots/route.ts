@@ -1,9 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { canCreateBot } from "@/lib/subscription";
 import { z } from "zod";
-import { authOptions } from "@/lib/auth";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
 const createBotSchema = z.object({
   name: z.string().min(1).max(100),
@@ -14,24 +13,10 @@ const createBotSchema = z.object({
 });
 
 // GET: List user's bots
-export async function GET() {
+export const GET = withAuthAndTenant(async (_req, res, context) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      include: { tenant: true },
-    });
-
-    if (!user?.tenantId) {
-      return NextResponse.json({ error: "No tenant found" }, { status: 403 });
-    }
-
     const bots = await prisma.bot.findMany({
-      where: { tenantId: user.tenantId },
+      where: { tenantId: context.tenantId },
       include: {
         channels: {
           select: {
@@ -60,27 +45,13 @@ export async function GET() {
       { status: 500 }
     );
   }
-}
+});
 
 // POST: Create a new bot
-export async function POST(req: NextRequest) {
+export const POST = withAuthAndTenant(async (req, res, context) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      include: { tenant: true },
-    });
-
-    if (!user?.tenantId) {
-      return NextResponse.json({ error: "No tenant found" }, { status: 403 });
-    }
-
     // Check if user can create more bots
-    const canCreate = await canCreateBot(session.user.id);
+    const canCreate = await canCreateBot(context.session.user.id);
     if (!canCreate) {
       return NextResponse.json(
         { error: "Bot limit reached. Please upgrade your plan." },
@@ -93,7 +64,8 @@ export async function POST(req: NextRequest) {
 
     const bot = await prisma.bot.create({
       data: {
-        tenantId: user.tenantId,
+        tenantId: context.tenantId,
+        userId: context.session.user.id,
         name: validated.name,
         description: validated.description || null,
         entryFlow: validated.entryFlow || null,
@@ -121,4 +93,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

@@ -1,31 +1,27 @@
-import { getServerSession } from "next-auth";
+import { getServerSession, Session } from "next-auth";
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 
-export async function withAuthAndTenant<T>(
-  handler: (user: { id: string; tenantId: string }) => Promise<T>
-): Promise<T | NextResponse> {
-  try {
+type AuthenticatedRouteHandler = (
+  req: Request,
+  res: { params: Record<string, string> },
+  context: { session: Session; tenantId: string }
+) => Promise<NextResponse>;
+
+export function withAuthAndTenant(handler: AuthenticatedRouteHandler) {
+  return async (req: Request, res: { params: Record<string, string> }) => {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+
+    if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-    });
-
-    if (!user?.tenantId) {
-      return NextResponse.json({ error: "No tenant found" }, { status: 403 });
+    const tenantId = session.user.tenantId;
+    if (!tenantId) {
+      console.error("CRITICAL: User session is missing tenantId.", { userId: session.user.id });
+      return NextResponse.json({ error: "Internal Server Error: Tenant not found." }, { status: 500 });
     }
 
-    return await handler({ id: user.id, tenantId: user.tenantId });
-  } catch (error) {
-    console.error("[API Helper] Error:", error);
-    return NextResponse.json(
-      { error: "An unexpected error occurred." },
-      { status: 500 }
-    );
-  }
+    return handler(req, res, { session, tenantId });
+  };
 }
