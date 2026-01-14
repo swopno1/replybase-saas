@@ -184,6 +184,11 @@ async function handleMessagingEvent(event: FacebookMessagingEvent) {
         accessToken: true,
         botId: true,
         engineConnected: true,
+        user: {
+          select: {
+            tenantId: true,
+          },
+        },
       },
     });
 
@@ -223,11 +228,12 @@ async function handleMessagingEvent(event: FacebookMessagingEvent) {
       console.log(
         `[Facebook Webhook] Sending to AI engine bot ${facebookPage.botId}`
       );
-      const engineResponse = await converse(
-        facebookPage.botId,
-        session.sessionId,
-        messageText
-      );
+      const engineResponse = await converse({
+        botId: facebookPage.botId!,
+        tenantId: facebookPage.user.tenantId,
+        contact: {}, // No contact info available from Facebook webhook
+        message: messageText,
+      });
 
       // Extract the text from the first 'text' type response
       const textResponse = engineResponse.responses?.find(

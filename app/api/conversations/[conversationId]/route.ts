@@ -22,13 +22,17 @@ async function getConversation(conversationId: string, tenantId: string) {
 // GET: Retrieve a specific conversation
 export async function GET(
   req: NextRequest,
-  { params }: { params: { conversationId: string } }
+  { params }: { params: Promise<{ conversationId: string }> }
 ) {
+  const { conversationId } = await params;
   return withAuthAndTenant(async ({ tenantId }) => {
     try {
-      const conversation = await getConversation(params.conversationId, tenantId);
+      const conversation = await getConversation(conversationId, tenantId);
       if (!conversation) {
-        return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Conversation not found" },
+          { status: 404 }
+        );
       }
       return NextResponse.json({ conversation });
     } catch (error) {
@@ -44,20 +48,24 @@ export async function GET(
 // PUT: Update a specific conversation
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { conversationId: string } }
+  { params }: { params: Promise<{ conversationId: string }> }
 ) {
+  const { conversationId } = await params;
   return withAuthAndTenant(async ({ tenantId }) => {
     try {
-      const conversation = await getConversation(params.conversationId, tenantId);
+      const conversation = await getConversation(conversationId, tenantId);
       if (!conversation) {
-        return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Conversation not found" },
+          { status: 404 }
+        );
       }
 
       const body = await req.json();
       const validated = updateConversationSchema.parse(body);
 
       const updatedConversation = await prisma.crmConversation.update({
-        where: { id: params.conversationId },
+        where: { id: conversationId },
         data: {
           channel: validated.channel,
           botId: validated.botId,
@@ -84,17 +92,21 @@ export async function PUT(
 // DELETE: Delete a specific conversation
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { conversationId: string } }
+  { params }: { params: Promise<{ conversationId: string }> }
 ) {
+  const { conversationId } = await params;
   return withAuthAndTenant(async ({ tenantId }) => {
     try {
-      const conversation = await getConversation(params.conversationId, tenantId);
+      const conversation = await getConversation(conversationId, tenantId);
       if (!conversation) {
-        return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Conversation not found" },
+          { status: 404 }
+        );
       }
 
       await prisma.crmConversation.delete({
-        where: { id: params.conversationId },
+        where: { id: conversationId },
       });
 
       return NextResponse.json({ success: true }, { status: 200 });

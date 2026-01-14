@@ -18,13 +18,17 @@ async function getContact(contactId: string, tenantId: string) {
 // GET: Retrieve a specific contact
 export async function GET(
   req: NextRequest,
-  { params }: { params: { contactId: string } }
+  { params }: { params: Promise<{ contactId: string }> }
 ) {
+  const { contactId } = await params;
   return withAuthAndTenant(async ({ tenantId }) => {
     try {
-      const contact = await getContact(params.contactId, tenantId);
+      const contact = await getContact(contactId, tenantId);
       if (!contact) {
-        return NextResponse.json({ error: "Contact not found" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Contact not found" },
+          { status: 404 }
+        );
       }
       return NextResponse.json({ contact });
     } catch (error) {
@@ -40,20 +44,24 @@ export async function GET(
 // PUT: Update a specific contact
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { contactId: string } }
+  { params }: { params: Promise<{ contactId: string }> }
 ) {
+  const { contactId } = await params;
   return withAuthAndTenant(async ({ tenantId }) => {
     try {
-      const contact = await getContact(params.contactId, tenantId);
+      const contact = await getContact(contactId, tenantId);
       if (!contact) {
-        return NextResponse.json({ error: "Contact not found" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Contact not found" },
+          { status: 404 }
+        );
       }
 
       const body = await req.json();
       const validated = updateContactSchema.parse(body);
 
       const updatedContact = await prisma.contact.update({
-        where: { id: params.contactId },
+        where: { id: contactId },
         data: validated,
       });
 
@@ -77,17 +85,21 @@ export async function PUT(
 // DELETE: Delete a specific contact
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { contactId: string } }
+  { params }: { params: Promise<{ contactId: string }> }
 ) {
+  const { contactId } = await params;
   return withAuthAndTenant(async ({ tenantId }) => {
     try {
-      const contact = await getContact(params.contactId, tenantId);
+      const contact = await getContact(contactId, tenantId);
       if (!contact) {
-        return NextResponse.json({ error: "Contact not found" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Contact not found" },
+          { status: 404 }
+        );
       }
 
       await prisma.contact.delete({
-        where: { id: params.contactId },
+        where: { id: contactId },
       });
 
       return NextResponse.json({ success: true }, { status: 200 });

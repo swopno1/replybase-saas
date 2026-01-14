@@ -22,17 +22,21 @@ async function getConversation(conversationId: string, tenantId: string) {
 // GET: List messages for a conversation
 export async function GET(
   req: NextRequest,
-  { params }: { params: { conversationId: string } }
+  { params }: { params: Promise<{ conversationId: string }> }
 ) {
+  const { conversationId } = await params;
   return withAuthAndTenant(async ({ tenantId }) => {
     try {
-      const conversation = await getConversation(params.conversationId, tenantId);
+      const conversation = await getConversation(conversationId, tenantId);
       if (!conversation) {
-        return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Conversation not found" },
+          { status: 404 }
+        );
       }
 
       const messages = await prisma.crmMessage.findMany({
-        where: { conversationId: params.conversationId },
+        where: { conversationId: conversationId },
         orderBy: { createdAt: "asc" },
       });
 
@@ -50,13 +54,17 @@ export async function GET(
 // POST: Create a new message in a conversation
 export async function POST(
   req: NextRequest,
-  { params }: { params: { conversationId: string } }
+  { params }: { params: Promise<{ conversationId: string }> }
 ) {
+  const { conversationId } = await params;
   return withAuthAndTenant(async ({ tenantId }) => {
     try {
-      const conversation = await getConversation(params.conversationId, tenantId);
+      const conversation = await getConversation(conversationId, tenantId);
       if (!conversation) {
-        return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Conversation not found" },
+          { status: 404 }
+        );
       }
 
       const body = await req.json();
@@ -64,7 +72,7 @@ export async function POST(
 
       const message = await prisma.crmMessage.create({
         data: {
-          conversationId: params.conversationId,
+          conversationId: conversationId,
           content: validated.content,
           direction: validated.direction,
         },

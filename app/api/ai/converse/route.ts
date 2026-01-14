@@ -1,13 +1,9 @@
 import { NextResponse } from "next/server";
-import {
-  converse,
-  AiEngineError,
-  ConverseInputSchema,
-} from "@/lib/ai-engine";
+import { converse, AiEngineError, ConverseInputSchema } from "@/lib/ai-engine";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 
-export const POST = withAuthAndTenant(
-  async (req: Request, { tenantId }: { tenantId: string }) => {
+export async function POST(req: Request) {
+  return withAuthAndTenant(async ({ tenantId }) => {
     try {
       const json = await req.json();
       const validation = ConverseInputSchema.safeParse({ ...json, tenantId });
@@ -17,7 +13,7 @@ export const POST = withAuthAndTenant(
           {
             status: "error",
             message: "Invalid request body",
-            details: validation.error.errors,
+            details: validation.error.issues,
           },
           { status: 400 }
         );
@@ -40,5 +36,5 @@ export const POST = withAuthAndTenant(
         { status: 500 }
       );
     }
-  }
-);
+  });
+}

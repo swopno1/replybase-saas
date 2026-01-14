@@ -1,8 +1,16 @@
-"use client"
+"use client";
 
-import { LayoutDashboard, MessageSquare, Settings, Activity, Zap } from "lucide-react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import {
+  LayoutDashboard,
+  MessageSquare,
+  Settings,
+  Activity,
+  Zap,
+  Users,
+  MessagesSquare,
+} from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 import {
   Sidebar,
@@ -13,7 +21,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 
 // Menu items.
 const items = [
@@ -21,6 +29,16 @@ const items = [
     title: "Dashboard",
     url: "/",
     icon: LayoutDashboard,
+  },
+  {
+    title: "Contacts",
+    url: "/contacts",
+    icon: Users,
+  },
+  {
+    title: "Conversations",
+    url: "/conversations",
+    icon: MessagesSquare,
   },
   {
     title: "Facebook Pages",
@@ -42,10 +60,10 @@ const items = [
     url: "/settings",
     icon: Settings,
   },
-]
+];
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const pathname = usePathname()
+  const pathname = usePathname();
 
   return (
     <Sidebar {...props}>
@@ -55,8 +73,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => {
-                const isActive = pathname === item.url || 
-                  (item.url !== "/" && pathname?.startsWith(item.url))
+                const isActive =
+                  pathname === item.url ||
+                  (item.url !== "/" && pathname?.startsWith(item.url));
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={isActive}>
@@ -66,12 +85,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                )
+                );
               })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
     </Sidebar>
-  )
+  );
 }

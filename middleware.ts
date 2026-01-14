@@ -5,6 +5,9 @@ export async function middleware(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.AUTH_SECRET });
   const { pathname } = req.nextUrl;
 
+  // To test for dev:
+  // return NextResponse.next();
+
   // Allow chat routes to be public
   if (pathname.startsWith("/chat/")) {
     return NextResponse.next();
