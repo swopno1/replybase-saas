@@ -14,42 +14,40 @@ const createConversationSchema = z.object({
 export const GET: (
   request: NextRequest,
   context: { params: Promise<Record<string, string | string[]>> }
-) => Promise<Response> = withAuthAndTenant(
-  async ({ tenantId }, request, context) => {
-    try {
-      const conversations = await prisma.crmConversation.findMany({
-        where: {
-          contact: {
-            tenantId: tenantId,
+) => Promise<Response> = withAuthAndTenant(async ({ tenantId }) => {
+  try {
+    const conversations = await prisma.crmConversation.findMany({
+      where: {
+        contact: {
+          tenantId: tenantId,
+        },
+      },
+      include: {
+        contact: {
+          select: {
+            id: true,
+            name: true,
           },
         },
-        include: {
-          contact: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-        orderBy: { createdAt: "desc" },
-      });
-      return NextResponse.json({ conversations });
-    } catch (error) {
-      console.error("[Conversations API] Error fetching conversations:", error);
-      return NextResponse.json(
-        { error: "Failed to fetch conversations" },
-        { status: 500 }
-      );
-    }
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    return NextResponse.json({ conversations });
+  } catch (error) {
+    console.error("[Conversations API] Error fetching conversations:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch conversations" },
+      { status: 500 }
+    );
   }
-);
+});
 
 // POST: Create a new conversation
 export const POST: (
   request: NextRequest,
   context: { params: Promise<Record<string, string | string[]>> }
 ) => Promise<Response> = withAuthAndTenant(
-  async ({ tenantId, id: userId }, request, context) => {
+  async ({ tenantId, id: userId }, request) => {
     try {
       const body = await request.json();
       const validated = createConversationSchema.parse(body);

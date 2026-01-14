@@ -57,7 +57,6 @@ model User {
   bots          Bot[]
   usageLogs     UsageLog[]
   executionLogs ExecutionLog[]
-  leads         Lead[]
 
   assignedConversations CrmConversation[] @relation("AssignedConversations")
   internalNotes         InternalNote[]
@@ -78,6 +77,7 @@ model Tenant {
   subscriptions Subscription[]
   usageLogs     UsageLog[]
   contacts      Contact[]
+  facebookPages FacebookPage[]
 
   @@map("tenants")
 }
@@ -97,8 +97,12 @@ model FacebookPage {
   facebookId  String @unique // External Facebook Page ID
   name        String
   accessToken String @db.Text
-  userId      String
-  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   botId           String? // Optional link to a Bot
   bot             Bot?    @relation(fields: [botId], references: [id])
@@ -109,6 +113,7 @@ model FacebookPage {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([tenantId])
   @@index([userId])
   @@index([facebookId])
   @@map("facebook_pages")
@@ -117,7 +122,7 @@ model FacebookPage {
 model Conversation {
   id             String       @id @default(cuid())
   facebookPageId String // References FacebookPage.id
-  facebookPage   FacebookPage @relation(fields: [facebookPageId], references: [id], onDelete: Cascade)
+  facebookPage   FacebookPage @relation(fields: [facebookPageId], references: [id], onDelete: Restrict)
   userPsid       String // Facebook User PSID
   sessionId      String       @unique // Botpress session ID
   lastActivityAt DateTime     @default(now())
@@ -136,7 +141,7 @@ model Conversation {
 model MessageLog {
   id             String       @id @default(cuid())
   conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Restrict)
   direction      String // "inbound" or "outbound"
   messageId      String       @unique // External message ID
   content        String       @db.Text
@@ -211,7 +216,7 @@ model Bot {
   enabled        Boolean @default(true)
 
   tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
 
   channels      Channel[]
   executionLogs ExecutionLog[]
@@ -220,7 +225,7 @@ model Bot {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
   userId    String
 
   @@index([tenantId])
@@ -240,7 +245,7 @@ model Channel {
   config      Json    @default("{}") // Flexible config
 
   botId String
-  bot   Bot    @relation(fields: [botId], references: [id], onDelete: Cascade)
+  bot   Bot    @relation(fields: [botId], references: [id], onDelete: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -255,9 +260,9 @@ model Channel {
 model ExecutionLog {
   id        String  @id @default(cuid())
   botId     String
-  bot       Bot     @relation(fields: [botId], references: [id], onDelete: Cascade)
+  bot       Bot     @relation(fields: [botId], references: [id], onDelete: Restrict)
   userId    String
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Restrict)
   sessionId String? // Botpress session ID
 
   // Execution details
@@ -283,7 +288,7 @@ model ExecutionLog {
 model UsageLog {
   id        String  @id @default(cuid())
   tenantId  String
-  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   botId     String?
   channelId String?
 
@@ -306,32 +311,6 @@ model UsageLog {
   @@map("usage_logs")
 }
 
-// CRM models
-model Lead {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  phone     String?
-  status    String // e.g., "new", "contacted", "qualified"
-  notes     Note[]
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("leads")
-}
-
-model Note {
-  id        String   @id @default(cuid())
-  content   String
-  leadId    String
-  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-
-  @@map("notes")
-}
-
 // System health monitoring
 model SystemHealth {
   id          String   @id @default(cuid())
@@ -347,7 +326,7 @@ model SystemHealth {
 model Contact {
   id        String   @id @default(cuid())
   tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   name      String?
   email     String?
   phone     String?
@@ -366,7 +345,7 @@ model Contact {
 model ContactIdentity {
   id        String   @id @default(cuid())
   contactId String
-  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Restrict)
   type      String // e.g., "email", "phone", "facebook_psid"
   value     String
   createdAt DateTime @default(now())
@@ -379,7 +358,7 @@ model ContactIdentity {
 model CrmConversation {
   id        String   @id @default(cuid())
   contactId String
-  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Restrict)
   channel   String // e.g., "email", "sms", "chat"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -403,7 +382,7 @@ model CrmConversation {
 model CrmMessage {
   id             String          @id @default(cuid())
   conversationId String
-  conversation   CrmConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation   CrmConversation @relation(fields: [conversationId], references: [id], onDelete: Restrict)
   direction      String // "inbound" or "outbound"
   content        String          @db.Text
   createdAt      DateTime        @default(now())
@@ -423,9 +402,9 @@ model InternalNote {
   id              String          @id @default(cuid())
   content         String          @db.Text
   authorId        String
-  author          User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author          User            @relation(fields: [authorId], references: [id], onDelete: Restrict)
   conversationId  String
-  conversation    CrmConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation    CrmConversation @relation(fields: [conversationId], references: [id], onDelete: Restrict)
   createdAt       DateTime        @default(now())
 
   @@index([authorId])

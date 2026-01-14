@@ -10,33 +10,31 @@ import {
 export const GET: (
   request: NextRequest,
   context: { params: Promise<Record<string, string | string[]>> }
-) => Promise<Response> = withAuthAndTenant(
-  async ({ tenantId }, request, context) => {
-    try {
-      const [
-        conversationsPerBot,
-        messagesPerChannel,
-        aiVsHumanRatio,
-        resolutionTime,
-      ] = await Promise.all([
-        getConversationsPerBot(tenantId),
-        getMessagesPerChannel(tenantId),
-        getAiVsHumanRatio(tenantId),
-        getResolutionTime(tenantId),
-      ]);
+) => Promise<Response> = withAuthAndTenant(async ({ tenantId }) => {
+  try {
+    const [
+      conversationsPerBot,
+      messagesPerChannel,
+      aiVsHumanRatio,
+      resolutionTime,
+    ] = await Promise.all([
+      getConversationsPerBot(tenantId),
+      getMessagesPerChannel(tenantId),
+      getAiVsHumanRatio(tenantId),
+      getResolutionTime(tenantId),
+    ]);
 
-      return NextResponse.json({
-        conversationsPerBot,
-        messagesPerChannel,
-        aiVsHumanRatio,
-        resolutionTime,
-      });
-    } catch (error) {
-      console.error("[Analytics API] Error fetching analytics:", error);
-      return NextResponse.json(
-        { error: "Failed to fetch analytics" },
-        { status: 500 }
-      );
-    }
+    return NextResponse.json({
+      conversationsPerBot,
+      messagesPerChannel,
+      aiVsHumanRatio,
+      resolutionTime,
+    });
+  } catch (error) {
+    console.error("[Analytics API] Error fetching analytics:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch analytics" },
+      { status: 500 }
+    );
   }
-);
+});

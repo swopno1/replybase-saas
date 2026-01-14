@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { converse, AiEngineError, ConverseInputSchema } from "@/lib/ai-engine";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const POST = withAuthAndTenant(
-  async ({ tenantId, id: userId }, request, context) => {
+  async ({ tenantId, id: userId }, request) => {
     try {
       const json = await request.json();
       const validation = ConverseInputSchema.safeParse({

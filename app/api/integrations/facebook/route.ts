@@ -10,8 +10,12 @@ export async function POST(req: Request) {
   }
 
   const userId = session.user.id;
-  if (!userId) {
-    return NextResponse.json({ error: "User ID missing" }, { status: 400 });
+  const tenantId = session.user.tenantId;
+  if (!userId || !tenantId) {
+    return NextResponse.json(
+      { error: "User or Tenant ID missing" },
+      { status: 400 }
+    );
   }
 
   const {
@@ -76,6 +80,7 @@ export async function POST(req: Request) {
         name: verifiedPageName,
         accessToken: accessToken,
         userId: userId,
+        tenantId: tenantId,
         engineConnected: false,
       },
     });

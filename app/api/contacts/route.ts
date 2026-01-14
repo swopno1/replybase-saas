@@ -23,56 +23,52 @@ const createContactSchema = z
 export const GET: (
   request: NextRequest,
   context: { params: Promise<Record<string, string | string[]>> }
-) => Promise<Response> = withAuthAndTenant(
-  async ({ tenantId }, request, context) => {
-    try {
-      const contacts = await prisma.contact.findMany({
-        where: { tenantId },
-        orderBy: { createdAt: "desc" },
-      });
-      return NextResponse.json({ contacts });
-    } catch (error) {
-      console.error("[Contacts API] Error fetching contacts:", error);
-      return NextResponse.json(
-        { error: "Failed to fetch contacts" },
-        { status: 500 }
-      );
-    }
+) => Promise<Response> = withAuthAndTenant(async ({ tenantId }) => {
+  try {
+    const contacts = await prisma.contact.findMany({
+      where: { tenantId },
+      orderBy: { createdAt: "desc" },
+    });
+    return NextResponse.json({ contacts });
+  } catch (error) {
+    console.error("[Contacts API] Error fetching contacts:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch contacts" },
+      { status: 500 }
+    );
   }
-);
+});
 
 // POST: Create a new contact
 export const POST: (
   request: NextRequest,
   context: { params: Promise<Record<string, string | string[]>> }
-) => Promise<Response> = withAuthAndTenant(
-  async ({ tenantId }, request, context) => {
-    try {
-      const body = await request.json();
-      const validated = createContactSchema.parse(body);
+) => Promise<Response> = withAuthAndTenant(async ({ tenantId }, request) => {
+  try {
+    const body = await request.json();
+    const validated = createContactSchema.parse(body);
 
-      const contact = await prisma.contact.create({
-        data: {
-          tenantId,
-          name: validated.name,
-          email: validated.email,
-          phone: validated.phone,
-        },
-      });
+    const contact = await prisma.contact.create({
+      data: {
+        tenantId,
+        name: validated.name,
+        email: validated.email,
+        phone: validated.phone,
+      },
+    });
 
-      return NextResponse.json({ contact }, { status: 201 });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return NextResponse.json(
-          { error: "Invalid input", details: error.issues },
-          { status: 400 }
-        );
-      }
-      console.error("[Contacts API] Error creating contact:", error);
+    return NextResponse.json({ contact }, { status: 201 });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Failed to create contact" },
-        { status: 500 }
+        { error: "Invalid input", details: error.issues },
+        { status: 400 }
       );
     }
+    console.error("[Contacts API] Error creating contact:", error);
+    return NextResponse.json(
+      { error: "Failed to create contact" },
+      { status: 500 }
+    );
   }
-);
+});

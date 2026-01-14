@@ -2,14 +2,14 @@ import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import FacebookProvider from "next-auth/providers/facebook";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { AdapterUser } from "next-auth/adapters";
+import type { AdapterUser } from "next-auth/adapters";
 import { PrismaAdapter } from "next-auth-prisma-adapter";
 import { prisma } from "@/lib/prisma";
 
 export const authOptions: NextAuthOptions = {
   adapter: {
     ...PrismaAdapter(prisma),
-    createUser: async (data: any) => {
+    createUser: async (data: Omit<AdapterUser, "id">) => {
       // Create tenant first
       const tenant = await prisma.tenant.create({
         data: {
@@ -23,7 +23,7 @@ export const authOptions: NextAuthOptions = {
           tenantId: tenant.id,
         },
       });
-      return user;
+      return user as unknown as AdapterUser;
     },
   },
   providers: [
