@@ -1,103 +1,66 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { canCreateBot } from "@/lib/subscription";
-import { z } from "zod";
-import { withAuthAndTenant } from "@/lib/route-helpers";
+import { checkBotLimit } from "@/lib/subscription";
 
-const createBotSchema = z.object({
-  name: z.string().min(1).max(100),
-  description: z.string().max(500).optional(),
-  entryFlow: z.string().optional(),
-  welcomeMessage: z.string().max(1000).optional(),
-  triggers: z.array(z.string()).default([]),
-});
+export async function GET(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-// GET: List user's bots
-export const GET: (
-  request: NextRequest,
-  context: { params: Promise<Record<string, string | string[]>> }
-) => Promise<Response> = withAuthAndTenant(async ({ tenantId }) => {
   try {
-    const bots = await prisma.bot.findMany({
-      where: { tenantId },
-      include: {
-        channels: {
-          select: {
-            id: true,
-            type: true,
-            enabled: true,
-            killSwitch: true,
-            channelId: true,
-          },
-        },
-        _count: {
-          select: {
-            channels: true,
-            executionLogs: true,
-          },
-        },
+    const projects = await prisma.project.findMany({
+      where: {
+        tenantId: session.user.tenantId,
       },
-      orderBy: { createdAt: "desc" },
+      include: {
+        bots: true,
+      },
     });
 
-    return NextResponse.json({ bots });
+    return NextResponse.json({ projects });
   } catch (error) {
-    console.error("[Bots API] Error fetching bots:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch bots" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch bots" }, { status: 500 });
   }
-});
+}
 
-// POST: Create a new bot
-export const POST: (
-  request: NextRequest,
-  context: { params: Promise<Record<string, string | string[]>> }
-) => Promise<Response> = withAuthAndTenant(
-  async ({ tenantId, id: userId }, request) => {
-    try {
-      // Check if user can create more bots
-      const canCreate = await canCreateBot(userId);
-      if (!canCreate) {
-        return NextResponse.json(
-          { error: "Bot limit reached. Please upgrade your plan." },
-          { status: 403 }
-        );
-      }
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-      const body = await request.json();
-      const validated = createBotSchema.parse(body);
+  // 1. Check Limits
+  const limitStatus = await checkBotLimit(session.user.tenantId);
+  if (!limitStatus.allowed) {
+    return NextResponse.json({
+      error: "Plan limit reached",
+      details: `You have reached the maximum of ${limitStatus.limit} bots on the ${limitStatus.planName} plan. Please upgrade.`
+    }, { status: 403 });
+  }
 
-      const bot = await prisma.bot.create({
-        data: {
-          tenantId,
-          name: validated.name,
-          description: validated.description || null,
-          entryFlow: validated.entryFlow || null,
-          welcomeMessage: validated.welcomeMessage || null,
-          triggers: validated.triggers,
-          enabled: true,
-        },
-        include: {
-          channels: true,
-        },
-      });
+  try {
+    const body = await req.json();
+    const { name, projectId, channel } = body;
 
-      return NextResponse.json({ bot }, { status: 201 });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return NextResponse.json(
-          { error: "Invalid input", details: error.issues },
-          { status: 400 }
-        );
-      }
-
-      console.error("[Bots API] Error creating bot:", error);
-      return NextResponse.json(
-        { error: "Failed to create bot" },
-        { status: 500 }
-      );
+    if (!name || !projectId) {
+      return NextResponse.json({ error: "Name and Project ID are required" }, { status: 400 });
     }
+
+    const bot = await prisma.bot.create({
+      data: {
+        name,
+        channel: channel || "Web",
+        projectId,
+        tenantId: session.user.tenantId,
+        status: true
+      },
+    });
+
+    return NextResponse.json({ bot });
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to create bot" }, { status: 500 });
   }
-);
+}

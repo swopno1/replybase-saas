@@ -75,12 +75,25 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
+        // Fetch user with tenant to get tenantId
         const dbUser = await prisma.user.findUnique({
           where: { id: user.id },
-          select: { tenantId: true },
+          select: { tenantId: true }
         });
+
         token.id = user.id;
         token.tenantId = dbUser?.tenantId || "";
+
+        // Fetch subscription status separately to avoid complex nested includes typing issues
+        if (dbUser?.tenantId) {
+          const tenantSub = await prisma.subscription.findFirst({
+            where: { tenantId: dbUser.tenantId },
+            orderBy: { createdAt: 'desc' }
+          });
+          token.subscriptionStatus = tenantSub?.status || "inactive";
+        } else {
+          token.subscriptionStatus = "inactive";
+        }
       }
       return token;
     },
@@ -88,6 +101,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.id as string;
         session.user.tenantId = token.tenantId as string;
+        session.user.subscriptionStatus = token.subscriptionStatus as string;
       }
       return session;
     },

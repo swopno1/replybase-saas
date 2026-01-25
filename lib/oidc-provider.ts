@@ -27,6 +27,19 @@ const findAccount = async (ctx: any, id: string) => {
     if (!user) return undefined;
 
     const subscription = user.tenant?.subscriptions;
+    // Actually we should fetch robustly like in auth.ts but for now let's use the fetched structure.
+    // The previous include structure in findAccount was:
+    // subscriptions: { include: { plan: true }, where: { status: 'active' } }
+    // So if subscription is undefined, it means NO active subscription exists.
+
+    // STRICT GATING:
+    // If no active subscription is found, deny login.
+    if (!subscription) {
+        console.warn(`[OIDC] User ${id} denied access. No active subscription.`);
+        return undefined; // This causes 'account not found' or interaction failure in OIDC
+        // Ideally we'd redirect to billing, but standard OIDC doesn't easily support "redirect to billing" 
+        // without custom interaction routes properly set up. Returning undefined basically blocks them.
+    }
 
     return {
         accountId: id,
@@ -36,9 +49,8 @@ const findAccount = async (ctx: any, id: string) => {
                 email: user.email,
                 email_verified: !!user.emailVerified,
                 name: user.name,
-                // Custom Claims for Typebot / SaaS enforcement
-                subscriptionTier: subscription?.plan?.name || "free",
-                subscriptionStatus: subscription?.status || "inactive",
+                subscriptionTier: subscription.plan.name,
+                subscriptionStatus: subscription.status,
                 tenantId: user.tenantId,
             };
         },
