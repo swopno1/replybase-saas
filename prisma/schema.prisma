@@ -6,22 +6,20 @@ datasource db {
   provider = "postgresql"
 }
 
-// NextAuth.js models
 model Account {
   id                String  @id @default(cuid())
   userId            String
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@map("accounts")
@@ -38,44 +36,38 @@ model Session {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-
-  accounts Account[]
-  sessions Session[]
-
-  // ReplyBase-specific relations
-  usageLogs     UsageLog[]
-  executionLogs ExecutionLog[]
-
+  id                    String            @id @default(cuid())
+  name                  String?
+  email                 String?           @unique
+  emailVerified         DateTime?
+  image                 String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  tenantId              String
+  accounts              Account[]
   assignedConversations CrmConversation[] @relation("AssignedConversations")
+  executionLogs         ExecutionLog[]
   internalNotes         InternalNote[]
+  sessions              Session[]
+  usageLogs             UsageLog[]
+  tenant                Tenant            @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
   @@map("users")
 }
 
 model Tenant {
-  id        String   @id @default(cuid())
-  name      String
-  aiEnabled Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  users         User[]
+  id            String         @id @default(cuid())
+  name          String
+  aiEnabled     Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   bots          Bot[]
-  subscriptions Subscription[]
-  usageLogs     UsageLog[]
   contacts      Contact[]
   facebookPages FacebookPage[]
+  subscriptions Subscription?
+  usageLogs     UsageLog[]
+  users         User[]
 
   @@map("tenants")
 }
@@ -89,24 +81,19 @@ model VerificationToken {
   @@map("verificationtokens")
 }
 
-// Facebook integration models
 model FacebookPage {
-  id          String @id @default(cuid())
-  facebookId  String @unique // External Facebook Page ID
-  name        String
-  accessToken String @db.Text
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  botId           String? // Optional link to a Bot
-  bot             Bot?    @relation(fields: [botId], references: [id])
-  engineConnected Boolean @default(false) // AI engine connection status
-
-  crmConversations CrmConversation[] // Back-relation
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String            @id @default(cuid())
+  facebookId       String            @unique
+  name             String
+  accessToken      String
+  tenantId         String
+  botId            String?
+  engineConnected  Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  crmConversations CrmConversation[]
+  bot              Bot?              @relation(fields: [botId], references: [id])
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@index([facebookId])
@@ -115,96 +102,79 @@ model FacebookPage {
 
 model Subscription {
   id                 String    @id @default(cuid())
-  stripeId           String    @unique // Stripe subscription ID
-  stripeCustomerId   String?   @unique // Stripe customer ID
-  status             String    @default("active") // "active", "canceled", "past_due", "trialing"
+  stripeId           String    @unique
+  stripeCustomerId   String?   @unique
+  status             String    @default("active")
   currentPeriodStart DateTime  @default(now())
   currentPeriodEnd   DateTime
   cancelAtPeriodEnd  Boolean   @default(false)
-  trialEndsAt        DateTime? // Trial end date
-
-  planId String
-  plan   Plan   @relation(fields: [planId], references: [id])
-
-  tenantId String @unique
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  trialEndsAt        DateTime?
+  planId             String
+  tenantId           String    @unique
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  plan               Plan      @relation(fields: [planId], references: [id])
+  tenant             Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("subscriptions")
 }
 
 model Plan {
-  id          String @id @default(cuid())
-  name        String @unique // "free", "starter", "pro", "enterprise"
-  displayName String
-  price       Float  @default(0) // Monthly price in USD
-  currency    String @default("USD")
-
-  // Limits
-  dailyMessageLimit   Int @default(100)
-  monthlyMessageLimit Int @default(3000)
-  flowExecutionCap    Int @default(100) // Max flows per day
-  maxBots             Int @default(1)
-  maxChannelsPerBot   Int @default(1)
-  maxConversations    Int @default(100)
-
-  // Features
-  features Json @default("{}") // Flexible feature flags
-
-  subscriptions Subscription[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                  String         @id @default(cuid())
+  name                String         @unique
+  displayName         String
+  price               Float          @default(0)
+  currency            String         @default("USD")
+  dailyMessageLimit   Int            @default(100)
+  monthlyMessageLimit Int            @default(3000)
+  flowExecutionCap    Int            @default(100)
+  maxBots             Int            @default(1)
+  maxChannelsPerBot   Int            @default(1)
+  maxConversations    Int            @default(100)
+  features            Json           @default("{}")
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  subscriptions       Subscription[]
 
   @@map("plans")
 }
 
-// Bot and channel models
 model Bot {
-  id          String  @id @default(cuid())
-  name        String
-  description String?
-
-  // Added fields for bot configuration
-  entryFlow      String?
-  welcomeMessage String?
-  triggers       Json    @default("[]")
-  enabled        Boolean @default(true)
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-
-  channels      Channel[]
-  executionLogs ExecutionLog[]
-  facebookPages FacebookPage[] // Linked Facebook pages
+  id               String            @id @default(cuid())
+  name             String
+  description      String?
+  entryFlow        String?
+  welcomeMessage   String?
+  triggers         Json              @default("[]")
+  enabled          Boolean           @default(true)
+  tenantId         String
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  tenant           Tenant            @relation(fields: [tenantId], references: [id])
+  channels         Channel[]
   crmConversations CrmConversation[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  executionLogs    ExecutionLog[]
+  facebookPages    FacebookPage[]
 
   @@index([tenantId])
   @@map("bots")
 }
 
 model Channel {
-  id          String  @id @default(cuid())
-  type        String // e.g., "facebook", "telegram"
+  id          String   @id @default(cuid())
+  type        String
   name        String
-  accessToken String? @db.Text
-  pageId      String? // External page/channel ID
-  channelId   String? // Alternative external ID
-  isActive    Boolean @default(true)
-  enabled     Boolean @default(true) // Enable/disable channel
-  killSwitch  Boolean @default(false) // Emergency stop
-  config      Json    @default("{}") // Flexible config
-
-  botId String
-  bot   Bot    @relation(fields: [botId], references: [id], onDelete: Restrict)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  accessToken String?
+  pageId      String?
+  channelId   String?
+  isActive    Boolean  @default(true)
+  enabled     Boolean  @default(true)
+  killSwitch  Boolean  @default(false)
+  config      Json     @default("{}")
+  botId       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  bot         Bot      @relation(fields: [botId], references: [id])
 
   @@index([botId])
   @@index([pageId])
@@ -212,28 +182,22 @@ model Channel {
   @@map("channels")
 }
 
-// Logging and usage models
 model ExecutionLog {
-  id        String  @id @default(cuid())
-  botId     String
-  bot       Bot     @relation(fields: [botId], references: [id], onDelete: Restrict)
-  userId    String
-  user      User    @relation(fields: [userId], references: [id], onDelete: Restrict)
-  sessionId String? // Botpress session ID
-
-  // Execution details
+  id            String   @id @default(cuid())
+  botId         String
+  userId        String
+  sessionId     String?
   flowName      String?
   nodeId        String?
-  direction     String // "inbound", "outbound"
-  status        String  @default("success") // "success", "error", "timeout", "rate_limited"
-  errorMessage  String? @db.Text
-  executionTime Int? // Milliseconds
-
-  // Request/Response
-  input  String? @db.Text
-  output String? @db.Text
-
-  createdAt DateTime @default(now())
+  direction     String
+  status        String   @default("success")
+  errorMessage  String?
+  executionTime Int?
+  input         String?
+  output        String?
+  createdAt     DateTime @default(now())
+  bot           Bot      @relation(fields: [botId], references: [id])
+  user          User     @relation(fields: [userId], references: [id])
 
   @@index([botId, createdAt])
   @@index([userId, createdAt])
@@ -242,24 +206,17 @@ model ExecutionLog {
 }
 
 model UsageLog {
-  id        String  @id @default(cuid())
+  id        String   @id @default(cuid())
   tenantId  String
-  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   botId     String?
   channelId String?
-
-  // Usage type
-  type String // "message", "flow_execution", "webhook"
-
-  // Counts
-  count Int @default(1)
-
-  // Time window
-  date DateTime @db.Date // For daily limits
-
+  type      String
+  count     Int      @default(1)
+  date      DateTime @db.Date
   createdAt DateTime @default(now())
-  user      User?    @relation(fields: [userId], references: [id])
   userId    String?
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
 
   @@unique([tenantId, type, date, botId, channelId])
   @@index([tenantId, date, type])
@@ -267,29 +224,26 @@ model UsageLog {
   @@map("usage_logs")
 }
 
-// System health monitoring
 model SystemHealth {
   id          String   @id @default(cuid())
-  system      String   @unique // e.g., "ai-engine", "database", "stripe"
+  system      String   @unique
   isHealthy   Boolean  @default(true)
   lastChecked DateTime @updatedAt
-  details     Json?    // Store additional details, e.g., error messages
+  details     Json?
 
   @@map("system_health")
 }
 
-// CRM Data Primitives
 model Contact {
-  id        String   @id @default(cuid())
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  name      String?
-  email     String?
-  phone     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  id            String            @id @default(cuid())
+  tenantId      String
+  name          String?
+  email         String?
+  phone         String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
   identities    ContactIdentity[]
+  tenant        Tenant            @relation(fields: [tenantId], references: [id])
   conversations CrmConversation[]
 
   @@unique([tenantId, email])
@@ -301,10 +255,10 @@ model Contact {
 model ContactIdentity {
   id        String   @id @default(cuid())
   contactId String
-  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Restrict)
-  type      String // e.g., "email", "phone", "facebook_psid"
+  type      String
   value     String
   createdAt DateTime @default(now())
+  contact   Contact  @relation(fields: [contactId], references: [id])
 
   @@unique([contactId, type, value])
   @@index([contactId])
@@ -312,31 +266,25 @@ model ContactIdentity {
 }
 
 model CrmConversation {
-  id        String   @id @default(cuid())
-  contactId String
-  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Restrict)
-  channel   String // e.g., "email", "sms", "chat"
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  botId String?
-  bot   Bot?     @relation(fields: [botId], references: [id])
-
-  // Optional link to a specific Facebook Page for channel-specific context
+  id             String             @id @default(cuid())
+  contactId      String
+  channel        String
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  botId          String?
   facebookPageId String?
-  facebookPage   FacebookPage? @relation(fields: [facebookPageId], references: [id])
-
-  messages CrmMessage[]
-
-  status     ConversationStatus @default(OPEN)
-  assigneeId String?
-  assignee   User?              @relation("AssignedConversations", fields: [assigneeId], references: [id])
-  botPaused  Boolean            @default(false)
-  internalNotes InternalNote[]
-
+  status         ConversationStatus @default(OPEN)
+  assigneeId     String?
+  botPaused      Boolean            @default(false)
   // Typebot support
-  externalSessionId String? // Typebot session ID
-  metadata          Json?   // Store provider-specific metadata (e.g. Typebot results)
+  externalSessionId String?
+  metadata          Json?
+  assignee       User?              @relation("AssignedConversations", fields: [assigneeId], references: [id])
+  bot            Bot?               @relation(fields: [botId], references: [id])
+  contact        Contact            @relation(fields: [contactId], references: [id])
+  facebookPage   FacebookPage?      @relation(fields: [facebookPageId], references: [id])
+  messages       CrmMessage[]
+  internalNotes  InternalNote[]
 
   @@index([contactId])
   @@index([assigneeId])
@@ -347,14 +295,462 @@ model CrmConversation {
 model CrmMessage {
   id             String          @id @default(cuid())
   conversationId String
-  conversation   CrmConversation @relation(fields: [conversationId], references: [id], onDelete: Restrict)
-  direction      String // "inbound" or "outbound"
-  content        String          @db.Text
+  direction      String
+  content        String
   createdAt      DateTime        @default(now())
-  source         String          @default("human") // "human" or "ai"
+  source         String          @default("human")
+  conversation   CrmConversation @relation(fields: [conversationId], references: [id])
 
   @@index([conversationId])
   @@map("crm_messages")
+}
+
+model InternalNote {
+  id             String          @id @default(cuid())
+  content        String
+  authorId       String
+  conversationId String
+  createdAt      DateTime        @default(now())
+  author         User            @relation(fields: [authorId], references: [id])
+  conversation   CrmConversation @relation(fields: [conversationId], references: [id])
+
+  @@index([authorId])
+  @@index([conversationId])
+  @@map("internal_notes")
+}
+
+// OIDC Provider Models
+model OidcModel {
+  id        String   @id // key
+  type      String   // model
+  payload   Json     // the payload
+  grantId   String?  // grantId, if applicable
+  userCode  String?  // userCode, if applicable
+  uid       String?  // uid, if applicable
+  expiresAt DateTime? // expiration
+  consumedAt DateTime? // consumed at
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([type, id]) // Composite unique constraint
+  @@index([grantId])
+  @@index([userCode])
+  @@index([uid])
+  @@map("oidc_models")
+}
+
+model public_Account {
+  id                       String      @id
+  userId                   String
+  type                     String
+  provider                 String
+  providerAccountId        String
+  refresh_token            String?
+  access_token             String?
+  expires_at               Int?
+  token_type               String?
+  scope                    String?
+  id_token                 String?
+  session_state            String?
+  oauth_token_secret       String?
+  oauth_token              String?
+  refresh_token_expires_in Int?
+  User                     public_User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("Account")
+}
+
+model Answer {
+  createdAt  DateTime @default(now())
+  resultId   String
+  groupId    String
+  blockId    String
+  content    String
+  variableId String?
+  Result     Result   @relation(fields: [resultId], references: [id], onDelete: Cascade)
+
+  @@unique([resultId, blockId, groupId])
+}
+
+model AnswerV2 {
+  id               Int      @id @default(autoincrement())
+  blockId          String
+  content          String
+  resultId         String
+  createdAt        DateTime @default(now())
+  attachedFileUrls Json?
+  Result           Result   @relation(fields: [resultId], references: [id], onDelete: Cascade)
+
+  @@index([blockId])
+}
+
+model ApiToken {
+  id        String      @id
+  token     String      @unique
+  name      String
+  ownerId   String
+  createdAt DateTime    @default(now())
+  User      public_User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+}
+
+model BannedIp {
+  id                   String      @id
+  createdAt            DateTime    @default(now())
+  ip                   String      @unique
+  responsibleTypebotId String
+  userId               String
+  Typebot              Typebot     @relation(fields: [responsibleTypebotId], references: [id])
+  User                 public_User @relation(fields: [userId], references: [id])
+}
+
+model ChatSession {
+  id         String   @id
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now())
+  state      Json
+  isReplying Boolean?
+}
+
+model ClaimableCustomPlan {
+  id           String    @id
+  createdAt    DateTime  @default(now())
+  claimedAt    DateTime?
+  name         String
+  description  String?
+  price        Int
+  currency     String
+  workspaceId  String    @unique
+  chatsLimit   Int
+  storageLimit Int
+  seatsLimit   Int
+  companyName  String?
+  isYearly     Boolean   @default(false)
+  vatType      String?
+  vatValue     String?
+  Workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model CollaboratorsOnTypebots {
+  userId    String
+  typebotId String
+  type      CollaborationType
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @default(now())
+  Typebot   Typebot           @relation(fields: [typebotId], references: [id], onDelete: Cascade)
+  User      public_User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, typebotId])
+}
+
+model Coupon {
+  userPropertiesToUpdate Json
+  code                   String    @id @unique
+  dateRedeemed           DateTime?
+}
+
+model Credentials {
+  id          String    @id
+  data        String
+  name        String
+  type        String
+  iv          String
+  createdAt   DateTime  @default(now())
+  workspaceId String
+  Workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model CustomDomain {
+  name        String    @id
+  createdAt   DateTime  @default(now())
+  workspaceId String
+  Workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model DashboardFolder {
+  id                    String            @id
+  createdAt             DateTime          @default(now())
+  name                  String
+  parentFolderId        String?
+  updatedAt             DateTime          @default(now())
+  workspaceId           String
+  DashboardFolder       DashboardFolder?  @relation("DashboardFolderToDashboardFolder", fields: [parentFolderId], references: [id])
+  other_DashboardFolder DashboardFolder[] @relation("DashboardFolderToDashboardFolder")
+  Workspace             Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  Typebot               Typebot[]
+}
+
+model Invitation {
+  email     String
+  typebotId String
+  type      CollaborationType
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @default(now())
+  Typebot   Typebot           @relation(fields: [typebotId], references: [id], onDelete: Cascade)
+
+  @@unique([email, typebotId])
+}
+
+model Log {
+  id          String   @id
+  createdAt   DateTime @default(now())
+  resultId    String
+  status      String
+  description String
+  details     String?
+  context     String?
+  Result      Result   @relation(fields: [resultId], references: [id], onDelete: Cascade)
+
+  @@index([resultId])
+}
+
+model MemberInWorkspace {
+  userId      String
+  workspaceId String
+  role        WorkspaceRole
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @default(now())
+  User        public_User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+}
+
+model PublicTypebot {
+  id                  String                @id
+  typebotId           String                @unique
+  groups              Json
+  variables           Json
+  edges               Json
+  theme               Json
+  settings            Json
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @default(now())
+  version             String?
+  events              Json?
+  lastActivityAt      DateTime?
+  Typebot             Typebot               @relation(fields: [typebotId], references: [id], onDelete: Cascade)
+  RuntimeMediaIdCache RuntimeMediaIdCache[]
+
+  @@index([lastActivityAt])
+}
+
+model Result {
+  id                     String                   @id
+  createdAt              DateTime                 @default(now())
+  typebotId              String
+  isCompleted            Boolean
+  variables              Json
+  hasStarted             Boolean?
+  isArchived             Boolean?                 @default(false)
+  lastChatSessionId      String?
+  Answer                 Answer[]
+  AnswerV2               AnswerV2[]
+  Log                    Log[]
+  Typebot                Typebot                  @relation(fields: [typebotId], references: [id], onDelete: Cascade)
+  SetVariableHistoryItem SetVariableHistoryItem[]
+  VisitedEdge            VisitedEdge[]
+
+  @@index([typebotId, hasStarted, createdAt(sort: Desc)])
+  @@index([typebotId, isCompleted])
+}
+
+model RuntimeMediaIdCache {
+  provider        ChatProvider
+  url             String
+  mediaId         String
+  expiresAt       DateTime?
+  publicTypebotId String
+  PublicTypebot   PublicTypebot @relation(fields: [publicTypebotId], references: [id], onDelete: Cascade)
+
+  @@unique([publicTypebotId, provider, url])
+  @@index([expiresAt])
+}
+
+model public_Session {
+  id           String      @id
+  sessionToken String      @unique
+  userId       String
+  expires      DateTime
+  User         public_User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("Session")
+}
+
+model SetVariableHistoryItem {
+  resultId   String
+  index      Int
+  variableId String
+  blockId    String
+  value      Json
+  blockIndex Int?
+  Result     Result @relation(fields: [resultId], references: [id], onDelete: Cascade)
+
+  @@unique([resultId, index])
+}
+
+model ThemeTemplate {
+  id          String    @id
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now())
+  name        String
+  theme       Json
+  workspaceId String
+  Workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model Typebot {
+  id                      String                    @id
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @default(now())
+  name                    String
+  folderId                String?
+  groups                  Json
+  variables               Json
+  edges                   Json
+  theme                   Json
+  settings                Json
+  publicId                String?                   @unique
+  customDomain            String?                   @unique
+  icon                    String?
+  workspaceId             String
+  resultsTablePreferences Json?
+  isArchived              Boolean                   @default(false)
+  isClosed                Boolean                   @default(false)
+  version                 String?
+  selectedThemeTemplateId String?
+  whatsAppCredentialsId   String?
+  events                  Json?
+  riskLevel               Int?
+  BannedIp                BannedIp[]
+  CollaboratorsOnTypebots CollaboratorsOnTypebots[]
+  Invitation              Invitation[]
+  PublicTypebot           PublicTypebot?
+  Result                  Result[]
+  DashboardFolder         DashboardFolder?          @relation(fields: [folderId], references: [id])
+  Workspace               Workspace                 @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  Webhook                 Webhook[]
+
+  @@index([isArchived, createdAt(sort: Desc)])
+  @@index([workspaceId])
+}
+
+model public_User {
+  id                          String                    @id
+  name                        String?
+  email                       String?                   @unique
+  emailVerified               DateTime?
+  image                       String?
+  createdAt                   DateTime                  @default(now())
+  lastActivityAt              DateTime                  @default(now())
+  updatedAt                   DateTime                  @default(now())
+  company                     String?
+  onboardingCategories        Json
+  graphNavigation             GraphNavigation?
+  preferredAppAppearance      String?
+  displayedInAppNotifications Json?
+  referral                    String?
+  groupTitlesAutoGeneration   Json?
+  preferredLanguage           String?
+  termsAcceptedAt             DateTime?
+  Account                     public_Account[]
+  ApiToken                    ApiToken[]
+  BannedIp                    BannedIp[]
+  CollaboratorsOnTypebots     CollaboratorsOnTypebots[]
+  MemberInWorkspace           MemberInWorkspace[]
+  Session                     public_Session[]
+  UserCredentials             UserCredentials[]
+
+  @@map("User")
+}
+
+model UserCredentials {
+  id        String      @id
+  createdAt DateTime    @default(now())
+  userId    String
+  data      String
+  name      String
+  type      String
+  iv        String
+  User      public_User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model public_VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  value      String?
+
+  @@unique([identifier, token])
+  @@map("VerificationToken")
+}
+
+model VisitedEdge {
+  resultId String
+  edgeId   String
+  index    Int
+  Result   Result @relation(fields: [resultId], references: [id], onDelete: Cascade)
+
+  @@unique([resultId, index])
+}
+
+model Webhook {
+  id          String   @id
+  url         String?
+  method      String
+  queryParams Json
+  headers     Json
+  body        String?
+  typebotId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now())
+  Typebot     Typebot  @relation(fields: [typebotId], references: [id], onDelete: Cascade)
+}
+
+model Workspace {
+  id                            String                @id
+  name                          String
+  icon                          String?
+  createdAt                     DateTime              @default(now())
+  plan                          public_Plan           @default(FREE)
+  stripeId                      String?               @unique
+  additionalChatsIndex          Int                   @default(0)
+  additionalStorageIndex        Int                   @default(0)
+  chatsLimitFirstEmailSentAt    DateTime?
+  chatsLimitSecondEmailSentAt   DateTime?
+  storageLimitFirstEmailSentAt  DateTime?
+  storageLimitSecondEmailSentAt DateTime?
+  customChatsLimit              Int?
+  customSeatsLimit              Int?
+  customStorageLimit            Int?
+  updatedAt                     DateTime              @default(now())
+  isQuarantined                 Boolean               @default(false)
+  isSuspended                   Boolean               @default(false)
+  isPastDue                     Boolean               @default(false)
+  isVerified                    Boolean?
+  chatsHardLimit                Int?
+  settings                      Json?
+  inactiveFirstEmailSentAt      DateTime?
+  inactiveSecondEmailSentAt     DateTime?
+  lastActivityAt                DateTime?
+  ClaimableCustomPlan           ClaimableCustomPlan?
+  Credentials                   Credentials[]
+  CustomDomain                  CustomDomain[]
+  DashboardFolder               DashboardFolder[]
+  MemberInWorkspace             MemberInWorkspace[]
+  ThemeTemplate                 ThemeTemplate[]
+  Typebot                       Typebot[]
+  WorkspaceInvitation           WorkspaceInvitation[]
+}
+
+model WorkspaceInvitation {
+  id          String        @id
+  createdAt   DateTime      @default(now())
+  email       String
+  workspaceId String
+  type        WorkspaceRole
+  updatedAt   DateTime      @default(now())
+  Workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
 enum ConversationStatus {
@@ -363,16 +759,37 @@ enum ConversationStatus {
   CLOSED
 }
 
-model InternalNote {
-  id              String          @id @default(cuid())
-  content         String          @db.Text
-  authorId        String
-  author          User            @relation(fields: [authorId], references: [id], onDelete: Restrict)
-  conversationId  String
-  conversation    CrmConversation @relation(fields: [conversationId], references: [id], onDelete: Restrict)
-  createdAt       DateTime        @default(now())
+enum ChatProvider {
+  WHATSAPP
+  DIALOG360
+}
 
-  @@index([authorId])
-  @@index([conversationId])
-  @@map("internal_notes")
+enum CollaborationType {
+  READ
+  WRITE
+  FULL_ACCESS
+}
+
+enum GraphNavigation {
+  MOUSE
+  TRACKPAD
+}
+
+enum public_Plan {
+  FREE
+  STARTER
+  PRO
+  LIFETIME
+  OFFERED
+  CUSTOM
+  UNLIMITED
+  ENTERPRISE
+
+  @@map("Plan")
+}
+
+enum WorkspaceRole {
+  ADMIN
+  MEMBER
+  GUEST
 }
