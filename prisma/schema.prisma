@@ -334,8 +334,13 @@ model CrmConversation {
   botPaused  Boolean            @default(false)
   internalNotes InternalNote[]
 
+  // Typebot support
+  externalSessionId String? // Typebot session ID
+  metadata          Json?   // Store provider-specific metadata (e.g. Typebot results)
+
   @@index([contactId])
   @@index([assigneeId])
+  @@index([externalSessionId])
   @@map("crm_conversations")
 }
 

@@ -87,68 +87,11 @@ export async function POST(req: Request) {
       `[Facebook Integration] Page ${verifiedPageId} saved/updated for user ${userId}`
     );
 
-    // For MVP, use a default botId. In production, this would be resolved per workspace/user
-    const botId = process.env.BOTPRESS_DEFAULT_BOT_ID || "test-bot";
-    const bpToken = process.env.BOTPRESS_ADMIN_TOKEN;
-    const bpUrl =
-      process.env.NEXT_PUBLIC_ENGINE_URL || "http://replybase-botpress:3002";
+    // For Typebot, the "botId" in our DB usually maps to the Typebot Public ID or Typebot ID.
+    // We assume a default one is set in env or provided (for MVP, we use default).
+    const botId = process.env.TYPEBOT_DEFAULT_BOT_ID || "my-typebot";
 
-    if (!bpToken) {
-      console.error(
-        "[Facebook Integration] BOTPRESS_ADMIN_TOKEN not configured"
-      );
-      // Still save the page even if engine config fails
-      return NextResponse.json({
-        success: true,
-        warning: "Page saved but engine configuration skipped (missing token)",
-      });
-    }
-
-    // Configure Botpress Messenger channel (optional for MVP - webhook handles routing)
-    // Note: Botpress Messenger channel config is separate from our webhook routing
-    try {
-      const verifyToken =
-        process.env.FACEBOOK_WEBHOOK_VERIFY_TOKEN ||
-        `replybase_verify_${Date.now()}`;
-
-      const response = await fetch(
-        `${bpUrl}/api/v1/admin/bots/${botId}/config/channel-messenger`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${bpToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            enabled: true,
-            accessToken,
-            appSecret,
-            verifyToken,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const err = await response.text();
-        console.warn(
-          "[Facebook Integration] Botpress config failed (non-critical):",
-          err
-        );
-        // Continue anyway - webhook routing doesn't require Botpress channel config
-      } else {
-        console.log(
-          `[Facebook Integration] Botpress channel configured for bot ${botId}`
-        );
-      }
-    } catch (bpError) {
-      console.warn(
-        "[Facebook Integration] Botpress config error (non-critical):",
-        bpError
-      );
-      // Continue anyway - webhook routing is independent
-    }
-
-    // Update page with botId and mark as engine connected
+    // Update page with botId and mark as engine connected (Typebot doesn't need explicit channel config)
     await prisma.facebookPage.update({
       where: { id: facebookPage.id },
       data: {
