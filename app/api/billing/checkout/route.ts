@@ -1,59 +1,98 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { stripe, PLANS } from "@/lib/stripe";
-import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { stripe } from "@/lib/stripe";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
-  if (!stripe) {
-    return NextResponse.json(
-      { error: "Stripe is not configured" },
-      { status: 500 }
-    );
-  }
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+
+    if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      include: { tenant: true },
-    });
+    const { priceId, planName } = await req.json();
 
-    if (!user?.tenantId) {
-      return NextResponse.json({ error: "No tenant found" }, { status: 403 });
+    if (!priceId) {
+      return NextResponse.json({ error: "Price ID is required" }, { status: 400 });
     }
 
-    const { planKey } = await req.json();
-    const plan = PLANS[planKey as keyof typeof PLANS];
+    const userId = session.user.id;
+    const tenantId = session.user.tenantId;
 
-    if (!plan || !plan.priceId) {
-      return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
+    if (!tenantId) {
+      return NextResponse.json({ error: "Tenant ID missing" }, { status: 400 });
     }
 
+    // 1. Get or Create Stripe Customer
+    // Check if subscription already exists with a stripe customer ID
     const subscription = await prisma.subscription.findUnique({
-      where: { tenantId: user.tenantId },
+      where: { tenantId },
     });
 
-    const customerId = subscription?.stripeCustomerId;
+    let stripeCustomerId = subscription?.stripeCustomerId;
 
-    const checkoutSession = await stripe.checkout.sessions.create({
-      customer: customerId || undefined,
-      customer_email: customerId ? undefined : user.email || undefined,
-      client_reference_id: user.tenantId,
+    if (!stripeCustomerId) {
+      // Create new customer
+      const customer = await stripe!.customers.create({
+        email: session.user.email || undefined,
+        name: session.user.name || undefined,
+        metadata: {
+          userId,
+          tenantId,
+        },
+      });
+      stripeCustomerId = customer.id;
+
+      // Upsert subscription record with just the customer ID for now
+      // Webhook will fill in the rest
+      await prisma.subscription.upsert({
+        where: { tenantId },
+        create: {
+          tenantId,
+          stripeCustomerId,
+          status: "dangling_customer", // Temporary status until checkout completes
+          planId: (await prisma.plan.findUnique({ where: { name: 'free' } }))?.id || "missing_free_plan",
+          currentPeriodEnd: new Date(),
+          stripeId: `temp_${Date.now()}` // Temporary ID
+        },
+        update: {
+          stripeCustomerId
+        }
+      });
+    }
+
+    // 2. Create Checkout Session
+    const checkoutSession = await stripe!.checkout.sessions.create({
+      customer: stripeCustomerId,
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1,
+        },
+      ],
       mode: "subscription",
-      payment_method_types: ["card"],
-      line_items: [{ price: plan.priceId, quantity: 1 }],
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard/billing?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/pricing`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?checkout=success`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing?checkout=canceled`,
+      metadata: {
+        userId,
+        tenantId,
+        planName
+      },
+      subscription_data: {
+        metadata: {
+          tenantId,
+          planName
+        }
+      }
     });
 
     return NextResponse.json({ url: checkoutSession.url });
-  } catch {
+  } catch (error: any) {
+    console.error("[Stripe Checkout] Error:", error);
     return NextResponse.json(
-      { error: "Failed to create checkout session" },
+      { error: "Internal Server Error", details: error.message },
       { status: 500 }
     );
   }

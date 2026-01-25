@@ -1,40 +1,35 @@
-const fs = require('fs');
-const { generateKeyPair } = require('crypto');
+const crypto = require('crypto');
 
-generateKeyPair('rsa', {
+// 1. Generate OIDC_COOKIE_KEY
+const cookieKey = crypto.randomBytes(64).toString('hex');
+
+console.log('\n=== OIDC CONFIGURATION ===\n');
+console.log(`OIDC_COOKIE_KEY=${cookieKey}`);
+
+// 2. Generate JWKS (RSA Key for Signing)
+const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
     modulusLength: 2048,
     publicKeyEncoding: {
         type: 'spki',
-        format: 'pem'
+        format: 'jwk'
     },
     privateKeyEncoding: {
         type: 'pkcs8',
-        format: 'pem'
+        format: 'jwk'
     }
-}, (err, publicKey, privateKey) => {
-    if (err) {
-        console.error(err);
-        return;
-    }
-
-    // This is a naive generation. 
-    // For OIDC Provider, we usually want the JSON JWK format.
-    // We can use the 'jose' library or similar if available, but let's output a message 
-    // pointing to the easier way if dependencies aren't present.
-
-    console.log("Generating JWKS...");
-    console.log("NOTE: For production, please use a library like 'jose' or an online JWK generator.");
-    console.log("This script is a placeholder to remind you to set OIDC_JWKS.");
 });
 
-// Actually, let's provide a script that works with simple node deps if possible, 
-// OR just advise the user to run a one-liner.
-console.log(`
-To generate a valid JWKS, you can run this in your terminal if you have 'jose' installed, or use an online tool (mkjwk.org):
+// Add required properties for OIDC Provider
+const fullKey = {
+    ...privateKey,
+    kid: 'replybase-signing-key-1',
+    use: 'sig',
+    alg: 'RS256'
+};
 
-const { generateJWK } = require('jose');
-(async () => {
-  const { privateKey, publicKey } = await generateJWK('PS256');
-  console.log(JSON.stringify({ keys: [ { ...privateKey, kid: 'replybase-key-1', use: 'sig' } ] }, null, 2));
-})();
-`);
+const jwks = {
+    keys: [fullKey]
+};
+
+console.log(`OIDC_JWKS=${JSON.stringify(jwks)}`);
+console.log('\n==========================\n');

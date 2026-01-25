@@ -1,303 +1,137 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
-import Stripe from "stripe";
-import { stripe, PLANS } from "@/lib/stripe";
+import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
+import Stripe from "stripe";
 
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
-// Extend Stripe types to include the properties we need
-interface ExtendedStripeSubscription extends Stripe.Subscription {
-  current_period_start: number;
-  current_period_end: number;
-  trial_end: number | null;
-}
+// Disable body parsing logic is not needed for App Router like Pages Router
+// We consume req.text() which reads the stream
 
 export async function POST(req: NextRequest) {
-  if (!stripe) {
-    return NextResponse.json(
-      { error: "Stripe is not configured" },
-      { status: 500 }
-    );
-  }
+  const body = await req.text();
+  const headersList = await headers();
+  const signature = headersList.get("stripe-signature") as string;
 
-  if (!endpointSecret) {
-    console.error("STRIPE_WEBHOOK_SECRET not configured");
-    return NextResponse.json(
-      { error: "Webhook secret not configured" },
-      { status: 500 }
-    );
-  }
+  let event: Stripe.Event;
 
   try {
-    const body = await req.text();
-    const headersList = await headers();
-    const sig = headersList.get("stripe-signature");
-
-    if (!sig) {
-      return NextResponse.json(
-        { error: "No Stripe signature found" },
-        { status: 400 }
-      );
+    if (!process.env.STRIPE_WEBHOOK_SECRET) {
+      throw new Error("STRIPE_WEBHOOK_SECRET not configured");
     }
+    event = stripe!.webhooks.constructEvent(
+      body,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (error: any) {
+    console.error(`[Stripe Webhook] Signature verification failed: ${error.message}`);
+    return NextResponse.json({ error: "Webhook Error" }, { status: 400 });
+  }
 
-    let event: Stripe.Event;
+  const session = event.data.object as Stripe.Checkout.Session | Stripe.Subscription;
 
-    try {
-      event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
-    } catch (err) {
-      const error = err as Error;
-      console.error("Webhook signature verification failed:", error.message);
-      return NextResponse.json(
-        { error: "Webhook signature verification failed" },
-        { status: 400 }
-      );
-    }
-
-    console.log(`Processing webhook event: ${event.type}`);
-
-    // Handle the event
+  try {
     switch (event.type) {
-      case "customer.subscription.created":
+      case "checkout.session.completed": {
+        const checkoutSession = session as Stripe.Checkout.Session;
+        // Metadata from checkout session creation
+        const tenantId = checkoutSession.metadata?.tenantId;
+        const subscriptionId = checkoutSession.subscription as string;
+
+        if (tenantId && subscriptionId) {
+          // Retrieve the subscription to get details
+          const subscription = await stripe!.subscriptions.retrieve(subscriptionId);
+
+          await syncSubscription(tenantId, subscription);
+        }
+        break;
+      }
+
       case "customer.subscription.updated":
-        await handleSubscriptionChange(
-          event.data.object as ExtendedStripeSubscription
-        );
-        break;
+      case "customer.subscription.deleted": {
+        const subscription = session as Stripe.Subscription;
+        // We need to find the tenant associated with this stripe subscription
+        // We store stripeCustomerId in our DB, so let's look it up
+        const dbSub = await prisma.subscription.findUnique({
+          where: { stripeCustomerId: subscription.customer as string }
+        });
 
-      case "customer.subscription.deleted":
-        await handleSubscriptionCancellation(
-          event.data.object as ExtendedStripeSubscription
-        );
+        if (dbSub) {
+          await syncSubscription(dbSub.tenantId, subscription);
+        } else {
+          console.warn(`[Stripe Webhook] No database subscription found for customer ${subscription.customer}`);
+        }
         break;
+      }
 
-      case "invoice.payment_succeeded":
-        await handlePaymentSuccess(event.data.object as Stripe.Invoice);
+      case "invoice.payment_succeeded": {
+        // Can be used to extend access, but usually subscription.updated handles the dates
         break;
+      }
 
-      case "invoice.payment_failed":
-        await handlePaymentFailure(event.data.object as Stripe.Invoice);
+      case "invoice.payment_failed": {
+        // Maybe notify user? subscription.updated usually sends status="past_due"
         break;
-
-      case "checkout.session.completed":
-        await handleCheckoutCompleted(
-          event.data.object as Stripe.Checkout.Session
-        );
-        break;
+      }
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        console.log(`[Stripe Webhook] Unhandled event type ${event.type}`);
     }
-
-    return NextResponse.json({ received: true });
-  } catch (error) {
-    console.error("Webhook processing error:", error);
+  } catch (error: any) {
+    console.error("[Stripe Webhook] Error processing event:", error);
     return NextResponse.json(
-      { error: "Webhook processing failed" },
+      { error: "Webhook handling failed" },
       { status: 500 }
     );
   }
+
+  return NextResponse.json({ received: true });
 }
 
-async function handleSubscriptionChange(
-  subscription: ExtendedStripeSubscription
-) {
-  try {
-    const customerId = subscription.customer as string;
-    const status = subscription.status;
-    const currentPeriodStart = new Date(
-      subscription.current_period_start * 1000
-    );
-    const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
-    const cancelAtPeriodEnd = subscription.cancel_at_period_end;
+async function syncSubscription(tenantId: string, stripeSub: Stripe.Subscription) {
+  const subAny = stripeSub as any;
 
-    // Find subscription by customer ID
-    const existingSubscription = await prisma.subscription.findFirst({
-      where: { stripeCustomerId: customerId },
-    });
+  // 1. Determine Plan based on price ID
+  // We assume the first item is the main plan
+  const priceId = subAny.items.data[0].price.id;
 
-    if (!existingSubscription) {
-      console.error(`No subscription found for customer ${customerId}`);
-      return;
-    }
+  // Find our local plan that matches this price (via metadata or price lookup?)
+  // Our seed script sets price = X. We can iterate limit 1.
+  // Or we rely on the product name or metadata set in seed script.
 
-    // Update subscription in database
-    await prisma.subscription.update({
-      where: { id: existingSubscription.id },
-      data: {
-        status,
-        currentPeriodStart,
-        currentPeriodEnd,
-        cancelAtPeriodEnd,
-        stripeId: subscription.id,
-      },
-    });
+  // Better: We fetch the product from Stripe to get metadata 'app_plan_id'
+  const product = await stripe!.products.retrieve(subAny.items.data[0].price.product as string);
+  const planName = product.metadata.app_plan_id || 'free';
 
-    console.log(
-      `Updated subscription ${existingSubscription.id} for customer ${customerId}`
-    );
-  } catch (error) {
-    console.error("Error handling subscription change:", error);
+  const dbPlan = await prisma.plan.findUnique({ where: { name: planName } });
+
+  if (!dbPlan) {
+    console.error(`[Stripe Webhook] Sync failed: Unknown plan name '${planName}'`);
+    return;
   }
-}
 
-async function handleSubscriptionCancellation(
-  subscription: ExtendedStripeSubscription
-) {
-  try {
-    const customerId = subscription.customer as string;
-
-    const existingSubscription = await prisma.subscription.findFirst({
-      where: { stripeCustomerId: customerId },
-    });
-
-    if (!existingSubscription) {
-      console.error(`No subscription found for customer ${customerId}`);
-      return;
+  await prisma.subscription.upsert({
+    where: { tenantId },
+    update: {
+      stripeId: subAny.id,
+      stripeCustomerId: subAny.customer as string,
+      status: subAny.status,
+      currentPeriodStart: new Date(subAny.current_period_start * 1000),
+      currentPeriodEnd: new Date(subAny.current_period_end * 1000),
+      cancelAtPeriodEnd: subAny.cancel_at_period_end,
+      planId: dbPlan.id
+    },
+    create: {
+      tenantId,
+      stripeId: subAny.id,
+      stripeCustomerId: subAny.customer as string,
+      status: subAny.status,
+      currentPeriodStart: new Date(subAny.current_period_start * 1000),
+      currentPeriodEnd: new Date(subAny.current_period_end * 1000),
+      cancelAtPeriodEnd: subAny.cancel_at_period_end,
+      planId: dbPlan.id
     }
+  });
 
-    // Update to canceled status
-    await prisma.subscription.update({
-      where: { id: existingSubscription.id },
-      data: {
-        status: "canceled",
-        cancelAtPeriodEnd: false,
-      },
-    });
-
-    console.log(
-      `Canceled subscription ${existingSubscription.id} for customer ${customerId}`
-    );
-  } catch (error) {
-    console.error("Error handling subscription cancellation:", error);
-  }
-}
-
-async function handlePaymentSuccess(invoice: Stripe.Invoice) {
-  try {
-    const customerId = invoice.customer as string;
-
-    const subscription = await prisma.subscription.findFirst({
-      where: { stripeCustomerId: customerId },
-    });
-
-    if (!subscription) {
-      console.error(`No subscription found for customer ${customerId}`);
-      return;
-    }
-
-    // Payment succeeded - ensure subscription is active
-    await prisma.subscription.update({
-      where: { id: subscription.id },
-      data: {
-        status: "active",
-      },
-    });
-
-    console.log(`Payment succeeded for subscription ${subscription.id}`);
-  } catch (error) {
-    console.error("Error handling payment success:", error);
-  }
-}
-
-async function handlePaymentFailure(invoice: Stripe.Invoice) {
-  try {
-    const customerId = invoice.customer as string;
-
-    const subscription = await prisma.subscription.findFirst({
-      where: { stripeCustomerId: customerId },
-    });
-
-    if (!subscription) {
-      console.error(`No subscription found for customer ${customerId}`);
-      return;
-    }
-
-    // Payment failed - update to past_due
-    await prisma.subscription.update({
-      where: { id: subscription.id },
-      data: {
-        status: "past_due",
-      },
-    });
-
-    console.log(`Payment failed for subscription ${subscription.id}`);
-  } catch (error) {
-    console.error("Error handling payment failure:", error);
-  }
-}
-
-async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
-  try {
-    const tenantId = session.client_reference_id;
-    const subscriptionId = session.subscription as string;
-    const customerId = session.customer as string;
-
-    if (!tenantId || !subscriptionId) {
-      console.error("Missing tenantId or subscriptionId in checkout session");
-      return;
-    }
-
-    if (!stripe) {
-      console.error("Stripe not configured");
-      return;
-    }
-
-    const stripeSubscription = (await stripe.subscriptions.retrieve(
-      subscriptionId
-    )) as unknown as ExtendedStripeSubscription;
-
-    const priceId = stripeSubscription.items.data[0]?.price.id;
-    const planKey = Object.keys(PLANS).find(
-      (key) => PLANS[key as keyof typeof PLANS].priceId === priceId
-    );
-    const plan = await prisma.plan.findUnique({ where: { name: planKey } });
-
-    if (!plan) {
-      console.error(`Plan not found for price ID: ${priceId}`);
-      return;
-    }
-
-    // Upsert subscription
-    await prisma.subscription.upsert({
-      where: { tenantId },
-      update: {
-        stripeId: stripeSubscription.id,
-        stripeCustomerId: customerId,
-        status: stripeSubscription.status,
-        currentPeriodStart: new Date(
-          stripeSubscription.current_period_start * 1000
-        ),
-        currentPeriodEnd: new Date(
-          stripeSubscription.current_period_end * 1000
-        ),
-        cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
-        trialEndsAt: stripeSubscription.trial_end
-          ? new Date(stripeSubscription.trial_end * 1000)
-          : null,
-        planId: plan.id,
-      },
-      create: {
-        tenantId,
-        stripeId: stripeSubscription.id,
-        stripeCustomerId: customerId,
-        status: stripeSubscription.status,
-        currentPeriodStart: new Date(
-          stripeSubscription.current_period_start * 1000
-        ),
-        currentPeriodEnd: new Date(
-          stripeSubscription.current_period_end * 1000
-        ),
-        cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
-        trialEndsAt: stripeSubscription.trial_end
-          ? new Date(stripeSubscription.trial_end * 1000)
-          : null,
-        planId: plan.id,
-      },
-    });
-
-    console.log(`Processed checkout completion for tenant ${tenantId}`);
-  } catch (error) {
-    console.error("Error handling checkout completion:", error);
-  }
+  console.log(`[Stripe Webhook] Synced subscription for tenant ${tenantId} to plan ${planName} (${subAny.status})`);
 }
