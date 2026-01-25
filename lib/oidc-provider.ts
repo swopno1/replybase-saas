@@ -76,21 +76,7 @@ export default function getOidcProvider() {
         cookies: {
             keys: [process.env.OIDC_COOKIE_KEY || "insecure-default-key-change-me"],
         },
-        jwks: {
-            keys: [
-                // PROD TODO: Generate valid RSA key here
-                {
-                    kty: "RSA",
-                    n: "mBnl...Truncated...For...Brevity...", // This needs to be a real key
-                    e: "AQAB",
-                    // ...
-                    // Using a placeholder for now, BUT this provider will fail to start if JWKS is invalid.
-                    // We MUST assume the user will provide OIDC_JWKS env var or we generate one on the fly.
-                    // For now, I will NOT include jwks here dynamically if not provided, letting oidc-provider complain or using dev mode?
-                    // Actually, oidc-provider in non-dev env requires jwks.
-                },
-            ],
-        },
+        jwks: getJwks(),
         features: {
             devInteractions: { enabled: false }, // We need to implement custom login UI integration
         },
@@ -113,4 +99,26 @@ export default function getOidcProvider() {
     oidcProvider.proxy = true;
 
     return oidcProvider;
+}
+
+function getJwks() {
+    const jwksEnv = process.env.OIDC_JWKS;
+    if (!jwksEnv) {
+        console.warn("OIDC_JWKS not set. Provider may fail in production.");
+        return undefined;
+    }
+
+    try {
+        // Try parsing as raw JSON first
+        return JSON.parse(jwksEnv);
+    } catch (e) {
+        // If fail, try Base64 decode
+        try {
+            const decoded = Buffer.from(jwksEnv, 'base64').toString('utf-8');
+            return JSON.parse(decoded);
+        } catch (e2) {
+            console.error("Failed to parse OIDC_JWKS as JSON or Base64 JSON.");
+            return undefined;
+        }
+    }
 }

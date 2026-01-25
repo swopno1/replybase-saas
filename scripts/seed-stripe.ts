@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const Stripe = require('stripe');
+require('dotenv').config();
 
 const prisma = new PrismaClient();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
