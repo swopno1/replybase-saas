@@ -7,16 +7,22 @@ export async function getTenantLimits(tenantId: string) {
   });
 
   if (!subscription) {
-    // Return free tier or zero limits if no active sub, but safer to assume Free for now if we allow it
-    // Or we return a "locked" state.
-    // Based on middleware, they can't even get here if inactive, UNLESS we allow "free" plan which might not have a stripe sub?
-    // Actually, Phase 2 seeding put Free, Starter, Pro in DB.
-    // If they are on Free, they should have a subscription record with 'free' plan if we are strict.
-    // Fallback to strict 0 limits if no sub found.
     return {
       maxBots: 0,
       dailyMessageLimit: 0,
-      planName: 'Suspended'
+      name: 'suspended',
+      displayName: 'Suspended',
+      planName: 'Suspended', // Legacy/Extra
+      id: 'suspended',
+      currency: 'USD',
+      price: 0,
+      monthlyMessageLimit: 0,
+      flowExecutionCap: 0,
+      maxChannelsPerBot: 0,
+      maxConversations: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      features: []
     };
   }
 
@@ -39,3 +45,24 @@ export async function checkBotLimit(tenantId: string) {
     planName: limits.displayName || limits.name
   };
 }
+
+// Added missing export
+export async function getTenantUsage(tenantId: string) {
+  const limits = await getTenantLimits(tenantId);
+
+  const botCount = await prisma.bot.count({
+    where: { tenantId }
+  });
+
+  const messageCount = 0; // Mock until analytics are live
+
+  return {
+    ...limits,
+    usage: {
+      bots: botCount,
+      messages: messageCount
+    }
+  };
+}
+// Alias for legacy support
+export const getTenantSubscription = getTenantLimits;

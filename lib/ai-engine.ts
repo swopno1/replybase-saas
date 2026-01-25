@@ -178,8 +178,8 @@ async function upsertCrmData(
     });
 
     if (
-      subscription.plan.maxConversations > 0 &&
-      conversationCount >= subscription.plan.maxConversations
+      subscription.maxConversations > 0 &&
+      conversationCount >= subscription.maxConversations
     ) {
       throw new AiEngineError(
         "Conversation limit reached. Please upgrade your plan."

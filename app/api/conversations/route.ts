@@ -63,8 +63,8 @@ export const POST: (
       });
 
       if (
-        subscription.plan.maxConversations > 0 &&
-        conversationCount >= subscription.plan.maxConversations
+        subscription.maxConversations > 0 &&
+        conversationCount >= subscription.maxConversations
       ) {
         return NextResponse.json(
           {

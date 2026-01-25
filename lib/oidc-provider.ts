@@ -49,8 +49,8 @@ const findAccount = async (ctx: any, id: string) => {
                 email: user.email,
                 email_verified: !!user.emailVerified,
                 name: user.name,
-                subscriptionTier: subscription.plan.name,
-                subscriptionStatus: subscription.status,
+                plan: subscription.plan.name, // Renamed from subscriptionTier
+                subscription_status: subscription.status, // Snake case as requested
                 tenantId: user.tenantId,
             };
         },
@@ -68,7 +68,7 @@ export default function getOidcProvider() {
         adapter: PrismaOIDCAdapter,
         clients: [
             {
-                client_id: process.env.TYPEBOT_OIDC_CLIENT_ID || "typebot",
+                client_id: process.env.TYPEBOT_OIDC_CLIENT_ID || "typebot-engine", // Changed default to match aud requirement
                 client_secret: process.env.TYPEBOT_OIDC_CLIENT_SECRET || "typebot-secret",
                 grant_types: ["authorization_code", "refresh_token"],
                 redirect_uris: [

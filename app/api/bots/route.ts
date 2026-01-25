@@ -11,14 +11,21 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const projects = await prisma.project.findMany({
+    const bots = await prisma.bot.findMany({
       where: {
         tenantId: session.user.tenantId,
       },
-      include: {
-        bots: true,
-      },
+      orderBy: { createdAt: 'desc' }
     });
+
+    // Mock project structure to satisfy frontend expected interface
+    const projects = [
+      {
+        id: 'default',
+        name: 'My Bots',
+        bots: bots
+      }
+    ];
 
     return NextResponse.json({ projects });
   } catch (error) {
@@ -45,22 +52,30 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { name, projectId, channel } = body;
 
-    if (!name || !projectId) {
-      return NextResponse.json({ error: "Name and Project ID are required" }, { status: 400 });
+    // Project ID is ignored/mocked for now since we don't have project model
+    if (!name) {
+      return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
     const bot = await prisma.bot.create({
       data: {
         name,
-        channel: channel || "Web",
-        projectId,
+        // projectId, // Remove projectId assignment
         tenantId: session.user.tenantId,
-        status: true
+        enabled: true,
+        channels: {
+          create: {
+            type: channel || "Web",
+            name: "Default Channel",
+            enabled: true
+          }
+        }
       },
     });
 
     return NextResponse.json({ bot });
   } catch (error) {
+    console.error("Bot creation error", error);
     return NextResponse.json({ error: "Failed to create bot" }, { status: 500 });
   }
 }
