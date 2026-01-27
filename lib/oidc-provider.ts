@@ -2,9 +2,10 @@ import Provider from "oidc-provider";
 import { PrismaOIDCAdapter } from "@/lib/oidc-adapter";
 import { prisma } from "@/lib/prisma";
 
-const ISSUER = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+// ISSUER must be the full URL of the SaaS app (Identity Provider)
+const ISSUER = process.env.NEXT_PUBLIC_APP_URL || "https://app.replybase.co.uk";
 
-// Helper to find account
+// Helper to find account with proper subscription validation
 const findAccount = async (ctx: any, id: string) => {
     const user = await prisma.user.findUnique({
         where: { id },
@@ -26,31 +27,34 @@ const findAccount = async (ctx: any, id: string) => {
 
     if (!user) return undefined;
 
-    const subscription = user.tenant?.subscriptions;
-    // Actually we should fetch robustly like in auth.ts but for now let's use the fetched structure.
-    // The previous include structure in findAccount was:
-    // subscriptions: { include: { plan: true }, where: { status: 'active' } }
-    // So if subscription is undefined, it means NO active subscription exists.
+    // NOTE: In this schema, `tenant.subscriptions` is a single optional Subscription (despite the plural name)
+    const subscription = user.tenant?.subscriptions ?? null;
 
-    // STRICT GATING:
-    // If no active subscription is found, deny login.
-    if (!subscription) {
+    // STRICT GATING: If no active subscription is found, deny access
+    if (!subscription || subscription.status !== 'active') {
         console.warn(`[OIDC] User ${id} denied access. No active subscription.`);
         return undefined; // This causes 'account not found' or interaction failure in OIDC
-        // Ideally we'd redirect to billing, but standard OIDC doesn't easily support "redirect to billing" 
-        // without custom interaction routes properly set up. Returning undefined basically blocks them.
     }
+
+    // Normalize plan name to match requirements: "starter | pro | enterprise"
+    const planName = subscription.plan.name.toLowerCase();
+    const normalizedPlan = ['starter', 'pro', 'enterprise'].includes(planName) 
+        ? planName 
+        : 'starter'; // Default fallback
 
     return {
         accountId: id,
         async claims(use: string, scope: string) {
+            // Return required claims as specified in Phase 1 requirements
+            // Note: 'iss' and 'aud' are automatically set by oidc-provider based on issuer and client_id
             return {
                 sub: id,
-                email: user.email,
+                email: user.email || '',
                 email_verified: !!user.emailVerified,
-                name: user.name,
-                plan: subscription.plan.name, // Renamed from subscriptionTier
-                subscription_status: subscription.status, // Snake case as requested
+                name: user.name || '',
+                // Custom claims required by Phase 1
+                plan: normalizedPlan,
+                subscription_status: subscription.status, // Must be 'active' at this point
                 tenantId: user.tenantId,
             };
         },
@@ -68,17 +72,18 @@ export default function getOidcProvider() {
         adapter: PrismaOIDCAdapter,
         clients: [
             {
-                client_id: process.env.TYPEBOT_OIDC_CLIENT_ID || "typebot-engine", // Changed default to match aud requirement
+                client_id: process.env.TYPEBOT_OIDC_CLIENT_ID || "typebot-engine",
                 client_secret: process.env.TYPEBOT_OIDC_CLIENT_SECRET || "typebot-secret",
                 grant_types: ["authorization_code", "refresh_token"],
                 redirect_uris: [
                     process.env.TYPEBOT_CALLBACK_URL || "https://engine.replybase.co.uk/api/auth/oauth/generic-oidc/callback",
                 ],
-                scope: "openid email profile",
+                // Include custom scopes for plan and subscription_status
+                scope: "openid email profile plan subscription_status",
             },
         ],
         pkce: {
-            required: () => false, // For MVP ease, though Typebot supports PKCE
+            required: () => false, // Typebot supports PKCE but not required for MVP
         },
         interactions: {
             url(ctx: any, interaction: any) {
@@ -90,12 +95,16 @@ export default function getOidcProvider() {
         },
         jwks: getJwks(),
         features: {
-            devInteractions: { enabled: false }, // We need to implement custom login UI integration
+            devInteractions: { enabled: false },
         },
         findAccount,
+        // Register custom claims for plan and subscription_status
         claims: {
             email: ["email", "email_verified"],
             profile: ["name"],
+            // Custom claims for Phase 1 requirements
+            plan: ["plan"],
+            subscription_status: ["subscription_status"],
         },
     };
 
