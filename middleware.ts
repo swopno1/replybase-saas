@@ -20,6 +20,15 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Allow OIDC discovery and health endpoints to be public
+  if (
+    pathname.startsWith("/api/oidc") ||
+    pathname.startsWith("/api/health") ||
+    pathname.startsWith("/api/system-health")
+  ) {
+    return NextResponse.next();
+  }
+
   const authPaths = ["/auth/login", "/auth/register", "/auth/forgot-password"];
   const isAuthPath = authPaths.includes(pathname);
 
@@ -33,16 +42,28 @@ export async function middleware(req: NextRequest) {
     // SUBSCRIPTION CHECK
     // If not on billing page/pricing and subscription is inactive, redirect to pricing
     const subscriptionStatus = token.subscriptionStatus as string;
-    const isBillingPath = pathname.startsWith("/settings/billing") || pathname.startsWith("/pricing") || pathname === "/" || pathname.startsWith("/api/");
+    const isBillingPath =
+      pathname.startsWith("/settings/billing") ||
+      pathname.startsWith("/pricing") ||
+      pathname === "/" ||
+      pathname.startsWith("/api/");
 
-    // We allow access to "/" (dashboard root usually)? 
+    // We allow access to "/" (dashboard root usually)?
     // Usually root is dashboard. Let's redirect dashboard access if inactive.
     // We must allow API routes generally, OR specific API routes for billing.
     // Simplification: only block UI pages.
     const isPageRequest = !pathname.startsWith("/api/");
 
-    if (isPageRequest && !isBillingPath && subscriptionStatus !== 'active' && subscriptionStatus !== 'trialing') {
-      const billingUrl = new URL("/pricing?reason=subscription_required", req.url);
+    if (
+      isPageRequest &&
+      !isBillingPath &&
+      subscriptionStatus !== "active" &&
+      subscriptionStatus !== "trialing"
+    ) {
+      const billingUrl = new URL(
+        "/pricing?reason=subscription_required",
+        req.url,
+      );
       return NextResponse.redirect(billingUrl);
     }
 
