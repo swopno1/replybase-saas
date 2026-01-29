@@ -166,10 +166,21 @@ export async function processDefaultBotFlow(
 
   await prisma.crmConversation.update({
     where: { id: conversationId },
-    data: { metadata: newState as any },
+    data: { metadata: newState as unknown },
   });
 
   return response;
+}
+
+interface LeadData {
+  name?: string;
+  company?: string;
+  mobile?: string;
+  email?: string;
+  businessType?: string;
+  interestedInSubscription?: boolean;
+  selectedPlan?: string;
+  trialRequested?: boolean;
 }
 
 /**
@@ -178,9 +189,9 @@ export async function processDefaultBotFlow(
 async function createLead(
   contactId: string,
   tenantId: string,
-  leadData: any,
+  leadData: LeadData,
   qualified: boolean,
-): Promise<any> {
+) {
   // Check if lead already exists for this contact
   const existingLead = await prisma.lead.findFirst({
     where: {
@@ -218,7 +229,10 @@ async function createLead(
 /**
  * Check if conversation should use default bot flow
  */
-export function shouldUseDefaultFlow(conversation: any): boolean {
+export function shouldUseDefaultFlow(conversation: {
+  botId?: string | null;
+  metadata?: unknown;
+}): boolean {
   // Use default flow if:
   // 1. No bot is assigned, OR
   // 2. Conversation metadata indicates we're in the default flow
