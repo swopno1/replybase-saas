@@ -37,66 +37,82 @@ async function handler(
   req: NextRequest,
   { params }: { params: Promise<{ oidc: string[] }> },
 ) {
-  const { oidc } = await params; // Await params
-  const provider = getOidcProvider();
+  try {
+    const { oidc } = await params; // Await params
+    console.log("[OIDC] Incoming request:", req.nextUrl.pathname);
 
-  const reqShim = await createIncomingMessage(req);
-  // Strip the /api/oidc prefix so oidc-provider receives the relative path
-  const relativePath = "/" + (oidc?.join("/") || "");
-  reqShim.url = relativePath + req.nextUrl.search;
+    const provider = getOidcProvider();
+    console.log("[OIDC] Provider initialized");
 
-  const resShim = new ServerResponse(reqShim);
+    const reqShim = await createIncomingMessage(req);
+    // Strip the /api/oidc prefix so oidc-provider receives the relative path
+    const relativePath = "/" + (oidc?.join("/") || "");
+    reqShim.url = relativePath + req.nextUrl.search;
+    console.log("[OIDC] Request URL set to:", reqShim.url);
 
-  // We need to capture the response from resShim and return NextResponse
-  // Typically oidc-provider writes to resShim.
+    const resShim = new ServerResponse(reqShim);
 
-  // Promise wrapper to await oidc-provider middleware
-  return new Promise<NextResponse>((resolve, reject) => {
-    const chunks: Buffer[] = [];
+    // We need to capture the response from resShim and return NextResponse
+    // Typically oidc-provider writes to resShim.
 
-    // Capture data
-    resShim.write = (chunk: any, ...args: any[]) => {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-      return true;
-    };
+    // Promise wrapper to await oidc-provider middleware
+    return new Promise<NextResponse>((resolve, reject) => {
+      const chunks: Buffer[] = [];
 
-    resShim.end = (chunk: any, ...args: any[]) => {
-      if (chunk) {
+      // Capture data
+      resShim.write = (chunk: any, ...args: any[]) => {
         chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-      }
-      const body = Buffer.concat(chunks);
-      const responseHeaders = new Headers();
+        return true;
+      };
 
-      // Copy headers
-      const outgoingKeys = resShim.getHeaderNames();
-      for (const key of outgoingKeys) {
-        const val = resShim.getHeader(key);
-        if (Array.isArray(val)) {
-          val.forEach((v) => responseHeaders.append(key, String(v)));
-        } else if (val !== undefined) {
-          responseHeaders.set(key, String(val));
+      resShim.end = (chunk: any, ...args: any[]) => {
+        if (chunk) {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
         }
+        const body = Buffer.concat(chunks);
+        const responseHeaders = new Headers();
+
+        // Copy headers
+        const outgoingKeys = resShim.getHeaderNames();
+        for (const key of outgoingKeys) {
+          const val = resShim.getHeader(key);
+          if (Array.isArray(val)) {
+            val.forEach((v) => responseHeaders.append(key, String(v)));
+          } else if (val !== undefined) {
+            responseHeaders.set(key, String(val));
+          }
+        }
+
+        resolve(
+          new NextResponse(body, {
+            status: resShim.statusCode || 200,
+            statusText: resShim.statusMessage,
+            headers: responseHeaders,
+          }),
+        );
+        return resShim;
+      };
+
+      // Execute provider with error handling
+      try {
+        provider.callback()(reqShim, resShim);
+      } catch (error) {
+        console.error("[OIDC] Error in provider.callback():", error);
+        reject(error);
       }
-
-      resolve(
-        new NextResponse(body, {
-          status: resShim.statusCode || 200,
-          statusText: resShim.statusMessage,
-          headers: responseHeaders,
+    }).catch((error) => {
+      console.error("[OIDC] Unhandled error in OIDC route:", error);
+      return new NextResponse(
+        JSON.stringify({
+          error: "server_error",
+          error_description:
+            error instanceof Error ? error.message : "Unknown error",
         }),
+        { status: 500, headers: { "Content-Type": "application/json" } },
       );
-      return resShim;
-    };
-
-    // Execute provider with error handling
-    try {
-      provider.callback()(reqShim, resShim);
-    } catch (error) {
-      console.error("[OIDC] Error in provider.callback():", error);
-      reject(error);
-    }
-  }).catch((error) => {
-    console.error("[OIDC] Unhandled error in OIDC route:", error);
+    });
+  } catch (error) {
+    console.error("[OIDC] Top-level error in handler:", error);
     return new NextResponse(
       JSON.stringify({
         error: "server_error",
@@ -105,7 +121,7 @@ async function handler(
       }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
-  });
+  }
 }
 
 export { handler as GET, handler as POST };
