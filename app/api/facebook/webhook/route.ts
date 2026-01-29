@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { converse } from "@/lib/ai-engine";
 import { sendTextMessage } from "@/lib/facebook-sender";
 import { verifyWebhookSignature } from "@/lib/facebook-utils";
+import {
+  processDefaultBotFlow,
+  shouldUseDefaultFlow,
+} from "@/lib/default-bot-flow";
 
 // GET: Webhook Verification
 export async function GET(req: NextRequest) {
@@ -17,7 +21,7 @@ export async function GET(req: NextRequest) {
     console.error("FACEBOOK_WEBHOOK_VERIFY_TOKEN not configured");
     return NextResponse.json(
       { error: "Server configuration error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -46,7 +50,7 @@ export async function POST(req: NextRequest) {
         console.error("[Facebook Webhook] Invalid signature");
         return NextResponse.json(
           { error: "Invalid signature" },
-          { status: 403 }
+          { status: 403 },
         );
       }
 
@@ -72,12 +76,12 @@ export async function POST(req: NextRequest) {
       // If signature verification is not available, still process (for development/testing)
       // In production, signature verification should be required
       console.warn(
-        "[Facebook Webhook] Signature verification skipped (signature or secret not available)"
+        "[Facebook Webhook] Signature verification skipped (signature or secret not available)",
       );
       const body = await req.json();
       console.log(
         "[Facebook Webhook] Received event:",
-        JSON.stringify(body, null, 2)
+        JSON.stringify(body, null, 2),
       );
 
       // Process each entry in the webhook payload
@@ -111,7 +115,10 @@ interface FacebookMessagingEvent {
   };
   delivery?: unknown;
   read?: unknown;
-  postback?: unknown;
+  postback?: {
+    payload?: string;
+    title?: string;
+  };
 }
 
 /**
@@ -119,14 +126,28 @@ interface FacebookMessagingEvent {
  */
 async function handleMessagingEvent(event: FacebookMessagingEvent) {
   try {
-    // Skip non-message events, echoes, and receipts for MVP
-    if (event.delivery || event.read || event.postback || !event.message || event.message.is_echo) {
+    // Skip delivery and read receipts, but handle postbacks and messages
+    if (event.delivery || event.read) {
       return;
     }
 
-    const { sender, recipient, message } = event;
+    // Skip echoed messages
+    if (event.message?.is_echo) {
+      return;
+    }
+
+    const { sender, recipient, message, postback } = event;
     const senderPsid = sender?.id;
     const pageId = recipient?.id;
+
+    // Handle postback events (like Get Started button)
+    if (postback) {
+      const messageText = "Hi"; // Treat postback as initial greeting
+      await handleMessage(senderPsid, pageId, messageText);
+      return;
+    }
+
+    // Handle regular messages
     const messageText = message?.text;
 
     if (!messageText) {
@@ -134,6 +155,24 @@ async function handleMessagingEvent(event: FacebookMessagingEvent) {
       return;
     }
 
+    await handleMessage(senderPsid, pageId, messageText);
+  } catch (error) {
+    console.error(
+      "[Facebook Webhook] Unhandled error in handleMessagingEvent:",
+      error,
+    );
+  }
+}
+
+/**
+ * Process a message and send a reply
+ */
+async function handleMessage(
+  senderPsid: string | undefined,
+  pageId: string | undefined,
+  messageText: string,
+) {
+  try {
     if (!senderPsid || !pageId) {
       console.warn("[Facebook Webhook] Missing sender or recipient ID");
       return;
@@ -149,8 +188,14 @@ async function handleMessagingEvent(event: FacebookMessagingEvent) {
       return;
     }
 
-    if (!facebookPage.engineConnected || !facebookPage.botId || !facebookPage.tenantId) {
-      console.warn(`[Facebook Webhook] Page ${pageId} is not configured for AI.`);
+    if (
+      !facebookPage.engineConnected ||
+      !facebookPage.botId ||
+      !facebookPage.tenantId
+    ) {
+      console.warn(
+        `[Facebook Webhook] Page ${pageId} is not configured for AI.`,
+      );
       return;
     }
 
@@ -163,7 +208,8 @@ async function handleMessagingEvent(event: FacebookMessagingEvent) {
       const profileResponse = await fetch(userProfileUrl);
       if (profileResponse.ok) {
         const profileData = await profileResponse.json();
-        userName = `${profileData.first_name || ''} ${profileData.last_name || ''}`.trim();
+        userName =
+          `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim();
       }
     } catch (error) {
       console.warn("[Facebook Webhook] Could not fetch user profile:", error);
@@ -173,7 +219,7 @@ async function handleMessagingEvent(event: FacebookMessagingEvent) {
     let contact = await prisma.contact.findFirst({
       where: {
         tenantId: tenantId,
-        identities: { some: { type: 'facebook_psid', value: senderPsid } },
+        identities: { some: { type: "facebook_psid", value: senderPsid } },
       },
     });
 
@@ -183,7 +229,7 @@ async function handleMessagingEvent(event: FacebookMessagingEvent) {
           tenantId: tenantId,
           name: userName || senderPsid, // Fallback to PSID if name fetch fails
           identities: {
-            create: { type: 'facebook_psid', value: senderPsid },
+            create: { type: "facebook_psid", value: senderPsid },
           },
         },
       });
@@ -203,7 +249,7 @@ async function handleMessagingEvent(event: FacebookMessagingEvent) {
       conversation = await prisma.crmConversation.create({
         data: {
           contactId: contact.id,
-          channel: 'facebook',
+          channel: "facebook",
           botId: botId,
           facebookPageId: facebookPage.id, // Correctly link the conversation to the page
         },
@@ -214,50 +260,72 @@ async function handleMessagingEvent(event: FacebookMessagingEvent) {
     await prisma.crmMessage.create({
       data: {
         conversationId: conversation.id,
-        direction: 'inbound',
+        direction: "inbound",
         content: messageText,
-        source: 'human',
+        source: "human",
       },
     });
 
-    // 5. Send to AI Engine
+    // 5. Determine bot flow and generate response
     let replyText: string;
-    try {
-      const engineResponse = await converse({
-        botId,
-        tenantId,
-        contact: {
-          name: userName || senderPsid,
-        },
-        message: messageText,
-      });
 
-      type TextResponse = { type: 'text', text: string };
-      const textResponse = engineResponse.responses?.find((r: TextResponse) => r.type === 'text');
-      replyText = textResponse?.text;
+    // Check if we should use default bot flow or AI engine
+    const useDefaultFlow = shouldUseDefaultFlow(conversation);
 
-      if (!replyText) {
-        throw new Error("No text response from engine");
+    if (useDefaultFlow) {
+      // Use default lead generation flow
+      try {
+        replyText = await processDefaultBotFlow(
+          conversation.id,
+          contact.id,
+          tenantId,
+          messageText,
+        );
+      } catch (error) {
+        console.error("[Facebook Webhook] Default Flow Error:", error);
+        replyText =
+          "I'm having trouble processing your request. Our team will get back to you soon!";
       }
-    } catch (error) {
-      console.error("[Facebook Webhook] AI Engine Error:", error);
-      replyText = "Sorry, I'm having trouble responding right now.";
+    } else {
+      // Use AI Engine for custom bot
+      try {
+        const engineResponse = await converse({
+          botId,
+          tenantId,
+          contact: {
+            name: userName || senderPsid,
+          },
+          message: messageText,
+        });
+
+        type TextResponse = { type: "text"; text: string };
+        const textResponse = engineResponse.responses?.find(
+          (r: TextResponse) => r.type === "text",
+        );
+        replyText = textResponse?.text;
+
+        if (!replyText) {
+          throw new Error("No text response from engine");
+        }
+      } catch (error) {
+        console.error("[Facebook Webhook] AI Engine Error:", error);
+        replyText = "Sorry, I'm having trouble responding right now.";
+      }
     }
 
-    // 5. Send reply to Facebook
+    // 6. Send reply to Facebook
     await sendTextMessage(accessToken, senderPsid, replyText);
 
-    // 6. Log outbound message to CRM
+    // 7. Log outbound message to CRM
     await prisma.crmMessage.create({
       data: {
         conversationId: conversation.id,
-        direction: 'outbound',
+        direction: "outbound",
         content: replyText,
-        source: 'ai',
+        source: "ai",
       },
     });
-
   } catch (error) {
-    console.error("[Facebook Webhook] Unhandled error in handleMessagingEvent:", error);
+    console.error("[Facebook Webhook] Error in handleMessage:", error);
   }
 }

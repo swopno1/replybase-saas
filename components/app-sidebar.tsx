@@ -8,6 +8,7 @@ import {
   Zap,
   Users,
   MessagesSquare,
+  UserCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -39,6 +40,11 @@ const items = [
     title: "Conversations",
     url: "/conversations",
     icon: MessagesSquare,
+  },
+  {
+    title: "Leads",
+    url: "/leads",
+    icon: UserCheck,
   },
   {
     title: "Facebook Pages",

@@ -65,6 +65,7 @@ model Tenant {
   bots          Bot[]
   contacts      Contact[]
   facebookPages FacebookPage[]
+  leads         Lead[]
   subscriptions Subscription?
   usageLogs     UsageLog[]
   users         User[]
@@ -243,6 +244,7 @@ model Contact {
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
   identities    ContactIdentity[]
+  leads         Lead[]
   tenant        Tenant            @relation(fields: [tenantId], references: [id])
   conversations CrmConversation[]
 
@@ -317,6 +319,35 @@ model InternalNote {
   @@index([authorId])
   @@index([conversationId])
   @@map("internal_notes")
+}
+
+model Lead {
+  id             String    @id @default(cuid())
+  tenantId       String
+  contactId      String?
+  name           String?
+  company        String?
+  mobile         String?
+  email          String?
+  businessType   String?
+  source         String    @default("facebook") // facebook, whatsapp, website
+  status         String    @default("new") // new, contacted, qualified, converted, lost
+  interestedInSubscription Boolean @default(false)
+  selectedPlan   String? // free, starter, pro, business
+  trialRequested Boolean   @default(false)
+  converted      Boolean   @default(false)
+  convertedAt    DateTime?
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  tenant         Tenant    @relation(fields: [tenantId], references: [id])
+  contact        Contact?  @relation(fields: [contactId], references: [id])
+
+  @@index([tenantId])
+  @@index([contactId])
+  @@index([email])
+  @@index([status])
+  @@map("leads")
 }
 
 // OIDC Provider Models
