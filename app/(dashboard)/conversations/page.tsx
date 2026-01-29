@@ -21,15 +21,16 @@ async function getConversations(tenantId: string) {
   const conversations = await prisma.crmConversation.findMany({
     where: {
       contact: {
-        tenantId: tenantId,
+        tenantId,
       },
     },
     include: {
-      contact: true, // Include contact details
+      contact: true,
     },
     orderBy: {
       updatedAt: "desc",
     },
+    take: 100, // Limit to 100 conversations for performance
   });
   return conversations;
 }
