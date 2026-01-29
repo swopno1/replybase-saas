@@ -6,80 +6,91 @@ import { headers } from "next/headers";
 export const runtime = "nodejs";
 
 // Helper to bridge NextRequest to IncomingMessage
-async function createIncomingMessage(req: NextRequest): Promise<IncomingMessage> {
-    const headersList = await headers();
-    const readable = new IncomingMessage(null as any);
+async function createIncomingMessage(
+  req: NextRequest,
+): Promise<IncomingMessage> {
+  const headersList = await headers();
+  const readable = new IncomingMessage(null as any);
 
-    readable.method = req.method;
-    readable.url = req.nextUrl.pathname + req.nextUrl.search;
-    readable.headers = {};
+  readable.method = req.method;
+  readable.url = req.nextUrl.pathname + req.nextUrl.search;
+  readable.headers = {};
 
-    headersList.forEach((value, key) => {
-        readable.headers[key] = value;
-    });
+  headersList.forEach((value, key) => {
+    readable.headers[key] = value;
+  });
 
-    // Body handling (simplified)
-    if (req.body) {
-        const buffer = await req.arrayBuffer();
-        readable.push(Buffer.from(buffer));
-        readable.push(null);
-    } else {
-        readable.push(null);
-    }
+  // Body handling (simplified)
+  if (req.body) {
+    const buffer = await req.arrayBuffer();
+    readable.push(Buffer.from(buffer));
+    readable.push(null);
+  } else {
+    readable.push(null);
+  }
 
-    return readable;
+  return readable;
 }
 
 // Handler
-async function handler(req: NextRequest, { params }: { params: Promise<{ oidc: string[] }> }) {
-    const { oidc } = await params; // Await params
-    const provider = getOidcProvider();
+async function handler(
+  req: NextRequest,
+  { params }: { params: Promise<{ oidc: string[] }> },
+) {
+  const { oidc } = await params; // Await params
+  const provider = getOidcProvider();
 
-    const reqShim = await createIncomingMessage(req);
-    const resShim = new ServerResponse(reqShim);
+  const reqShim = await createIncomingMessage(req);
+  // Strip the /api/oidc prefix so oidc-provider receives the relative path
+  const relativePath = "/" + (oidc?.join("/") || "");
+  reqShim.url = relativePath + req.nextUrl.search;
 
-    // We need to capture the response from resShim and return NextResponse
-    // Typically oidc-provider writes to resShim.
+  const resShim = new ServerResponse(reqShim);
 
-    // Promise wrapper to await oidc-provider middleware
-    return new Promise<NextResponse>((resolve, reject) => {
-        const chunks: Buffer[] = [];
+  // We need to capture the response from resShim and return NextResponse
+  // Typically oidc-provider writes to resShim.
 
-        // Capture data
-        resShim.write = (chunk: any, ...args: any[]) => {
-            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-            return true;
-        };
+  // Promise wrapper to await oidc-provider middleware
+  return new Promise<NextResponse>((resolve, reject) => {
+    const chunks: Buffer[] = [];
 
-        resShim.end = (chunk: any, ...args: any[]) => {
-            if (chunk) {
-                chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-            }
-            const body = Buffer.concat(chunks);
-            const responseHeaders = new Headers();
+    // Capture data
+    resShim.write = (chunk: any, ...args: any[]) => {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      return true;
+    };
 
-            // Copy headers
-            const outgoingKeys = resShim.getHeaderNames();
-            for (const key of outgoingKeys) {
-                const val = resShim.getHeader(key);
-                if (Array.isArray(val)) {
-                    val.forEach(v => responseHeaders.append(key, String(v)));
-                } else if (val !== undefined) {
-                    responseHeaders.set(key, String(val));
-                }
-            }
+    resShim.end = (chunk: any, ...args: any[]) => {
+      if (chunk) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      }
+      const body = Buffer.concat(chunks);
+      const responseHeaders = new Headers();
 
-            resolve(new NextResponse(body, {
-                status: resShim.statusCode || 200,
-                statusText: resShim.statusMessage,
-                headers: responseHeaders
-            }));
-            return resShim;
-        };
+      // Copy headers
+      const outgoingKeys = resShim.getHeaderNames();
+      for (const key of outgoingKeys) {
+        const val = resShim.getHeader(key);
+        if (Array.isArray(val)) {
+          val.forEach((v) => responseHeaders.append(key, String(v)));
+        } else if (val !== undefined) {
+          responseHeaders.set(key, String(val));
+        }
+      }
 
-        // Execute provider
-        provider.callback()(reqShim, resShim);
-    });
+      resolve(
+        new NextResponse(body, {
+          status: resShim.statusCode || 200,
+          statusText: resShim.statusMessage,
+          headers: responseHeaders,
+        }),
+      );
+      return resShim;
+    };
+
+    // Execute provider
+    provider.callback()(reqShim, resShim);
+  });
 }
 
 export { handler as GET, handler as POST };
