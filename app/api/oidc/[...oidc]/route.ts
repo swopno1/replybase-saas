@@ -38,22 +38,53 @@ async function handler(
   { params }: { params: Promise<{ oidc: string[] }> },
 ) {
   try {
-    const { oidc } = await params; // Await params
-    console.log("[OIDC] Incoming request:", req.nextUrl.pathname);
+    const { oidc } = await params;
+    const pathname = "/" + (oidc?.join("/") || "");
+    console.log("[OIDC] Incoming request:", pathname);
 
+    // Handle discovery endpoint directly
+    if (pathname === "/.well-known/openid-configuration") {
+      console.log("[OIDC] Returning discovery document");
+      const ISSUER =
+        process.env.NEXT_PUBLIC_APP_URL || "https://app.replybase.co.uk";
+      const discoveryDoc = {
+        issuer: ISSUER + "/api/oidc",
+        authorization_endpoint: ISSUER + "/api/oidc/auth",
+        token_endpoint: ISSUER + "/api/oidc/token",
+        userinfo_endpoint: ISSUER + "/api/oidc/me",
+        jwks_uri: ISSUER + "/api/oidc/jwks",
+        scopes_supported: [
+          "openid",
+          "email",
+          "profile",
+          "plan",
+          "subscription_status",
+        ],
+        response_types_supported: ["code", "code id_token", "id_token"],
+        subject_types_supported: ["public"],
+        id_token_signing_alg_values_supported: ["RS256"],
+        claim_types_supported: ["normal"],
+        claims_supported: [
+          "sub",
+          "email",
+          "email_verified",
+          "name",
+          "plan",
+          "subscription_status",
+          "iss",
+          "aud",
+        ],
+      };
+      return NextResponse.json(discoveryDoc);
+    }
+
+    // For all other OIDC endpoints, use the provider callback
     const provider = getOidcProvider();
     console.log("[OIDC] Provider initialized");
 
     const reqShim = await createIncomingMessage(req);
-    // Strip the /api/oidc prefix so oidc-provider receives the relative path
-    const relativePath = "/" + (oidc?.join("/") || "");
-    reqShim.url = relativePath + req.nextUrl.search;
-    console.log("[OIDC] Request URL set to:", reqShim.url);
-
+    reqShim.url = pathname + req.nextUrl.search;
     const resShim = new ServerResponse(reqShim);
-
-    // We need to capture the response from resShim and return NextResponse
-    // Typically oidc-provider writes to resShim.
 
     // Promise wrapper to await oidc-provider middleware
     return new Promise<NextResponse>((resolve, reject) => {
