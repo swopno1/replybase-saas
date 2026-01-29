@@ -88,8 +88,23 @@ async function handler(
       return resShim;
     };
 
-    // Execute provider
-    provider.callback()(reqShim, resShim);
+    // Execute provider with error handling
+    try {
+      provider.callback()(reqShim, resShim);
+    } catch (error) {
+      console.error("[OIDC] Error in provider.callback():", error);
+      reject(error);
+    }
+  }).catch((error) => {
+    console.error("[OIDC] Unhandled error in OIDC route:", error);
+    return new NextResponse(
+      JSON.stringify({
+        error: "server_error",
+        error_description:
+          error instanceof Error ? error.message : "Unknown error",
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
+    );
   });
 }
 
