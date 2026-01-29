@@ -49,7 +49,7 @@ export async function processDefaultBotFlow(
   });
 
   const state: ConversationState = conversation?.metadata
-    ? (conversation.metadata as ConversationState)
+    ? (conversation.metadata as unknown as ConversationState)
     : { flowState: FlowState.WELCOME, leadData: {} };
 
   let response = "";
