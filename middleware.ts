@@ -45,6 +45,8 @@ export async function middleware(req: NextRequest) {
     const subscriptionStatus = token.subscriptionStatus as string;
     const isBillingPath =
       pathname.startsWith("/settings/billing") ||
+      pathname.startsWith("/settings/account") ||
+      pathname.startsWith("/settings") ||
       pathname.startsWith("/pricing") ||
       pathname === "/" ||
       pathname.startsWith("/api/");

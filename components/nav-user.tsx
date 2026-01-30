@@ -1,13 +1,10 @@
-"use client"
+"use client";
 
-import { LogOut, User, CreditCard } from "lucide-react"
-import { signOut } from "next-auth/react"
+import { LogOut, User, CreditCard } from "lucide-react";
+import Link from "next/link";
+import { signOut } from "next-auth/react";
 
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,24 +13,27 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Button } from "@/components/ui/button"
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 
 export function NavUser({
   user,
 }: {
   user: {
-    name: string
-    email: string
-    avatar: string
-  }
+    name: string;
+    email: string;
+    avatar: string;
+  };
 }) {
-  const initials = user.name
-    .split(" ")
-    .map(n => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2) || user.email[0]?.toUpperCase() || "U"
+  const initials =
+    user.name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) ||
+    user.email[0]?.toUpperCase() ||
+    "U";
 
   return (
     <DropdownMenu>
@@ -56,14 +56,18 @@ export function NavUser({
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem disabled>
-            <User className="mr-2 h-4 w-4" />
-            <span>Account</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem disabled>
-            <CreditCard className="mr-2 h-4 w-4" />
-            <span>Billing</span>
-          </DropdownMenuItem>
+          <Link href="/settings/account">
+            <DropdownMenuItem>
+              <User className="mr-2 h-4 w-4" />
+              <span>Account</span>
+            </DropdownMenuItem>
+          </Link>
+          <Link href="/settings/billing">
+            <DropdownMenuItem>
+              <CreditCard className="mr-2 h-4 w-4" />
+              <span>Billing</span>
+            </DropdownMenuItem>
+          </Link>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem
@@ -74,5 +78,5 @@ export function NavUser({
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
+  );
 }
