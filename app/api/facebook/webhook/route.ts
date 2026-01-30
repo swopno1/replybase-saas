@@ -267,7 +267,40 @@ async function handleMessage(
       },
     });
 
-    // 5. Determine bot flow and generate response
+    // 5. Check if this is an onboarding conversation (new user without tenant)
+    const isNewUser = !contact.tenantId || contact.tenantId === tenantId;
+    const hasActiveOnboarding = await prisma.onboardingSession.findFirst({
+      where: {
+        contactId: contact.id,
+        facebookPageId: facebookPage.id,
+        status: "IN_PROGRESS",
+      },
+    });
+
+    // If this is a "Get Started" message or user has active onboarding, use onboarding flow
+    const isGetStarted =
+      messageText.toLowerCase().includes("get started") ||
+      messageText.toLowerCase().includes("hi") ||
+      messageText.toLowerCase().includes("hello");
+
+    if ((isNewUser && isGetStarted) || hasActiveOnboarding) {
+      try {
+        await OnboardingFlowHandler.handleMessage(
+          facebookPage.id,
+          senderPsid,
+          messageText,
+          conversation.id,
+          contact.id,
+          accessToken,
+        );
+        return; // Onboarding flow handles messaging
+      } catch (error) {
+        console.error("[Facebook Webhook] Onboarding Flow Error:", error);
+        // Fall through to regular bot flow
+      }
+    }
+
+    // 6. Determine bot flow and generate response for existing users
     let replyText: string;
 
     // Check if we should use default bot flow or AI engine
