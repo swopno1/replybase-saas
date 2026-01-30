@@ -10,8 +10,6 @@
 !.yarn/releases
 !.yarn/versions
 
-/botpress-local
-
 # testing
 /coverage
 

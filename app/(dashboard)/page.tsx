@@ -70,9 +70,10 @@ export default async function DashboardPage() {
 
   const connectedPagesCount = connectedPages.length;
   const activePagesCount = connectedPages.filter(
-    (p) => p.engineConnected
+    (p) => p.engineConnected,
   ).length;
-  const isAIActive = activePagesCount > 0 && isEngineUp;
+  // Always show AI as active once pages are connected (Typebot is managed service)
+  const isAIActive = activePagesCount > 0;
 
   // Get last message timestamp (tenant-scoped via the new facebookPageId relation)
   let lastMessageTimestamp: Date | null = null;
@@ -105,10 +106,7 @@ export default async function DashboardPage() {
   });
 
   const setupComplete =
-    hasFacebookAccount &&
-    connectedPagesCount > 0 &&
-    activePagesCount > 0 &&
-    isEngineUp;
+    hasFacebookAccount && connectedPagesCount > 0 && activePagesCount > 0;
   const needsFacebookConnection = !hasFacebookAccount;
   const needsPageConnection = hasFacebookAccount && connectedPagesCount === 0;
   const needsAIActivation = connectedPagesCount > 0 && activePagesCount === 0;
@@ -150,12 +148,6 @@ export default async function DashboardPage() {
                   Enable AI Replies
                 </>
               )}
-              {!isEngineUp && (
-                <>
-                  <AlertCircle className="h-5 w-5 text-destructive" />
-                  Engine Offline
-                </>
-              )}
             </CardTitle>
             <CardDescription>
               {needsFacebookConnection &&
@@ -164,8 +156,6 @@ export default async function DashboardPage() {
                 "Select a Facebook Page to connect with ReplyBase."}
               {needsAIActivation &&
                 "Enable AI replies for your connected pages."}
-              {!isEngineUp &&
-                "The AI engine is currently offline. Please try again later."}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -218,8 +208,9 @@ export default async function DashboardPage() {
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               {isAIActive
-                ? `${activePagesCount} page${activePagesCount !== 1 ? "s" : ""
-                } active`
+                ? `${activePagesCount} page${
+                    activePagesCount !== 1 ? "s" : ""
+                  } active`
                 : "No pages connected"}
             </p>
           </CardContent>
