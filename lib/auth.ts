@@ -78,7 +78,7 @@ export const authOptions: NextAuthOptions = {
         // Fetch user with tenant to get tenantId
         const dbUser = await prisma.user.findUnique({
           where: { id: user.id },
-          select: { tenantId: true }
+          select: { tenantId: true },
         });
 
         token.id = user.id;
@@ -86,11 +86,44 @@ export const authOptions: NextAuthOptions = {
 
         // Fetch subscription status separately to avoid complex nested includes typing issues
         if (dbUser?.tenantId) {
-          const tenantSub = await prisma.subscription.findFirst({
+          let tenantSub = await prisma.subscription.findFirst({
             where: { tenantId: dbUser.tenantId },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: "desc" },
           });
-          token.subscriptionStatus = tenantSub?.status || "inactive";
+
+          // If no subscription exists, create a free plan subscription
+          if (!tenantSub) {
+            const freePlan = await prisma.plan.upsert({
+              where: { name: "free" },
+              update: {},
+              create: {
+                name: "free",
+                displayName: "Free",
+                price: 0,
+                currency: "USD",
+              },
+            });
+
+            const now = Date.now();
+            const trialEndsAt = new Date(now + 14 * 24 * 60 * 60 * 1000);
+            const currentPeriodEnd = new Date(now + 30 * 24 * 60 * 60 * 1000);
+
+            tenantSub = await prisma.subscription.upsert({
+              where: { tenantId: dbUser.tenantId },
+              update: {},
+              create: {
+                tenantId: dbUser.tenantId,
+                planId: freePlan.id,
+                stripeId: `free_${dbUser.tenantId}`,
+                status: "active",
+                currentPeriodStart: new Date(),
+                currentPeriodEnd,
+                trialEndsAt,
+              },
+            });
+          }
+
+          token.subscriptionStatus = tenantSub?.status || "active";
         } else {
           token.subscriptionStatus = "inactive";
         }
