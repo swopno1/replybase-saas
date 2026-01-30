@@ -83,18 +83,19 @@ model VerificationToken {
 }
 
 model FacebookPage {
-  id               String            @id @default(cuid())
-  facebookId       String            @unique
-  name             String
-  accessToken      String
-  tenantId         String
-  botId            String?
-  engineConnected  Boolean           @default(false)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  crmConversations CrmConversation[]
-  bot              Bot?              @relation(fields: [botId], references: [id])
-  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id                  String                @id @default(cuid())
+  facebookId          String                @unique
+  name                String
+  accessToken         String
+  tenantId            String
+  botId               String?
+  engineConnected     Boolean               @default(false)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  crmConversations    CrmConversation[]
+  bot                 Bot?                  @relation(fields: [botId], references: [id])
+  tenant              Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  onboardingSessions  OnboardingSession[]
 
   @@index([tenantId])
   @@index([facebookId])
@@ -121,21 +122,22 @@ model Subscription {
 }
 
 model Plan {
-  id                  String         @id @default(cuid())
-  name                String         @unique
-  displayName         String
-  price               Float          @default(0)
-  currency            String         @default("USD")
-  dailyMessageLimit   Int            @default(100)
-  monthlyMessageLimit Int            @default(3000)
-  flowExecutionCap    Int            @default(100)
-  maxBots             Int            @default(1)
-  maxChannelsPerBot   Int            @default(1)
-  maxConversations    Int            @default(100)
-  features            Json           @default("{}")
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
-  subscriptions       Subscription[]
+  id                      String                @id @default(cuid())
+  name                    String                @unique
+  displayName             String
+  price                   Float                 @default(0)
+  currency                String                @default("USD")
+  dailyMessageLimit       Int                   @default(100)
+  monthlyMessageLimit     Int                   @default(3000)
+  flowExecutionCap        Int                   @default(100)
+  maxBots                 Int                   @default(1)
+  maxChannelsPerBot       Int                   @default(1)
+  maxConversations        Int                   @default(100)
+  features                Json                  @default("{}")
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+  subscriptions           Subscription[]
+  onboardingSessions      OnboardingSession[]
 
   @@map("plans")
 }
@@ -236,17 +238,18 @@ model SystemHealth {
 }
 
 model Contact {
-  id            String            @id @default(cuid())
-  tenantId      String
-  name          String?
-  email         String?
-  phone         String?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  identities    ContactIdentity[]
-  leads         Lead[]
-  tenant        Tenant            @relation(fields: [tenantId], references: [id])
-  conversations CrmConversation[]
+  id                  String                @id @default(cuid())
+  tenantId            String
+  name                String?
+  email               String?
+  phone               String?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  identities          ContactIdentity[]
+  leads               Lead[]
+  tenant              Tenant                @relation(fields: [tenantId], references: [id])
+  conversations       CrmConversation[]
+  onboardingSessions  OnboardingSession[]
 
   @@unique([tenantId, email])
   @@unique([tenantId, phone])
@@ -823,4 +826,105 @@ enum WorkspaceRole {
   ADMIN
   MEMBER
   GUEST
+}
+
+// Onboarding Models
+model OnboardingSession {
+  id                String                    @id @default(cuid())
+  tenantId          String?                   // May be null for new tenants
+  facebookPageId    String
+  conversationId    String
+  contactId         String
+  stage             OnboardingStage           @default(WELCOME)
+  status            OnboardingStatus          @default(IN_PROGRESS)
+  
+  // Collected Information
+  contactName       String?
+  businessName      String?
+  businessType      String? // e.g., "ecommerce", "service", "saas", "agency"
+  phone             String?
+  email             String?
+  emailFrequency    EmailFrequency            @default(DAILY) // DAILY, WEEKLY, MONTHLY, NEVER
+  
+  // Selection Data
+  selectedPlanId    String?
+  demoFlowSelected  String? // Demo template ID based on business type
+  
+  // Timestamps
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  completedAt       DateTime?
+  
+  // Relations
+  contact           Contact                   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  facebookPage      FacebookPage              @relation(fields: [facebookPageId], references: [id], onDelete: Cascade)
+  plan              Plan?                     @relation(fields: [selectedPlanId], references: [id])
+
+  @@index([tenantId])
+  @@index([facebookPageId])
+  @@index([conversationId])
+  @@index([status])
+  @@index([stage])
+  @@map("onboarding_sessions")
+}
+
+model DemoTemplate {
+  id                String                    @id @default(cuid())
+  name              String
+  displayName       String
+  description       String?
+  businessType      String // e.g., "ecommerce", "service", "saas"
+  flowJson          Json // Typebot flow structure
+  icon              String? // Icon or emoji for UI display
+  category          String? // e.g., "engagement", "qualification", "nurture"
+  enabled           Boolean                   @default(true)
+  order             Int                       @default(0)
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+
+  @@index([businessType])
+  @@index([enabled])
+  @@map("demo_templates")
+}
+
+model OnboardingMetrics {
+  id                String                    @id @default(cuid())
+  tenantId          String
+  totalSessions     Int                       @default(0)
+  completedSessions Int                       @default(0)
+  abandonedAt       Json?                     // { stage: count }
+  planSelectionDistribution Json? // { planId: count }
+  averageTimeToComplete Int? // in minutes
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+
+  @@unique([tenantId])
+  @@map("onboarding_metrics")
+}
+
+enum OnboardingStage {
+  WELCOME
+  COLLECT_INFO
+  BUSINESS_TYPE
+  CONTACT_INFO
+  EMAIL_PREFERENCE
+  PACKAGE_SELECTION
+  PAYMENT_OR_TRIAL
+  DEMO_SELECTION
+  CONFIRMATION
+  COMPLETED
+}
+
+enum OnboardingStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+  FAILED
+}
+
+enum EmailFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  NEVER
 }
