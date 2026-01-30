@@ -7,6 +7,7 @@ import {
   processDefaultBotFlow,
   shouldUseDefaultFlow,
 } from "@/lib/default-bot-flow";
+import { OnboardingFlowHandler } from "@/lib/onboarding-flow-handler";
 
 // GET: Webhook Verification
 export async function GET(req: NextRequest) {
