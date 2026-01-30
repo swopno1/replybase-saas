@@ -1,0 +1,62 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
+import { validateApiKey } from "@/lib/api-auth";
+import crypto from "node:crypto";
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export async function POST(req: NextRequest) {
+  try {
+    // Support both API key (from marketing site) and user session (from SaaS app)
+    const apiAuth = validateApiKey(req);
+    const session = await getServerSession(authOptions);
+
+    if (!apiAuth.authenticated && !session?.user?.id) {
+      return NextResponse.json(
+        { error: "Unauthorized. Provide valid API key or user session" },
+        { status: 401 },
+      );
+    }
+
+    const { email, source } = await req.json();
+
+    const targetEmail = email || session?.user?.email;
+    if (!targetEmail || !emailRegex.test(targetEmail)) {
+      return NextResponse.json(
+        { error: "Valid email is required" },
+        { status: 400 },
+      );
+    }
+
+    const confirmationCode = `del_${crypto.randomBytes(12).toString("hex")}`;
+
+    const request = await prisma.dataDeletionRequest.create({
+      data: {
+        email: targetEmail,
+        confirmationCode,
+        source: source || "web",
+        userId: session?.user?.id || undefined,
+        tenantId: session?.user?.tenantId || undefined,
+      },
+    });
+
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL || "https://app.replybase.co.uk";
+
+    return NextResponse.json({
+      success: true,
+      email: request.email,
+      confirmationCode: request.confirmationCode,
+      statusUrl: `${appUrl}/data-deletion-status?code=${request.confirmationCode}`,
+      source: apiAuth.authenticated ? "api-key" : "session",
+    });
+  } catch (error: unknown) {
+    console.error("[Data Deletion Request] Error:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 },
+    );
+  }
+}

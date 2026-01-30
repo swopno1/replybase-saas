@@ -33,6 +33,20 @@ export async function middleware(req: NextRequest) {
   const authPaths = ["/auth/login", "/auth/register", "/auth/forgot-password"];
   const isAuthPath = authPaths.includes(pathname);
 
+  const publicPaths = [
+    "/pricing",
+    "/terms",
+    "/privacy",
+    "/faq",
+    "/data-deletion-status",
+    "/data-deletion-request",
+    "/newsletter/unsubscribe",
+  ];
+  const isPublicPath = publicPaths.some(
+    (publicPath) =>
+      pathname === publicPath || pathname.startsWith(`${publicPath}/`),
+  );
+
   // If the user is logged in
   if (token) {
     // and tries to access an auth path, redirect to root
@@ -76,7 +90,7 @@ export async function middleware(req: NextRequest) {
   // If the user is not logged in
   if (!token) {
     // and tries to access an auth path, allow them
-    if (isAuthPath) {
+    if (isAuthPath || isPublicPath) {
       return NextResponse.next();
     }
     // and tries to access a protected route, redirect to login

@@ -21,14 +21,18 @@ export async function POST(req: NextRequest) {
     event = stripe!.webhooks.constructEvent(
       body,
       signature,
-      process.env.STRIPE_WEBHOOK_SECRET
+      process.env.STRIPE_WEBHOOK_SECRET,
     );
   } catch (error: any) {
-    console.error(`[Stripe Webhook] Signature verification failed: ${error.message}`);
+    console.error(
+      `[Stripe Webhook] Signature verification failed: ${error.message}`,
+    );
     return NextResponse.json({ error: "Webhook Error" }, { status: 400 });
   }
 
-  const session = event.data.object as Stripe.Checkout.Session | Stripe.Subscription;
+  const session = event.data.object as
+    | Stripe.Checkout.Session
+    | Stripe.Subscription;
 
   try {
     switch (event.type) {
@@ -40,7 +44,8 @@ export async function POST(req: NextRequest) {
 
         if (tenantId && subscriptionId) {
           // Retrieve the subscription to get details
-          const subscription = await stripe!.subscriptions.retrieve(subscriptionId);
+          const subscription =
+            await stripe!.subscriptions.retrieve(subscriptionId);
 
           await syncSubscription(tenantId, subscription);
         }
@@ -53,13 +58,15 @@ export async function POST(req: NextRequest) {
         // We need to find the tenant associated with this stripe subscription
         // We store stripeCustomerId in our DB, so let's look it up
         const dbSub = await prisma.subscription.findUnique({
-          where: { stripeCustomerId: subscription.customer as string }
+          where: { stripeCustomerId: subscription.customer as string },
         });
 
         if (dbSub) {
           await syncSubscription(dbSub.tenantId, subscription);
         } else {
-          console.warn(`[Stripe Webhook] No database subscription found for customer ${subscription.customer}`);
+          console.warn(
+            `[Stripe Webhook] No database subscription found for customer ${subscription.customer}`,
+          );
         }
         break;
       }
@@ -81,57 +88,68 @@ export async function POST(req: NextRequest) {
     console.error("[Stripe Webhook] Error processing event:", error);
     return NextResponse.json(
       { error: "Webhook handling failed" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
   return NextResponse.json({ received: true });
 }
 
-async function syncSubscription(tenantId: string, stripeSub: Stripe.Subscription) {
-  const subAny = stripeSub as any;
+async function syncSubscription(
+  tenantId: string,
+  stripeSub: Stripe.Subscription,
+) {
+  // Type-safe casting to access Stripe subscription properties
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sub = stripeSub as any;
 
   // 1. Determine Plan based on price ID
   // We assume the first item is the main plan
-  const priceId = subAny.items.data[0].price.id;
+  const priceId = sub.items.data[0].price.id;
 
   // Find our local plan that matches this price (via metadata or price lookup?)
   // Our seed script sets price = X. We can iterate limit 1.
   // Or we rely on the product name or metadata set in seed script.
 
   // Better: We fetch the product from Stripe to get metadata 'app_plan_id'
-  const product = await stripe!.products.retrieve(subAny.items.data[0].price.product as string);
-  const planName = product.metadata.app_plan_id || 'free';
+  const product = await stripe!.products.retrieve(
+    sub.items.data[0].price.product as string,
+  );
+  const planName = product.metadata.app_plan_id || "free";
 
   const dbPlan = await prisma.plan.findUnique({ where: { name: planName } });
 
   if (!dbPlan) {
-    console.error(`[Stripe Webhook] Sync failed: Unknown plan name '${planName}'`);
+    console.error(
+      `[Stripe Webhook] Sync failed: Unknown plan name '${planName}'`,
+    );
     return;
   }
 
   await prisma.subscription.upsert({
     where: { tenantId },
     update: {
-      stripeId: subAny.id,
-      stripeCustomerId: subAny.customer as string,
-      status: subAny.status,
-      currentPeriodStart: new Date(subAny.current_period_start * 1000),
-      currentPeriodEnd: new Date(subAny.current_period_end * 1000),
-      cancelAtPeriodEnd: subAny.cancel_at_period_end,
-      planId: dbPlan.id
+      stripeId: sub.id,
+      stripeCustomerId: sub.customer as string,
+      status: sub.status,
+      currentPeriodStart: new Date(sub.current_period_start * 1000),
+      currentPeriodEnd: new Date(sub.current_period_end * 1000),
+      cancelAtPeriodEnd: sub.cancel_at_period_end,
+      planId: dbPlan.id,
     },
     create: {
       tenantId,
-      stripeId: subAny.id,
-      stripeCustomerId: subAny.customer as string,
-      status: subAny.status,
-      currentPeriodStart: new Date(subAny.current_period_start * 1000),
-      currentPeriodEnd: new Date(subAny.current_period_end * 1000),
-      cancelAtPeriodEnd: subAny.cancel_at_period_end,
-      planId: dbPlan.id
-    }
+      stripeId: sub.id,
+      stripeCustomerId: sub.customer as string,
+      status: sub.status,
+      currentPeriodStart: new Date(sub.current_period_start * 1000),
+      currentPeriodEnd: new Date(sub.current_period_end * 1000),
+      cancelAtPeriodEnd: sub.cancel_at_period_end,
+      planId: dbPlan.id,
+    },
   });
 
-  console.log(`[Stripe Webhook] Synced subscription for tenant ${tenantId} to plan ${planName} (${subAny.status})`);
+  console.log(
+    `[Stripe Webhook] Synced subscription for tenant ${tenantId} to plan ${planName} (${sub.status})`,
+  );
 }

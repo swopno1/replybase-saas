@@ -51,6 +51,8 @@ model User {
   sessions              Session[]
   usageLogs             UsageLog[]
   tenant                Tenant            @relation(fields: [tenantId], references: [id])
+  newsletterSubscriptions NewsletterSubscriber[]
+  dataDeletionRequests   DataDeletionRequest[]
 
   @@index([tenantId])
   @@map("users")
@@ -69,6 +71,8 @@ model Tenant {
   subscriptions Subscription?
   usageLogs     UsageLog[]
   users         User[]
+  newsletterSubscriptions NewsletterSubscriber[]
+  dataDeletionRequests    DataDeletionRequest[]
 
   @@map("tenants")
 }
@@ -119,6 +123,45 @@ model Subscription {
   tenant             Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("subscriptions")
+}
+
+model NewsletterSubscriber {
+  id               String           @id @default(cuid())
+  email            String           @unique
+  status           NewsletterStatus @default(SUBSCRIBED)
+  source           String?
+  unsubscribeToken String           @unique
+  subscribedAt     DateTime         @default(now())
+  unsubscribedAt   DateTime?
+  userId           String?
+  tenantId         String?
+  user             User?            @relation(fields: [userId], references: [id])
+  tenant           Tenant?          @relation(fields: [tenantId], references: [id])
+
+  @@index([userId])
+  @@index([tenantId])
+  @@map("newsletter_subscribers")
+}
+
+model DataDeletionRequest {
+  id               String             @id @default(cuid())
+  email            String
+  status           DataDeletionStatus @default(PENDING)
+  confirmationCode String             @unique
+  source           String?
+  requestedAt      DateTime           @default(now())
+  processedAt      DateTime?
+  notes            String?
+  userId           String?
+  tenantId         String?
+  user             User?              @relation(fields: [userId], references: [id])
+  tenant           Tenant?            @relation(fields: [tenantId], references: [id])
+
+  @@index([email])
+  @@index([status])
+  @@index([userId])
+  @@index([tenantId])
+  @@map("data_deletion_requests")
 }
 
 model Plan {
@@ -927,4 +970,16 @@ enum EmailFrequency {
   WEEKLY
   MONTHLY
   NEVER
+}
+
+enum NewsletterStatus {
+  SUBSCRIBED
+  UNSUBSCRIBED
+}
+
+enum DataDeletionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
 }

@@ -22,6 +22,7 @@ export default function AccountSettingsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [newsletterLoading, setNewsletterLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: session?.user?.name || "",
     email: session?.user?.email || "",
@@ -105,6 +106,83 @@ export default function AccountSettingsPage() {
     }
   };
 
+  const handleNewsletterSubscribe = async () => {
+    if (!session?.user?.email) return;
+    setNewsletterLoading(true);
+    try {
+      const response = await fetch("/api/newsletter/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: session.user.email,
+          source: "account",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to subscribe to newsletter");
+      }
+
+      toast.success("Subscribed to newsletter");
+    } catch (error) {
+      console.error("Newsletter subscribe error:", error);
+      toast.error("Failed to subscribe to newsletter");
+    } finally {
+      setNewsletterLoading(false);
+    }
+  };
+
+  const handleNewsletterUnsubscribe = async () => {
+    if (!session?.user?.email) return;
+    setNewsletterLoading(true);
+    try {
+      const response = await fetch("/api/newsletter/unsubscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: session.user.email,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to unsubscribe from newsletter");
+      }
+
+      toast.success("Unsubscribed from newsletter");
+    } catch (error) {
+      console.error("Newsletter unsubscribe error:", error);
+      toast.error("Failed to unsubscribe from newsletter");
+    } finally {
+      setNewsletterLoading(false);
+    }
+  };
+
+  const handleDataDeletionRequest = async () => {
+    try {
+      const response = await fetch("/api/data-deletion/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: session?.user?.email,
+          source: "account",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to submit deletion request");
+      }
+
+      const data = await response.json();
+      toast.success("Data deletion request submitted");
+      if (data.statusUrl) {
+        window.location.href = data.statusUrl;
+      }
+    } catch (error) {
+      console.error("Data deletion request error:", error);
+      toast.error("Failed to submit deletion request");
+    }
+  };
+
   const handleDeleteAccount = async () => {
     setIsLoading(true);
 
@@ -117,9 +195,13 @@ export default function AccountSettingsPage() {
         throw new Error("Failed to delete account");
       }
 
-      toast.success("Account deleted successfully");
-      // Redirect to homepage
-      window.location.href = "/";
+      const data = await response.json();
+      toast.success("Deletion request submitted");
+      if (data.statusUrl) {
+        window.location.href = data.statusUrl;
+      } else {
+        window.location.href = "/data-deletion-status";
+      }
     } catch (error) {
       console.error("Account deletion error:", error);
       toast.error("Failed to delete account");
@@ -376,6 +458,33 @@ export default function AccountSettingsPage() {
                   </div>
                   <input type="checkbox" defaultChecked className="h-4 w-4" />
                 </div>
+
+                <div className="p-3 border rounded-md space-y-2">
+                  <div>
+                    <p className="font-medium text-sm">Marketing Newsletter</p>
+                    <p className="text-xs text-muted-foreground">
+                      Receive product updates and growth tips
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleNewsletterSubscribe}
+                      disabled={newsletterLoading}
+                    >
+                      Subscribe
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleNewsletterUnsubscribe}
+                      disabled={newsletterLoading}
+                    >
+                      Unsubscribe
+                    </Button>
+                  </div>
+                </div>
               </div>
 
               <Separator />
@@ -413,7 +522,11 @@ export default function AccountSettingsPage() {
                   <p className="text-xs text-muted-foreground mb-3">
                     Remove all your personal information from our servers
                   </p>
-                  <Button variant="outline" size="sm">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDataDeletionRequest}
+                  >
                     Request Deletion
                   </Button>
                 </div>
