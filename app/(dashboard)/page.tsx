@@ -1,42 +1,12 @@
 import { getServerSession } from "next-auth";
 import { checkHealth } from "@/lib/ai-engine";
 import { prisma } from "@/lib/prisma";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { SubscriptionStatus } from "@/components/subscription-status";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import {
-  Activity,
-  MessageSquare,
-  Zap,
-  AlertCircle,
-  CheckCircle2,
-  ArrowRight,
-  Clock,
-} from "lucide-react";
 import { authOptions } from "@/lib/auth";
-
-// Simple date formatter
-function formatTimeAgo(date: Date): string {
-  const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days} day${days !== 1 ? "s" : ""} ago`;
-  const weeks = Math.floor(days / 7);
-  if (weeks < 4) return `${weeks} week${weeks !== 1 ? "s" : ""} ago`;
-  const months = Math.floor(days / 30);
-  return `${months} month${months !== 1 ? "s" : ""} ago`;
-}
+import { DashboardErrorBoundary } from "@/components/dashboard/error-boundary";
+import { SetupCTA } from "@/components/dashboard/setup-cta";
+import { StatusCards } from "@/components/dashboard/status-cards";
+import { QuickActions } from "@/components/dashboard/quick-actions";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -105,10 +75,14 @@ export default async function DashboardPage() {
     },
   });
 
+  const hasFacebookConnectionBool = !!hasFacebookAccount;
   const setupComplete =
-    hasFacebookAccount && connectedPagesCount > 0 && activePagesCount > 0;
-  const needsFacebookConnection = !hasFacebookAccount;
-  const needsPageConnection = hasFacebookAccount && connectedPagesCount === 0;
+    hasFacebookConnectionBool &&
+    connectedPagesCount > 0 &&
+    activePagesCount > 0;
+  const needsFacebookConnection = !hasFacebookConnectionBool;
+  const needsPageConnection =
+    hasFacebookConnectionBool && connectedPagesCount === 0;
   const needsAIActivation = connectedPagesCount > 0 && activePagesCount === 0;
 
   return (
@@ -125,185 +99,37 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {/* Setup CTA - Show if setup incomplete */}
-      {!setupComplete && (
-        <Card className="border-primary/50 bg-primary/5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              {needsFacebookConnection && (
-                <>
-                  <AlertCircle className="h-5 w-5 text-primary" />
-                  Connect Your Facebook Account
-                </>
-              )}
-              {needsPageConnection && (
-                <>
-                  <MessageSquare className="h-5 w-5 text-primary" />
-                  Connect Your Facebook Page
-                </>
-              )}
-              {needsAIActivation && (
-                <>
-                  <Zap className="h-5 w-5 text-primary" />
-                  Enable AI Replies
-                </>
-              )}
-            </CardTitle>
-            <CardDescription>
-              {needsFacebookConnection &&
-                "Connect your Facebook account to get started."}
-              {needsPageConnection &&
-                "Select a Facebook Page to connect with ReplyBase."}
-              {needsAIActivation &&
-                "Enable AI replies for your connected pages."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {needsFacebookConnection && (
-              <Link href="/integrations/facebook">
-                <Button>
-                  Connect Facebook Account
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-            )}
-            {needsPageConnection && (
-              <Link href="/integrations/facebook">
-                <Button>
-                  Connect Facebook Page
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-            )}
-            {needsAIActivation && (
-              <Link href="/ai-status">
-                <Button>
-                  Enable AI Replies
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      {/* Setup CTA - Wrapped in Error Boundary */}
+      <DashboardErrorBoundary title="Setup Guide">
+        <SetupCTA
+          needsFacebookConnection={needsFacebookConnection}
+          needsPageConnection={needsPageConnection}
+          needsAIActivation={needsAIActivation}
+        />
+      </DashboardErrorBoundary>
 
-      {/* Status Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <SubscriptionStatus />
-      </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {/* AI Status */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">AI Status</CardTitle>
-            {isAIActive ? (
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-            ) : (
-              <AlertCircle className="h-4 w-4 text-muted-foreground" />
-            )}
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {isAIActive ? "Active" : "Inactive"}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {isAIActive
-                ? `${activePagesCount} page${
-                    activePagesCount !== 1 ? "s" : ""
-                  } active`
-                : "No pages connected"}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Connected Pages */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Facebook Pages
-            </CardTitle>
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{connectedPagesCount}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {connectedPagesCount === 0
-                ? "No pages connected"
-                : `${activePagesCount} with AI enabled`}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Engine Status */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Engine Status</CardTitle>
-            {isEngineUp ? (
-              <Activity className="h-4 w-4 text-green-500" />
-            ) : (
-              <AlertCircle className="h-4 w-4 text-red-500" />
-            )}
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {isEngineUp ? "Online" : "Offline"}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {isEngineUp ? "System operational" : "Connection failed"}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Last Message */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Last Message</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {lastMessageTimestamp ? formatTimeAgo(lastMessageTimestamp) : "—"}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {lastMessageTimestamp
-                ? "Most recent activity"
-                : "No messages yet"}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Quick Actions */}
-      {setupComplete && (
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-              <CardDescription>Manage your integration</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2">
-              <Link href="/integrations/facebook">
-                <Button variant="outline" className="w-full justify-start">
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  Manage Facebook Pages
-                </Button>
-              </Link>
-              <Link href="/ai-status">
-                <Button variant="outline" className="w-full justify-start">
-                  <Zap className="mr-2 h-4 w-4" />
-                  Configure AI Status
-                </Button>
-              </Link>
-              <Link href="/activity">
-                <Button variant="outline" className="w-full justify-start">
-                  <Activity className="mr-2 h-4 w-4" />
-                  View Activity Logs
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
+      {/* Subscription Status - Wrapped in Error Boundary */}
+      <DashboardErrorBoundary title="Subscription">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <SubscriptionStatus />
         </div>
-      )}
+      </DashboardErrorBoundary>
+
+      {/* Status Cards - Wrapped in Error Boundary */}
+      <DashboardErrorBoundary title="Status Overview">
+        <StatusCards
+          isAIActive={isAIActive}
+          activePagesCount={activePagesCount}
+          connectedPagesCount={connectedPagesCount}
+          isEngineUp={isEngineUp}
+          lastMessageTimestamp={lastMessageTimestamp}
+        />
+      </DashboardErrorBoundary>
+
+      {/* Quick Actions - Wrapped in Error Boundary */}
+      <DashboardErrorBoundary title="Quick Actions">
+        <QuickActions setupComplete={setupComplete} />
+      </DashboardErrorBoundary>
     </div>
   );
 }
