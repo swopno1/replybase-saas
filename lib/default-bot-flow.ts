@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 
 /**
  * Default Bot Conversation Flow States
@@ -166,7 +167,7 @@ export async function processDefaultBotFlow(
 
   await prisma.crmConversation.update({
     where: { id: conversationId },
-    data: { metadata: newState as unknown },
+    data: { metadata: newState as unknown as Prisma.InputJsonValue },
   });
 
   return response;
