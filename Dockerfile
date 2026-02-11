@@ -10,8 +10,12 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma/
 
-# Install ALL dependencies
+# Install dependencies and explicitly trigger Prisma postinstall
 RUN npm ci
+RUN npm run postinstall || true
+
+# Force Prisma client generation with proper engine download
+RUN npx prisma generate --skip-engine || npx prisma generate
 
 # Copy the rest of the source code
 COPY . .
@@ -20,8 +24,10 @@ COPY . .
 ARG NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 ARG NEXT_PUBLIC_APP_URL
 
-# Generate Prisma Client and build the Next.js app
-RUN npx prisma generate
+# Verify Prisma runtime exists before build
+RUN ls -la node_modules/@prisma/client/runtime/ || (echo "Prisma runtime missing, rebuilding..." && npm install @prisma/client@7.2.0)
+
+# Build the Next.js app
 RUN npm run build
 
 # --- PRODUCTION STAGE ---
