@@ -84,7 +84,9 @@ export default function getOidcProvider() {
         grant_types: ["authorization_code", "refresh_token"],
         redirect_uris: [
           process.env.TYPEBOT_CALLBACK_URL ||
-            "https://engine.replybase.co.uk/api/auth/oauth/generic-oidc/callback",
+            "https://engine.replybase.co.uk/api/auth/callback/generic-oidc",
+          // Legacy callback URL for backward compatibility (remove after migration)
+          "https://engine.replybase.co.uk/api/auth/oauth/generic-oidc/callback",
         ],
         // Include custom scopes for plan and subscription_status
         scope: "openid email profile plan subscription_status",
