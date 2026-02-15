@@ -50,6 +50,7 @@ model User {
   internalNotes         InternalNote[]
   sessions              Session[]
   usageLogs             UsageLog[]
+  flows                 Flow[]
   tenant                Tenant            @relation(fields: [tenantId], references: [id])
   newsletterSubscriptions NewsletterSubscriber[]
   dataDeletionRequests   DataDeletionRequest[]
@@ -68,6 +69,7 @@ model Tenant {
   contacts      Contact[]
   facebookPages FacebookPage[]
   leads         Lead[]
+  flows         Flow[]
   subscriptions Subscription?
   usageLogs     UsageLog[]
   users         User[]
@@ -97,6 +99,8 @@ model FacebookPage {
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
   crmConversations    CrmConversation[]
+  flowAssignments     FlowAssignment[]
+  leads               Lead[]
   bot                 Bot?                  @relation(fields: [botId], references: [id])
   tenant              Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   onboardingSessions  OnboardingSession[]
@@ -176,6 +180,7 @@ model Plan {
   maxBots                 Int                   @default(1)
   maxChannelsPerBot       Int                   @default(1)
   maxConversations        Int                   @default(100)
+  maxFlows                Int                   @default(3)
   features                Json                  @default("{}")
   createdAt               DateTime              @default(now())
   updatedAt               DateTime              @updatedAt
@@ -371,6 +376,9 @@ model Lead {
   id             String    @id @default(cuid())
   tenantId       String
   contactId      String?
+  flowId         String?
+  pageId         String?
+  tags           Json      @default("[]")
   name           String?
   company        String?
   mobile         String?
@@ -388,12 +396,95 @@ model Lead {
   updatedAt      DateTime  @updatedAt
   tenant         Tenant    @relation(fields: [tenantId], references: [id])
   contact        Contact?  @relation(fields: [contactId], references: [id])
+  flow           Flow?     @relation(fields: [flowId], references: [id])
+  page           FacebookPage? @relation(fields: [pageId], references: [id])
 
   @@index([tenantId])
   @@index([contactId])
+  @@index([flowId])
+  @@index([pageId])
   @@index([email])
   @@index([status])
   @@map("leads")
+}
+
+// Flow Builder Models
+model Flow {
+  id              String            @id @default(cuid())
+  name            String
+  description     String?
+  tenantId        String
+  ownerId         String?           // null = global flow
+  isGlobal        Boolean           @default(false)
+  isActive        Boolean           @default(false)
+  version         Int               @default(1)
+  language        String            @default("en")
+  fallbackMessage String?           @default("Sorry, I didn't understand that.")
+  maxTimeout      Int               @default(300) // seconds
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner           User?             @relation(fields: [ownerId], references: [id])
+  nodes           FlowNode[]
+  assignments     FlowAssignment[]
+  sessions        FlowSession[]
+  leads           Lead[]
+
+  @@index([tenantId])
+  @@index([ownerId])
+  @@index([isGlobal])
+  @@map("flows")
+}
+
+model FlowNode {
+  id        String   @id @default(cuid())
+  flowId    String
+  type      String   // message | input | condition | action | end
+  content   Json     // Flexible JSON storage for node config
+  order     Int      // Sequential order in flow
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  flow      Flow     @relation(fields: [flowId], references: [id], onDelete: Cascade)
+
+  @@index([flowId])
+  @@index([order])
+  @@map("flow_nodes")
+}
+
+model FlowAssignment {
+  id        String       @id @default(cuid())
+  flowId    String
+  pageId    String
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  flow      Flow         @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  page      FacebookPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId]) // Only one active flow assignment per page
+  @@index([flowId])
+  @@index([pageId])
+  @@map("flow_assignments")
+}
+
+model FlowSession {
+  id             String    @id @default(cuid())
+  userId         String    // FB user ID or contact ID
+  pageId         String
+  flowId         String
+  currentNodeId  String?
+  variables      Json      @default("{}")
+  isActive       Boolean   @default(true)
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  flow           Flow      @relation(fields: [flowId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([pageId])
+  @@index([flowId])
+  @@index([isActive])
+  @@map("flow_sessions")
 }
 
 // OIDC Provider Models

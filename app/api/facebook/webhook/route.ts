@@ -8,6 +8,7 @@ import {
   shouldUseDefaultFlow,
 } from "@/lib/default-bot-flow";
 import { OnboardingFlowHandler } from "@/lib/onboarding-flow-handler";
+import { FlowExecutionEngine } from "@/lib/flow-execution-engine";
 
 // GET: Webhook Verification
 export async function GET(req: NextRequest) {
@@ -298,6 +299,26 @@ async function handleMessage(
         console.error("[Facebook Webhook] Onboarding Flow Error:", error);
         // Fall through to regular bot flow
       }
+    }
+
+    // 5.5. Check for active Flow Builder flow assignment
+    try {
+      const flowResult = await FlowExecutionEngine.executeFlow({
+        userId: senderPsid,
+        pageId: facebookPage.id,
+        message: messageText,
+      });
+
+      if (flowResult.success) {
+        console.log("[Facebook Webhook] Flow executed successfully");
+        return; // Flow engine handles all messaging
+      } else if (flowResult.reason !== "no_active_flow") {
+        console.error("[Facebook Webhook] Flow execution error:", flowResult);
+        // Fall through to regular bot flow
+      }
+    } catch (error) {
+      console.error("[Facebook Webhook] Flow Engine Error:", error);
+      // Fall through to regular bot flow
     }
 
     // 6. Determine bot flow and generate response for existing users
