@@ -29,7 +29,7 @@ export function AIToggle({
     setLoading(true);
     try {
       const response = await fetch(
-        `/api/integrations/facebook/pages/${pageId}/toggle-ai`,
+        `/api/integrations/facebook/pages/${pageId}/toggle-ai-engine`,
         {
           method: "POST",
           headers: {
@@ -38,7 +38,7 @@ export function AIToggle({
           body: JSON.stringify({
             enabled: checked,
           }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -52,12 +52,12 @@ export function AIToggle({
       toast.success(
         checked
           ? "AI replies enabled for this page"
-          : "AI replies disabled for this page"
+          : "AI replies disabled for this page",
       );
     } catch (error) {
       console.error("Error toggling AI status:", error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to update AI status"
+        error instanceof Error ? error.message : "Failed to update AI status",
       );
       // Revert the toggle on error
       setEnabled(!checked);

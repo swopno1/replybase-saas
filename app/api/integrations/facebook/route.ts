@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   if (!userId || !tenantId) {
     return NextResponse.json(
       { error: "User or Tenant ID missing" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
   if (!pageId || !pageName || !accessToken) {
     return NextResponse.json(
       { error: "Missing required fields: pageId, pageName, accessToken" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -40,25 +40,25 @@ export async function POST(req: Request) {
   if (!appSecret) {
     return NextResponse.json(
       { error: "Facebook App Secret not configured" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
   // Verify the page access token by fetching page info from Facebook Graph API
   try {
     const verifyResponse = await fetch(
-      `https://graph.facebook.com/v18.0/${pageId}?fields=id,name,access_token&access_token=${accessToken}`
+      `https://graph.facebook.com/v18.0/${pageId}?fields=id,name,access_token&access_token=${accessToken}`,
     );
 
     if (!verifyResponse.ok) {
       const errorText = await verifyResponse.text();
       console.error(
         "[Facebook Integration] Token verification failed:",
-        errorText
+        errorText,
       );
       return NextResponse.json(
         { error: "Invalid page access token" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -84,21 +84,23 @@ export async function POST(req: Request) {
     });
 
     console.log(
-      `[Facebook Integration] Page ${verifiedPageId} saved/updated for user ${userId}`
+      `[Facebook Integration] Page ${verifiedPageId} saved/updated for user ${userId}`,
     );
 
-    // For Typebot, the "botId" in our DB usually maps to the Typebot Public ID or Typebot ID.
-    // We assume a default one is set in env or provided (for MVP, we use default).
-    const botId = process.env.TYPEBOT_DEFAULT_BOT_ID || "my-typebot";
-
-    // Update page with botId and mark as engine connected (Typebot doesn't need explicit channel config)
-    await prisma.facebookPage.update({
-      where: { id: facebookPage.id },
-      data: {
-        botId: botId,
-        engineConnected: true,
-      },
+    // Do not set botId here unless we can verify it exists for this tenant.
+    const defaultBot = await prisma.bot.findFirst({
+      where: { tenantId },
+      select: { id: true },
     });
+
+    if (defaultBot) {
+      await prisma.facebookPage.update({
+        where: { id: facebookPage.id },
+        data: {
+          botId: defaultBot.id,
+        },
+      });
+    }
 
     return NextResponse.json({
       success: true,
@@ -112,7 +114,7 @@ export async function POST(req: Request) {
         error: "Internal Server Error",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
