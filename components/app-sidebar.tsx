@@ -9,6 +9,7 @@ import {
   Users,
   MessagesSquare,
   UserCheck,
+  GitBranch,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -45,6 +46,11 @@ const items = [
     title: "Leads",
     url: "/leads",
     icon: UserCheck,
+  },
+  {
+    title: "Flows",
+    url: "/flows",
+    icon: GitBranch,
   },
   {
     title: "Facebook Pages",

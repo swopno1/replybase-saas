@@ -159,6 +159,10 @@ export default function FacebookIntegrationPage() {
       toast.success("Facebook account disconnected successfully");
       setConnected(false);
       setPages([]);
+      setIsLoading(false);
+      // Refresh the page after a short delay
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await fetchPages();
     } catch (error) {
       console.error("Error disconnecting Facebook account:", error);
       toast.error("Failed to disconnect Facebook account");

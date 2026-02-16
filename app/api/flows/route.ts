@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     // Build where clause
     const where: {
       tenantId: string;
-      ownerId?: string;
+      ownerId?: string | null;
       isGlobal?: boolean;
       isActive?: boolean;
     } = {
@@ -39,6 +39,8 @@ export async function GET(req: NextRequest) {
       where.isGlobal = false;
     } else if (type === "global") {
       where.isGlobal = true;
+      // Global flows can have owner or be system-wide (ownerId = null)
+      // This query returns all global flows in the tenant
     }
 
     if (isActive !== null && isActive !== undefined) {
