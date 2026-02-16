@@ -17,6 +17,12 @@ export async function GET(req: NextRequest) {
   const token = searchParams.get("hub.verify_token");
   const challenge = searchParams.get("hub.challenge");
 
+  console.log("[Facebook Webhook] Verification request", {
+    mode,
+    hasToken: Boolean(token),
+    hasChallenge: Boolean(challenge),
+  });
+
   const verifyToken = process.env.FACEBOOK_WEBHOOK_VERIFY_TOKEN;
 
   if (!verifyToken) {
@@ -43,6 +49,11 @@ export async function POST(req: NextRequest) {
     const signature = req.headers.get("x-hub-signature-256");
     const appSecret = process.env.FACEBOOK_CLIENT_SECRET;
 
+    console.log("[Facebook Webhook] Incoming webhook", {
+      hasSignature: Boolean(signature),
+      contentType: req.headers.get("content-type"),
+    });
+
     if (signature && appSecret) {
       // Get raw body for signature verification
       const bodyText = await req.text();
@@ -58,7 +69,10 @@ export async function POST(req: NextRequest) {
 
       // Parse the verified body
       const body = JSON.parse(bodyText);
-      console.log("[Facebook Webhook] Received verified event");
+      console.log("[Facebook Webhook] Received verified event", {
+        object: body?.object,
+        entryCount: Array.isArray(body?.entry) ? body.entry.length : 0,
+      });
 
       // Process each entry in the webhook payload
       if (body.object === "page" && body.entry) {
@@ -81,10 +95,10 @@ export async function POST(req: NextRequest) {
         "[Facebook Webhook] Signature verification skipped (signature or secret not available)",
       );
       const body = await req.json();
-      console.log(
-        "[Facebook Webhook] Received event:",
-        JSON.stringify(body, null, 2),
-      );
+      console.log("[Facebook Webhook] Received event summary:", {
+        object: body?.object,
+        entryCount: Array.isArray(body?.entry) ? body.entry.length : 0,
+      });
 
       // Process each entry in the webhook payload
       if (body.object === "page" && body.entry) {
