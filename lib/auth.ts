@@ -30,6 +30,7 @@ export const authOptions: NextAuthOptions = {
     FacebookProvider({
       clientId: process.env.FACEBOOK_CLIENT_ID as string,
       clientSecret: process.env.FACEBOOK_CLIENT_SECRET as string,
+      allowDangerousEmailAccountLinking: true,
       authorization: {
         params: {
           scope: "email,public_profile,pages_show_list,pages_messaging",
@@ -39,6 +40,7 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID as string,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+      allowDangerousEmailAccountLinking: true,
     }),
     CredentialsProvider({
       name: "Credentials",

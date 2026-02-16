@@ -47,7 +47,7 @@ const BillingPage = () => {
         throw new Error("Failed to fetch subscription");
       }
       const data = await response.json();
-      setSubscription(data);
+      setSubscription(data.subscription);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -67,7 +67,7 @@ const BillingPage = () => {
       window.location.href = data.url;
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to open billing portal"
+        err instanceof Error ? err.message : "Failed to open billing portal",
       );
     }
   };
@@ -171,7 +171,7 @@ const BillingPage = () => {
                 <CardDescription>
                   {formatPrice(
                     subscription.plan.price,
-                    subscription.plan.currency
+                    subscription.plan.currency,
                   )}{" "}
                   per month
                 </CardDescription>
@@ -197,7 +197,7 @@ const BillingPage = () => {
                 <p className="font-medium text-gray-600">Current Period</p>
                 <p>
                   {new Date(
-                    subscription.currentPeriodStart
+                    subscription.currentPeriodStart,
                   ).toLocaleDateString()}{" "}
                   -{" "}
                   {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
