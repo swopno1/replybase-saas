@@ -28,11 +28,32 @@ function CreateBotContent() {
     setLoading(true);
 
     try {
-      // For now, just redirect back to bots page
-      // Bot creation happens through the Typebot builder
-      router.push("/bots");
+      if (!formData.name.trim()) {
+        alert("Bot name is required");
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch("/api/bots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          channel: formData.channel,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        alert("Bot created successfully!");
+        router.push("/bots");
+      } else {
+        const error = await response.json();
+        alert(`Failed to create bot: ${error.error || "Unknown error"}`);
+      }
     } catch (error) {
       console.error("Error:", error);
+      alert("An error occurred while creating the bot");
     } finally {
       setLoading(false);
     }

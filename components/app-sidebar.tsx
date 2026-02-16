@@ -10,6 +10,8 @@ import {
   MessagesSquare,
   UserCheck,
   GitBranch,
+  Bot,
+  CreditCard,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -31,6 +33,11 @@ const items = [
     title: "Dashboard",
     url: "/",
     icon: LayoutDashboard,
+  },
+  {
+    title: "Bots",
+    url: "/bots",
+    icon: Bot,
   },
   {
     title: "Contacts",
@@ -61,6 +68,11 @@ const items = [
     title: "AI Status",
     url: "/ai-status",
     icon: Zap,
+  },
+  {
+    title: "Billing",
+    url: "/billing",
+    icon: CreditCard,
   },
   {
     title: "Activity",
