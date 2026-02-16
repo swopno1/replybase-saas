@@ -9,7 +9,8 @@
     "lint": "eslint",
     "seed:stripe": "tsx scripts/seed-stripe.ts",
     "db:cleanup": "node scripts/cleanup-db.js",
-    "test:chatbot": "node scripts/test-chatbot.js"
+    "test:chatbot": "node scripts/test-chatbot.js",
+    "diagnose:facebook": "dotenv -- tsx scripts/diagnose-facebook-integration.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
