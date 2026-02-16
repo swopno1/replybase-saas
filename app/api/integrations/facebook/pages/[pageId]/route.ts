@@ -38,7 +38,43 @@ export async function DELETE(
       );
     }
 
-    // Delete the Facebook page from database
+    // Delete in correct order to respect foreign key constraints
+    // 1. Delete flow assignments for this page
+    await prisma.flowAssignment.deleteMany({
+      where: {
+        pageId: facebookPage.id,
+      },
+    });
+
+    // 2. Delete conversations for this page
+    await prisma.crmConversation.deleteMany({
+      where: {
+        facebookPageId: facebookPage.id,
+      },
+    });
+
+    // 3. Delete leads for this page
+    await prisma.lead.deleteMany({
+      where: {
+        pageId: facebookPage.id,
+      },
+    });
+
+    // 4. Delete flow sessions related to this page
+    await prisma.flowSession.deleteMany({
+      where: {
+        pageId: facebookPage.id,
+      },
+    });
+
+    // 5. Delete onboarding sessions for this page
+    await prisma.onboardingSession.deleteMany({
+      where: {
+        facebookPageId: facebookPage.id,
+      },
+    });
+
+    // 6. Finally delete the Facebook page
     await prisma.facebookPage.delete({
       where: {
         id: facebookPage.id,
@@ -46,12 +82,12 @@ export async function DELETE(
     });
 
     console.log(
-      `[Facebook Integration] Page ${pageId} unlinked for tenant ${tenantId}`,
+      `[Facebook Integration] Page ${pageId} and all related data successfully deleted for tenant ${tenantId}`,
     );
 
     return NextResponse.json({
       success: true,
-      message: "Page unlinked successfully",
+      message: "Page and all related data unlinked successfully",
     });
   } catch (error) {
     console.error("[Facebook Integration] Error unlinking page:", error);
