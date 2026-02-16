@@ -20,6 +20,10 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  if (pathname.startsWith("/api/facebook/webhook")) {
+    return NextResponse.next();
+  }
+
   // Allow OIDC discovery and health endpoints to be public
   if (
     pathname.startsWith("/api/oidc") ||
