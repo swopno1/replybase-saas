@@ -12,7 +12,7 @@ export async function GET() {
     }
 
     // Get last 50 webhook logs, ordered by most recent
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const logs =
       (await (prisma as any).webhookLog?.findMany({
         take: 50,
@@ -37,17 +37,13 @@ export async function DELETE() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Delete all logs older than 1 hour
+    // Delete ALL webhook logs
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (prisma as any).webhookLog?.deleteMany({
-      where: {
-        createdAt: {
-          lt: new Date(Date.now() - 60 * 60 * 1000),
-        },
-      },
-    });
+    const result = await (prisma as any).webhookLog?.deleteMany({});
 
-    return NextResponse.json({ success: true });
+    console.log(`[Webhook Logs API] Deleted ${result?.count || 0} logs`);
+
+    return NextResponse.json({ success: true, deleted: result?.count || 0 });
   } catch (error) {
     console.error("[Webhook Logs API] Error:", error);
     return NextResponse.json(
