@@ -61,8 +61,13 @@ export default async function OnboardingSessionsPage() {
 
   // Calculate stage distribution
   const stageDistribution: Record<string, number> = {};
+  const abandonmentByStage: Record<string, number> = {};
+
   sessions.forEach((s) => {
     stageDistribution[s.stage] = (stageDistribution[s.stage] || 0) + 1;
+    if (s.status === "ABANDONED") {
+      abandonmentByStage[s.stage] = (abandonmentByStage[s.stage] || 0) + 1;
+    }
   });
 
   return (
@@ -130,25 +135,81 @@ export default async function OnboardingSessionsPage() {
         </Card>
       </div>
 
-      {/* Stage Distribution */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Stage Distribution</CardTitle>
-          <CardDescription>
-            Where users are in the onboarding flow
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            {Object.entries(stageDistribution).map(([stage, count]) => (
-              <div key={stage} className="text-center">
-                <div className="text-2xl font-bold">{count}</div>
-                <div className="text-xs text-muted-foreground">{stage}</div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Stage Analysis */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Current Stage Distribution</CardTitle>
+            <CardDescription>
+              Active and completed users per stage
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {Object.entries(stageDistribution)
+                .sort()
+                .map(([stage, count]) => (
+                  <div key={stage} className="flex items-center justify-between">
+                    <span className="text-sm font-medium capitalize">
+                      {stage.toLowerCase().replace(/_/g, " ")}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-32 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-blue-500"
+                          style={{
+                            width: `${(count / totalSessions) * 100}%`,
+                          }}
+                        />
+                      </div>
+                      <span className="text-sm font-bold">{count}</span>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Drop-off Analysis</CardTitle>
+            <CardDescription>Sessions abandoned at each stage</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {Object.entries(abandonmentByStage).length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  No abandonments recorded yet
+                </p>
+              ) : (
+                Object.entries(abandonmentByStage)
+                  .sort()
+                  .map(([stage, count]) => (
+                    <div
+                      key={stage}
+                      className="flex items-center justify-between"
+                    >
+                      <span className="text-sm font-medium capitalize">
+                        {stage.toLowerCase().replace(/_/g, " ")}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-32 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-red-500"
+                            style={{
+                              width: `${(count / abandonedSessions) * 100}%`,
+                            }}
+                          />
+                        </div>
+                        <span className="text-sm font-bold">{count}</span>
+                      </div>
+                    </div>
+                  ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Sessions Table */}
       <Card>

@@ -21,6 +21,7 @@ async function getBusinessStats() {
     totalConversations,
     recentSubscriptions,
     monthlyRevenue,
+    onboardingStats,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.tenant.count(),
@@ -48,7 +49,17 @@ async function getBusinessStats() {
       },
       include: { plan: true },
     }),
+    prisma.onboardingSession.aggregate({
+      _count: {
+        id: true,
+      },
+      where: {
+        status: "COMPLETED",
+      },
+    }),
   ]);
+
+  const totalOnboarding = await prisma.onboardingSession.count();
 
   const revenue = monthlyRevenue.reduce(
     (sum, sub) => sum + (sub.plan.price || 0),
@@ -64,6 +75,10 @@ async function getBusinessStats() {
     totalConversations,
     recentSubscriptions,
     monthlyRevenue: revenue,
+    onboardingConversion: totalOnboarding
+      ? ((onboardingStats._count.id / totalOnboarding) * 100).toFixed(1)
+      : "0",
+    totalOnboarding,
   };
 }
 
@@ -149,7 +164,24 @@ export default async function AdminPage() {
           </CardContent>
         </Card>
 
-        <Card className="md:col-span-2 lg:col-span-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Onboarding Conversion
+            </CardTitle>
+            <TrendingUp className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">
+              {stats.onboardingConversion}%
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              From {stats.totalOnboarding} sessions
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="md:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">
               Total Conversations
