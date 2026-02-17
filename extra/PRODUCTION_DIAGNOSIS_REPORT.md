@@ -6,7 +6,7 @@
 
 - SaaS App: `https://app.replybase.co.uk/`
 - Typebot Builder: `https://engine.replybase.co.uk/`
-- Typebot Viewer: `https://bot.investorhints.com/`
+- Typebot Viewer: `https://bot.replybase.co.uk/`
 
 ---
 
@@ -116,7 +116,7 @@ OIDC_CALLBACK_URL=https://engine.replybase.co.uk/api/auth/oauth/generic-oidc/cal
 
 ##### **BLOCKER: Viewer Not Configured**
 
-The Typebot Viewer at `bot.investorhints.com` needs:
+The Typebot Viewer at `bot.replybase.co.uk` needs:
 
 1. Admin routes blocked at infrastructure level
 2. Only public bot viewing allowed

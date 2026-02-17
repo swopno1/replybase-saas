@@ -22,7 +22,7 @@ ReplyBase is a production-ready SaaS application that provides secure access to 
 User → SaaS App (app.replybase.co.uk)
          ↓ OIDC Flow
          → Typebot Builder (engine.replybase.co.uk) [Private]
-         → Typebot Viewer (bot.investorhints.com) [Public with restrictions]
+         → Typebot Viewer (bot.replybase.co.uk) [Public with restrictions]
 ```
 
 ## 📚 Documentation

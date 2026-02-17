@@ -71,7 +71,7 @@ A comprehensive production-readiness audit was conducted on the Replybase SaaS d
 | Replybase-Frontend    | replybase.co.uk, www.replybase.co.uk | Up 12d | 30 Jan 2026   | Custom build: a353cab7              |
 | Replybase-saas        | app.replybase.co.uk                  | Up 12d | 30 Jan 2026   | Custom build: 828ea5a5              |
 | bot-builder (Typebot) | engine.replybase.co.uk               | Up 2w  | 29 Jan 2026   | baptistearno/typebot-builder:latest |
-| bot-viewer (Typebot)  | bot.investorhints.com                | Up 2w  | 25 Jan 2026   | baptistearno/typebot-viewer:latest  |
+| bot-viewer (Typebot)  | bot.replybase.co.uk                  | Up 2w  | 25 Jan 2026   | baptistearno/typebot-viewer:latest  |
 
 ### Test Log: Build & Runtime Status
 
@@ -252,7 +252,7 @@ User → SaaS (app.replybase.co.uk)
   ↓ (AI_ENGINE_URL)
 Engine (engine.replybase.co.uk)
   ↓ (NEXT_PUBLIC_VIEWER_URL)
-Viewer (bot.investorhints.com)
+Viewer (bot.replybase.co.uk)
   ↓ (embed on SaaS)
 Back to SaaS
 ```

@@ -20,7 +20,7 @@
 
 - [ ] `app.replybase.co.uk` DNS configured
 - [ ] `engine.replybase.co.uk` DNS configured
-- [ ] `bot.investorhints.com` DNS configured
+- [ ] `bot.replybase.co.uk` DNS configured
 - [ ] SSL certificates active for all domains
 - [ ] All domains resolve correctly
 
@@ -225,9 +225,9 @@
 - [ ] Direct Engine access blocked: `curl -I https://engine.replybase.co.uk`
   - [ ] Returns 403 Forbidden
 - [ ] Engine with Authorization header works
-- [ ] Viewer admin routes blocked: `curl -I https://bot.investorhints.com/builder`
+- [ ] Viewer admin routes blocked: `curl -I https://bot.replybase.co.uk/builder`
   - [ ] Returns 403 Forbidden
-- [ ] Viewer public routes work: `curl -I https://bot.investorhints.com/`
+- [ ] Viewer public routes work: `curl -I https://bot.replybase.co.uk/`
   - [ ] Returns 200 OK
 
 ---
@@ -279,7 +279,7 @@
   - [ ] Try to access builder
   - [ ] Verify redirect to pricing page
 - [ ] **Viewer Admin Access** (should fail)
-  - [ ] Go to `https://bot.investorhints.com/builder`
+  - [ ] Go to `https://bot.replybase.co.uk/builder`
   - [ ] Verify 403 Forbidden
 
 ### Token Validation
@@ -457,8 +457,8 @@
 
 ---
 
-**Deployment Started**: **_/_**/**_  
-**Deployment Completed**: _**/**_/_**  
+**Deployment Started**: **_/_**/**\_  
+**Deployment Completed**: \_**/**_/_**  
 **Time Taken**: **\_** days/hours  
 **Status**: ⬜ In Progress / ✅ Complete
 

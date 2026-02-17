@@ -59,7 +59,7 @@ If invalid → Return 401 Unauthorized
 ### Layer 3: Public Viewer
 
 ```
-bot.investorhints.com (Public)
+bot.replybase.co.uk (Public)
 ↓
 No authentication needed
 ↓

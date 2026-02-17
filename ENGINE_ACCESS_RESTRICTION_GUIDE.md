@@ -2,7 +2,7 @@
 
 ## Issue
 
-`engine.replybase.co.uk` (bot-builder) and `bot.investorhints.com` (bot-viewer) are publicly accessible. These should be restricted to:
+`engine.replybase.co.uk` (bot-builder) and `bot.replybase.co.uk` (bot-viewer) are publicly accessible. These should be restricted to:
 
 - Internal SaaS application only
 - OR specific IP addresses/networks
@@ -12,7 +12,7 @@
 ```bash
 # Public access test
 curl -I https://engine.replybase.co.uk
-curl -I https://bot.investorhints.com
+curl -I https://bot.replybase.co.uk
 # Returns: HTTP 200 (direct access)
 ```
 
@@ -38,7 +38,7 @@ location = /api/auth/callback/generic-oidc {
 }
 ```
 
-#### Viewer (bot.investorhints.com)
+#### Viewer (bot.replybase.co.uk)
 
 In Coolify -> Viewer -> Advanced -> Custom Nginx:
 
@@ -125,11 +125,11 @@ docker compose up -d --force-recreate
 # Verify Traefik picked up changes
 docker logs coolify-proxy 2>&1 | grep -i "engine.replybase.co.uk" | tail -5
 
-# Repeat for bot-viewer (bot.investorhints.com)
+# Repeat for bot-viewer (bot.replybase.co.uk)
 cd /data/coolify/applications/<bot-viewer-app-id>
 docker compose up -d --force-recreate
 
-docker logs coolify-proxy 2>&1 | grep -i "bot.investorhints.com" | tail -5
+docker logs coolify-proxy 2>&1 | grep -i "bot.replybase.co.uk" | tail -5
 ```
 
 #### Step 5: Test Access
@@ -139,14 +139,14 @@ docker logs coolify-proxy 2>&1 | grep -i "bot.investorhints.com" | tail -5
 curl -I https://engine.replybase.co.uk
 # Expected: HTTP 200
 
-curl -I https://bot.investorhints.com
+curl -I https://bot.replybase.co.uk
 # Expected: HTTP 200
 
 # From disallowed IP (should block)
 curl -I https://engine.replybase.co.uk --interface {different_ip}
 # Expected: HTTP 403 Forbidden
 
-curl -I https://bot.investorhints.com --interface {different_ip}
+curl -I https://bot.replybase.co.uk --interface {different_ip}
 # Expected: HTTP 403 Forbidden
 ```
 
@@ -272,7 +272,7 @@ After implementing restrictions:
 ```bash
 # 1. Test direct access (should fail)
 curl -I https://engine.replybase.co.uk
-curl -I https://bot.investorhints.com
+curl -I https://bot.replybase.co.uk
 # Expected: HTTP 403
 
 # 2. Test from random IP (use proxy service like https://www.ipchicken.com/)

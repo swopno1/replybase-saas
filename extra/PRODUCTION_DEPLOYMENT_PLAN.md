@@ -30,7 +30,7 @@
 - [ ] Domain DNS configured:
   - [ ] `app.replybase.co.uk` → SaaS App
   - [ ] `engine.replybase.co.uk` → Typebot Builder
-  - [ ] `bot.investorhints.com` → Typebot Viewer
+  - [ ] `bot.replybase.co.uk` → Typebot Viewer
 - [ ] SSL certificates active for all domains
 
 ### External Services
@@ -593,12 +593,12 @@ docker logs -f typebot-engine | grep -i "oidc\|token\|auth"
 
 ```bash
 # Public bot viewing (should work)
-curl -I https://bot.investorhints.com/
+curl -I https://bot.replybase.co.uk/
 
 # Admin endpoints (should return 404 or 403)
-curl -I https://bot.investorhints.com/builder
-curl -I https://bot.investorhints.com/settings
-curl -I https://bot.investorhints.com/api/bots
+curl -I https://bot.replybase.co.uk/builder
+curl -I https://bot.replybase.co.uk/settings
+curl -I https://bot.replybase.co.uk/api/bots
 
 # Expected: 403 or 404 on admin routes
 ```
@@ -653,7 +653,7 @@ location / {
 
 ```bash
 # Public bot viewing (should work)
-curl -I https://bot.investorhints.com/
+curl -I https://bot.replybase.co.uk/
 
 # Expected: HTTP/1.1 200 OK
 ```
@@ -811,7 +811,7 @@ curl -H "Authorization: Bearer $TOKEN" \
 
 ```bash
 # In browser
-# Go to: https://bot.investorhints.com/builder
+# Go to: https://bot.replybase.co.uk/builder
 
 # Expected: 403 Forbidden
 # Expected: Message about admin routes

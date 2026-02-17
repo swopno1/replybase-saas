@@ -173,7 +173,7 @@ Before you start, ensure you have:
 - [ ] Domains configured:
   - [ ] app.replybase.co.uk
   - [ ] engine.replybase.co.uk
-  - [ ] bot.investorhints.com
+  - [ ] bot.replybase.co.uk
 - [ ] SSL certificates active
 
 ---
