@@ -35,6 +35,22 @@ export async function GET(req: NextRequest) {
 
   if (mode === "subscribe" && token === verifyToken) {
     console.log("[Facebook Webhook] Verification successful");
+
+    // Log verification success
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (prisma as any).webhookLog?.create({
+        data: {
+          type: "verification",
+          source: "facebook",
+          event: "webhook_verify",
+          data: { mode, success: true },
+        },
+      });
+    } catch (logError) {
+      console.error("[Facebook Webhook] Failed to log verification:", logError);
+    }
+
     return new NextResponse(challenge, { status: 200 });
   }
 
