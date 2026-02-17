@@ -1074,3 +1074,16 @@ enum DataDeletionStatus {
   COMPLETED
   REJECTED
 }
+
+model WebhookLog {
+  id        String   @id @default(cuid())
+  type      String   // "verification" | "message" | "postback" | "delivery" | "read"
+  source    String   // "facebook" | "stripe" | etc
+  event     String?  // Event name if applicable
+  data      Json     // Full event payload
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([source])
+  @@map("webhook_logs")
+}
