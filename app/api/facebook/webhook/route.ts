@@ -149,6 +149,9 @@ interface FacebookMessagingEvent {
     mid?: string; // Facebook message ID
     text?: string;
     is_echo?: boolean;
+    quick_reply?: {
+      payload: string;
+    };
   };
   delivery?: unknown;
   read?: unknown;
@@ -179,13 +182,13 @@ async function handleMessagingEvent(event: FacebookMessagingEvent) {
 
     // Handle postback events (like Get Started button)
     if (postback) {
-      const messageText = "Hi"; // Treat postback as initial greeting
+      const messageText = postback.payload || "Hi";
       await handleMessage(senderPsid, pageId, messageText);
       return;
     }
 
     // Handle regular messages
-    const messageText = message?.text;
+    const messageText = message?.quick_reply?.payload || message?.text;
 
     if (!messageText) {
       // For MVP, we only handle text messages.

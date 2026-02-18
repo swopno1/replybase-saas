@@ -26,66 +26,78 @@ export class OnboardingFlowHandler {
     // Parse the message to determine next action
     const action = this.parseMessageAction(messageText, session.stage);
 
-    // Update session based on message content
-    await this.processMessageContent(session.id, messageText, session.stage);
+    // Update session based on message content and check if valid
+    const isValid = await this.processMessageContent(
+      session.id,
+      messageText,
+      session.stage,
+    );
 
     // Determine next stage
     let nextStage = session.stage;
     let respondWithMessage: OnboardingMessage | null = null;
 
-    switch (action) {
-      case "get_started":
-        nextStage = OnboardingStage.COLLECT_INFO;
-        respondWithMessage = OnboardingService.getStageMessage(nextStage);
-        break;
+    // Only progress if input was valid for the current stage
+    if (!isValid && action !== "get_started") {
+      respondWithMessage = OnboardingService.getValidationErrorMessage(
+        session.stage,
+      );
+      nextStage = session.stage;
+    } else {
+      switch (action) {
+        case "get_started":
+          nextStage = OnboardingStage.COLLECT_INFO;
+          respondWithMessage = OnboardingService.getStageMessage(nextStage);
+          break;
 
-      case "name_provided":
-        nextStage = OnboardingStage.BUSINESS_TYPE;
-        respondWithMessage = OnboardingService.getStageMessage(nextStage);
-        break;
+        case "name_provided":
+          nextStage = OnboardingStage.BUSINESS_TYPE;
+          respondWithMessage = OnboardingService.getStageMessage(nextStage);
+          break;
 
-      case "business_selected":
-        nextStage = OnboardingStage.CONTACT_INFO;
-        respondWithMessage = OnboardingService.getStageMessage(nextStage);
-        break;
+        case "business_selected":
+          nextStage = OnboardingStage.CONTACT_INFO;
+          respondWithMessage = OnboardingService.getStageMessage(nextStage);
+          break;
 
-      case "contact_provided":
-        nextStage = OnboardingStage.EMAIL_PREFERENCE;
-        respondWithMessage = OnboardingService.getStageMessage(nextStage);
-        break;
+        case "contact_provided":
+          nextStage = OnboardingStage.EMAIL_PREFERENCE;
+          respondWithMessage = OnboardingService.getStageMessage(nextStage);
+          break;
 
-      case "email_preference_set":
-        nextStage = OnboardingStage.PACKAGE_SELECTION;
-        respondWithMessage = OnboardingService.getStageMessage(nextStage);
-        break;
+        case "email_preference_set":
+          nextStage = OnboardingStage.PACKAGE_SELECTION;
+          respondWithMessage = OnboardingService.getStageMessage(nextStage);
+          break;
 
-      case "plan_selected":
-        nextStage = OnboardingStage.PAYMENT_OR_TRIAL;
-        respondWithMessage = OnboardingService.getStageMessage(nextStage);
-        break;
+        case "plan_selected":
+          nextStage = OnboardingStage.PAYMENT_OR_TRIAL;
+          respondWithMessage = OnboardingService.getStageMessage(nextStage);
+          break;
 
-      case "trial_selected":
-        nextStage = OnboardingStage.DEMO_SELECTION;
-        respondWithMessage = OnboardingService.getStageMessage(nextStage);
-        break;
+        case "trial_selected":
+          nextStage = OnboardingStage.DEMO_SELECTION;
+          respondWithMessage = OnboardingService.getStageMessage(nextStage);
+          break;
 
-      case "demo_selected":
-        nextStage = OnboardingStage.CONFIRMATION;
-        respondWithMessage = OnboardingService.getStageMessage(nextStage);
-        break;
+        case "demo_selected":
+          nextStage = OnboardingStage.CONFIRMATION;
+          respondWithMessage = OnboardingService.getStageMessage(nextStage);
+          break;
 
-      case "payment_confirmed":
-        nextStage = OnboardingStage.CONFIRMATION;
-        respondWithMessage = OnboardingService.getStageMessage(nextStage);
-        break;
+        case "payment_confirmed":
+          nextStage = OnboardingStage.CONFIRMATION;
+          respondWithMessage = OnboardingService.getStageMessage(nextStage);
+          break;
 
-      case "dashboard_opened":
-        await OnboardingService.completeOnboarding(session.id);
-        nextStage = OnboardingStage.COMPLETED;
-        break;
+        case "dashboard_opened":
+          await OnboardingService.completeOnboarding(session.id);
+          nextStage = OnboardingStage.COMPLETED;
+          break;
 
-      default:
-        respondWithMessage = OnboardingService.getStageMessage(session.stage);
+        default:
+          respondWithMessage = OnboardingService.getStageMessage(session.stage);
+      }
     }
 
     // Update session to next stage
@@ -133,17 +145,18 @@ export class OnboardingFlowHandler {
 
   /**
    * Process and store the message content based on stage
+   * Returns true if valid content was processed, false otherwise
    */
   static async processMessageContent(
     sessionId: string,
     content: string,
     stage: OnboardingStage,
-  ) {
+  ): Promise<boolean> {
     const session = await prisma.onboardingSession.findUnique({
       where: { id: sessionId },
     });
 
-    if (!session) return;
+    if (!session) return false;
 
     const updateData: Partial<{
       contactName?: string;
@@ -155,10 +168,16 @@ export class OnboardingFlowHandler {
       demoFlowSelected?: string;
     }> = {};
 
+    let isValid = true;
+
     switch (stage) {
       case OnboardingStage.COLLECT_INFO:
-        updateData.contactName = content;
-        updateData.businessName = content; // Can ask separately later
+        if (content.length < 2) {
+          isValid = false;
+        } else {
+          updateData.contactName = content;
+          updateData.businessName = content; // Can ask separately later
+        }
         break;
 
       case OnboardingStage.BUSINESS_TYPE:
@@ -172,15 +191,23 @@ export class OnboardingFlowHandler {
         const type = Object.entries(businessTypeMap).find(([key]) =>
           content.toLowerCase().includes(key),
         )?.[1];
-        if (type) updateData.businessType = type;
+        if (type) {
+          updateData.businessType = type;
+        } else if (!content.toLowerCase().includes("business_")) {
+          isValid = false;
+        }
         break;
 
       case OnboardingStage.CONTACT_INFO:
         // Parse email and phone from message
         const emailMatch = content.match(/([^\s@]+@[^\s@]+\.[^\s@]+)/);
         const phoneMatch = content.match(/(\+?[\d\s-()]{10,})/);
+
         if (emailMatch) updateData.email = emailMatch[1];
         if (phoneMatch) updateData.phone = phoneMatch[1];
+
+        // Require at least email for this stage to be "valid"
+        if (!emailMatch) isValid = false;
         break;
 
       case OnboardingStage.EMAIL_PREFERENCE:
@@ -208,6 +235,8 @@ export class OnboardingFlowHandler {
     if (Object.keys(updateData).length > 0) {
       await OnboardingService.updateSessionInfo(sessionId, updateData);
     }
+
+    return isValid;
   }
 
   /**

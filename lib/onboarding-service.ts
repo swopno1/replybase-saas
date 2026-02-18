@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import {
   OnboardingStage,
   OnboardingStatus,
@@ -61,6 +62,90 @@ export class OnboardingService {
     }
 
     return session;
+  }
+
+  /**
+   * Seed initial demo templates if none exist
+   */
+  static async seedDemoTemplates() {
+    const count = await prisma.demoTemplate.count();
+    if (count > 0) return;
+
+    const templates = [
+      {
+        name: "demo_catalog",
+        displayName: "Product Catalog assistant",
+        description: "Help customers find products and answer common questions.",
+        businessType: "ecommerce",
+        icon: "🛍️",
+        flowJson: {
+          nodes: [
+            {
+              type: "message",
+              content: { text: "Hi! How can I help you today?" },
+            },
+            {
+              type: "input",
+              content: {
+                placeholder: "Search products...",
+                variable: "search_query",
+              },
+            },
+          ],
+        },
+      },
+      {
+        name: "demo_booking",
+        displayName: "Service Booking Bot",
+        description: "Allow clients to book appointments and check availability.",
+        businessType: "service",
+        icon: "📅",
+        flowJson: {
+          nodes: [
+            {
+              type: "message",
+              content: { text: "Welcome! Would you like to book an appointment?" },
+            },
+          ],
+        },
+      },
+      {
+        name: "demo_lead_gen",
+        displayName: "Lead Generation assistant",
+        description: "Qualify new leads and collect their contact information.",
+        businessType: "saas",
+        icon: "🚀",
+        flowJson: {
+          nodes: [
+            {
+              type: "message",
+              content: { text: "Tell us about your business needs!" },
+            },
+          ],
+        },
+      },
+      {
+        name: "demo_support",
+        displayName: "Customer Support bot",
+        description: "Answer frequently asked questions and provide support.",
+        businessType: "other",
+        icon: "🤝",
+        flowJson: {
+          nodes: [
+            {
+              type: "message",
+              content: { text: "How can we help you today?" },
+            },
+          ],
+        },
+      },
+    ];
+
+    for (const template of templates) {
+      await prisma.demoTemplate.create({
+        data: template,
+      });
+    }
   }
 
   /**
@@ -235,6 +320,26 @@ export class OnboardingService {
   }
 
   /**
+   * Get validation error message
+   */
+  static getValidationErrorMessage(stage: OnboardingStage): OnboardingMessage {
+    switch (stage) {
+      case OnboardingStage.CONTACT_INFO:
+        return {
+          text: "Oops! That doesn't look like a valid email or phone number. Could you please provide a valid email (e.g., name@business.com) and phone number?",
+        };
+      case OnboardingStage.COLLECT_INFO:
+        return {
+          text: "Please provide your name so we can personalize your experience.",
+        };
+      default:
+        return {
+          text: "I didn't quite catch that. Could you please try again?",
+        };
+    }
+  }
+
+  /**
    * Update session with collected information
    */
   static async updateSessionInfo(
@@ -282,9 +387,12 @@ export class OnboardingService {
     // Create or link tenant and subscription
     if (session.email && session.businessName) {
       await this.createTenantFromOnboarding({
+        email: session.email,
         businessName: session.businessName,
         selectedPlanId: session.selectedPlanId || undefined,
         contactId: session.contactId,
+        phone: session.phone || undefined,
+        demoFlowSelected: session.demoFlowSelected || undefined,
       });
     }
 
@@ -299,8 +407,20 @@ export class OnboardingService {
     businessName?: string;
     selectedPlanId?: string;
     contactId: string;
+    phone?: string;
+    demoFlowSelected?: string;
   }) {
-    const { businessName, selectedPlanId, contactId } = session;
+    const {
+      email,
+      businessName,
+      selectedPlanId,
+      contactId,
+      phone,
+      demoFlowSelected,
+    } = session;
+
+    // Ensure templates are seeded
+    await this.seedDemoTemplates();
 
     // Create tenant
     const tenant = await prisma.tenant.create({
@@ -333,11 +453,56 @@ export class OnboardingService {
       }
     }
 
-    // Update contact with tenant association
+    // Update contact with tenant association and collected info
     await prisma.contact.update({
       where: { id: contactId },
-      data: { tenantId: tenant.id },
+      data: {
+        tenantId: tenant.id,
+        email: email || undefined,
+        phone: phone || undefined,
+      },
     });
+
+    // Create initial flow if demo selected
+    if (demoFlowSelected) {
+      const template = await prisma.demoTemplate.findFirst({
+        where: {
+          OR: [
+            { id: demoFlowSelected },
+            { name: demoFlowSelected },
+            { displayName: demoFlowSelected },
+          ],
+        },
+      });
+
+      if (template && template.flowJson) {
+        const flowJson = template.flowJson as {
+          nodes?: Array<{ type: string; content: Prisma.JsonValue }>;
+        };
+        const flow = await prisma.flow.create({
+          data: {
+            name: template.displayName,
+            description: template.description,
+            tenantId: tenant.id,
+            isActive: true,
+          },
+        });
+
+        if (flowJson.nodes && Array.isArray(flowJson.nodes)) {
+          for (let i = 0; i < flowJson.nodes.length; i++) {
+            const node = flowJson.nodes[i];
+            await prisma.flowNode.create({
+              data: {
+                flowId: flow.id,
+                type: node.type,
+                content: node.content as Prisma.InputJsonValue,
+                order: i,
+              },
+            });
+          }
+        }
+      }
+    }
 
     return tenant;
   }
