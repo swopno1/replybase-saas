@@ -29,7 +29,7 @@ const PLANS = [
   {
     name: "starter",
     displayName: "Starter",
-    price: 1900, // $19.00
+    price: 1900, // £19.00
     limits: {
       dailyMessageLimit: 1000,
       monthlyMessageLimit: 30000,
@@ -42,7 +42,7 @@ const PLANS = [
   {
     name: "pro",
     displayName: "Pro",
-    price: 4900, // $49.00
+    price: 4900, // £49.00
     limits: {
       dailyMessageLimit: 5000,
       monthlyMessageLimit: 150000,
@@ -55,7 +55,7 @@ const PLANS = [
   {
     name: "business",
     displayName: "Business",
-    price: 9900, // $99.00
+    price: 9900, // £99.00
     limits: {
       dailyMessageLimit: 20000,
       monthlyMessageLimit: 600000,
@@ -105,12 +105,12 @@ async function seed() {
 
       if (!price || price.unit_amount !== plan.price) {
         console.log(
-          `   Creating price for ${plan.displayName}: $${plan.price / 100}`,
+          `   Creating price for ${plan.displayName}: £${plan.price / 100}`,
         );
         price = await stripe.prices.create({
           product: product.id,
           unit_amount: plan.price,
-          currency: "usd",
+          currency: "gbp",
           recurring: {
             interval: "month",
           },
@@ -131,14 +131,14 @@ async function seed() {
       update: {
         displayName: plan.displayName,
         price: plan.price / 100,
-        currency: "USD",
+        currency: "GBP",
         ...plan.limits,
       },
       create: {
         name: plan.name,
         displayName: plan.displayName,
         price: plan.price / 100,
-        currency: "USD",
+        currency: "GBP",
         ...plan.limits,
       },
     });

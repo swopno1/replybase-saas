@@ -35,7 +35,7 @@ export async function GET() {
           name: "free",
           displayName: "Free",
           price: 0,
-          currency: "USD",
+          currency: "GBP",
         },
       });
 

@@ -102,7 +102,7 @@ export const authOptions: NextAuthOptions = {
                 name: "free",
                 displayName: "Free",
                 price: 0,
-                currency: "USD",
+                currency: "GBP",
               },
             });
 

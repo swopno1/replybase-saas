@@ -12,6 +12,7 @@ Get started with ReplyBase in minutes
 This guide will walk you through creating your first chatbot and connecting it to Facebook Messenger.
 
 ## Step 1: Create Your Account
+
 1. Visit [app.replybase.co.uk](https://app.replybase.co.uk)
 2. Click "Sign Up" and choose your preferred method:
    - Google OAuth (recommended for quick start)
@@ -20,15 +21,18 @@ This guide will walk you through creating your first chatbot and connecting it t
 3. Complete email verification if using email signup
 
 ## Step 2: Choose Your Plan
+
 ReplyBase offers 4 pricing tiers:
-- **Free**: $0/month (1 bot, 100 daily messages)
-- **Starter**: $29/month (5 bots, 1,000 daily messages, API access)
-- **Pro**: $99/month (25 bots, 5,000 daily messages, Advanced AI)
-- **Business**: $299/month (Unlimited bots, Unlimited messages)
+
+- **Free**: £0/month (1 bot, 100 daily messages)
+- **Starter**: £29/month (5 bots, 1,000 daily messages, API access)
+- **Pro**: £99/month (25 bots, 5,000 daily messages, Advanced AI)
+- **Business**: £299/month (Unlimited bots, Unlimited messages)
 
 You can start with the Free plan and upgrade anytime.
 
 ## Step 3: Create Your First Bot
+
 1. Navigate to the **Bots** section in your dashboard
 2. Click **"Create New Bot"**
 3. Fill in bot details:
@@ -38,9 +42,11 @@ You can start with the Free plan and upgrade anytime.
 4. Click **"Create Bot"**
 
 ## Step 4: Design Your Conversation Flow
+
 ReplyBase uses a visual bot builder powered by Typebot. You can create complex conversation flows with drag-and-drop ease.
 
 Default flow includes:
+
 - Welcome message
 - Lead qualification questions
 - Interest level tracking
@@ -48,6 +54,7 @@ Default flow includes:
 - Contact information capture
 
 ## Step 5: Connect to Facebook Messenger
+
 1. Go to **Channels** section
 2. Click **"Add Channel"**
 3. Select **"Facebook Messenger"**
@@ -55,9 +62,10 @@ Default flow includes:
 5. Select the Facebook Page you want to connect
 6. Configure webhook settings (automatic)
 
-*Note: You need to have a Facebook Page to use Messenger integration.*
+_Note: You need to have a Facebook Page to use Messenger integration._
 
 ## Step 6: Test Your Bot
+
 1. Open your Facebook Page
 2. Click the **Message** button
 3. Send a test message

@@ -238,13 +238,13 @@ async function seedDemoTemplates() {
             type: "choice",
             content: "What's your monthly budget?",
             choices: [
-              { label: "$1K-$5K", value: "tier1", nextBlockId: "collect_info" },
+              { label: "£1K-£5K", value: "tier1", nextBlockId: "collect_info" },
               {
-                label: "$5K-$10K",
+                label: "£5K-£10K",
                 value: "tier2",
                 nextBlockId: "collect_info",
               },
-              { label: "$10K+", value: "tier3", nextBlockId: "collect_info" },
+              { label: "£10K+", value: "tier3", nextBlockId: "collect_info" },
             ],
           },
           {
@@ -364,7 +364,7 @@ async function seedDemoTemplates() {
             id: "pricing_info",
             type: "text",
             content:
-              "Our plans start at $29/month. Visit [PRICING_URL] for details!",
+              "Our plans start at £29/month. Visit [PRICING_URL] for details!",
             nextBlockId: "helpful",
           },
           {

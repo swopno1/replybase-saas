@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function getTenantLimits(tenantId: string) {
   const subscription = await prisma.subscription.findFirst({
-    where: { tenantId, status: 'active' },
+    where: { tenantId, status: "active" },
     include: { plan: true },
   });
 
@@ -10,11 +10,11 @@ export async function getTenantLimits(tenantId: string) {
     return {
       maxBots: 0,
       dailyMessageLimit: 0,
-      name: 'suspended',
-      displayName: 'Suspended',
-      planName: 'Suspended', // Legacy/Extra
-      id: 'suspended',
-      currency: 'USD',
+      name: "suspended",
+      displayName: "Suspended",
+      planName: "Suspended", // Legacy/Extra
+      id: "suspended",
+      currency: "GBP",
       price: 0,
       monthlyMessageLimit: 0,
       flowExecutionCap: 0,
@@ -22,12 +22,12 @@ export async function getTenantLimits(tenantId: string) {
       maxConversations: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
-      features: []
+      features: [],
     };
   }
 
   return {
-    ...subscription.plan
+    ...subscription.plan,
   };
 }
 
@@ -35,14 +35,14 @@ export async function checkBotLimit(tenantId: string) {
   const limits = await getTenantLimits(tenantId);
 
   const botCount = await prisma.bot.count({
-    where: { tenantId }
+    where: { tenantId },
   });
 
   return {
     allowed: botCount < limits.maxBots,
     limit: limits.maxBots,
     current: botCount,
-    planName: limits.displayName || limits.name
+    planName: limits.displayName || limits.name,
   };
 }
 
@@ -51,7 +51,7 @@ export async function getTenantUsage(tenantId: string) {
   const limits = await getTenantLimits(tenantId);
 
   const botCount = await prisma.bot.count({
-    where: { tenantId }
+    where: { tenantId },
   });
 
   const messageCount = 0; // Mock until analytics are live
@@ -65,8 +65,8 @@ export async function getTenantUsage(tenantId: string) {
     dailyFlowExecutions: 0,
     usage: {
       bots: botCount,
-      messages: messageCount
-    }
+      messages: messageCount,
+    },
   };
 }
 // Alias for legacy support
@@ -81,8 +81,13 @@ export const getTenantSubscription = getTenantLimits;
  */
 export async function checkLimit(
   userId: string,
-  type: "message" | "flow_execution"
-): Promise<{ allowed: boolean; remaining: number; limit: number; retryAfter?: number }> {
+  type: "message" | "flow_execution",
+): Promise<{
+  allowed: boolean;
+  remaining: number;
+  limit: number;
+  retryAfter?: number;
+}> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { tenantId: true },
@@ -109,7 +114,7 @@ export async function incrementUsage(
   type: "message" | "flow_execution",
   amount: number,
   botId?: string,
-  channelId?: string
+  channelId?: string,
 ): Promise<void> {
   // TODO: Persist usage accounting (daily/monthly buckets) and decrement remaining in `checkLimit`.
   // For now, this is a no-op to keep the system functional while analytics are mocked.

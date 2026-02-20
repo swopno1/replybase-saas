@@ -48,8 +48,11 @@ export function SubscriptionStatus() {
     planObj?.name ??
     (typeof subscription.plan === "string" ? subscription.plan : "Free");
   const planLabel = planObj?.displayName ?? planName ?? "Free";
-  const planPrice =
-    planObj?.price != null ? `$${planObj.price.toFixed(2)}` : "$0.00";
+  const planCurrency = (planObj?.currency ?? "GBP").toUpperCase();
+  const planPrice = new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency: planCurrency,
+  }).format(planObj?.price ?? 0);
   const isTrialUser = planName === "trial";
   const daysRemaining = subscription.trialDaysRemaining;
 

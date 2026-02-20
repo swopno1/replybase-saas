@@ -75,7 +75,8 @@ export class OnboardingService {
       {
         name: "demo_catalog",
         displayName: "Product Catalog assistant",
-        description: "Help customers find products and answer common questions.",
+        description:
+          "Help customers find products and answer common questions.",
         businessType: "ecommerce",
         icon: "🛍️",
         flowJson: {
@@ -97,14 +98,17 @@ export class OnboardingService {
       {
         name: "demo_booking",
         displayName: "Service Booking Bot",
-        description: "Allow clients to book appointments and check availability.",
+        description:
+          "Allow clients to book appointments and check availability.",
         businessType: "service",
         icon: "📅",
         flowJson: {
           nodes: [
             {
               type: "message",
-              content: { text: "Welcome! Would you like to book an appointment?" },
+              content: {
+                text: "Welcome! Would you like to book an appointment?",
+              },
             },
           ],
         },
@@ -225,7 +229,7 @@ export class OnboardingService {
           {
             title: "Starter",
             description:
-              "Perfect for small businesses\n$29/month\n• 100 daily messages\n• 1 bot\n• Basic analytics",
+              "Perfect for small businesses\n£29/month\n• 100 daily messages\n• 1 bot\n• Basic analytics",
             buttons: [
               {
                 title: "Select Starter",
@@ -237,7 +241,7 @@ export class OnboardingService {
           {
             title: "Professional",
             description:
-              "For growing teams\n$79/month\n• 500 daily messages\n• 3 bots\n• Advanced analytics",
+              "For growing teams\n£79/month\n• 500 daily messages\n• 3 bots\n• Advanced analytics",
             buttons: [
               {
                 title: "Select Pro",
