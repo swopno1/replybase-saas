@@ -205,12 +205,12 @@ export default function PricingPage() {
                 {plan.description}
               </p>
               <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-bold">${plan.price}</span>
+                <span className="text-4xl font-bold">£{plan.price}</span>
                 <span className="text-muted-foreground">/mo</span>
               </div>
               {plan.price > 0 && (
                 <p className="text-xs text-muted-foreground mt-2">
-                  First 14 days free, then ${plan.price}/mo
+                  First 14 days free, then £{plan.price}/mo
                 </p>
               )}
             </div>
