@@ -29,6 +29,8 @@ import {
   RefreshCw,
   Trash2,
   AlertCircle,
+  PlugZap,
+  Clock,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -59,6 +61,13 @@ interface TelegramStatus {
   webhookError?: string;
 }
 
+interface WebhookLogEntry {
+  id: string;
+  type: string;
+  event: string;
+  createdAt: string;
+}
+
 export default function TelegramIntegrationPage() {
   const [bots, setBots] = useState<Bot[]>([]);
   const [selectedBotId, setSelectedBotId] = useState("");
@@ -69,17 +78,48 @@ export default function TelegramIntegrationPage() {
   const [isStatusLoading, setIsStatusLoading] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const [logs, setLogs] = useState<WebhookLogEntry[]>([]);
+  const [isLogsLoading, setIsLogsLoading] = useState(false);
 
   useEffect(() => {
     loadBots();
   }, []);
 
   useEffect(() => {
-    if (selectedBotId) {
-      loadStatus(selectedBotId);
-    } else {
+    if (!selectedBotId) {
       setStatus(null);
+      setLogs([]);
+      return;
     }
+
+    let cancelled = false;
+
+    const run = async () => {
+      setIsStatusLoading(true);
+      try {
+        const res = await fetch(`/api/telegram/status?botId=${selectedBotId}`);
+        const data = await res.json();
+        if (cancelled) return;
+        setStatus(data);
+        if (data.connected && data.channel?.id) {
+          const logsRes = await fetch(
+            `/api/telegram/logs?channelId=${data.channel.id}&limit=15`,
+          );
+          const logsData = await logsRes.json();
+          if (!cancelled) setLogs(logsData.logs || []);
+        }
+      } catch {
+        if (!cancelled) toast.error("Failed to load Telegram status");
+      } finally {
+        if (!cancelled) setIsStatusLoading(false);
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
   }, [selectedBotId]);
 
   const loadBots = async () => {
@@ -105,10 +145,28 @@ export default function TelegramIntegrationPage() {
       const res = await fetch(`/api/telegram/status?botId=${botId}`);
       const data = await res.json();
       setStatus(data);
+      if (data.connected && data.channel?.id) {
+        loadLogs(data.channel.id);
+      }
     } catch {
       toast.error("Failed to load Telegram status");
     } finally {
       setIsStatusLoading(false);
+    }
+  };
+
+  const loadLogs = async (channelId: string) => {
+    setIsLogsLoading(true);
+    try {
+      const res = await fetch(
+        `/api/telegram/logs?channelId=${channelId}&limit=15`,
+      );
+      const data = await res.json();
+      setLogs(data.logs || []);
+    } catch {
+      // Non-critical — silently fail
+    } finally {
+      setIsLogsLoading(false);
     }
   };
 
@@ -171,6 +229,7 @@ export default function TelegramIntegrationPage() {
       }
 
       toast.success("Telegram bot disconnected");
+      setLogs([]);
       await loadStatus(selectedBotId);
     } catch (error) {
       toast.error(
@@ -178,6 +237,32 @@ export default function TelegramIntegrationPage() {
       );
     } finally {
       setIsDisconnecting(false);
+    }
+  };
+
+  const handleReconnect = async () => {
+    if (!status?.channel?.id) return;
+    setIsReconnecting(true);
+    try {
+      const res = await fetch("/api/telegram/reconnect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channelId: status.channel.id }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to reconnect webhook");
+      }
+
+      toast.success("Webhook reconnected successfully");
+      await loadStatus(selectedBotId);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to reconnect webhook",
+      );
+    } finally {
+      setIsReconnecting(false);
     }
   };
 
@@ -378,6 +463,19 @@ export default function TelegramIntegrationPage() {
                       Refresh Status
                     </Button>
                     <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleReconnect}
+                      disabled={isReconnecting}
+                    >
+                      {isReconnecting ? (
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <PlugZap className="mr-1.5 h-3.5 w-3.5" />
+                      )}
+                      Reconnect Webhook
+                    </Button>
+                    <Button
                       variant="destructive"
                       size="sm"
                       onClick={handleDisconnect}
@@ -444,6 +542,76 @@ export default function TelegramIntegrationPage() {
                     3. Send any message — your bot will reply using ReplyBase
                     AI.
                   </p>
+                </CardContent>
+              </Card>
+
+              {/* Recent webhook activity logs */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        Recent Webhook Activity
+                      </CardTitle>
+                      <CardDescription className="mt-1">
+                        Last 15 events logged for this channel
+                      </CardDescription>
+                    </div>
+                    {status.channel?.id && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => loadLogs(status.channel!.id)}
+                        disabled={isLogsLoading}
+                      >
+                        <RefreshCw
+                          className={`h-3.5 w-3.5 ${isLogsLoading ? "animate-spin" : ""}`}
+                        />
+                      </Button>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {isLogsLoading ? (
+                    <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Loading logs...
+                    </div>
+                  ) : logs.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No events recorded yet. Send your bot a message to see
+                      activity here.
+                    </p>
+                  ) : (
+                    <div className="space-y-1">
+                      {logs.map((log) => (
+                        <div
+                          key={log.id}
+                          className="flex items-center justify-between text-xs py-1.5 border-b last:border-0"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant={
+                                log.type === "delivery_error"
+                                  ? "destructive"
+                                  : "secondary"
+                              }
+                              className="text-[10px] px-1.5 py-0"
+                            >
+                              {log.type}
+                            </Badge>
+                            <span className="font-mono text-muted-foreground truncate max-w-xs">
+                              {log.event}
+                            </span>
+                          </div>
+                          <span className="text-muted-foreground shrink-0 ml-4">
+                            {new Date(log.createdAt).toLocaleTimeString()}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>

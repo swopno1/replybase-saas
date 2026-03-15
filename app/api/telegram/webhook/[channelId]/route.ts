@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { converse } from "@/lib/ai-engine";
@@ -68,11 +69,21 @@ export async function POST(
       typeof config.webhookSecret === "string" ? config.webhookSecret : null;
     const secretHeader = req.headers.get("x-telegram-bot-api-secret-token");
 
-    if (expectedSecret && secretHeader !== expectedSecret) {
-      return NextResponse.json(
-        { error: "Invalid webhook secret" },
-        { status: 403 },
-      );
+    if (expectedSecret) {
+      // Use timing-safe comparison to prevent secret oracle timing attacks.
+      const matches =
+        secretHeader !== null &&
+        secretHeader.length === expectedSecret.length &&
+        crypto.timingSafeEqual(
+          Buffer.from(secretHeader),
+          Buffer.from(expectedSecret),
+        );
+      if (!matches) {
+        return NextResponse.json(
+          { error: "Invalid webhook secret" },
+          { status: 403 },
+        );
+      }
     }
 
     const update = (await req.json()) as TelegramUpdate;

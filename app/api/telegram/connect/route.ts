@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { getMe, setTelegramWebhook } from "@/lib/telegram-api";
 import { encryptTelegramToken } from "@/lib/telegram-crypto";
 import { generateWebhookSecret, maskTelegramToken } from "@/lib/telegram-utils";
+import { getTenantLimits } from "@/lib/subscription";
 
 const connectSchema = z.object({
   botId: z.string().min(1),
@@ -55,6 +56,22 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Only check the channel limit when creating a new channel, not when updating.
+    if (!channel) {
+      const limits = await getTenantLimits(user.tenantId);
+      const channelCount = await prisma.channel.count({
+        where: { botId: bot.id },
+      });
+      if (channelCount >= limits.maxChannelsPerBot) {
+        return NextResponse.json(
+          {
+            error: `Channel limit reached (max ${limits.maxChannelsPerBot} per bot on your plan)`,
+          },
+          { status: 403 },
+        );
+      }
+    }
+
     if (!channel) {
       channel = await prisma.channel.create({
         data: {
@@ -79,6 +96,19 @@ export async function POST(req: NextRequest) {
     const webhookSecret = generateWebhookSecret();
     const baseUrl = process.env.TELEGRAM_WEBHOOK_BASE_URL || req.nextUrl.origin;
     const webhookUrl = `${baseUrl.replace(/\/$/, "")}/api/telegram/webhook/${channel.id}`;
+
+    if (
+      process.env.NODE_ENV === "production" &&
+      !webhookUrl.startsWith("https://")
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Webhook URL must use HTTPS in production. Set TELEGRAM_WEBHOOK_BASE_URL to your public HTTPS domain.",
+        },
+        { status: 400 },
+      );
+    }
 
     await setTelegramWebhook({
       token: validated.botToken,

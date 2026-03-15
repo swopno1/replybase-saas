@@ -11,6 +11,7 @@
     "db:cleanup": "node scripts/cleanup-db.js",
     "db:update-urls": "node scripts/update-bot-urls.js",
     "test:chatbot": "node scripts/test-chatbot.js",
+    "test:telegram": "dotenv -- tsx scripts/test-telegram.ts",
     "diagnose:facebook": "dotenv -- tsx scripts/diagnose-facebook-integration.ts"
   },
   "dependencies": {

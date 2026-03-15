@@ -44,6 +44,7 @@ async function callTelegram<T>(
   token: string,
   method: string,
   body?: Record<string, unknown>,
+  timeoutMs = 10_000,
 ): Promise<TelegramApiResponse<T>> {
   const response = await fetch(buildApiUrl(token, method), {
     method: "POST",
@@ -51,6 +52,7 @@ async function callTelegram<T>(
       "Content-Type": "application/json",
     },
     body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(timeoutMs),
   });
 
   const data = (await response.json()) as TelegramApiResponse<T>;
@@ -115,14 +117,20 @@ export async function sendTelegramTextMessage(
   chatId: string,
   text: string,
 ): Promise<TelegramSendMessageResult> {
-  const data = await callTelegram<{ message_id: number }>(
-    token,
-    "sendMessage",
-    {
+  const attemptSend = () =>
+    callTelegram<{ message_id: number }>(token, "sendMessage", {
       chat_id: chatId,
       text,
-    },
-  );
+    });
+
+  let data = await attemptSend();
+
+  // Retry once on rate-limit (429), honouring the retry_after window (capped at 30 s).
+  if (!data.ok && data.error_code === 429 && data.parameters?.retry_after) {
+    const waitMs = Math.min(data.parameters.retry_after * 1000, 30_000);
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+    data = await attemptSend();
+  }
 
   if (!data.ok) {
     return {
