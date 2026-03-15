@@ -6,13 +6,23 @@ import { z } from "zod";
 import { getTenantLimits } from "@/lib/subscription";
 import { authOptions } from "@/lib/auth";
 
-const createChannelSchema = z.object({
-  type: z.enum(["facebook", "whatsapp", "web", "telegram"]),
-  name: z.string().min(1),
-  channelId: z.string().min(1),
-  accessToken: z.string().optional(),
-  config: z.record(z.string(), z.unknown()).optional(),
-});
+const createChannelSchema = z
+  .object({
+    type: z.enum(["facebook", "whatsapp", "web", "telegram"]),
+    name: z.string().min(1),
+    channelId: z.string().min(1).optional(),
+    accessToken: z.string().optional(),
+    config: z.record(z.string(), z.unknown()).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.type !== "web" && !data.channelId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "channelId is required for non-web channels",
+        path: ["channelId"],
+      });
+    }
+  });
 
 // GET: List channels for a bot
 export async function GET(
@@ -108,13 +118,14 @@ export async function POST(
 
     const body = await req.json();
     const validated = createChannelSchema.parse(body);
+    const normalizedType = validated.type.toLowerCase();
 
     const channel = await prisma.channel.create({
       data: {
         botId,
-        type: validated.type,
+        type: normalizedType,
         name: validated.name,
-        channelId: validated.channelId,
+        channelId: validated.channelId || null,
         accessToken: validated.accessToken || null,
         config: (validated.config || {}) as Prisma.JsonObject,
         enabled: true,

@@ -1,0 +1,68 @@
+import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
+import { findActiveWebChannel } from "@/lib/webchat";
+import {
+  createWebchatCorsHeaders,
+  isWebchatOriginAllowed,
+} from "@/lib/webchat-cors";
+
+export async function GET(request: NextRequest) {
+  try {
+    if (!isWebchatOriginAllowed(request)) {
+      return NextResponse.json(
+        { error: "Origin not allowed" },
+        { status: 403, headers: createWebchatCorsHeaders(request) },
+      );
+    }
+
+    const channelId =
+      request.nextUrl.searchParams.get("channelId") || undefined;
+    const botId = request.nextUrl.searchParams.get("botId") || undefined;
+
+    if (!channelId && !botId) {
+      return NextResponse.json(
+        { error: "Provide channelId or botId" },
+        { status: 400, headers: createWebchatCorsHeaders(request) },
+      );
+    }
+
+    const channel = await findActiveWebChannel({ channelId, botId });
+    if (!channel?.bot) {
+      return NextResponse.json(
+        { error: "Active web channel not found" },
+        { status: 404, headers: createWebchatCorsHeaders(request) },
+      );
+    }
+
+    const config = (channel.config as Prisma.JsonObject | null) || {};
+
+    return NextResponse.json(
+      {
+        channelId: channel.id,
+        botId: channel.bot.id,
+        config,
+      },
+      { headers: createWebchatCorsHeaders(request) },
+    );
+  } catch (error) {
+    console.error("[Webchat Config] Failed to load config:", error);
+    return NextResponse.json(
+      { error: "Failed to load webchat config" },
+      { status: 500, headers: createWebchatCorsHeaders(request) },
+    );
+  }
+}
+
+export async function OPTIONS(request: NextRequest) {
+  if (!isWebchatOriginAllowed(request)) {
+    return new NextResponse(null, {
+      status: 403,
+      headers: createWebchatCorsHeaders(request),
+    });
+  }
+
+  return new NextResponse(null, {
+    status: 204,
+    headers: createWebchatCorsHeaders(request),
+  });
+}

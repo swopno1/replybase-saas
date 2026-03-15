@@ -92,21 +92,32 @@ export const ConverseInputSchema = z
   .object({
     botId: z.string().min(1),
     tenantId: z.string().min(1),
-    contact: z.object({
-      name: z.string().optional(),
-      email: z.string().email().optional(),
-      phone: z.string().optional(),
-    }),
+    conversationId: z.string().min(1).optional(),
+    channel: z.string().min(1).optional(),
+    contact: z
+      .object({
+        name: z.string().optional(),
+        email: z.string().email().optional(),
+        phone: z.string().optional(),
+      })
+      .optional(),
     message: z.string().min(1),
   })
-  .refine(
-    (data) =>
-      !!data.contact.name || !!data.contact.email || !!data.contact.phone,
-    {
-      message:
-        "At least one contact identifier (name, email, or phone) must be provided",
-    },
-  );
+  .superRefine((data, ctx) => {
+    if (data.conversationId) {
+      return;
+    }
+
+    const contact = data.contact;
+    if (!contact?.name && !contact?.email && !contact?.phone) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "Provide conversationId or at least one contact identifier (name, email, or phone)",
+        path: ["contact"],
+      });
+    }
+  });
 
 type ConverseInput = z.infer<typeof ConverseInputSchema>;
 
@@ -148,6 +159,7 @@ async function upsertCrmData(
   botId: string,
   tenantId: string,
   contact: { name?: string; email?: string; phone?: string },
+  channel = "api",
 ) {
   let dbContact = await prisma.contact.findFirst({
     where: {
@@ -199,7 +211,7 @@ async function upsertCrmData(
       data: {
         contactId: dbContact.id,
         botId,
-        channel: "api",
+        channel,
       },
     });
   }
@@ -270,11 +282,69 @@ async function continueTypebotChat(sessionId: string, message: string) {
 
 export async function converse(input: ConverseInput) {
   assertServerConfig();
-  const { botId, tenantId, contact, message } = input;
+  const {
+    botId,
+    tenantId,
+    contact,
+    message,
+    conversationId: inputConversationId,
+    channel,
+  } = input;
 
   // 1. CRM & Conversation Lookup
-  const { conversation } = await upsertCrmData(botId, tenantId, contact);
-  const conversationId = conversation.id;
+  let conversation: {
+    id: string;
+    externalSessionId: string | null;
+    channel: string;
+    botId: string | null;
+  };
+  let conversationId: string;
+
+  if (inputConversationId) {
+    const existingConversation = await prisma.crmConversation.findUnique({
+      where: { id: inputConversationId },
+      include: {
+        contact: {
+          select: {
+            tenantId: true,
+          },
+        },
+      },
+    });
+
+    if (!existingConversation) {
+      throw new AiEngineError("Conversation not found");
+    }
+
+    if (existingConversation.contact.tenantId !== tenantId) {
+      throw new AiEngineError("Conversation tenant mismatch");
+    }
+
+    if (existingConversation.botId && existingConversation.botId !== botId) {
+      throw new AiEngineError("Conversation bot mismatch");
+    }
+
+    if (!existingConversation.botId) {
+      conversation = await prisma.crmConversation.update({
+        where: { id: existingConversation.id },
+        data: {
+          botId,
+          channel: channel || existingConversation.channel || "api",
+        },
+      });
+    } else {
+      conversation = existingConversation;
+    }
+
+    conversationId = existingConversation.id;
+  } else {
+    if (!contact) {
+      throw new AiEngineError("Missing contact information");
+    }
+    const crmData = await upsertCrmData(botId, tenantId, contact, channel);
+    conversation = crmData.conversation;
+    conversationId = crmData.conversation.id;
+  }
 
   // Log inbound
   await prisma.crmMessage.create({

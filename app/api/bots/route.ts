@@ -15,21 +15,24 @@ export async function GET(req: NextRequest) {
       where: {
         tenantId: session.user.tenantId,
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: "desc" },
     });
 
     // Mock project structure to satisfy frontend expected interface
     const projects = [
       {
-        id: 'default',
-        name: 'My Bots',
-        bots: bots
-      }
+        id: "default",
+        name: "My Bots",
+        bots: bots,
+      },
     ];
 
     return NextResponse.json({ projects });
   } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch bots" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch bots" },
+      { status: 500 },
+    );
   }
 }
 
@@ -42,15 +45,20 @@ export async function POST(req: NextRequest) {
   // 1. Check Limits
   const limitStatus = await checkBotLimit(session.user.tenantId);
   if (!limitStatus.allowed) {
-    return NextResponse.json({
-      error: "Plan limit reached",
-      details: `You have reached the maximum of ${limitStatus.limit} bots on the ${limitStatus.planName} plan. Please upgrade.`
-    }, { status: 403 });
+    return NextResponse.json(
+      {
+        error: "Plan limit reached",
+        details: `You have reached the maximum of ${limitStatus.limit} bots on the ${limitStatus.planName} plan. Please upgrade.`,
+      },
+      { status: 403 },
+    );
   }
 
   try {
     const body = await req.json();
     const { name, projectId, channel } = body;
+    const normalizedChannelType =
+      typeof channel === "string" ? channel.toLowerCase() : "web";
 
     // Project ID is ignored/mocked for now since we don't have project model
     if (!name) {
@@ -65,17 +73,21 @@ export async function POST(req: NextRequest) {
         enabled: true,
         channels: {
           create: {
-            type: channel || "Web",
+            type: normalizedChannelType,
             name: "Default Channel",
-            enabled: true
-          }
-        }
+            channelId: normalizedChannelType === "web" ? null : "default",
+            enabled: true,
+          },
+        },
       },
     });
 
     return NextResponse.json({ bot });
   } catch (error) {
     console.error("Bot creation error", error);
-    return NextResponse.json({ error: "Failed to create bot" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to create bot" },
+      { status: 500 },
+    );
   }
 }
