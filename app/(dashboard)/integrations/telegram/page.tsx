@@ -1,0 +1,555 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  Send,
+  RefreshCw,
+  Trash2,
+  AlertCircle,
+} from "lucide-react";
+import Link from "next/link";
+import { toast } from "sonner";
+
+interface Bot {
+  id: string;
+  name: string;
+}
+
+interface TelegramStatus {
+  connected: boolean;
+  channel?: {
+    id: string;
+    name: string;
+    channelId: string;
+    updatedAt: string;
+  };
+  bot?: {
+    id: string;
+    name: string;
+  };
+  webhook?: {
+    url: string;
+    pending_update_count: number;
+    last_error_message?: string;
+    last_error_date?: number;
+  };
+  webhookError?: string;
+}
+
+export default function TelegramIntegrationPage() {
+  const [bots, setBots] = useState<Bot[]>([]);
+  const [selectedBotId, setSelectedBotId] = useState("");
+  const [botToken, setBotToken] = useState("");
+  const [channelName, setChannelName] = useState("");
+  const [status, setStatus] = useState<TelegramStatus | null>(null);
+  const [isBotsLoading, setIsBotsLoading] = useState(true);
+  const [isStatusLoading, setIsStatusLoading] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+
+  useEffect(() => {
+    loadBots();
+  }, []);
+
+  useEffect(() => {
+    if (selectedBotId) {
+      loadStatus(selectedBotId);
+    } else {
+      setStatus(null);
+    }
+  }, [selectedBotId]);
+
+  const loadBots = async () => {
+    setIsBotsLoading(true);
+    try {
+      const res = await fetch("/api/bots");
+      const data = await res.json();
+      const list: Bot[] = data.projects || data.bots || [];
+      setBots(list);
+      if (list.length === 1) {
+        setSelectedBotId(list[0].id);
+      }
+    } catch {
+      toast.error("Failed to load bots");
+    } finally {
+      setIsBotsLoading(false);
+    }
+  };
+
+  const loadStatus = async (botId: string) => {
+    setIsStatusLoading(true);
+    try {
+      const res = await fetch(`/api/telegram/status?botId=${botId}`);
+      const data = await res.json();
+      setStatus(data);
+    } catch {
+      toast.error("Failed to load Telegram status");
+    } finally {
+      setIsStatusLoading(false);
+    }
+  };
+
+  const handleConnect = async () => {
+    if (!selectedBotId || !botToken.trim()) {
+      toast.error("Please select a bot and enter a bot token");
+      return;
+    }
+
+    setIsConnecting(true);
+    try {
+      const res = await fetch("/api/telegram/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          botId: selectedBotId,
+          botToken: botToken.trim(),
+          channelName: channelName.trim() || undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to connect Telegram bot");
+      }
+
+      toast.success(`Connected @${data.bot?.username || "bot"} successfully`);
+      setBotToken("");
+      setChannelName("");
+      await loadStatus(selectedBotId);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to connect Telegram",
+      );
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (!status?.channel?.id) return;
+    if (
+      !confirm(
+        "Are you sure you want to disconnect this Telegram bot? The webhook will be removed.",
+      )
+    )
+      return;
+
+    setIsDisconnecting(true);
+    try {
+      const res = await fetch("/api/telegram/disconnect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channelId: status.channel.id }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to disconnect");
+      }
+
+      toast.success("Telegram bot disconnected");
+      await loadStatus(selectedBotId);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to disconnect",
+      );
+    } finally {
+      setIsDisconnecting(false);
+    }
+  };
+
+  const isConnected = status?.connected === true;
+  const hasWebhookError = Boolean(
+    status?.webhook?.last_error_message || status?.webhookError,
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <Link href="/">
+          <Button variant="ghost" size="sm" className="mb-4">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Dashboard
+          </Button>
+        </Link>
+        <h1 className="text-3xl font-bold tracking-tight">Telegram Bot</h1>
+        <p className="text-muted-foreground mt-1">
+          Connect your Telegram bot to enable AI auto-replies
+        </p>
+      </div>
+
+      {/* Bot Selection */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Send className="h-5 w-5" />
+            Select Bot
+          </CardTitle>
+          <CardDescription>
+            Choose which ReplyBase bot to connect with Telegram
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isBotsLoading ? (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading bots...
+            </div>
+          ) : bots.length === 0 ? (
+            <div className="flex flex-col gap-3 items-start">
+              <p className="text-sm text-muted-foreground">
+                No bots found. Create a bot first.
+              </p>
+              <Link href="/bots/new">
+                <Button variant="outline" size="sm">
+                  Create Bot
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <Select value={selectedBotId} onValueChange={setSelectedBotId}>
+              <SelectTrigger className="w-full max-w-sm">
+                <SelectValue placeholder="Select a bot..." />
+              </SelectTrigger>
+              <SelectContent>
+                {bots.map((bot) => (
+                  <SelectItem key={bot.id} value={bot.id}>
+                    {bot.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Status / Connect area */}
+      {selectedBotId && (
+        <>
+          {isStatusLoading ? (
+            <Card>
+              <CardContent className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </CardContent>
+            </Card>
+          ) : isConnected ? (
+            /* Connected State */
+            <div className="space-y-4">
+              <Card className="border-green-500/40 bg-green-500/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    Telegram Bot Connected
+                  </CardTitle>
+                  <CardDescription>
+                    Your bot is active and receiving messages
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
+                        Channel
+                      </div>
+                      <div className="text-sm font-medium">
+                        {status.channel?.name}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
+                        Telegram Bot ID
+                      </div>
+                      <div className="text-sm font-mono">
+                        {status.channel?.channelId}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
+                        ReplyBase Bot
+                      </div>
+                      <div className="text-sm">{status.bot?.name}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
+                        Webhook
+                      </div>
+                      <Badge
+                        variant={hasWebhookError ? "destructive" : "secondary"}
+                        className={
+                          hasWebhookError
+                            ? ""
+                            : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                        }
+                      >
+                        {hasWebhookError ? (
+                          <>
+                            <XCircle className="mr-1 h-3 w-3" />
+                            Error
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="mr-1 h-3 w-3" />
+                            Active
+                          </>
+                        )}
+                      </Badge>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
+                        Last Updated
+                      </div>
+                      <div className="text-sm">
+                        {new Date(
+                          status.channel?.updatedAt ?? "",
+                        ).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Webhook details */}
+                  {status.webhook && (
+                    <>
+                      <Separator />
+                      <div className="space-y-2">
+                        <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                          Webhook URL
+                        </div>
+                        <div className="text-xs font-mono bg-muted rounded px-3 py-2 break-all">
+                          {status.webhook.url}
+                        </div>
+                        {status.webhook.pending_update_count > 0 && (
+                          <div className="flex items-center gap-2 text-xs text-amber-600">
+                            <AlertCircle className="h-3.5 w-3.5" />
+                            {status.webhook.pending_update_count} pending
+                            update(s) in queue
+                          </div>
+                        )}
+                        {status.webhook.last_error_message && (
+                          <div className="flex items-start gap-2 text-xs text-destructive">
+                            <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                            Last error: {status.webhook.last_error_message}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {status.webhookError && !status.webhook && (
+                    <div className="flex items-start gap-2 text-xs text-destructive">
+                      <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      Webhook check failed: {status.webhookError}
+                    </div>
+                  )}
+
+                  <Separator />
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => loadStatus(selectedBotId)}
+                      disabled={isStatusLoading}
+                    >
+                      <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                      Refresh Status
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleDisconnect}
+                      disabled={isDisconnecting}
+                    >
+                      {isDisconnecting ? (
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                      )}
+                      Disconnect Bot
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Reconnect with a different token */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Update Bot Token</CardTitle>
+                  <CardDescription>
+                    Re-connect with a new or rotated bot token
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="newBotToken">New Bot Token</Label>
+                    <Input
+                      id="newBotToken"
+                      type="password"
+                      placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+                      value={botToken}
+                      onChange={(e) => setBotToken(e.target.value)}
+                      className="font-mono max-w-lg"
+                    />
+                  </div>
+                  <Button
+                    onClick={handleConnect}
+                    disabled={isConnecting || !botToken.trim()}
+                    size="sm"
+                  >
+                    {isConnecting ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                    )}
+                    Update Token
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* How to test */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">How to Test</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-1.5 text-sm text-muted-foreground">
+                  <p>1. Open Telegram and search for your bot by username.</p>
+                  <p>
+                    2. Tap <strong className="text-foreground">Start</strong> or
+                    send <code className="bg-muted px-1 rounded">/start</code>.
+                  </p>
+                  <p>
+                    3. Send any message — your bot will reply using ReplyBase
+                    AI.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            /* Not Connected State */
+            <Card className="border-primary/50 bg-primary/5">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Send className="h-5 w-5 text-primary" />
+                  Connect Your Telegram Bot
+                </CardTitle>
+                <CardDescription>
+                  Create a bot with @BotFather and paste its token below
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="botToken">Bot Token</Label>
+                    <Input
+                      id="botToken"
+                      type="password"
+                      placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+                      value={botToken}
+                      onChange={(e) => setBotToken(e.target.value)}
+                      className="font-mono"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Get this from{" "}
+                      <a
+                        href="https://t.me/botfather"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline text-primary"
+                      >
+                        @BotFather
+                      </a>{" "}
+                      after creating a new bot.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="channelName">
+                      Channel Name{" "}
+                      <span className="text-muted-foreground font-normal">
+                        (optional)
+                      </span>
+                    </Label>
+                    <Input
+                      id="channelName"
+                      placeholder="My Telegram Bot"
+                      value={channelName}
+                      onChange={(e) => setChannelName(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      A label for this channel in your dashboard. Auto-filled
+                      from your bot username if left blank.
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleConnect}
+                  size="lg"
+                  disabled={isConnecting || !botToken.trim()}
+                  className="w-full sm:w-auto"
+                >
+                  {isConnecting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="mr-2 h-4 w-4" />
+                  )}
+                  Connect Bot
+                </Button>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Setup Instructions</div>
+                  <ol className="space-y-1.5 text-sm text-muted-foreground list-decimal list-inside">
+                    <li>
+                      Open Telegram and message{" "}
+                      <strong className="text-foreground">@BotFather</strong>
+                    </li>
+                    <li>
+                      Send{" "}
+                      <code className="bg-muted px-1 rounded">/newbot</code> and
+                      follow the prompts
+                    </li>
+                    <li>Copy the bot token BotFather gives you</li>
+                    <li>
+                      Paste the token above and click{" "}
+                      <strong className="text-foreground">Connect Bot</strong>
+                    </li>
+                    <li>ReplyBase sets up the webhook automatically</li>
+                  </ol>
+                </div>
+
+                <p className="text-xs text-muted-foreground pt-2">
+                  Your bot token is encrypted at rest and never logged in
+                  plaintext.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+    </div>
+  );
+}

@@ -7,7 +7,7 @@ import { getTenantLimits } from "@/lib/subscription";
 import { authOptions } from "@/lib/auth";
 
 const createChannelSchema = z.object({
-  type: z.enum(["facebook", "whatsapp", "web"]),
+  type: z.enum(["facebook", "whatsapp", "web", "telegram"]),
   name: z.string().min(1),
   channelId: z.string().min(1),
   accessToken: z.string().optional(),
@@ -17,7 +17,7 @@ const createChannelSchema = z.object({
 // GET: List channels for a bot
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ botId: string }> }
+  { params }: { params: Promise<{ botId: string }> },
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -55,7 +55,7 @@ export async function GET(
     console.error("[Channels API] Error fetching channels:", error);
     return NextResponse.json(
       { error: "Failed to fetch channels" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -63,7 +63,7 @@ export async function GET(
 // POST: Create a new channel
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ botId: string }> }
+  { params }: { params: Promise<{ botId: string }> },
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -102,7 +102,7 @@ export async function POST(
         {
           error: `Channel limit reached (max ${limits.maxChannelsPerBot} per bot)`,
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -127,14 +127,14 @@ export async function POST(
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: "Invalid input", details: error.issues },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     console.error("[Channels API] Error creating channel:", error);
     return NextResponse.json(
       { error: "Failed to create channel" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

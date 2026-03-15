@@ -12,6 +12,7 @@ import {
   GitBranch,
   Bot,
   CreditCard,
+  Send,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -63,6 +64,11 @@ const items = [
     title: "Facebook Pages",
     url: "/integrations/facebook",
     icon: MessageSquare,
+  },
+  {
+    title: "Telegram Bot",
+    url: "/integrations/telegram",
+    icon: Send,
   },
   {
     title: "AI Status",
