@@ -48,6 +48,20 @@ type PreviewMessage = {
   text: string;
 };
 
+const PREVIEW_DEFAULT_DRAFT = "Can you help me choose the right plan?";
+const PREVIEW_SEED_MESSAGES: PreviewMessage[] = [
+  {
+    id: "seed-user",
+    role: "user",
+    text: "I want to learn more about your plans.",
+  },
+  {
+    id: "seed-bot",
+    role: "bot",
+    text: "Great. I can help you choose the right one.",
+  },
+];
+
 function buildPreviewReply(message: string) {
   const normalized = message.toLowerCase();
 
@@ -86,21 +100,10 @@ export default function WebchatIntegrationPage() {
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [isCreatingChannel, setIsCreatingChannel] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(true);
-  const [previewDraft, setPreviewDraft] = useState(
-    "Can you help me choose the right plan?",
+  const [previewDraft, setPreviewDraft] = useState(PREVIEW_DEFAULT_DRAFT);
+  const [previewMessages, setPreviewMessages] = useState<PreviewMessage[]>(
+    PREVIEW_SEED_MESSAGES,
   );
-  const [previewMessages, setPreviewMessages] = useState<PreviewMessage[]>([
-    {
-      id: "seed-user",
-      role: "user",
-      text: "I want to learn more about your plans.",
-    },
-    {
-      id: "seed-bot",
-      role: "bot",
-      text: "Great. I can help you choose the right one.",
-    },
-  ]);
   const [origin, setOrigin] = useState("");
   const previewReplyTimeoutRef = useRef<number | null>(null);
 
@@ -233,6 +236,17 @@ export default function WebchatIntegrationPage() {
       ]);
       previewReplyTimeoutRef.current = null;
     }, 450);
+  }
+
+  function handleResetPreview() {
+    if (previewReplyTimeoutRef.current !== null) {
+      window.clearTimeout(previewReplyTimeoutRef.current);
+      previewReplyTimeoutRef.current = null;
+    }
+
+    setPreviewMessages(PREVIEW_SEED_MESSAGES);
+    setPreviewDraft(PREVIEW_DEFAULT_DRAFT);
+    setIsPreviewOpen(true);
   }
 
   async function loadBots() {
@@ -582,10 +596,17 @@ export default function WebchatIntegrationPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Live Preview</CardTitle>
-          <CardDescription>
-            Real-time preview of your widget style before embedding.
-          </CardDescription>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <CardTitle>Live Preview</CardTitle>
+              <CardDescription>
+                Real-time preview of your widget style before embedding.
+              </CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleResetPreview}>
+              Reset Preview
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="relative h-96 rounded-lg border bg-slate-50 p-4 overflow-hidden">
