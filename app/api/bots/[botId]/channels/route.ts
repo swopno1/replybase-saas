@@ -118,7 +118,7 @@ export async function POST(
 
     const body = await req.json();
     const validated = createChannelSchema.parse(body);
-    const normalizedType = validated.type.toLowerCase();
+    const normalizedType = validated.type;
 
     const channel = await prisma.channel.create({
       data: {

@@ -11,7 +11,8 @@ export async function recordWebchatErrorEvent(params: {
     | "message_error"
     | "invalid_token"
     | "invalid_init_challenge"
-    | "bot_mitigation";
+    | "bot_mitigation"
+    | "rollout_disabled";
   stage: "init" | "config" | "message" | "events";
   payload?: Record<string, unknown>;
 }) {

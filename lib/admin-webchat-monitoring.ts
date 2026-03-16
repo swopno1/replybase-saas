@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { getWebchatRolloutConfig } from "@/lib/webchat-rollout";
 
 const WINDOW_HOURS = 24;
@@ -362,7 +363,7 @@ export async function getAdminWebchatMonitoringSnapshot(): Promise<WebchatMonito
                  MAX(s."lastSeenAt") AS "lastActivityAt"
           FROM "webchat_sessions" s
           INNER JOIN "webchat_sites" ws ON ws.id = s."siteId"
-          WHERE ws."tenantId" IN (${prisma.$join(trackedTenantIds)})
+          WHERE ws."tenantId" IN (${Prisma.join(trackedTenantIds)})
             AND s."lastSeenAt" >= ${since}
           GROUP BY ws."tenantId"
         `,
@@ -382,7 +383,7 @@ export async function getAdminWebchatMonitoringSnapshot(): Promise<WebchatMonito
                  MAX(e."createdAt") AS "lastEventAt"
           FROM "webchat_events" e
           INNER JOIN "webchat_sites" ws ON ws.id = e."siteId"
-          WHERE ws."tenantId" IN (${prisma.$join(trackedTenantIds)})
+          WHERE ws."tenantId" IN (${Prisma.join(trackedTenantIds)})
             AND e."createdAt" >= ${since}
           GROUP BY ws."tenantId"
         `,

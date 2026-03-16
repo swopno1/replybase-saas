@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { decryptTelegramToken } from "@/lib/telegram-crypto";
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
     const channelId = searchParams.get("channelId");
     const botId = searchParams.get("botId");
 
-    const whereClause = channelId
+    const whereClause: Prisma.ChannelWhereInput = channelId
       ? {
           id: channelId,
           type: "telegram",
