@@ -64,6 +64,136 @@ export type WebchatMonitoringSnapshot = {
   }>;
 };
 
+export type WebchatPromotionEvaluationInput = {
+  mode: "off" | "pilot" | "tiered" | "ga";
+  errorRate24h: number;
+  reasonCounts: WebchatMonitoringSnapshot["reasonCounts"];
+  trackedTenants: Array<{
+    rolloutRole: "pilot" | "force-enabled" | "force-disabled";
+    sessions24h: number;
+    widgetEvents24h: number;
+  }>;
+};
+
+export type WebchatPromotionDecision = WebchatMonitoringSnapshot["promotion"];
+
+export function evaluateWebchatPromotion(
+  input: WebchatPromotionEvaluationInput,
+): WebchatPromotionDecision {
+  const promotionBlockers: string[] = [];
+  let recommendedStage: "pilot" | "tiered" | "ga" | null = null;
+  let promotionStatus: "hold" | "ready" | "stable" = "hold";
+  let promotionSummary =
+    "Collect stable pilot telemetry before widening rollout.";
+
+  const hasPilotCandidates = input.trackedTenants.some(
+    (tenant) => tenant.rolloutRole !== "force-disabled",
+  );
+  const hasTrackedTraffic = input.trackedTenants.some(
+    (tenant) => tenant.widgetEvents24h > 0 || tenant.sessions24h > 0,
+  );
+
+  if (
+    !hasPilotCandidates &&
+    (input.mode === "pilot" || input.mode === "tiered")
+  ) {
+    promotionBlockers.push(
+      "No pilot tenants or force-enabled tenants are configured.",
+    );
+  }
+
+  if (
+    (input.mode === "pilot" || input.mode === "tiered") &&
+    !hasTrackedTraffic
+  ) {
+    promotionBlockers.push(
+      "Tracked pilot tenants have no traffic in the last 24 hours.",
+    );
+  }
+
+  if (input.errorRate24h > 0.03) {
+    promotionBlockers.push(
+      "Widget error budget is above the 3% rollout threshold.",
+    );
+  }
+
+  if (input.reasonCounts.blockedOrigin > 5) {
+    promotionBlockers.push(
+      "Blocked-origin incidents are above the daily rollout threshold.",
+    );
+  }
+
+  if (input.reasonCounts.rateLimit > 10) {
+    promotionBlockers.push(
+      "Rate-limit incidents are above the daily pilot threshold.",
+    );
+  }
+
+  if (
+    input.reasonCounts.messageError > 0 ||
+    input.reasonCounts.invalidToken > 0
+  ) {
+    promotionBlockers.push(
+      "Recent message_error or invalid_token incidents still need review.",
+    );
+  }
+
+  if (input.mode === "off") {
+    recommendedStage = hasPilotCandidates ? "pilot" : null;
+    promotionStatus = hasPilotCandidates ? "ready" : "hold";
+    promotionSummary = hasPilotCandidates
+      ? "Internal checks are done; the next operational step is enabling pilot mode."
+      : "Configure at least one pilot tenant before enabling the rollout.";
+  } else if (input.mode === "pilot") {
+    if (promotionBlockers.length === 0) {
+      recommendedStage = "tiered";
+      promotionStatus = "ready";
+      promotionSummary =
+        "Pilot telemetry is within thresholds; the next operational step is promoting to tiered rollout.";
+    } else {
+      recommendedStage = null;
+      promotionStatus = "hold";
+      promotionSummary =
+        "Stay in pilot mode until the blocking rollout signals are resolved.";
+    }
+  } else if (input.mode === "tiered") {
+    if (
+      promotionBlockers.length === 0 &&
+      input.reasonCounts.rolloutDisabled === 0
+    ) {
+      recommendedStage = "ga";
+      promotionStatus = "ready";
+      promotionSummary =
+        "Tiered rollout looks stable; the next operational step is preparing GA promotion.";
+    } else {
+      recommendedStage = null;
+      promotionStatus = "hold";
+      promotionSummary =
+        "Stay in tiered mode until rollout denials and blocking signals are resolved.";
+      if (input.reasonCounts.rolloutDisabled > 0) {
+        promotionBlockers.push(
+          "Rollout-disabled incidents are still occurring during tiered rollout.",
+        );
+      }
+    }
+  } else {
+    recommendedStage = null;
+    promotionStatus = promotionBlockers.length === 0 ? "stable" : "hold";
+    promotionSummary =
+      promotionBlockers.length === 0
+        ? "GA mode is active and current telemetry looks stable."
+        : "GA mode is active, but rollout health needs attention.";
+  }
+
+  return {
+    currentStage: input.mode,
+    recommendedStage,
+    status: promotionStatus,
+    summary: promotionSummary,
+    blockers: Array.from(new Set(promotionBlockers)),
+  };
+}
+
 function getPayloadString(payload: unknown, key: string): string | null {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return null;
@@ -383,7 +513,12 @@ export async function getAdminWebchatMonitoringSnapshot(): Promise<WebchatMonito
         rolloutRole = "force-enabled";
       }
 
-      const activeSubscription = tenant.subscriptions.find((subscription) =>
+      const subscriptionCandidates = Array.isArray(tenant.subscriptions)
+        ? tenant.subscriptions
+        : tenant.subscriptions
+          ? [tenant.subscriptions]
+          : [];
+      const activeSubscription = subscriptionCandidates.find((subscription) =>
         ["active", "trialing"].includes(subscription.status),
       );
 
@@ -405,116 +540,18 @@ export async function getAdminWebchatMonitoringSnapshot(): Promise<WebchatMonito
     })
     .sort((left, right) => left.tenantName.localeCompare(right.tenantName));
 
-  const promotionBlockers: string[] = [];
-  let recommendedStage: "pilot" | "tiered" | "ga" | null = null;
-  let promotionStatus: "hold" | "ready" | "stable" = "hold";
-  let promotionSummary =
-    "Collect stable pilot telemetry before widening rollout.";
-
-  const hasPilotCandidates = trackedTenantSummaries.some(
-    (tenant) => tenant.rolloutRole !== "force-disabled",
-  );
-  const hasTrackedTraffic = trackedTenantSummaries.some(
-    (tenant) => tenant.widgetEvents24h > 0 || tenant.sessions24h > 0,
-  );
-
-  if (
-    !hasPilotCandidates &&
-    (rollout.mode === "pilot" || rollout.mode === "tiered")
-  ) {
-    promotionBlockers.push(
-      "No pilot tenants or force-enabled tenants are configured.",
-    );
-  }
-
-  if (
-    (rollout.mode === "pilot" || rollout.mode === "tiered") &&
-    !hasTrackedTraffic
-  ) {
-    promotionBlockers.push(
-      "Tracked pilot tenants have no traffic in the last 24 hours.",
-    );
-  }
-
-  if (errorRate24h > 0.03) {
-    promotionBlockers.push(
-      "Widget error budget is above the 3% rollout threshold.",
-    );
-  }
-
-  if (reasonCounts.blockedOrigin > 5) {
-    promotionBlockers.push(
-      "Blocked-origin incidents are above the daily rollout threshold.",
-    );
-  }
-
-  if (reasonCounts.rateLimit > 10) {
-    promotionBlockers.push(
-      "Rate-limit incidents are above the daily pilot threshold.",
-    );
-  }
-
-  if (reasonCounts.messageError > 0 || reasonCounts.invalidToken > 0) {
-    promotionBlockers.push(
-      "Recent message_error or invalid_token incidents still need review.",
-    );
-  }
-
-  if (rollout.mode === "off") {
-    recommendedStage = hasPilotCandidates ? "pilot" : null;
-    promotionStatus = hasPilotCandidates ? "ready" : "hold";
-    promotionSummary = hasPilotCandidates
-      ? "Internal checks are done; the next operational step is enabling pilot mode."
-      : "Configure at least one pilot tenant before enabling the rollout.";
-  } else if (rollout.mode === "pilot") {
-    if (promotionBlockers.length === 0) {
-      recommendedStage = "tiered";
-      promotionStatus = "ready";
-      promotionSummary =
-        "Pilot telemetry is within thresholds; the next operational step is promoting to tiered rollout.";
-    } else {
-      recommendedStage = null;
-      promotionStatus = "hold";
-      promotionSummary =
-        "Stay in pilot mode until the blocking rollout signals are resolved.";
-    }
-  } else if (rollout.mode === "tiered") {
-    if (promotionBlockers.length === 0 && reasonCounts.rolloutDisabled === 0) {
-      recommendedStage = "ga";
-      promotionStatus = "ready";
-      promotionSummary =
-        "Tiered rollout looks stable; the next operational step is preparing GA promotion.";
-    } else {
-      recommendedStage = null;
-      promotionStatus = "hold";
-      promotionSummary =
-        "Stay in tiered mode until rollout denials and blocking signals are resolved.";
-      if (reasonCounts.rolloutDisabled > 0) {
-        promotionBlockers.push(
-          "Rollout-disabled incidents are still occurring during tiered rollout.",
-        );
-      }
-    }
-  } else {
-    recommendedStage = null;
-    promotionStatus = promotionBlockers.length === 0 ? "stable" : "hold";
-    promotionSummary =
-      promotionBlockers.length === 0
-        ? "GA mode is active and current telemetry looks stable."
-        : "GA mode is active, but rollout health needs attention.";
-  }
+  const promotion = evaluateWebchatPromotion({
+    mode: rollout.mode,
+    errorRate24h,
+    reasonCounts,
+    trackedTenants: trackedTenantSummaries,
+  });
 
   return {
     generatedAt: new Date().toISOString(),
     windowHours: WINDOW_HOURS,
     rollout,
-    promotion: {
-      currentStage: rollout.mode,
-      recommendedStage,
-      status: promotionStatus,
-      summary: promotionSummary,
-      blockers: Array.from(new Set(promotionBlockers)),
-    },
+    promotion,
     totals: {
       totalSites,
       activeSites,

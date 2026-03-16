@@ -272,6 +272,8 @@ Implemented:
   - Cross-tenant monitoring snapshot for active sites, sessions, messages, widget events, error rate, and recent incidents
   - Rollout posture summary tied to current runtime rollout config
   - Pilot runbook decision support with promotion recommendation and tenant-level telemetry summaries
+- Promotion decision logic test coverage added:
+  - `tests/webchat/monitoring-promotion.test.ts` — 6 tests (off->pilot readiness, pilot hold/ready, tiered->GA readiness, tiered hold on rollout-denied incidents, GA stable state)
 - Playwright E2E widget coverage added:
   - `playwright.config.ts` + `npm run test:e2e`
   - `app/webchat-e2e/page.tsx` (public harness route)
@@ -279,7 +281,7 @@ Implemented:
 - QA coverage for rollout controls:
   - `tests/webchat/rollout.test.ts` — 7 tests (mode parsing, pilot allow/block, tiered plan feature/allowlist, GA explicit deny)
   - Integration denial-path checks added to init/message/events route test suites.
-- Current verified test baseline after Phase 8 updates: **128 passing Vitest tests across 9 files + 7 passing Playwright E2E tests**.
+- Current verified test baseline after Phase 8 updates: **134 passing Vitest tests across 10 files + 7 passing Playwright E2E tests**.
 
 Missing:
 
