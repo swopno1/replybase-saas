@@ -2,6 +2,12 @@ import { prisma } from "@/lib/prisma";
 
 export type WebchatRolloutMode = "off" | "pilot" | "tiered" | "ga";
 
+const ROLLOUT_MODE_ENV = "WEBCHAT_ROLLOUT_MODE";
+const ENABLED_TENANTS_ENV = "WEBCHAT_ENABLED_TENANT_IDS";
+const DISABLED_TENANTS_ENV = "WEBCHAT_DISABLED_TENANT_IDS";
+const PILOT_TENANTS_ENV = "WEBCHAT_PILOT_TENANT_IDS";
+const ALLOWED_PLANS_ENV = "WEBCHAT_ALLOWED_PLAN_NAMES";
+
 export type WebchatRolloutDecision = {
   allowed: boolean;
   mode: WebchatRolloutMode;
@@ -21,6 +27,14 @@ export type WebchatRolloutDecision = {
 
 type PlanFeatures = Record<string, unknown>;
 
+export type WebchatRolloutConfig = {
+  mode: WebchatRolloutMode;
+  enabledTenantIds: string[];
+  disabledTenantIds: string[];
+  pilotTenantIds: string[];
+  allowedPlanNames: string[];
+};
+
 function parseCsvEnv(value: string | undefined): Set<string> {
   if (!value) {
     return new Set();
@@ -39,11 +53,25 @@ function normalizePlanName(name: string | null | undefined): string {
 }
 
 function parseRolloutMode(): WebchatRolloutMode {
-  const mode = (process.env.WEBCHAT_ROLLOUT_MODE || "off").toLowerCase();
+  const mode = (process.env[ROLLOUT_MODE_ENV] || "off").toLowerCase();
   if (mode === "pilot" || mode === "tiered" || mode === "ga") {
     return mode;
   }
   return "off";
+}
+
+function toSortedList(values: Set<string>) {
+  return Array.from(values).sort((a, b) => a.localeCompare(b));
+}
+
+function applyCsvEnv(key: string, values: string[]) {
+  const normalized = values.map((entry) => entry.trim()).filter(Boolean);
+  if (normalized.length === 0) {
+    delete process.env[key];
+    return;
+  }
+
+  process.env[key] = normalized.join(",");
 }
 
 function getBooleanFeature(
@@ -58,22 +86,50 @@ function getBooleanFeature(
   return typeof value === "boolean" ? value : undefined;
 }
 
+export function getWebchatRolloutConfig(): WebchatRolloutConfig {
+  return {
+    mode: parseRolloutMode(),
+    enabledTenantIds: toSortedList(
+      parseCsvEnv(process.env[ENABLED_TENANTS_ENV]),
+    ),
+    disabledTenantIds: toSortedList(
+      parseCsvEnv(process.env[DISABLED_TENANTS_ENV]),
+    ),
+    pilotTenantIds: toSortedList(parseCsvEnv(process.env[PILOT_TENANTS_ENV])),
+    allowedPlanNames: toSortedList(
+      new Set(
+        Array.from(parseCsvEnv(process.env[ALLOWED_PLANS_ENV])).map((name) =>
+          normalizePlanName(name),
+        ),
+      ),
+    ),
+  };
+}
+
+export function updateWebchatRolloutConfig(
+  input: WebchatRolloutConfig,
+): WebchatRolloutConfig {
+  process.env[ROLLOUT_MODE_ENV] = input.mode;
+  applyCsvEnv(ENABLED_TENANTS_ENV, input.enabledTenantIds);
+  applyCsvEnv(DISABLED_TENANTS_ENV, input.disabledTenantIds);
+  applyCsvEnv(PILOT_TENANTS_ENV, input.pilotTenantIds);
+  applyCsvEnv(
+    ALLOWED_PLANS_ENV,
+    input.allowedPlanNames.map((name) => normalizePlanName(name)),
+  );
+
+  return getWebchatRolloutConfig();
+}
+
 export async function getWebchatRolloutDecision(
   tenantId: string,
 ): Promise<WebchatRolloutDecision> {
-  const mode = parseRolloutMode();
-  const forceEnabledTenants = parseCsvEnv(
-    process.env.WEBCHAT_ENABLED_TENANT_IDS,
-  );
-  const forceDisabledTenants = parseCsvEnv(
-    process.env.WEBCHAT_DISABLED_TENANT_IDS,
-  );
-  const pilotTenants = parseCsvEnv(process.env.WEBCHAT_PILOT_TENANT_IDS);
-  const allowedPlans = new Set(
-    Array.from(parseCsvEnv(process.env.WEBCHAT_ALLOWED_PLAN_NAMES)).map(
-      (name) => normalizePlanName(name),
-    ),
-  );
+  const config = getWebchatRolloutConfig();
+  const mode = config.mode;
+  const forceEnabledTenants = new Set(config.enabledTenantIds);
+  const forceDisabledTenants = new Set(config.disabledTenantIds);
+  const pilotTenants = new Set(config.pilotTenantIds);
+  const allowedPlans = new Set(config.allowedPlanNames);
 
   if (mode === "off") {
     return {
