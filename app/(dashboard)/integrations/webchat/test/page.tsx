@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, RefreshCw, Trash2 } from "lucide-react";
@@ -21,7 +21,7 @@ function normalizeOrigin(value: string) {
   }
 }
 
-export default function WebchatTestHarnessPage() {
+function WebchatTestHarnessContent() {
   const searchParams = useSearchParams();
   const [reloadKey, setReloadKey] = useState(0);
   const [currentOrigin, setCurrentOrigin] = useState("");
@@ -336,5 +336,26 @@ export default function WebchatTestHarnessPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function WebchatTestHarnessPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-6 pb-28">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">
+              Widget Test Harness
+            </h1>
+            <p className="mt-1 text-muted-foreground">
+              Loading test harness...
+            </p>
+          </div>
+        </div>
+      }
+    >
+      <WebchatTestHarnessContent />
+    </Suspense>
   );
 }
