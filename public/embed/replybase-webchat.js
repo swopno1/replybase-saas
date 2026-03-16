@@ -26,6 +26,7 @@
   var token = "";
   var conversationId = "";
   var visitorId = "";
+  var initChallengeToken = "";
   var isOpen = false;
   var isSending = false;
   var initialized = false;
@@ -194,11 +195,16 @@
       return Promise.resolve();
     }
 
+    if (!initChallengeToken) {
+      return Promise.reject(new Error("Missing init challenge"));
+    }
+
     var existing = getStoredSession();
     var payload = {
       publicKey: publicKey || undefined,
       channelId: channelId || undefined,
       botId: botId || undefined,
+      initChallenge: initChallengeToken,
       origin: window.location.origin,
       visitorId:
         existing && existing.visitorId ? existing.visitorId : undefined,
@@ -244,6 +250,17 @@
         : "botId=" + encodeURIComponent(botId);
 
     return request("/api/webchat/config?" + query, "GET").then(function (data) {
+      if (typeof data.publicKey === "string" && data.publicKey.trim()) {
+        publicKey = data.publicKey.trim();
+      }
+      if (
+        data.initChallenge &&
+        typeof data.initChallenge.token === "string" &&
+        data.initChallenge.token.trim()
+      ) {
+        initChallengeToken = data.initChallenge.token.trim();
+      }
+
       var cfg = data.config || {};
       if (typeof cfg.title === "string" && cfg.title.trim()) {
         panelHeader.firstChild.nodeValue = cfg.title.trim();
@@ -275,6 +292,12 @@
     isSending = true;
     sendButton.disabled = true;
 
+    trackEvent("MESSAGE", {
+      url: window.location.href,
+      direction: "outbound",
+      messageLength: text.length,
+    });
+
     request("/api/webchat/message", "POST", {
       token: token,
       message: text,
@@ -291,8 +314,10 @@
       })
       .catch(function (err) {
         trackEvent("ERROR", {
+          url: window.location.href,
           stage: "message",
-          reason: err && err.message ? err.message : "Message failed",
+          reason: "request_failed",
+          message: err && err.message ? err.message : "Message failed",
         });
         addSystemNote(err && err.message ? err.message : "Message failed");
       })
@@ -307,11 +332,14 @@
     button.style.display = "none";
     isOpen = true;
     if (!initialized) {
-      initializeSession()
-        .then(loadConfig)
+      loadConfig()
+        .then(function () {
+          return initializeSession();
+        })
         .then(function () {
           return trackEvent("OPEN", {
             url: window.location.href,
+            trigger: "launcher",
           });
         })
         .catch(function (err) {
@@ -322,11 +350,12 @@
     } else {
       trackEvent("OPEN", {
         url: window.location.href,
+        trigger: "launcher",
       });
     }
   }
 
-  function closePanel() {
+  function closePanel(trigger) {
     panel.classList.remove("open");
     button.style.display = "inline-flex";
     button.style.alignItems = "center";
@@ -334,18 +363,21 @@
     isOpen = false;
     trackEvent("CLOSE", {
       url: window.location.href,
+      trigger: trigger || "launcher",
     });
   }
 
   button.addEventListener("click", function () {
     if (isOpen) {
-      closePanel();
+      closePanel("launcher");
     } else {
       openPanel();
     }
   });
 
-  closeButton.addEventListener("click", closePanel);
+  closeButton.addEventListener("click", function () {
+    closePanel("header_close");
+  });
   sendButton.addEventListener("click", sendMessage);
   input.addEventListener("keydown", function (event) {
     if (event.key === "Enter") {
@@ -359,6 +391,7 @@
       lastTypingAt = now;
       trackEvent("TYPING", {
         url: window.location.href,
+        inputLength: input.value.trim().length,
       });
     }
   });

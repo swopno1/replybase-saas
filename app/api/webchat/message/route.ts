@@ -7,11 +7,13 @@ import {
   createWebchatCorsHeaders,
   isWebchatOriginAllowed,
 } from "@/lib/webchat-cors";
+import { isOriginAllowedForSite } from "@/lib/webchat";
 import {
   consumeWebchatRateLimit,
   createWebchatRateLimitHeaders,
   getWebchatLimiterKeyFromRequest,
 } from "@/lib/webchat-rate-limit";
+import { recordWebchatErrorEvent } from "@/lib/webchat-diagnostics";
 
 const messageSchema = z.object({
   token: z.string().min(1),
@@ -40,12 +42,52 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let session;
+    try {
+      session = verifyWebchatSessionToken(parsed.data.token);
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid session token" },
+        { status: 401, headers: createWebchatCorsHeaders(request) },
+      );
+    }
+
+    const site = session.siteId
+      ? await prisma.webChatSite.findUnique({
+          where: { id: session.siteId },
+        })
+      : await prisma.webChatSite.findFirst({
+          where: {
+            channelId: session.channelId,
+            botId: session.botId,
+            isActive: true,
+          },
+        });
+
+    if (!site) {
+      return NextResponse.json(
+        { error: "Webchat site not found" },
+        { status: 404, headers: createWebchatCorsHeaders(request) },
+      );
+    }
+
     const ipRateLimit = consumeWebchatRateLimit({
       scope: "message_ip",
-      key: getWebchatLimiterKeyFromRequest(request),
+      key: `${getWebchatLimiterKeyFromRequest(request)}:${site.id}`,
     });
 
     if (!ipRateLimit.allowed) {
+      await recordWebchatErrorEvent({
+        siteId: site.id,
+        reason: "rate_limit",
+        stage: "message",
+        payload: {
+          scope: "message_ip",
+          message:
+            "Too many webchat messages from this network. Please retry shortly.",
+        },
+      });
+
       return NextResponse.json(
         {
           error: "Rate limit exceeded",
@@ -62,22 +104,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let session;
-    try {
-      session = verifyWebchatSessionToken(parsed.data.token);
-    } catch {
-      return NextResponse.json(
-        { error: "Invalid session token" },
-        { status: 401, headers: createWebchatCorsHeaders(request) },
-      );
-    }
-
     const sessionRateLimit = consumeWebchatRateLimit({
       scope: "message_session",
       key: `${session.siteId || session.channelId}:${session.visitorId}`,
     });
 
     if (!sessionRateLimit.allowed) {
+      await recordWebchatErrorEvent({
+        siteId: site.id,
+        reason: "rate_limit",
+        stage: "message",
+        payload: {
+          scope: "message_session",
+          message:
+            "Too many messages in this chat session. Please wait and try again.",
+        },
+      });
+
       return NextResponse.json(
         {
           error: "Rate limit exceeded",
@@ -91,6 +134,27 @@ export async function POST(request: NextRequest) {
             ...createWebchatRateLimitHeaders(sessionRateLimit),
           },
         },
+      );
+    }
+
+    const requestOrigin = request.headers.get("origin") || undefined;
+    const requestReferer = request.headers.get("referer") || undefined;
+
+    if (!isOriginAllowedForSite(site, requestOrigin, requestReferer)) {
+      await recordWebchatErrorEvent({
+        siteId: site.id,
+        reason: "blocked_origin",
+        stage: "message",
+        payload: {
+          origin: requestOrigin || null,
+          referer: requestReferer || null,
+          message: "Origin not allowed for this site",
+        },
+      });
+
+      return NextResponse.json(
+        { error: "Origin not allowed for this site" },
+        { status: 403, headers: createWebchatCorsHeaders(request) },
       );
     }
 

@@ -12,6 +12,12 @@ import {
   createWebchatRateLimitHeaders,
   getWebchatLimiterKeyFromRequest,
 } from "@/lib/webchat-rate-limit";
+import { recordWebchatErrorEvent } from "@/lib/webchat-diagnostics";
+import {
+  getWebchatTelemetryPolicy,
+  normalizeWebchatTelemetryPayload,
+  shouldSampleWebchatTelemetry,
+} from "@/lib/webchat-telemetry";
 
 const eventSchema = z.object({
   token: z.string().min(1),
@@ -41,28 +47,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const ipRateLimit = consumeWebchatRateLimit({
-      scope: "events_ip",
-      key: getWebchatLimiterKeyFromRequest(request),
-    });
-
-    if (!ipRateLimit.allowed) {
-      return NextResponse.json(
-        {
-          error: "Rate limit exceeded",
-          message:
-            "Too many webchat events from this network. Please retry shortly.",
-        },
-        {
-          status: 429,
-          headers: {
-            ...createWebchatCorsHeaders(request),
-            ...createWebchatRateLimitHeaders(ipRateLimit),
-          },
-        },
-      );
-    }
-
     let sessionToken;
     try {
       sessionToken = verifyWebchatSessionToken(parsed.data.token);
@@ -70,28 +54,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Invalid session token" },
         { status: 401, headers: createWebchatCorsHeaders(request) },
-      );
-    }
-
-    const sessionRateLimit = consumeWebchatRateLimit({
-      scope: "events_session",
-      key: `${sessionToken.siteId || sessionToken.channelId}:${sessionToken.visitorId}`,
-    });
-
-    if (!sessionRateLimit.allowed) {
-      return NextResponse.json(
-        {
-          error: "Rate limit exceeded",
-          message:
-            "Too many events in this chat session. Please retry shortly.",
-        },
-        {
-          status: 429,
-          headers: {
-            ...createWebchatCorsHeaders(request),
-            ...createWebchatRateLimitHeaders(sessionRateLimit),
-          },
-        },
       );
     }
 
@@ -114,13 +76,100 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const ipRateLimit = consumeWebchatRateLimit({
+      scope: "events_ip",
+      key: `${getWebchatLimiterKeyFromRequest(request)}:${site.id}`,
+    });
+
+    if (!ipRateLimit.allowed) {
+      await recordWebchatErrorEvent({
+        siteId: site.id,
+        reason: "rate_limit",
+        stage: "events",
+        payload: {
+          scope: "events_ip",
+          message:
+            "Too many webchat events from this network. Please retry shortly.",
+        },
+      });
+
+      return NextResponse.json(
+        {
+          error: "Rate limit exceeded",
+          message:
+            "Too many webchat events from this network. Please retry shortly.",
+        },
+        {
+          status: 429,
+          headers: {
+            ...createWebchatCorsHeaders(request),
+            ...createWebchatRateLimitHeaders(ipRateLimit),
+          },
+        },
+      );
+    }
+
     const requestOrigin = request.headers.get("origin") || undefined;
     const requestReferer = request.headers.get("referer") || undefined;
 
+    const sessionRateLimit = consumeWebchatRateLimit({
+      scope: "events_session",
+      key: `${sessionToken.siteId || sessionToken.channelId}:${sessionToken.visitorId}`,
+    });
+
+    if (!sessionRateLimit.allowed) {
+      await recordWebchatErrorEvent({
+        siteId: site.id,
+        reason: "rate_limit",
+        stage: "events",
+        payload: {
+          scope: "events_session",
+          message:
+            "Too many events in this chat session. Please retry shortly.",
+        },
+      });
+
+      return NextResponse.json(
+        {
+          error: "Rate limit exceeded",
+          message:
+            "Too many events in this chat session. Please retry shortly.",
+        },
+        {
+          status: 429,
+          headers: {
+            ...createWebchatCorsHeaders(request),
+            ...createWebchatRateLimitHeaders(sessionRateLimit),
+          },
+        },
+      );
+    }
+
     if (!isOriginAllowedForSite(site, requestOrigin, requestReferer)) {
+      await recordWebchatErrorEvent({
+        siteId: site.id,
+        reason: "blocked_origin",
+        stage: "events",
+        payload: {
+          origin: requestOrigin || null,
+          referer: requestReferer || null,
+          message: "Origin not allowed for this site",
+        },
+      });
+
       return NextResponse.json(
         { error: "Origin not allowed for this site" },
         { status: 403, headers: createWebchatCorsHeaders(request) },
+      );
+    }
+
+    const telemetryPolicy = getWebchatTelemetryPolicy(parsed.data.type);
+    const sampled = shouldSampleWebchatTelemetry(parsed.data.type);
+
+    if (!sampled) {
+      return NextResponse.json(
+        { ok: true, sampled: false, sampleRate: telemetryPolicy.sampleRate },
+        { headers: createWebchatCorsHeaders(request) },
       );
     }
 
@@ -138,9 +187,14 @@ export async function POST(request: NextRequest) {
         sessionId: webChatSession?.id || null,
         type: parsed.data.type,
         payload: {
-          ...(parsed.data.payload || {}),
+          ...normalizeWebchatTelemetryPayload(
+            parsed.data.type,
+            parsed.data.payload,
+          ),
           origin: requestOrigin || null,
           referer: requestReferer || null,
+          sampleRate: telemetryPolicy.sampleRate,
+          sampled: true,
         },
       },
     });
@@ -153,7 +207,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { ok: true },
+      { ok: true, sampled: true, sampleRate: telemetryPolicy.sampleRate },
       { headers: createWebchatCorsHeaders(request) },
     );
   } catch (error) {

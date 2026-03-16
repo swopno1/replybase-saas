@@ -10,6 +10,9 @@ import {
   createWebchatCorsHeaders,
   isWebchatOriginAllowed,
 } from "@/lib/webchat-cors";
+import { recordWebchatErrorEvent } from "@/lib/webchat-diagnostics";
+import { createWebchatInitChallenge } from "@/lib/webchat-init-challenge";
+import { getWebchatTelemetryConfig } from "@/lib/webchat-telemetry";
 
 export async function GET(request: NextRequest) {
   try {
@@ -42,6 +45,17 @@ export async function GET(request: NextRequest) {
 
     if (siteFromKey) {
       if (!isOriginAllowedForSite(siteFromKey, requestOrigin, requestReferer)) {
+        await recordWebchatErrorEvent({
+          siteId: siteFromKey.id,
+          reason: "blocked_origin",
+          stage: "config",
+          payload: {
+            origin: requestOrigin || null,
+            referer: requestReferer || null,
+            message: "Origin not allowed for this site",
+          },
+        });
+
         return NextResponse.json(
           { error: "Origin not allowed for this site" },
           { status: 403, headers: createWebchatCorsHeaders(request) },
@@ -54,6 +68,12 @@ export async function GET(request: NextRequest) {
           botId: siteFromKey.bot.id,
           siteId: siteFromKey.id,
           publicKey: siteFromKey.publicKey,
+          initChallenge: createWebchatInitChallenge({
+            siteId: siteFromKey.id,
+            publicKey: siteFromKey.publicKey,
+            origin: requestOrigin || requestReferer,
+          }),
+          telemetry: getWebchatTelemetryConfig(),
           config: (siteFromKey.themeConfig as Prisma.JsonObject | null) || {},
         },
         { headers: createWebchatCorsHeaders(request) },
@@ -80,6 +100,17 @@ export async function GET(request: NextRequest) {
     });
 
     if (!isOriginAllowedForSite(site, requestOrigin, requestReferer)) {
+      await recordWebchatErrorEvent({
+        siteId: site.id,
+        reason: "blocked_origin",
+        stage: "config",
+        payload: {
+          origin: requestOrigin || null,
+          referer: requestReferer || null,
+          message: "Origin not allowed for this site",
+        },
+      });
+
       return NextResponse.json(
         { error: "Origin not allowed for this site" },
         { status: 403, headers: createWebchatCorsHeaders(request) },
@@ -94,6 +125,12 @@ export async function GET(request: NextRequest) {
         botId: channel.bot.id,
         siteId: site.id,
         publicKey: site.publicKey,
+        initChallenge: createWebchatInitChallenge({
+          siteId: site.id,
+          publicKey: site.publicKey,
+          origin: requestOrigin || requestReferer,
+        }),
+        telemetry: getWebchatTelemetryConfig(),
         config,
       },
       { headers: createWebchatCorsHeaders(request) },

@@ -5,13 +5,13 @@ description: Phase-by-phase implementation status of ReplyBase Webchat against t
 
 # Webchat Progress Status
 
-Last reviewed: 2026-03-16 (updated after Phase 2 publicKey/events rollout)
+Last reviewed: 2026-03-16 (re-audited against full Phase 0-8 plan)
 
 This document tracks current implementation status for the full webchat roadmap (Phases 0-8).
 
 ## Summary
 
-- Completed: core Phase 0 baseline, core Phase 1 domain model layer, core Phase 2 APIs (including publicKey and telemetry), core Phase 3 embed script, initial Phase 4 engine integration, initial Phase 5 token/CORS controls, initial Phase 6 dashboard setup UI.
+- Completed: core Phase 0 baseline, core Phase 1 domain model layer, core Phase 2 APIs (including publicKey and telemetry), core Phase 3 embed script, initial Phase 4 engine integration, initial Phase 5 token/CORS/rate-limit controls, initial Phase 6 dashboard setup UI.
 - Partially completed: security hardening, diagnostics, observability, and rollout operations.
 - Not started: full Phase 7 automated QA matrix and Phase 8 feature-flagged rollout process.
 
@@ -19,18 +19,19 @@ This document tracks current implementation status for the full webchat roadmap 
 
 ### Phase 0: Stabilize schema and channel typing
 
-Status: `In Progress (mostly done)`
+Status: `Implemented`
 
 Completed:
 
 - Channel creation paths normalize to lowercase `web`.
-- Legacy row migration script exists: `pnpm run normalize:web-channel-type`.
+- Legacy row normalization script exists: `pnpm run normalize:web-channel-type`.
 - Non-web channels require `channelId`, web channels allow null `channelId`.
+- Prisma enum is implemented for `Channel.type` (`web`, `facebook`, `telegram`, `whatsapp`).
+- Webchat helper now uses strict lowercase `web` lookup (no `"Web"` fallback).
 
 Pending:
 
-- Prisma enum for `Channel.type` is not implemented yet (`Channel.type` is still `String`).
-- Helper still accepts both `web` and `Web` values for compatibility.
+- None for Phase 0 baseline.
 
 Code references:
 
@@ -38,11 +39,12 @@ Code references:
 - `app/api/bots/[botId]/channels/route.ts`
 - `scripts/normalize-web-channel-type.ts`
 - `prisma/schema.prisma`
+- `prisma/migrations/20260316170000_channel_type_enum_lowercase/migration.sql`
 - `lib/webchat.ts`
 
 ### Phase 1: Web chat domain model
 
-Status: `Implemented (v1) / In Progress`
+Status: `Implemented`
 
 Implemented:
 
@@ -55,8 +57,7 @@ Implemented:
 
 Pending refinements:
 
-- Dashboard key rotation UX (`publicKey` / `secretKey`) is not implemented yet.
-- Domain governance workflows (`allowedDomains`) are still minimal.
+- None for Phase 1 baseline.
 
 Code references:
 
@@ -68,7 +69,7 @@ Code references:
 
 ### Phase 2: Public webchat API layer
 
-Status: `Implemented (MVP+)`
+Status: `Implemented`
 
 Implemented:
 
@@ -79,11 +80,13 @@ Implemented:
 - `OPTIONS` handlers for CORS preflight on all webchat routes.
 - `publicKey`-driven init/config contract.
 - Site-domain ownership checks during init/config/events.
+- Signed one-time init challenge issued by `config` and consumed by `init`.
+- Replay-window enforcement for init challenges via durable nonce-use tracking.
+- Structured telemetry taxonomy with sampling policy for widget lifecycle events.
 
 Pending:
 
-- Signed one-time init nonce and replay window enforcement.
-- Stronger telemetry taxonomy and sampling policy.
+- None for current Phase 2 scope.
 
 Code references:
 
@@ -103,6 +106,7 @@ Implemented:
 - Runtime init/config/message integration
 - Local session persistence
 - Position, title, color, welcome text support
+- Dashboard-generated snippet targets `data-public-key` when site credentials exist
 
 Pending:
 
@@ -156,6 +160,7 @@ Pending:
 - bot mitigation (honeypot/captcha)
 - PII retention controls
 - production guard to prevent wildcard CORS by default
+- distributed rate-limit backend (current limiter is in-memory per instance)
 
 Code references:
 
@@ -173,18 +178,21 @@ Implemented:
 - Dashboard page: `/integrations/webchat`
 - Create/select web channel
 - Theme config fields
+- Public key display and site-backed embed snippet generation
+- Allowed-domain management UI backed by `WebChatSite.allowedDomains`
+- Diagnostics panel for last ping, blocked origins, rate-limit events, and recent site errors
+- One-click dashboard test-widget launch with an internal harness page that loads the real embed script
 - Embed snippet generation and copy
 - Live preview with interactive send simulation and reset
 
 Pending:
 
-- public key and domain list management UI
-- diagnostics panel (blocked origins, rate limit events, last ping)
-- one-click test widget launch against selected site/domain
+- none in current Phase 6 MVP scope
 
 Code references:
 
 - `app/(dashboard)/integrations/webchat/page.tsx`
+- `app/api/bots/[botId]/webchat-site/diagnostics/route.ts`
 - `components/app-sidebar.tsx`
 
 ### Phase 7: Observability + QA
@@ -214,6 +222,6 @@ Missing:
 ## Recommended Next Actions
 
 1. Add production CORS hardening defaults and stricter Origin/Referer policy.
-2. Add dashboard UI for key rotation and allowed-domain management.
+2. Upgrade webchat rate limiting to shared storage for multi-instance deployments.
 3. Add test coverage (unit + integration + e2e) before broad rollout.
 4. Add feature-flag rollout controls and pilot policies.

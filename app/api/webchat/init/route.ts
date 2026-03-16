@@ -14,11 +14,13 @@ import {
   createWebchatCorsHeaders,
   isWebchatOriginAllowed,
 } from "@/lib/webchat-cors";
+import { consumeWebchatInitChallenge } from "@/lib/webchat-init-challenge";
 import {
   consumeWebchatRateLimit,
   createWebchatRateLimitHeaders,
   getWebchatLimiterKeyFromRequest,
 } from "@/lib/webchat-rate-limit";
+import { recordWebchatErrorEvent } from "@/lib/webchat-diagnostics";
 
 const initSchema = z
   .object({
@@ -41,6 +43,7 @@ const initSchema = z
         phone: z.string().optional(),
       })
       .optional(),
+    initChallenge: z.string().min(1),
     metadata: z.record(z.string(), z.unknown()).optional(),
   })
   .superRefine((data, ctx) => {
@@ -72,28 +75,6 @@ export async function POST(request: NextRequest) {
           details: parsed.error.issues,
         },
         { status: 400, headers: createWebchatCorsHeaders(request) },
-      );
-    }
-
-    const initRateLimit = consumeWebchatRateLimit({
-      scope: "init_ip",
-      key: `${getWebchatLimiterKeyFromRequest(request)}:${parsed.data.publicKey || parsed.data.channelId || parsed.data.botId || "unknown"}`,
-    });
-
-    if (!initRateLimit.allowed) {
-      return NextResponse.json(
-        {
-          error: "Rate limit exceeded",
-          message:
-            "Too many webchat initialization requests. Please retry shortly.",
-        },
-        {
-          status: 429,
-          headers: {
-            ...createWebchatCorsHeaders(request),
-            ...createWebchatRateLimitHeaders(initRateLimit),
-          },
-        },
       );
     }
 
@@ -134,6 +115,41 @@ export async function POST(request: NextRequest) {
         },
       }));
 
+    const initRateLimit = consumeWebchatRateLimit({
+      scope: "init_ip",
+      key: `${getWebchatLimiterKeyFromRequest(request)}:${site.id}`,
+    });
+
+    if (!initRateLimit.allowed) {
+      await recordWebchatErrorEvent({
+        siteId: site.id,
+        reason: "rate_limit",
+        stage: "init",
+        payload: {
+          scope: "init_ip",
+          origin: inputOrigin || requestOrigin || null,
+          referer: requestReferer || null,
+          message:
+            "Too many webchat initialization requests. Please retry shortly.",
+        },
+      });
+
+      return NextResponse.json(
+        {
+          error: "Rate limit exceeded",
+          message:
+            "Too many webchat initialization requests. Please retry shortly.",
+        },
+        {
+          status: 429,
+          headers: {
+            ...createWebchatCorsHeaders(request),
+            ...createWebchatRateLimitHeaders(initRateLimit),
+          },
+        },
+      );
+    }
+
     if (
       !isOriginAllowedForSite(
         site,
@@ -141,9 +157,50 @@ export async function POST(request: NextRequest) {
         requestReferer,
       )
     ) {
+      await recordWebchatErrorEvent({
+        siteId: site.id,
+        reason: "blocked_origin",
+        stage: "init",
+        payload: {
+          origin: inputOrigin || requestOrigin || null,
+          referer: requestReferer || null,
+          message: "Origin not allowed for this site",
+        },
+      });
+
       return NextResponse.json(
         { error: "Origin not allowed for this site" },
         { status: 403, headers: createWebchatCorsHeaders(request) },
+      );
+    }
+
+    try {
+      await consumeWebchatInitChallenge({
+        token: parsed.data.initChallenge,
+        siteId: site.id,
+        publicKey: site.publicKey,
+        origin: inputOrigin || requestOrigin || requestReferer,
+      });
+    } catch (error) {
+      await recordWebchatErrorEvent({
+        siteId: site.id,
+        reason: "invalid_init_challenge",
+        stage: "init",
+        payload: {
+          origin: inputOrigin || requestOrigin || null,
+          referer: requestReferer || null,
+          message:
+            error instanceof Error ? error.message : "Invalid init challenge",
+        },
+      });
+
+      return NextResponse.json(
+        {
+          error: "Invalid init challenge",
+          message:
+            error instanceof Error ? error.message : "Invalid init challenge",
+        },
+        { status: 400, headers: createWebchatCorsHeaders(request) },
       );
     }
 

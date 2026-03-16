@@ -2,8 +2,6 @@ import { randomBytes, randomUUID } from "crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
-const WEBCHAT_CHANNEL_TYPE_VALUES = ["web", "Web"];
-
 type InitContactInput = {
   name?: string;
   email?: string;
@@ -77,6 +75,44 @@ function generateSecretKey() {
   return `wsk_${randomBytes(32).toString("hex")}`;
 }
 
+export async function rotateWebChatSiteCredentials(params: {
+  siteId: string;
+  rotatePublicKey?: boolean;
+  rotateSecretKey?: boolean;
+}) {
+  const rotatePublicKey = Boolean(params.rotatePublicKey);
+  const rotateSecretKey = Boolean(params.rotateSecretKey);
+
+  if (!rotatePublicKey && !rotateSecretKey) {
+    return prisma.webChatSite.findUnique({
+      where: { id: params.siteId },
+    });
+  }
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await prisma.webChatSite.update({
+        where: { id: params.siteId },
+        data: {
+          ...(rotatePublicKey ? { publicKey: generatePublicKey() } : {}),
+          ...(rotateSecretKey ? { secretKey: generateSecretKey() } : {}),
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw new Error("Failed to rotate webchat site credentials");
+}
+
 function normalizeOrigin(urlLike: string) {
   try {
     return new URL(urlLike).origin.toLowerCase();
@@ -85,15 +121,26 @@ function normalizeOrigin(urlLike: string) {
   }
 }
 
+export function normalizeAllowedDomain(urlLike: string) {
+  return normalizeOrigin(urlLike);
+}
+
+export function normalizeAllowedDomains(values: string[]) {
+  return Array.from(
+    new Set(
+      values.map((value) => normalizeAllowedDomain(value)).filter(Boolean),
+    ),
+  );
+}
+
 function getAllowedDomainList(value: Prisma.JsonValue) {
   if (!Array.isArray(value)) {
     return [] as string[];
   }
 
-  return value
-    .filter((entry): entry is string => typeof entry === "string")
-    .map((entry) => normalizeOrigin(entry))
-    .filter(Boolean);
+  return normalizeAllowedDomains(
+    value.filter((entry): entry is string => typeof entry === "string"),
+  );
 }
 
 export function isOriginAllowedForSite(
@@ -128,7 +175,7 @@ export async function findActiveWebChannel(input: {
     const channel = await prisma.channel.findFirst({
       where: {
         id: input.channelId,
-        type: { in: WEBCHAT_CHANNEL_TYPE_VALUES },
+        type: "web",
         isActive: true,
         enabled: true,
       },
@@ -161,7 +208,7 @@ export async function findActiveWebChannel(input: {
   const channel = await prisma.channel.findFirst({
     where: {
       botId: input.botId,
-      type: { in: WEBCHAT_CHANNEL_TYPE_VALUES },
+      type: "web",
       isActive: true,
       enabled: true,
     },

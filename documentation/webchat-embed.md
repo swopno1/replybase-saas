@@ -21,6 +21,8 @@ Use one targeting option:
 - Fallback: `data-channel-id`
 - Fallback: `data-bot-id`
 
+Dashboard snippet generation now prefers `data-public-key` when the site record is available, with `data-channel-id` as a fallback.
+
 ## 2) API routes used by the widget
 
 - `POST /api/webchat/init`
@@ -43,9 +45,24 @@ Set one of:
 - `WEBCHAT_TOKEN_SECRET`
 - `AUTH_SECRET` (fallback)
 
-## 5) One-time data normalization
+## 5) Rate limiting knobs (optional)
 
-If old channels used `"Web"`, run:
+```bash
+WEBCHAT_RATE_LIMIT_INIT_IP=20
+WEBCHAT_RATE_LIMIT_INIT_WINDOW_MS=60000
+WEBCHAT_RATE_LIMIT_MESSAGE_IP=120
+WEBCHAT_RATE_LIMIT_MESSAGE_WINDOW_MS=60000
+WEBCHAT_RATE_LIMIT_MESSAGE_SESSION=60
+WEBCHAT_RATE_LIMIT_MESSAGE_SESSION_WINDOW_MS=60000
+WEBCHAT_RATE_LIMIT_EVENTS_IP=240
+WEBCHAT_RATE_LIMIT_EVENTS_WINDOW_MS=60000
+WEBCHAT_RATE_LIMIT_EVENTS_SESSION=180
+WEBCHAT_RATE_LIMIT_EVENTS_SESSION_WINDOW_MS=60000
+```
+
+## 6) One-time data normalization
+
+If legacy channels used mixed-case channel types (for example `"Web"`), run:
 
 ```bash
 pnpm run normalize:web-channel-type

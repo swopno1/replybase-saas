@@ -17,6 +17,8 @@ Base path: `/api/webchat`
 
 Initialize or restore a visitor session.
 
+Important: call `GET /api/webchat/config` first and pass the returned `initChallenge.token` into `init`.
+
 ### Request body
 
 ```json
@@ -24,6 +26,7 @@ Initialize or restore a visitor session.
   "publicKey": "optional-site-public-key",
   "channelId": "optional-channel-id",
   "botId": "optional-bot-id",
+  "initChallenge": "signed-one-time-config-issued-challenge",
   "origin": "https://site.example",
   "visitorId": "optional-sticky-visitor-id",
   "visitorContext": {
@@ -46,6 +49,7 @@ Initialize or restore a visitor session.
 Rules:
 
 - At least one of `publicKey`, `channelId`, or `botId` is required.
+- `initChallenge` is required and is single-use within its replay window.
 - `visitorContext` and `contact` are both accepted for contact enrichment.
 
 ### Success response
@@ -92,6 +96,20 @@ Get public widget config.
   "botId": "bot-id",
   "siteId": "webchat-site-id",
   "publicKey": "wpk_xxx",
+  "initChallenge": {
+    "token": "signed-one-time-init-token",
+    "expiresIn": 300
+  },
+  "telemetry": {
+    "taxonomyVersion": "2026-03-16",
+    "sampleRates": {
+      "OPEN": 1,
+      "CLOSE": 1,
+      "TYPING": 0.25,
+      "MESSAGE": 1,
+      "ERROR": 1
+    }
+  },
   "config": {
     "title": "Chat with us",
     "primaryColor": "#0f766e",
@@ -152,7 +170,8 @@ Ingest widget telemetry events.
   "token": "signed-session-token",
   "type": "OPEN",
   "payload": {
-    "url": "https://site.example/page"
+    "url": "https://site.example/page",
+    "trigger": "launcher"
   }
 }
 ```
@@ -163,7 +182,9 @@ Supported `type` values: `OPEN`, `CLOSE`, `TYPING`, `ERROR`, `MESSAGE`.
 
 ```json
 {
-  "ok": true
+  "ok": true,
+  "sampled": true,
+  "sampleRate": 1
 }
 ```
 
@@ -188,6 +209,7 @@ All endpoints support:
 ## Security Contract
 
 - Session token must be signed and unexpired.
+- Init challenge must be signed, unexpired, site-bound, and single-use.
 - Token must map to the expected conversation/bot context.
 - Origin policy follows `WEBCHAT_ALLOWED_ORIGINS`.
 - Rate limiting is enforced per IP and per session key on public write endpoints.
@@ -206,3 +228,4 @@ When throttling is active, responses may include:
 - `message` updates `WebChatSession.lastSeenAt` and `externalSessionId`.
 - `events` records `OPEN`/`CLOSE`/`TYPING`/`ERROR`/`MESSAGE` telemetry in `WebChatEvent`.
 - `init` records `INIT` and `message` records `MESSAGE` server-side events.
+- `events` payloads are normalized under a server-side telemetry taxonomy and may be sampled for high-volume signals such as `TYPING`.

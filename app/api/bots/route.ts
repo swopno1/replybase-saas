@@ -3,6 +3,12 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { checkBotLimit } from "@/lib/subscription";
+import { z } from "zod";
+
+const createBotSchema = z.object({
+  name: z.string().min(1),
+  channel: z.enum(["web", "facebook", "telegram", "whatsapp"]).optional(),
+});
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -56,14 +62,16 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { name, projectId, channel } = body;
-    const normalizedChannelType =
-      typeof channel === "string" ? channel.toLowerCase() : "web";
-
-    // Project ID is ignored/mocked for now since we don't have project model
-    if (!name) {
-      return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    const parsed = createBotSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid input", details: parsed.error.issues },
+        { status: 400 },
+      );
     }
+
+    const { name, channel } = parsed.data;
+    const normalizedChannelType = channel || "web";
 
     const bot = await prisma.bot.create({
       data: {

@@ -2,8 +2,22 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Copy, Globe, Loader2, Plus, Save } from "lucide-react";
+import {
+  ArrowLeft,
+  Copy,
+  Eye,
+  EyeOff,
+  ExternalLink,
+  Globe,
+  KeyRound,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Save,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -48,6 +62,36 @@ type PreviewMessage = {
   text: string;
 };
 
+type WebchatSite = {
+  id: string;
+  name: string;
+  publicKey: string;
+  secretKey: string;
+  allowedDomains: string[];
+  themeConfig?: {
+    title?: string;
+    primaryColor?: string;
+    welcomeMessage?: string;
+    position?: "left" | "right";
+    [key: string]: unknown;
+  };
+  channelId?: string | null;
+  isActive: boolean;
+};
+
+type WebchatDiagnostics = {
+  lastPingAt: string | null;
+  blockedOriginCount: number;
+  rateLimitCount: number;
+  recentErrors: Array<{
+    id: string;
+    createdAt: string;
+    reason: string;
+    stage: string | null;
+    message: string | null;
+  }>;
+};
+
 const PREVIEW_DEFAULT_DRAFT = "Can you help me choose the right plan?";
 const PREVIEW_SEED_MESSAGES: PreviewMessage[] = [
   {
@@ -74,10 +118,35 @@ function buildPreviewReply(message: string) {
   }
 
   if (normalized.includes("integrat") || normalized.includes("website")) {
-    return "Integration is done with a single embed script plus your webchat channel ID.";
+    return "Integration is done with a single embed script plus your webchat public key.";
   }
 
   return "That is the kind of reply your live widget will show after your AI flow is configured.";
+}
+
+function parseAllowedDomains(value: string) {
+  return value
+    .split(/[,\n]/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function normalizeOrigin(value: string) {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeAllowedDomains(values: string[]) {
+  return Array.from(
+    new Set(
+      values
+        .map((value) => normalizeOrigin(value))
+        .filter((value): value is string => Boolean(value)),
+    ),
+  );
 }
 
 export default function WebchatIntegrationPage() {
@@ -96,9 +165,20 @@ export default function WebchatIntegrationPage() {
     "Hi. How can I help you today?",
   );
   const [position, setPosition] = useState<"left" | "right">("right");
+  const [site, setSite] = useState<WebchatSite | null>(null);
+  const [allowedDomains, setAllowedDomains] = useState<string[]>([]);
+  const [allowedDomainsDraft, setAllowedDomainsDraft] = useState("");
+  const [isSiteLoading, setIsSiteLoading] = useState(false);
+  const [diagnostics, setDiagnostics] = useState<WebchatDiagnostics | null>(
+    null,
+  );
+  const [isDiagnosticsLoading, setIsDiagnosticsLoading] = useState(false);
+  const [isSecretVisible, setIsSecretVisible] = useState(false);
 
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [isCreatingChannel, setIsCreatingChannel] = useState(false);
+  const [isRotatingPublicKey, setIsRotatingPublicKey] = useState(false);
+  const [isRotatingSecretKey, setIsRotatingSecretKey] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(true);
   const [previewDraft, setPreviewDraft] = useState(PREVIEW_DEFAULT_DRAFT);
   const [previewMessages, setPreviewMessages] = useState<PreviewMessage[]>(
@@ -129,6 +209,10 @@ export default function WebchatIntegrationPage() {
     if (!selectedBotId) {
       setChannels([]);
       setSelectedChannelId("");
+      setSite(null);
+      setDiagnostics(null);
+      setAllowedDomains([]);
+      setAllowedDomainsDraft("");
       return;
     }
     void loadChannels(selectedBotId);
@@ -182,14 +266,45 @@ export default function WebchatIntegrationPage() {
     setPosition(selectedChannel.config?.position === "left" ? "left" : "right");
   }, [selectedChannel]);
 
+  useEffect(() => {
+    if (!selectedBotId || !selectedChannelId) {
+      setSite(null);
+      setDiagnostics(null);
+      setIsSecretVisible(false);
+      setAllowedDomains([]);
+      setAllowedDomainsDraft("");
+      return;
+    }
+
+    void loadWebchatSite(selectedBotId, selectedChannelId);
+    void loadWebchatDiagnostics(selectedBotId, selectedChannelId);
+  }, [selectedBotId, selectedChannelId]);
+
+  useEffect(() => {
+    setAllowedDomains(site?.allowedDomains || []);
+    setAllowedDomainsDraft("");
+    setIsSecretVisible(false);
+  }, [site]);
+
   const embedSnippet = useMemo(() => {
     if (!selectedChannelId) {
       return "";
     }
 
     const baseUrl = origin || "https://YOUR_REPLYBASE_DOMAIN";
-    return `<script\n  src=\"${baseUrl}/embed/replybase-webchat.js\"\n  data-base-url=\"${baseUrl}\"\n  data-channel-id=\"${selectedChannelId}\"\n  data-title=\"${title.replace(/\"/g, "&quot;")}\"\n  data-primary-color=\"${primaryColor}\"\n  data-position=\"${position}\"\n  defer\n></script>`;
-  }, [origin, position, primaryColor, selectedChannelId, title]);
+    const targetAttribute = site?.publicKey
+      ? `data-public-key=\"${site.publicKey}\"`
+      : `data-channel-id=\"${selectedChannelId}\"`;
+
+    return `<script\n  src=\"${baseUrl}/embed/replybase-webchat.js\"\n  data-base-url=\"${baseUrl}\"\n  ${targetAttribute}\n  data-title=\"${title.replace(/\"/g, "&quot;")}\"\n  data-primary-color=\"${primaryColor}\"\n  data-position=\"${position}\"\n  defer\n></script>`;
+  }, [
+    origin,
+    position,
+    primaryColor,
+    selectedChannelId,
+    site?.publicKey,
+    title,
+  ]);
 
   const previewColor = useMemo(() => {
     const hexColor = primaryColor.trim();
@@ -198,6 +313,76 @@ export default function WebchatIntegrationPage() {
     }
     return "#0f766e";
   }, [primaryColor]);
+
+  const normalizedAllowedDomains = useMemo(
+    () => normalizeAllowedDomains(allowedDomains),
+    [allowedDomains],
+  );
+
+  const normalizedDraftDomains = useMemo(
+    () => normalizeAllowedDomains(parseAllowedDomains(allowedDomainsDraft)),
+    [allowedDomainsDraft],
+  );
+
+  const invalidDraftDomains = useMemo(
+    () =>
+      parseAllowedDomains(allowedDomainsDraft).filter(
+        (entry) => !normalizeOrigin(entry),
+      ),
+    [allowedDomainsDraft],
+  );
+
+  const normalizedDashboardOrigin = useMemo(
+    () => (origin ? normalizeOrigin(origin) : null),
+    [origin],
+  );
+
+  const canLaunchTestFromDashboard = useMemo(() => {
+    if (!site?.publicKey) {
+      return false;
+    }
+
+    if (!normalizedAllowedDomains.length) {
+      return true;
+    }
+
+    return Boolean(
+      normalizedDashboardOrigin &&
+      normalizedAllowedDomains.includes(normalizedDashboardOrigin),
+    );
+  }, [normalizedAllowedDomains, normalizedDashboardOrigin, site?.publicKey]);
+
+  const testWidgetUrl = useMemo(() => {
+    if (!site?.publicKey) {
+      return "";
+    }
+
+    const params = new URLSearchParams({
+      publicKey: site.publicKey,
+      baseUrl: origin || "",
+      title,
+      primaryColor,
+      position,
+      welcomeMessage,
+      siteName: site.name || channelName,
+    });
+
+    if (normalizedAllowedDomains.length) {
+      params.set("allowedDomains", normalizedAllowedDomains.join(","));
+    }
+
+    return `/integrations/webchat/test?${params.toString()}`;
+  }, [
+    channelName,
+    origin,
+    normalizedAllowedDomains,
+    position,
+    primaryColor,
+    site?.name,
+    site?.publicKey,
+    title,
+    welcomeMessage,
+  ]);
 
   const previewTitle = title.trim() || "Chat with us";
   const previewWelcomeMessage =
@@ -298,6 +483,50 @@ export default function WebchatIntegrationPage() {
     }
   }
 
+  async function loadWebchatSite(botId: string, channelId: string) {
+    setIsSiteLoading(true);
+    try {
+      const response = await fetch(
+        `/api/bots/${botId}/webchat-site?channelId=${encodeURIComponent(channelId)}`,
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to load webchat site");
+      }
+
+      setSite(data.site || null);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to load webchat site",
+      );
+      setSite(null);
+    } finally {
+      setIsSiteLoading(false);
+    }
+  }
+
+  async function loadWebchatDiagnostics(botId: string, channelId: string) {
+    setIsDiagnosticsLoading(true);
+    try {
+      const response = await fetch(
+        `/api/bots/${botId}/webchat-site/diagnostics?channelId=${encodeURIComponent(channelId)}`,
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to load diagnostics");
+      }
+
+      setDiagnostics(data.diagnostics || null);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to load diagnostics",
+      );
+      setDiagnostics(null);
+    } finally {
+      setIsDiagnosticsLoading(false);
+    }
+  }
+
   async function handleCreateWebChannel() {
     if (!selectedBotId) {
       toast.error("Select a bot first");
@@ -371,8 +600,34 @@ export default function WebchatIntegrationPage() {
         throw new Error(data.error || "Failed to save webchat config");
       }
 
+      const siteResponse = await fetch(
+        `/api/bots/${selectedBotId}/webchat-site`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            channelId: selectedChannelId,
+            name: channelName.trim() || "Website Chat",
+            allowedDomains: normalizedAllowedDomains,
+            themeConfig: {
+              title,
+              primaryColor,
+              welcomeMessage,
+              position,
+            },
+          }),
+        },
+      );
+
+      const siteData = await siteResponse.json();
+      if (!siteResponse.ok) {
+        throw new Error(siteData.error || "Failed to save webchat site");
+      }
+
       toast.success("Webchat config saved");
       await loadChannels(selectedBotId);
+      setSite(siteData.site || null);
+      await loadWebchatDiagnostics(selectedBotId, selectedChannelId);
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -381,6 +636,125 @@ export default function WebchatIntegrationPage() {
       );
     } finally {
       setIsSavingConfig(false);
+    }
+  }
+
+  function handleAddAllowedDomains() {
+    if (!allowedDomainsDraft.trim()) {
+      toast.error("Enter at least one origin to add");
+      return;
+    }
+
+    if (invalidDraftDomains.length > 0) {
+      toast.error("Only valid origins can be added");
+      return;
+    }
+
+    if (!normalizedDraftDomains.length) {
+      toast.error("No valid origins found in the input");
+      return;
+    }
+
+    setAllowedDomains((current) =>
+      normalizeAllowedDomains([...current, ...normalizedDraftDomains]),
+    );
+    setAllowedDomainsDraft("");
+  }
+
+  function handleRemoveAllowedDomain(domain: string) {
+    setAllowedDomains((current) => current.filter((entry) => entry !== domain));
+  }
+
+  function handleAddCurrentOrigin() {
+    if (!normalizedDashboardOrigin) {
+      toast.error("Current origin is unavailable");
+      return;
+    }
+
+    setAllowedDomains((current) =>
+      normalizeAllowedDomains([...current, normalizedDashboardOrigin]),
+    );
+  }
+
+  async function handleRotateKey(keyType: "public" | "secret") {
+    if (!selectedBotId || !selectedChannelId) {
+      toast.error("Select a web channel first");
+      return;
+    }
+
+    const rotatePublicKey = keyType === "public";
+    const confirmMessage = rotatePublicKey
+      ? "Rotate the public key? Existing embed snippets will stop working until they are updated."
+      : "Rotate the secret key? Use the new value anywhere this site secret is stored.";
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    if (rotatePublicKey) {
+      setIsRotatingPublicKey(true);
+    } else {
+      setIsRotatingSecretKey(true);
+    }
+
+    try {
+      const response = await fetch(`/api/bots/${selectedBotId}/webchat-site`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          channelId: selectedChannelId,
+          rotatePublicKey,
+          rotateSecretKey: !rotatePublicKey,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to rotate key");
+      }
+
+      setSite(data.site || null);
+      toast.success(
+        rotatePublicKey
+          ? "Public key rotated. Update any deployed embed snippets."
+          : "Secret key rotated.",
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to rotate key",
+      );
+    } finally {
+      if (rotatePublicKey) {
+        setIsRotatingPublicKey(false);
+      } else {
+        setIsRotatingSecretKey(false);
+      }
+    }
+  }
+
+  async function copyValue(value: string, successMessage: string) {
+    if (!value) {
+      toast.error("Nothing to copy");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(successMessage);
+    } catch {
+      toast.error("Failed to copy value");
+    }
+  }
+
+  function handleLaunchTestWidget() {
+    if (!site?.publicKey || !testWidgetUrl) {
+      toast.error("Save or load a webchat site first");
+      return;
+    }
+
+    const nextWindow = window.open(testWidgetUrl, "_blank", "noopener");
+    if (!nextWindow) {
+      toast.error("Unable to open the test widget window");
     }
   }
 
@@ -409,8 +783,8 @@ export default function WebchatIntegrationPage() {
         </Link>
         <h1 className="text-3xl font-bold tracking-tight">Webchat Widget</h1>
         <p className="text-muted-foreground mt-1">
-          Generate your website chat embed snippet and manage webchat channel
-          config.
+          Generate your website chat embed snippet and manage webchat channel,
+          public key, and domain config.
         </p>
       </div>
 
@@ -549,6 +923,176 @@ export default function WebchatIntegrationPage() {
             />
           </div>
 
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="publicKey">Public Key</Label>
+              <Input
+                id="publicKey"
+                value={site?.publicKey || (isSiteLoading ? "Loading..." : "")}
+                readOnly
+              />
+              <p className="text-sm text-muted-foreground">
+                Use this in your embed snippet as `data-public-key`.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    void copyValue(site?.publicKey || "", "Public key copied")
+                  }
+                  disabled={!site?.publicKey}
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copy Public Key
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void handleRotateKey("public")}
+                  disabled={!site?.publicKey || isRotatingPublicKey}
+                >
+                  {isRotatingPublicKey ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                  )}
+                  Rotate Public Key
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="siteName">Site Record Name</Label>
+              <Input id="siteName" value={site?.name || channelName} readOnly />
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
+            <div className="space-y-2">
+              <Label htmlFor="secretKey">Secret Key</Label>
+              <Input
+                id="secretKey"
+                type={isSecretVisible ? "text" : "password"}
+                value={site?.secretKey || (isSiteLoading ? "Loading..." : "")}
+                readOnly
+              />
+              <p className="text-sm text-muted-foreground">
+                Keep this private. Rotate it if you suspect leakage or need to
+                re-issue site credentials.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2 md:justify-end">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setIsSecretVisible((value) => !value)}
+                disabled={!site?.secretKey}
+              >
+                {isSecretVisible ? (
+                  <EyeOff className="mr-2 h-4 w-4" />
+                ) : (
+                  <Eye className="mr-2 h-4 w-4" />
+                )}
+                {isSecretVisible ? "Hide Secret" : "Reveal Secret"}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  void copyValue(site?.secretKey || "", "Secret key copied")
+                }
+                disabled={!site?.secretKey}
+              >
+                <KeyRound className="mr-2 h-4 w-4" />
+                Copy Secret Key
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => void handleRotateKey("secret")}
+                disabled={!site?.secretKey || isRotatingSecretKey}
+              >
+                {isRotatingSecretKey ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                Rotate Secret Key
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="allowedDomains">Allowed Domains</Label>
+            <div className="flex flex-wrap gap-2">
+              <Input
+                id="allowedDomains"
+                value={allowedDomainsDraft}
+                onChange={(event) => setAllowedDomainsDraft(event.target.value)}
+                placeholder="https://example.com, https://www.example.com"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleAddAllowedDomains}
+                disabled={!selectedChannelId}
+              >
+                Add Domains
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleAddCurrentOrigin}
+                disabled={!normalizedDashboardOrigin || !selectedChannelId}
+              >
+                Add Current Origin
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Add exact origins only. Stored values are normalized to scheme +
+              host + port. Leave the list empty to allow any origin that passes
+              global CORS rules.
+            </p>
+            {invalidDraftDomains.length ? (
+              <p className="text-sm text-amber-700">
+                Invalid entries will not be added:{" "}
+                {invalidDraftDomains.join(", ")}
+              </p>
+            ) : null}
+            {normalizedAllowedDomains.length ? (
+              <div className="flex flex-wrap gap-2 rounded-lg border bg-slate-50 p-3">
+                {normalizedAllowedDomains.map((domain) => (
+                  <Badge
+                    key={domain}
+                    variant="secondary"
+                    className="gap-2 px-3 py-1 text-xs"
+                  >
+                    <span>{domain}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveAllowedDomain(domain)}
+                      className="rounded-full p-0.5 hover:bg-slate-300/60"
+                      aria-label={`Remove ${domain}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed bg-slate-50 p-3 text-sm text-muted-foreground">
+                No site-level origins configured yet.
+              </div>
+            )}
+          </div>
+
           <div className="flex flex-wrap gap-2">
             <Button
               onClick={handleSaveConfig}
@@ -565,12 +1109,44 @@ export default function WebchatIntegrationPage() {
             <Button
               variant="outline"
               onClick={copySnippet}
-              disabled={!selectedChannelId}
+              disabled={!selectedChannelId || isSiteLoading}
             >
               <Copy className="mr-2 h-4 w-4" />
               Copy Embed Snippet
             </Button>
+
+            <Button
+              variant="outline"
+              onClick={handleLaunchTestWidget}
+              disabled={!selectedChannelId || isSiteLoading || !site?.publicKey}
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Launch Test Widget
+            </Button>
           </div>
+
+          {site?.publicKey ? (
+            <div className="space-y-1 text-sm text-muted-foreground">
+              <p>
+                Launch opens an internal harness page that loads the real embed
+                script with this site&apos;s public key.
+              </p>
+              <p>
+                Rotating the public key invalidates existing embed snippets.
+                Rotating the secret key does not change the public snippet, but
+                any stored private credential must be updated.
+              </p>
+              {!canLaunchTestFromDashboard &&
+              normalizedAllowedDomains.length ? (
+                <p className="text-amber-700">
+                  The current dashboard origin {origin || "(unknown)"} is not on
+                  this site&apos;s allowlist. The harness will surface the same
+                  blocked-origin behavior until you add this origin or test from
+                  an allowed domain.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 
@@ -578,7 +1154,8 @@ export default function WebchatIntegrationPage() {
         <CardHeader>
           <CardTitle>Embed Snippet</CardTitle>
           <CardDescription>
-            Paste this in your website HTML before the closing body tag.
+            Paste this in your website HTML before the closing body tag. This
+            snippet prefers your webchat public key when available.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -591,6 +1168,82 @@ export default function WebchatIntegrationPage() {
             rows={10}
             className="font-mono text-xs"
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Diagnostics</CardTitle>
+          <CardDescription>
+            Recent site activity, blocked origins, and rate-limit signals for
+            the selected webchat site.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-lg border bg-slate-50 p-4">
+              <p className="text-sm text-muted-foreground">Last Ping</p>
+              <p className="mt-2 text-sm font-medium text-slate-900">
+                {isDiagnosticsLoading
+                  ? "Loading..."
+                  : diagnostics?.lastPingAt
+                    ? new Date(diagnostics.lastPingAt).toLocaleString()
+                    : "No activity yet"}
+              </p>
+            </div>
+            <div className="rounded-lg border bg-slate-50 p-4">
+              <p className="text-sm text-muted-foreground">Blocked Origins</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-900">
+                {diagnostics?.blockedOriginCount ?? 0}
+              </p>
+            </div>
+            <div className="rounded-lg border bg-slate-50 p-4">
+              <p className="text-sm text-muted-foreground">Rate-Limit Events</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-900">
+                {diagnostics?.rateLimitCount ?? 0}
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium text-slate-900">
+              Recent Errors
+            </h3>
+            {isDiagnosticsLoading ? (
+              <p className="text-sm text-muted-foreground">
+                Loading diagnostics...
+              </p>
+            ) : diagnostics?.recentErrors?.length ? (
+              <div className="space-y-2">
+                {diagnostics.recentErrors.map((entry) => (
+                  <div key={entry.id} className="rounded-lg border p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-medium text-slate-900">
+                        {entry.reason.replace(/_/g, " ")}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(entry.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {entry.stage
+                        ? `Stage: ${entry.stage}`
+                        : "Stage unavailable"}
+                    </p>
+                    {entry.message ? (
+                      <p className="mt-2 text-sm text-slate-700">
+                        {entry.message}
+                      </p>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No diagnostics events recorded for this site yet.
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
 

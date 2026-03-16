@@ -89,5 +89,6 @@ When incident occurs:
 ## Current Gaps to Close
 
 - add dedicated webchat test suite to CI
+- add distributed/shared rate limiter for multi-instance environments
+- verify strict Origin + Referer enforcement policy in production
 - add telemetry dashboards/alerts for widget lifecycle events
-- add dashboard diagnostics panel for runtime issues

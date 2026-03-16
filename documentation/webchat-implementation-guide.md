@@ -45,14 +45,17 @@ CRM continuity remains in place and is still used:
 
 Widget calls `POST /api/webchat/init` with `publicKey` (preferred) or `channelId` / `botId`.
 
+Before `init`, the widget first calls `GET /api/webchat/config` to obtain a signed one-time init challenge.
+
 Server flow:
 
 1. Validate CORS/origin policy.
 2. Resolve site by `publicKey`, or resolve active web channel and create/reuse `WebChatSite`.
 3. Enforce site domain allowlist (`allowedDomains`) using Origin/Referer.
-4. Resolve or create visitor contact + CRM conversation + `WebChatSession`.
-5. Issue signed session token (24h default).
-6. Record `INIT` telemetry event and return token + conversation/site/session context.
+4. Verify and consume the signed one-time init challenge to block replay.
+5. Resolve or create visitor contact + CRM conversation + `WebChatSession`.
+6. Issue signed session token (24h default).
+7. Record `INIT` telemetry event and return token + conversation/site/session context.
 
 ### 2) Config Fetch
 
@@ -62,7 +65,8 @@ Server flow:
 
 1. Validate CORS/origin policy.
 2. Resolve site by `publicKey`, or resolve active web channel and create/reuse site.
-3. Enforce site domain allowlist and return safe config from `WebChatSite.themeConfig`.
+3. Enforce site domain allowlist.
+4. Return safe widget config plus a short-lived signed init challenge and telemetry policy metadata.
 
 ### 3) Message Send
 
@@ -87,8 +91,9 @@ Server flow:
 1. Validate CORS/origin policy.
 2. Verify session token and resolve site.
 3. Enforce site domain allowlist.
-4. Persist event (`OPEN`, `CLOSE`, `TYPING`, `ERROR`, `MESSAGE`) to `WebChatEvent`.
-5. Touch `WebChatSession.lastSeenAt` when a matching session exists.
+4. Apply server-side telemetry taxonomy normalization and sampling policy.
+5. Persist sampled event (`OPEN`, `CLOSE`, `TYPING`, `ERROR`, `MESSAGE`) to `WebChatEvent`.
+6. Touch `WebChatSession.lastSeenAt` when a matching session exists.
 
 ## Dashboard Setup Flow
 
@@ -100,6 +105,11 @@ Capabilities:
 - Create/select web channel
 - Set channel name
 - Set widget title/color/position/welcome text
+- View site public key
+- Reveal, copy, and rotate site public and secret keys
+- Manage allowed domain list
+- View diagnostics for last ping, blocked origins, rate-limit events, and recent errors
+- Launch a dedicated internal widget harness that loads the real embed script for the selected site
 - Save channel config
 - Generate and copy embed snippet
 - Live preview with interactive send simulation
@@ -138,14 +148,14 @@ Still recommended:
 - explicit Referer validation policy
 - no wildcard origin in production
 - abuse mitigation controls
+- shared/distributed limiter backend for horizontally scaled deployments
 
 ## Known Gaps
 
-- Key lifecycle management UX (`publicKey` / `secretKey` rotation) is still pending.
+- Widget advanced UX is still pending (unread badge, mobile full-screen, iframe/shadow isolation).
 - No webchat-specific automated test suite yet.
 
 ## Upgrade Path (Next)
 
-1. Add dashboard key/domain management UX for `WebChatSite`.
-2. Add diagnostics views for telemetry and blocked-origin events.
-3. Add test matrix (unit/integration/e2e) and feature-flagged rollout.
+1. Add external telemetry dashboards/alerts for runtime monitoring.
+2. Add test matrix (unit/integration/e2e) and feature-flagged rollout.
