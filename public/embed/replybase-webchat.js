@@ -9,25 +9,27 @@
     new URL(scriptTag.src, window.location.href).origin;
   var channelId = scriptTag.getAttribute("data-channel-id");
   var botId = scriptTag.getAttribute("data-bot-id");
+  var publicKey = scriptTag.getAttribute("data-public-key");
   var title = scriptTag.getAttribute("data-title") || "Chat with us";
   var primaryColor = scriptTag.getAttribute("data-primary-color") || "#0f766e";
   var position = scriptTag.getAttribute("data-position") || "right";
 
-  if (!channelId && !botId) {
+  if (!channelId && !botId && !publicKey) {
     console.error(
-      "[ReplyBase Webchat] Missing data-channel-id or data-bot-id on script tag",
+      "[ReplyBase Webchat] Missing data-public-key, data-channel-id, or data-bot-id on script tag",
     );
     return;
   }
 
   var STORAGE_KEY_PREFIX = "replybase_webchat_session";
-  var storageScope = channelId || botId;
+  var storageScope = publicKey || channelId || botId;
   var token = "";
   var conversationId = "";
   var visitorId = "";
   var isOpen = false;
   var isSending = false;
   var initialized = false;
+  var lastTypingAt = 0;
 
   var root = document.createElement("div");
   root.id = "replybase-webchat-root";
@@ -194,8 +196,10 @@
 
     var existing = getStoredSession();
     var payload = {
+      publicKey: publicKey || undefined,
       channelId: channelId || undefined,
       botId: botId || undefined,
+      origin: window.location.origin,
       visitorId:
         existing && existing.visitorId ? existing.visitorId : undefined,
       metadata: {
@@ -218,10 +222,26 @@
     });
   }
 
+  function trackEvent(type, payload) {
+    if (!token) {
+      return Promise.resolve();
+    }
+
+    return request("/api/webchat/events", "POST", {
+      token: token,
+      type: type,
+      payload: payload || {},
+    }).catch(function () {
+      return null;
+    });
+  }
+
   function loadConfig() {
-    var query = channelId
-      ? "channelId=" + encodeURIComponent(channelId)
-      : "botId=" + encodeURIComponent(botId);
+    var query = publicKey
+      ? "publicKey=" + encodeURIComponent(publicKey)
+      : channelId
+        ? "channelId=" + encodeURIComponent(channelId)
+        : "botId=" + encodeURIComponent(botId);
 
     return request("/api/webchat/config?" + query, "GET").then(function (data) {
       var cfg = data.config || {};
@@ -270,6 +290,10 @@
         });
       })
       .catch(function (err) {
+        trackEvent("ERROR", {
+          stage: "message",
+          reason: err && err.message ? err.message : "Message failed",
+        });
         addSystemNote(err && err.message ? err.message : "Message failed");
       })
       .finally(function () {
@@ -285,11 +309,20 @@
     if (!initialized) {
       initializeSession()
         .then(loadConfig)
+        .then(function () {
+          return trackEvent("OPEN", {
+            url: window.location.href,
+          });
+        })
         .catch(function (err) {
           addSystemNote(
             err && err.message ? err.message : "Unable to start chat",
           );
         });
+    } else {
+      trackEvent("OPEN", {
+        url: window.location.href,
+      });
     }
   }
 
@@ -299,6 +332,9 @@
     button.style.alignItems = "center";
     button.style.justifyContent = "center";
     isOpen = false;
+    trackEvent("CLOSE", {
+      url: window.location.href,
+    });
   }
 
   button.addEventListener("click", function () {
@@ -315,6 +351,15 @@
     if (event.key === "Enter") {
       event.preventDefault();
       sendMessage();
+      return;
+    }
+
+    var now = Date.now();
+    if (now - lastTypingAt > 3000) {
+      lastTypingAt = now;
+      trackEvent("TYPING", {
+        url: window.location.href,
+      });
     }
   });
 })();

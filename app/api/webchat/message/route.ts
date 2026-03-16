@@ -7,6 +7,11 @@ import {
   createWebchatCorsHeaders,
   isWebchatOriginAllowed,
 } from "@/lib/webchat-cors";
+import {
+  consumeWebchatRateLimit,
+  createWebchatRateLimitHeaders,
+  getWebchatLimiterKeyFromRequest,
+} from "@/lib/webchat-rate-limit";
 
 const messageSchema = z.object({
   token: z.string().min(1),
@@ -35,6 +40,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const ipRateLimit = consumeWebchatRateLimit({
+      scope: "message_ip",
+      key: getWebchatLimiterKeyFromRequest(request),
+    });
+
+    if (!ipRateLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: "Rate limit exceeded",
+          message:
+            "Too many webchat messages from this network. Please retry shortly.",
+        },
+        {
+          status: 429,
+          headers: {
+            ...createWebchatCorsHeaders(request),
+            ...createWebchatRateLimitHeaders(ipRateLimit),
+          },
+        },
+      );
+    }
+
     let session;
     try {
       session = verifyWebchatSessionToken(parsed.data.token);
@@ -42,6 +69,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Invalid session token" },
         { status: 401, headers: createWebchatCorsHeaders(request) },
+      );
+    }
+
+    const sessionRateLimit = consumeWebchatRateLimit({
+      scope: "message_session",
+      key: `${session.siteId || session.channelId}:${session.visitorId}`,
+    });
+
+    if (!sessionRateLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: "Rate limit exceeded",
+          message:
+            "Too many messages in this chat session. Please wait and try again.",
+        },
+        {
+          status: 429,
+          headers: {
+            ...createWebchatCorsHeaders(request),
+            ...createWebchatRateLimitHeaders(sessionRateLimit),
+          },
+        },
       );
     }
 
@@ -65,6 +114,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const webChatSession = session.siteId
+      ? await prisma.webChatSession.findFirst({
+          where: {
+            siteId: session.siteId,
+            visitorId: session.visitorId,
+          },
+        })
+      : await prisma.webChatSession.findFirst({
+          where: {
+            visitorId: session.visitorId,
+            site: {
+              channelId: session.channelId,
+              botId: session.botId,
+            },
+          },
+          orderBy: { updatedAt: "desc" },
+        });
+
     const aiResult = await converse({
       botId: session.botId,
       tenantId: session.tenantId,
@@ -72,6 +139,31 @@ export async function POST(request: NextRequest) {
       channel: "web",
       message: parsed.data.message,
     });
+
+    if (webChatSession) {
+      await prisma.webChatSession.update({
+        where: { id: webChatSession.id },
+        data: {
+          conversationId: session.conversationId,
+          externalSessionId: aiResult.sessionId || null,
+          lastSeenAt: new Date(),
+        },
+      });
+
+      await prisma.webChatEvent.create({
+        data: {
+          siteId: webChatSession.siteId,
+          sessionId: webChatSession.id,
+          type: "MESSAGE",
+          payload: {
+            messageLength: parsed.data.message.length,
+            responseCount: Array.isArray(aiResult.responses)
+              ? aiResult.responses.length
+              : 0,
+          },
+        },
+      });
+    }
 
     return NextResponse.json(
       {

@@ -9,9 +9,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { signIn } from "next-auth/react";
-import { useState } from "react";
+import { getSession, signIn, useSession } from "next-auth/react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
 import {
   Field,
   FieldDescription,
@@ -21,34 +22,145 @@ import {
 } from "@/components/ui/field";
 import Link from "next/link";
 
+type FeedbackTone = "info" | "success" | "error";
+
+type AuthFeedback = {
+  tone: FeedbackTone;
+  title: string;
+  message: string;
+  instruction?: string;
+};
+
+function mapNextAuthError(error?: string | null): AuthFeedback {
+  if (!error) {
+    return {
+      tone: "error",
+      title: "Sign in failed",
+      message: "We could not complete your sign in.",
+      instruction: "Please try again in a moment.",
+    };
+  }
+
+  if (error === "CredentialsSignin") {
+    return {
+      tone: "error",
+      title: "Invalid email or password",
+      message: "The credentials you entered do not match an account.",
+      instruction:
+        "Check your email/password and try again, or use 'Forgot your password?'.",
+    };
+  }
+
+  if (error === "AccessDenied") {
+    return {
+      tone: "error",
+      title: "Access denied",
+      message: "Your account is not allowed to sign in.",
+      instruction: "Contact support if you believe this is a mistake.",
+    };
+  }
+
+  return {
+    tone: "error",
+    title: "Authentication error",
+    message: `Provider returned: ${error}`,
+    instruction: "Try again. If this keeps happening, contact support.",
+  };
+}
+
+function FeedbackBanner({ feedback }: { feedback: AuthFeedback }) {
+  const styles = {
+    info: "border-blue-200 bg-blue-50 text-blue-900",
+    success: "border-emerald-200 bg-emerald-50 text-emerald-900",
+    error: "border-red-200 bg-red-50 text-red-900",
+  };
+
+  return (
+    <div className={`rounded-md border p-3 text-sm ${styles[feedback.tone]}`}>
+      <p className="font-medium">{feedback.title}</p>
+      <p>{feedback.message}</p>
+      {feedback.instruction ? <p>{feedback.instruction}</p> : null}
+    </div>
+  );
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [feedback, setFeedback] = useState<AuthFeedback | null>(null);
+  const { status } = useSession();
   const router = useRouter();
+
+  const sessionFeedback = useMemo(() => {
+    if (status === "loading") {
+      return {
+        tone: "info",
+        title: "Checking session",
+        message: "Please wait while we verify your authentication state.",
+      } as AuthFeedback;
+    }
+
+    return null;
+  }, [status]);
 
   const handleCredentialsLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
-    // Attempt sign in
-    const res = await signIn("credentials", {
-      email,
-      password: (
-        (e.currentTarget as HTMLFormElement).elements.namedItem(
-          "password"
-        ) as HTMLInputElement
-      ).value,
-      redirect: false,
+    setFeedback({
+      tone: "info",
+      title: "Signing in",
+      message: "Checking your credentials and creating your session.",
     });
 
-    setIsLoading(false);
+    try {
+      const res = await signIn("credentials", {
+        email,
+        password,
+        callbackUrl: "/",
+        redirect: false,
+      });
 
-    if (res?.error) {
-      // Ideally show a toast here
-      alert("Invalid credentials");
-    } else {
+      if (res?.error) {
+        setFeedback(mapNextAuthError(res.error));
+        return;
+      }
+
+      setFeedback({
+        tone: "info",
+        title: "Sign in successful",
+        message: "Verifying session before redirecting...",
+      });
+
+      const session = await getSession();
+      if (!session?.user) {
+        setFeedback({
+          tone: "error",
+          title: "Session was not established",
+          message: "Login was accepted but no active session is available.",
+          instruction:
+            "Refresh the page and try again. If it persists, check AUTH_SECRET/NEXTAUTH_URL and browser cookie settings.",
+        });
+        return;
+      }
+
+      setFeedback({
+        tone: "success",
+        title: "Signed in",
+        message: "Authentication complete. Redirecting to your dashboard...",
+      });
       router.push("/");
       router.refresh();
+    } catch {
+      setFeedback({
+        tone: "error",
+        title: "Unexpected sign-in error",
+        message: "We could not reach the authentication service.",
+        instruction: "Check your connection and try again.",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -101,6 +213,11 @@ export default function LoginPage() {
             Or continue with
           </FieldSeparator>
 
+          {feedback ? <FeedbackBanner feedback={feedback} /> : null}
+          {!feedback && sessionFeedback ? (
+            <FeedbackBanner feedback={sessionFeedback} />
+          ) : null}
+
           <div className="grid gap-4">
             <form onSubmit={handleCredentialsLogin} className="grid gap-4">
               <div className="grid gap-2">
@@ -111,6 +228,7 @@ export default function LoginPage() {
                     type="email"
                     placeholder="m@example.com"
                     required
+                    autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
@@ -126,7 +244,31 @@ export default function LoginPage() {
                       Forgot your password?
                     </Link>
                   </div>
-                  <Input id="password" type="password" required />
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      required
+                      autoComplete="current-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex w-10 items-center justify-center"
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                 </Field>
 
                 <Field>

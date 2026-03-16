@@ -39,6 +39,7 @@ model User {
   id                    String            @id @default(cuid())
   name                  String?
   email                 String?           @unique
+  passwordHash          String?
   emailVerified         DateTime?
   image                 String?
   createdAt             DateTime          @default(now())
@@ -73,6 +74,7 @@ model Tenant {
   subscriptions Subscription?
   usageLogs     UsageLog[]
   users         User[]
+  webChatSites  WebChatSite[]
   newsletterSubscriptions NewsletterSubscriber[]
   dataDeletionRequests    DataDeletionRequest[]
 
@@ -206,6 +208,7 @@ model Bot {
   crmConversations CrmConversation[]
   executionLogs    ExecutionLog[]
   facebookPages    FacebookPage[]
+  webChatSites     WebChatSite[]
 
   @@index([tenantId])
   @@map("bots")
@@ -337,6 +340,7 @@ model CrmConversation {
   contact        Contact            @relation(fields: [contactId], references: [id])
   facebookPage   FacebookPage?      @relation(fields: [facebookPageId], references: [id])
   messages       CrmMessage[]
+  webChatSessions WebChatSession[]
   internalNotes  InternalNote[]
 
   @@index([contactId])
@@ -356,6 +360,67 @@ model CrmMessage {
 
   @@index([conversationId])
   @@map("crm_messages")
+}
+
+model WebChatSite {
+  id             String           @id @default(cuid())
+  tenantId       String
+  botId          String
+  channelId      String?          @unique
+  name           String
+  publicKey      String           @unique
+  secretKey      String
+  allowedDomains Json             @default("[]")
+  isActive       Boolean          @default(true)
+  themeConfig    Json             @default("{}")
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  bot            Bot              @relation(fields: [botId], references: [id])
+  tenant         Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sessions       WebChatSession[]
+  events         WebChatEvent[]
+
+  @@index([tenantId])
+  @@index([botId])
+  @@index([isActive])
+  @@map("webchat_sites")
+}
+
+model WebChatSession {
+  id                String          @id @default(cuid())
+  siteId            String
+  conversationId    String
+  externalSessionId String?
+  visitorId         String
+  fingerprint       String?
+  metadata          Json?
+  lastSeenAt        DateTime        @default(now())
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  conversation      CrmConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  site              WebChatSite     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  events            WebChatEvent[]
+
+  @@unique([siteId, visitorId])
+  @@index([conversationId])
+  @@index([lastSeenAt])
+  @@map("webchat_sessions")
+}
+
+model WebChatEvent {
+  id         String           @id @default(cuid())
+  siteId     String
+  sessionId  String?
+  type       WebChatEventType
+  payload    Json?
+  createdAt  DateTime         @default(now())
+  session    WebChatSession?  @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  site       WebChatSite      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([siteId, createdAt])
+  @@index([sessionId, createdAt])
+  @@index([type, createdAt])
+  @@map("webchat_events")
 }
 
 model InternalNote {
@@ -1073,6 +1138,15 @@ enum DataDeletionStatus {
   IN_PROGRESS
   COMPLETED
   REJECTED
+}
+
+enum WebChatEventType {
+  INIT
+  MESSAGE
+  OPEN
+  CLOSE
+  TYPING
+  ERROR
 }
 
 model WebhookLog {

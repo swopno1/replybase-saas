@@ -6,6 +6,7 @@
 <script
   src="https://YOUR_REPLYBASE_DOMAIN/embed/replybase-webchat.js"
   data-base-url="https://YOUR_REPLYBASE_DOMAIN"
+  data-public-key="YOUR_WEBCHAT_PUBLIC_KEY"
   data-channel-id="YOUR_WEB_CHANNEL_ID"
   data-title="Chat with ReplyBase"
   data-primary-color="#0f766e"
@@ -14,13 +15,18 @@
 ></script>
 ```
 
-You can use `data-bot-id` instead of `data-channel-id`.
+Use one targeting option:
+
+- Preferred: `data-public-key`
+- Fallback: `data-channel-id`
+- Fallback: `data-bot-id`
 
 ## 2) API routes used by the widget
 
 - `POST /api/webchat/init`
 - `GET /api/webchat/config`
 - `POST /api/webchat/message`
+- `POST /api/webchat/events`
 
 ## 3) CORS allowlist (optional)
 

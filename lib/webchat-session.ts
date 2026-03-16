@@ -2,7 +2,8 @@ import crypto from "crypto";
 
 const DEFAULT_TTL_SECONDS = 60 * 60 * 24; // 24 hours
 
-type WebchatSessionPayload = {
+export type WebchatSessionPayload = {
+  siteId?: string;
   channelId: string;
   botId: string;
   tenantId: string;
@@ -28,6 +29,7 @@ function getSigningSecret(): string {
 }
 
 export function createWebchatSessionToken(params: {
+  siteId?: string;
   channelId: string;
   botId: string;
   tenantId: string;
@@ -37,6 +39,7 @@ export function createWebchatSessionToken(params: {
 }): string {
   const ttlSeconds = params.ttlSeconds || DEFAULT_TTL_SECONDS;
   const payload: WebchatSessionPayload = {
+    siteId: params.siteId,
     channelId: params.channelId,
     botId: params.botId,
     tenantId: params.tenantId,

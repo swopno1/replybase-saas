@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomBytes, randomUUID } from "crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
@@ -10,12 +10,122 @@ type InitContactInput = {
   phone?: string;
 };
 
+type ActiveWebChannel = {
+  id: string;
+  name: string;
+  config: Prisma.JsonValue;
+  bot: {
+    id: string;
+    tenantId: string;
+  };
+};
+
+export type ActiveWebChatSite = {
+  id: string;
+  name: string;
+  publicKey: string;
+  secretKey: string;
+  channelId: string | null;
+  allowedDomains: Prisma.JsonValue;
+  isActive: boolean;
+  themeConfig: Prisma.JsonValue;
+  bot: {
+    id: string;
+    tenantId: string;
+  };
+};
+
+type DbWebChatSiteWithBot = Prisma.WebChatSiteGetPayload<{
+  include: {
+    bot: {
+      select: {
+        id: true;
+        tenantId: true;
+      };
+    };
+  };
+}>;
+
+function toActiveWebChatSite(site: DbWebChatSiteWithBot): ActiveWebChatSite {
+  return {
+    id: site.id,
+    name: site.name,
+    publicKey: site.publicKey,
+    secretKey: site.secretKey,
+    channelId: site.channelId,
+    allowedDomains: site.allowedDomains,
+    isActive: site.isActive,
+    themeConfig: site.themeConfig,
+    bot: site.bot,
+  };
+}
+
+function getPrimaryAllowedDomain(metadata?: Record<string, unknown>) {
+  const origin =
+    typeof metadata?.origin === "string" ? metadata.origin.trim() : "";
+  if (!origin) {
+    return [];
+  }
+  return [origin];
+}
+
+function generatePublicKey() {
+  return `wpk_${randomBytes(16).toString("hex")}`;
+}
+
+function generateSecretKey() {
+  return `wsk_${randomBytes(32).toString("hex")}`;
+}
+
+function normalizeOrigin(urlLike: string) {
+  try {
+    return new URL(urlLike).origin.toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function getAllowedDomainList(value: Prisma.JsonValue) {
+  if (!Array.isArray(value)) {
+    return [] as string[];
+  }
+
+  return value
+    .filter((entry): entry is string => typeof entry === "string")
+    .map((entry) => normalizeOrigin(entry))
+    .filter(Boolean);
+}
+
+export function isOriginAllowedForSite(
+  site: Pick<ActiveWebChatSite, "allowedDomains">,
+  origin?: string | null,
+  referer?: string | null,
+) {
+  const allowlist = getAllowedDomainList(site.allowedDomains);
+  if (allowlist.length === 0) {
+    return true;
+  }
+
+  const normalizedOrigin = origin ? normalizeOrigin(origin) : "";
+  const normalizedRefererOrigin = referer ? normalizeOrigin(referer) : "";
+
+  if (normalizedOrigin && allowlist.includes(normalizedOrigin)) {
+    return true;
+  }
+
+  if (normalizedRefererOrigin && allowlist.includes(normalizedRefererOrigin)) {
+    return true;
+  }
+
+  return false;
+}
+
 export async function findActiveWebChannel(input: {
   channelId?: string;
   botId?: string;
-}) {
+}): Promise<ActiveWebChannel | null> {
   if (input.channelId) {
-    return prisma.channel.findFirst({
+    const channel = await prisma.channel.findFirst({
       where: {
         id: input.channelId,
         type: { in: WEBCHAT_CHANNEL_TYPE_VALUES },
@@ -31,13 +141,24 @@ export async function findActiveWebChannel(input: {
         },
       },
     });
+
+    if (!channel) {
+      return null;
+    }
+
+    return {
+      id: channel.id,
+      name: channel.name,
+      config: channel.config,
+      bot: channel.bot,
+    };
   }
 
   if (!input.botId) {
     return null;
   }
 
-  return prisma.channel.findFirst({
+  const channel = await prisma.channel.findFirst({
     where: {
       botId: input.botId,
       type: { in: WEBCHAT_CHANNEL_TYPE_VALUES },
@@ -56,12 +177,131 @@ export async function findActiveWebChannel(input: {
       },
     },
   });
+
+  if (!channel) {
+    return null;
+  }
+
+  return {
+    id: channel.id,
+    name: channel.name,
+    config: channel.config,
+    bot: channel.bot,
+  };
+}
+
+export async function getOrCreateWebChatSite(params: {
+  channelId: string;
+  botId: string;
+  tenantId: string;
+  name: string;
+  themeConfig?: Prisma.JsonObject;
+  metadata?: Record<string, unknown>;
+}) {
+  const existingSite = await prisma.webChatSite.findUnique({
+    where: { channelId: params.channelId },
+    include: {
+      bot: {
+        select: {
+          id: true,
+          tenantId: true,
+        },
+      },
+    },
+  });
+
+  if (existingSite) {
+    return toActiveWebChatSite(existingSite);
+  }
+
+  const createdSite = await prisma.webChatSite.create({
+    data: {
+      channelId: params.channelId,
+      botId: params.botId,
+      tenantId: params.tenantId,
+      name: params.name,
+      publicKey: generatePublicKey(),
+      secretKey: generateSecretKey(),
+      allowedDomains: getPrimaryAllowedDomain(params.metadata),
+      themeConfig: params.themeConfig || {},
+      isActive: true,
+    },
+    include: {
+      bot: {
+        select: {
+          id: true,
+          tenantId: true,
+        },
+      },
+    },
+  });
+
+  return toActiveWebChatSite(createdSite);
+}
+
+export async function findActiveWebChatSite(input: {
+  publicKey?: string;
+  channelId?: string;
+  botId?: string;
+}): Promise<ActiveWebChatSite | null> {
+  if (input.publicKey) {
+    const site = await prisma.webChatSite.findFirst({
+      where: {
+        publicKey: input.publicKey,
+        isActive: true,
+      },
+      include: {
+        bot: {
+          select: {
+            id: true,
+            tenantId: true,
+          },
+        },
+      },
+    });
+
+    if (!site) {
+      return null;
+    }
+
+    return toActiveWebChatSite(site);
+  }
+
+  if (!input.channelId && !input.botId) {
+    return null;
+  }
+
+  const site = await prisma.webChatSite.findFirst({
+    where: {
+      channelId: input.channelId,
+      botId: input.botId,
+      isActive: true,
+    },
+    orderBy: {
+      createdAt: "asc",
+    },
+    include: {
+      bot: {
+        select: {
+          id: true,
+          tenantId: true,
+        },
+      },
+    },
+  });
+
+  if (!site) {
+    return null;
+  }
+
+  return toActiveWebChatSite(site);
 }
 
 export async function resolveWebchatVisitorSession(params: {
+  siteId: string;
   botId: string;
   tenantId: string;
-  channelId: string;
+  channelId?: string;
   visitorId?: string;
   contact?: InitContactInput;
   metadata?: Record<string, unknown>;
@@ -134,16 +374,56 @@ export async function resolveWebchatVisitorSession(params: {
         botId: params.botId,
         channel: "web",
         metadata: {
-          channelId: params.channelId,
+          siteId: params.siteId,
+          ...(params.channelId ? { channelId: params.channelId } : {}),
           ...(params.metadata || {}),
         } as Prisma.InputJsonValue,
       },
     });
   }
 
+  const existingSession = await prisma.webChatSession.findUnique({
+    where: {
+      siteId_visitorId: {
+        siteId: params.siteId,
+        visitorId,
+      },
+    },
+  });
+
+  const sessionMetadata = (params.metadata || {}) as Prisma.InputJsonValue;
+
+  const webChatSession = existingSession
+    ? await prisma.webChatSession.update({
+        where: { id: existingSession.id },
+        data: {
+          conversationId: conversation.id,
+          lastSeenAt: new Date(),
+          fingerprint:
+            typeof params.metadata?.fingerprint === "string"
+              ? params.metadata.fingerprint
+              : existingSession.fingerprint,
+          metadata: sessionMetadata,
+        },
+      })
+    : await prisma.webChatSession.create({
+        data: {
+          siteId: params.siteId,
+          conversationId: conversation.id,
+          visitorId,
+          fingerprint:
+            typeof params.metadata?.fingerprint === "string"
+              ? params.metadata.fingerprint
+              : null,
+          metadata: sessionMetadata,
+          lastSeenAt: new Date(),
+        },
+      });
+
   return {
     visitorId,
     contact,
     conversation,
+    webChatSession,
   };
 }

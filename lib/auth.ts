@@ -5,6 +5,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import type { AdapterUser } from "next-auth/adapters";
 import { PrismaAdapter } from "next-auth-prisma-adapter";
 import { prisma } from "@/lib/prisma";
+import { verifyPassword } from "@/lib/password";
 
 export const authOptions: NextAuthOptions = {
   adapter: {
@@ -53,21 +54,40 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        // TODO: Backend integration for email/password authentication
-        // This is a placeholder. In a real application, you would validate
-        // the credentials against your database.
-        if (
-          credentials?.email === "test@example.com" &&
-          credentials?.password === "password"
-        ) {
-          return {
-            id: "1",
-            name: "Test User",
-            email: "test@example.com",
-            tenantId: "test-tenant",
-          };
+        if (!credentials?.email || !credentials?.password) {
+          return null;
         }
-        return null;
+
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email.toLowerCase().trim() },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            tenantId: true,
+            passwordHash: true,
+          },
+        });
+
+        if (!user?.passwordHash) {
+          return null;
+        }
+
+        const isValid = await verifyPassword(
+          credentials.password,
+          user.passwordHash,
+        );
+
+        if (!isValid) {
+          return null;
+        }
+
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          tenantId: user.tenantId,
+        };
       },
     }),
   ],
@@ -142,7 +162,7 @@ export const authOptions: NextAuthOptions = {
     },
   },
   pages: {
-    signIn: "/login",
+    signIn: "/auth/login",
   },
   secret: process.env.AUTH_SECRET,
 };
