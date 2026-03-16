@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-export default function WebchatE2EHarnessPage() {
+function WebchatE2EHarnessContent() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"loading" | "ready" | "error">(
     "loading",
@@ -70,5 +70,20 @@ export default function WebchatE2EHarnessPage() {
       </p>
       <p data-testid="e2e-status">{status}</p>
     </main>
+  );
+}
+
+export default function WebchatE2EHarnessPage() {
+  return (
+    <Suspense
+      fallback={
+        <main style={{ padding: "24px", minHeight: "100vh" }}>
+          <h1 data-testid="e2e-title">Webchat E2E Harness</h1>
+          <p data-testid="e2e-status">loading</p>
+        </main>
+      }
+    >
+      <WebchatE2EHarnessContent />
+    </Suspense>
   );
 }

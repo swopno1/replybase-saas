@@ -347,7 +347,7 @@ export async function executeWebchatFlowFirst(params: {
   };
   const responses: Array<{ type: "text"; text: string }> = [];
   let pendingMessage = params.message.trim();
-  let currentNode =
+  let currentNode: (typeof flow.nodes)[number] | null =
     flow.nodes.find((node) => node.id === session.currentNodeId) ||
     flow.nodes[0];
   let completed = false;

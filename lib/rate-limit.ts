@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkLimit, incrementUsage } from "./subscription";
 import { getServerSession } from "next-auth/next";
+import type { ChannelType } from "@prisma/client";
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -16,7 +17,7 @@ export async function rateLimitMiddleware(
   req: NextRequest,
   type: "message" | "flow_execution",
   botId?: string,
-  channelId?: string
+  channelId?: string,
 ): Promise<RateLimitResult | null> {
   try {
     const session = await getServerSession(authOptions);
@@ -52,7 +53,7 @@ export async function rateLimitMiddleware(
  * Create rate limit response
  */
 export function createRateLimitResponse(
-  rateLimit: RateLimitResult
+  rateLimit: RateLimitResult,
 ): NextResponse {
   const headers = new Headers();
   headers.set("X-RateLimit-Limit", rateLimit.limit.toString());
@@ -73,7 +74,7 @@ export function createRateLimitResponse(
     {
       status: 429,
       headers,
-    }
+    },
   );
 }
 
@@ -85,8 +86,8 @@ import { authOptions } from "./auth";
  */
 export async function isChannelKillSwitchEnabled(
   botId: string,
-  channelType: string,
-  channelId: string
+  channelType: ChannelType,
+  channelId: string,
 ): Promise<boolean> {
   const channel = await prisma.channel.findFirst({
     where: {
