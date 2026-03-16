@@ -22,6 +22,7 @@ import {
   mergeConversationMetadata,
 } from "@/lib/webchat-conversation-engine";
 import { sanitizeWebchatMetadataForRetention } from "@/lib/webchat-privacy";
+import { recordWebchatMetric } from "@/lib/webchat-metrics";
 
 const messageSchema = z.object({
   token: z.string().min(1),
@@ -122,6 +123,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      recordWebchatMetric("webchat.rate_limit.hit", { scope: "message_ip", siteId: site.id });
       return NextResponse.json(
         {
           error: "Rate limit exceeded",
@@ -152,6 +154,7 @@ export async function POST(request: NextRequest) {
           scope: "message_session",
           message:
             "Too many messages in this chat session. Please wait and try again.",
+          recordWebchatMetric("webchat.rate_limit.hit", { scope: "message_session", siteId: site.id });
         },
       });
 
@@ -354,6 +357,11 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      recordWebchatMetric("webchat.message.processed", {
+        siteId: site.id,
+        responseSource: "flow",
+        responseCount: flowResult.responses.length,
+      });
       return NextResponse.json(
         {
           conversationId: session.conversationId,
@@ -406,6 +414,11 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      recordWebchatMetric("webchat.message.processed", {
+        siteId: site.id,
+        responseSource: "ai",
+        responseCount: Array.isArray(aiResult.responses) ? aiResult.responses.length : 0,
+      });
       return NextResponse.json(
         {
           conversationId: session.conversationId,
@@ -464,6 +477,11 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      recordWebchatMetric("webchat.message.processed", {
+        siteId: site.id,
+        responseSource: "safe_fallback",
+        responseCount: 1,
+      });
       return NextResponse.json(
         {
           conversationId: session.conversationId,

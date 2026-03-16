@@ -27,6 +27,7 @@ import {
   sanitizeWebchatContactForRetention,
   sanitizeWebchatMetadataForRetention,
 } from "@/lib/webchat-privacy";
+import { recordWebchatMetric } from "@/lib/webchat-metrics";
 
 const initSchema = z
   .object({
@@ -72,6 +73,14 @@ export async function POST(request: NextRequest) {
   try {
     if (!isWebchatOriginAllowed(request)) {
       const reason = getWebchatOriginRejectionReason(request);
+      recordWebchatMetric("webchat.cors.denied", {
+        reason: reason ?? undefined,
+        stage: "init",
+      });
+      recordWebchatMetric("webchat.rate_limit.hit", {
+        scope: "init_ip",
+        siteId: site.id,
+      });
       return NextResponse.json(
         { error: "Origin not allowed", reason },
         { status: 403, headers: createWebchatCorsHeaders(request) },
@@ -289,6 +298,11 @@ export async function POST(request: NextRequest) {
       visitorId: session.visitorId,
     });
 
+    recordWebchatMetric("webchat.session.init", {
+      siteId: site.id,
+      botId: site.bot.id,
+      hasContact: Boolean(parsed.data.contact || parsed.data.visitorContext),
+    });
     return NextResponse.json(
       {
         token,
@@ -312,7 +326,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
 export async function OPTIONS(request: NextRequest) {
   if (!isWebchatOriginAllowed(request)) {
     return new NextResponse(null, {

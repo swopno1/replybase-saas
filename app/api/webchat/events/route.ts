@@ -20,6 +20,7 @@ import {
   shouldSampleWebchatTelemetry,
 } from "@/lib/webchat-telemetry";
 import { sanitizeWebchatMetadataForRetention } from "@/lib/webchat-privacy";
+import { recordWebchatMetric } from "@/lib/webchat-metrics";
 
 const eventSchema = z.object({
   token: z.string().min(1),
@@ -96,6 +97,10 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      recordWebchatMetric("webchat.rate_limit.hit", {
+        scope: "events_ip",
+        siteId: site.id,
+      });
       return NextResponse.json(
         {
           error: "Rate limit exceeded",
@@ -170,6 +175,10 @@ export async function POST(request: NextRequest) {
     const sampled = shouldSampleWebchatTelemetry(parsed.data.type);
 
     if (!sampled) {
+      recordWebchatMetric("webchat.event.sampled_out", {
+        type: parsed.data.type,
+        siteId: site.id,
+      });
       return NextResponse.json(
         { ok: true, sampled: false, sampleRate: telemetryPolicy.sampleRate },
         { headers: createWebchatCorsHeaders(request) },
@@ -223,6 +232,10 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+recordWebchatMetric("webchat.event.tracked", {
+  type: parsed.data.type,
+  siteId: site.id,
+});
 
 export async function OPTIONS(request: NextRequest) {
   if (!isWebchatOriginAllowed(request)) {

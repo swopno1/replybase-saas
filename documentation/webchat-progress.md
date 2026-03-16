@@ -5,15 +5,15 @@ description: Phase-by-phase implementation status of ReplyBase Webchat against t
 
 # Webchat Progress Status
 
-Last reviewed: 2026-03-16 (re-audited against full Phase 0-8 plan)
+Last reviewed: 2026-03-16 (Phase 7 unit test suite completed)
 
 This document tracks current implementation status for the full webchat roadmap (Phases 0-8).
 
 ## Summary
 
-- Completed: core Phase 0 baseline, core Phase 1 domain model layer, core Phase 2 APIs (including publicKey and telemetry), core Phase 3 embed script, core Phase 4 engine integration, strengthened Phase 5 token/CORS/rate-limit controls, initial Phase 6 dashboard setup UI.
-- Partially completed: security hardening, diagnostics, observability, and rollout operations.
-- Not started: full Phase 7 automated QA matrix and Phase 8 feature-flagged rollout process.
+- Completed: core Phase 0 baseline, core Phase 1 domain model layer, core Phase 2 APIs (including publicKey and telemetry), core Phase 3 embed script, core Phase 4 engine integration, strengthened Phase 5 token/CORS/rate-limit controls, initial Phase 6 dashboard setup UI, Phase 7 unit test suite (81 tests, 5 files).
+- Partially completed: Phase 7 integration/e2e/chaos tests not yet written; Phase 8 rollout controls not started.
+- Not started: Phase 8 feature-flagged rollout process.
 
 ## Phase Status Matrix
 
@@ -199,16 +199,40 @@ Code references:
 
 ### Phase 7: Observability + QA
 
-Status: `Not Started`
+Status: `Partially Implemented`
+
+Implemented:
+
+- Test framework: Vitest 3.2.x + `@vitest/coverage-v8`, installed as devDependencies.
+- `vitest.config.ts` with `node` environment, `@/` alias, and V8 coverage scoped to `lib/webchat*.ts` and `app/api/webchat/**`.
+- npm scripts: `test` (single run), `test:watch`, `test:coverage`.
+- **81 passing unit tests across 5 files:**
+  - `tests/webchat/bot-mitigation.test.ts` — 12 tests (honeypot, elapsedMs threshold, env overrides, disabled mode)
+  - `tests/webchat/privacy.test.ts` — 20 tests (retain/mask/drop modes, nested records, arrays, contact sanitization)
+  - `tests/webchat/cors.test.ts` — 19 tests (dev wildcard, prod block, allowlist matching, Origin/Referer mismatch, referer-only path, `STRICT_ORIGIN_REFERER_MATCH` override)
+  - `tests/webchat/rate-limit.test.ts` — 9 tests (first request, remaining decrement, limit exhaustion, scope isolation, window reset via fake timers, header helpers)
+  - `tests/webchat/route-schemas.test.ts` — 21 tests (init/message/events Zod schema validation: missing identifiers, empty strings, invalid emails, invalid URLs, unknown enum values)
+- Coverage achieved on core security helpers:
+  - `webchat-bot-mitigation.ts`: 100% statements / 95% branches
+  - `webchat-cors.ts`: 86% statements / 88% branches
+  - `webchat-privacy.ts`: 80% statements / 89% branches
+  - `webchat-rate-limit.ts`: 48% statements (Upstash async path requires integration env)
 
 Missing:
 
+- Integration tests for full route handlers (require DB + Next.js test environment)
+- E2E tests for the embed widget (browser + Playwright)
+- Chaos/load tests for rate-limit and concurrent session handling
 - webchat-specific metrics instrumentation
-- unit/integration/e2e/chaos test suites for webchat routes and widget
 
-Current state:
+Code references:
 
-- TypeScript compile checks pass, but no dedicated automated webchat test harness exists.
+- `vitest.config.ts`
+- `tests/webchat/bot-mitigation.test.ts`
+- `tests/webchat/privacy.test.ts`
+- `tests/webchat/cors.test.ts`
+- `tests/webchat/rate-limit.test.ts`
+- `tests/webchat/route-schemas.test.ts`
 
 ### Phase 8: Rollout strategy
 
@@ -223,5 +247,6 @@ Missing:
 
 ## Recommended Next Actions
 
-1. Add test coverage (unit + integration + e2e) before broad rollout.
-2. Add feature-flag rollout controls and pilot policies.
+1. Add integration tests for webchat route handlers (real DB + `msw` or test Next.js server).
+2. Add E2E widget tests with Playwright (embed script in a real browser against a local server).
+3. Add feature-flag rollout controls and pilot policies (Phase 8).
