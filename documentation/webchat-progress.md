@@ -5,14 +5,14 @@ description: Phase-by-phase implementation status of ReplyBase Webchat against t
 
 # Webchat Progress Status
 
-Last reviewed: 2026-03-16 (Phase 8 expanded — rollout controls implemented, 128 Vitest tests passing, 7 Playwright widget scenarios passing)
+Last reviewed: 2026-03-16 (Phase 8 expanded — rollout controls + SLA monitoring dashboard implemented, 128 Vitest tests passing, 7 Playwright widget scenarios passing)
 
 This document tracks current implementation status for the full webchat roadmap (Phases 0-8).
 
 ## Summary
 
 - Completed: Phases 0–7 fully implemented: baseline, domain model, public API, embed SDK, conversation engine, security hardening, dashboard UX, automated test suite (118 tests / 8 files), and structured metrics instrumentation.
-- Partially completed: Phase 8 rollout foundation (`webchat_enabled` policy via rollout helper, pilot/plan-tier/GA modes, route enforcement, and admin rollout controls UI/API).
+- Partially completed: Phase 8 rollout foundation (`webchat_enabled` policy via rollout helper, pilot/plan-tier/GA modes, route enforcement, admin rollout controls UI/API, and cross-tenant SLA monitoring dashboard).
 
 ## Phase Status Matrix
 
@@ -267,6 +267,10 @@ Implemented:
   - `GET/PATCH /api/admin/webchat-rollout`
   - Dashboard page: `/admin/webchat-rollout`
   - Admin navigation tab for rollout controls
+- SLA monitoring dashboard implemented:
+  - Dashboard page: `/admin/webchat-monitoring`
+  - Cross-tenant monitoring snapshot for active sites, sessions, messages, widget events, error rate, and recent incidents
+  - Rollout posture summary tied to current runtime rollout config
 - Playwright E2E widget coverage added:
   - `playwright.config.ts` + `npm run test:e2e`
   - `app/webchat-e2e/page.tsx` (public harness route)
@@ -278,11 +282,10 @@ Implemented:
 
 Missing:
 
-- SLA monitoring and rollout playbook
 - Pilot runbook execution and staged production enablement
 
 ## Recommended Next Actions
 
-1. Add SLA monitoring dashboards and finalize rollout playbook for pilot-to-GA progression.
-2. Execute pilot rollout runbook and promote to GA after telemetry thresholds are stable.
-3. Add optional Playwright edge coverage for telemetry-disabled, sampling, and message failure fallback behavior.
+1. Execute pilot rollout runbook and promote to GA after telemetry thresholds are stable.
+2. Add optional Playwright edge coverage for telemetry-disabled, sampling, and message failure fallback behavior.
+3. Add external alerts/dashboards for widget lifecycle events if stdout metrics need centralized monitoring.

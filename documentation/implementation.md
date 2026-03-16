@@ -32,7 +32,6 @@ This summary is based on the current application routes, APIs, schema, and test 
 - **Usage analytics**: some usage accounting is still mocked or conservative under the hood.
 - **Dashboard setup guidance**: first-run guidance is still Facebook-first, even though Telegram and Webchat are available.
 
-
 ## Testing Snapshot
 
 - Vitest suite: 128 passing tests across 9 files

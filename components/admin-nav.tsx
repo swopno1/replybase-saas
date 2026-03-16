@@ -8,6 +8,7 @@ const tabs = [
   { name: "Business Status", href: "/admin" },
   { name: "Subscribers", href: "/admin/subscribers" },
   { name: "Onboarding", href: "/admin/onboarding" },
+  { name: "Webchat Monitoring", href: "/admin/webchat-monitoring" },
   { name: "Webchat Rollout", href: "/admin/webchat-rollout" },
 ];
 
