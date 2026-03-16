@@ -4,6 +4,56 @@
     return;
   }
 
+  function parseBooleanAttribute(value, defaultValue) {
+    if (value === null || value === undefined || value === "") {
+      return defaultValue;
+    }
+
+    var normalized = String(value).toLowerCase();
+    if (normalized === "true" || normalized === "1" || normalized === "yes") {
+      return true;
+    }
+    if (normalized === "false" || normalized === "0" || normalized === "no") {
+      return false;
+    }
+
+    return defaultValue;
+  }
+
+  function parseCsvAttribute(value) {
+    if (!value) {
+      return [];
+    }
+
+    return String(value)
+      .split(",")
+      .map(function (entry) {
+        return entry.trim();
+      })
+      .filter(Boolean);
+  }
+
+  function normalizeEventType(value) {
+    return String(value || "")
+      .trim()
+      .toUpperCase();
+  }
+
+  function resolveWindowPath(path) {
+    if (!path) {
+      return undefined;
+    }
+
+    return String(path)
+      .split(".")
+      .reduce(function (current, key) {
+        if (!current || typeof current !== "object") {
+          return undefined;
+        }
+        return current[key];
+      }, window);
+  }
+
   var baseUrl =
     scriptTag.getAttribute("data-base-url") ||
     new URL(scriptTag.src, window.location.href).origin;
@@ -13,6 +63,18 @@
   var title = scriptTag.getAttribute("data-title") || "Chat with us";
   var primaryColor = scriptTag.getAttribute("data-primary-color") || "#0f766e";
   var position = scriptTag.getAttribute("data-position") || "right";
+  var telemetryMode = scriptTag.getAttribute("data-telemetry") || "all";
+  var telemetryEvents = parseCsvAttribute(
+    scriptTag.getAttribute("data-telemetry-events"),
+  ).map(normalizeEventType);
+  var cookieConsentMode =
+    scriptTag.getAttribute("data-cookie-consent") || "off";
+  var cookieConsentCheck =
+    scriptTag.getAttribute("data-cookie-consent-check") || "";
+  var cookieConsentEvent =
+    scriptTag.getAttribute("data-cookie-consent-event") ||
+    "replybase:webchat-consent-updated";
+  var mobileMode = scriptTag.getAttribute("data-mobile-mode") || "auto";
 
   if (!channelId && !botId && !publicKey) {
     console.error(
@@ -27,95 +89,295 @@
   var conversationId = "";
   var visitorId = "";
   var initChallengeToken = "";
+  var unreadCount = 0;
+  var telemetryConfig = null;
   var isOpen = false;
   var isSending = false;
   var initialized = false;
   var lastTypingAt = 0;
+  var shouldUseMobileFullscreen = false;
+  var consentNoticeRendered = false;
 
   var root = document.createElement("div");
   root.id = "replybase-webchat-root";
+  var shadow = root.attachShadow({ mode: "open" });
+
+  var container = document.createElement("div");
+  container.className = "rb-container";
 
   var button = document.createElement("button");
   button.type = "button";
   button.setAttribute("aria-label", "Open chat");
-  button.textContent = "Chat";
+  button.className = "rb-button";
+
+  var buttonLabel = document.createElement("span");
+  buttonLabel.className = "rb-button-label";
+  buttonLabel.textContent = "Chat";
+
+  var unreadBadge = document.createElement("span");
+  unreadBadge.className = "rb-unread-badge";
+  unreadBadge.hidden = true;
 
   var panel = document.createElement("div");
   panel.setAttribute("role", "dialog");
   panel.setAttribute("aria-label", title);
+  panel.className = "rb-panel";
 
   var panelHeader = document.createElement("div");
-  panelHeader.textContent = title;
+  panelHeader.className = "rb-header";
+
+  var panelTitle = document.createElement("span");
+  panelTitle.className = "rb-title";
+  panelTitle.textContent = title;
 
   var closeButton = document.createElement("button");
   closeButton.type = "button";
   closeButton.setAttribute("aria-label", "Close chat");
   closeButton.textContent = "x";
+  closeButton.className = "rb-close";
 
   var messages = document.createElement("div");
+  messages.className = "rb-messages";
 
   var composer = document.createElement("div");
+  composer.className = "rb-composer";
   var input = document.createElement("input");
   input.type = "text";
   input.placeholder = "Type your message...";
   input.autocomplete = "off";
+  input.className = "rb-input";
 
   var sendButton = document.createElement("button");
   sendButton.type = "button";
   sendButton.textContent = "Send";
+  sendButton.className = "rb-send";
 
   var style = document.createElement("style");
   style.textContent = [
-    "#replybase-webchat-root { position: fixed; bottom: 20px; z-index: 2147483647; font-family: 'Segoe UI', Tahoma, sans-serif; }",
-    "#replybase-webchat-root[data-position='right'] { right: 20px; }",
-    "#replybase-webchat-root[data-position='left'] { left: 20px; }",
-    "#replybase-webchat-root * { box-sizing: border-box; }",
-    "#replybase-webchat-root button { border: none; cursor: pointer; }",
-    "#replybase-webchat-root .rb-button { width: 60px; height: 60px; border-radius: 999px; color: #fff; font-weight: 600; box-shadow: 0 12px 25px rgba(0,0,0,0.2); }",
-    "#replybase-webchat-root .rb-panel { width: min(92vw, 360px); height: min(72vh, 520px); margin-bottom: 12px; border-radius: 14px; background: #fff; box-shadow: 0 18px 40px rgba(0,0,0,0.2); border: 1px solid rgba(0,0,0,0.08); display: none; flex-direction: column; overflow: hidden; }",
-    "#replybase-webchat-root .rb-panel.open { display: flex; }",
-    "#replybase-webchat-root .rb-header { display: flex; align-items: center; justify-content: space-between; color: #fff; font-size: 14px; font-weight: 600; padding: 12px 14px; }",
-    "#replybase-webchat-root .rb-close { background: transparent; color: #fff; font-size: 16px; padding: 0 6px; }",
-    "#replybase-webchat-root .rb-messages { flex: 1; background: #f8fafc; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }",
-    "#replybase-webchat-root .rb-message { max-width: 82%; padding: 9px 12px; border-radius: 12px; font-size: 14px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }",
-    "#replybase-webchat-root .rb-message.user { align-self: flex-end; background: #0f172a; color: #fff; }",
-    "#replybase-webchat-root .rb-message.bot { align-self: flex-start; background: #fff; color: #0f172a; border: 1px solid #e2e8f0; }",
-    "#replybase-webchat-root .rb-composer { display: flex; gap: 8px; padding: 10px; border-top: 1px solid #e2e8f0; background: #fff; }",
-    "#replybase-webchat-root .rb-input { flex: 1; border: 1px solid #cbd5e1; border-radius: 10px; padding: 9px 10px; font-size: 14px; outline: none; }",
-    "#replybase-webchat-root .rb-input:focus { border-color: " +
+    ":host { position: fixed; bottom: 20px; z-index: 2147483647; font-family: 'Segoe UI', Tahoma, sans-serif; }",
+    ":host([data-position='right']) { right: 20px; }",
+    ":host([data-position='left']) { left: 20px; }",
+    ":host([data-open='true'][data-mobile-fullscreen='true']) { inset: 0; right: 0; left: 0; bottom: 0; top: 0; }",
+    ".rb-container, .rb-container * { box-sizing: border-box; }",
+    ".rb-container { display: flex; flex-direction: column; align-items: stretch; }",
+    ".rb-container button { border: none; cursor: pointer; }",
+    ".rb-button { position: relative; width: 60px; height: 60px; border-radius: 999px; color: #fff; font-weight: 600; box-shadow: 0 12px 25px rgba(0,0,0,0.2); display: inline-flex; align-items: center; justify-content: center; align-self: flex-end; }",
+    ".rb-unread-badge { position: absolute; top: -4px; right: -4px; min-width: 22px; height: 22px; border-radius: 999px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; background: #ef4444; color: #fff; font-size: 11px; font-weight: 700; box-shadow: 0 8px 18px rgba(239,68,68,0.32); }",
+    ".rb-panel { width: min(92vw, 360px); height: min(72vh, 520px); margin-bottom: 12px; border-radius: 14px; background: #fff; box-shadow: 0 18px 40px rgba(0,0,0,0.2); border: 1px solid rgba(0,0,0,0.08); display: none; flex-direction: column; overflow: hidden; }",
+    ".rb-panel.open { display: flex; }",
+    ".rb-header { display: flex; align-items: center; justify-content: space-between; color: #fff; font-size: 14px; font-weight: 600; padding: 12px 14px; }",
+    ".rb-title { display: inline-flex; align-items: center; gap: 8px; }",
+    ".rb-close { background: transparent; color: #fff; font-size: 16px; padding: 0 6px; }",
+    ".rb-messages { flex: 1; background: #f8fafc; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }",
+    ".rb-message { max-width: 82%; padding: 9px 12px; border-radius: 12px; font-size: 14px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }",
+    ".rb-message.user { align-self: flex-end; background: #0f172a; color: #fff; }",
+    ".rb-message.bot { align-self: flex-start; background: #fff; color: #0f172a; border: 1px solid #e2e8f0; }",
+    ".rb-composer { display: flex; gap: 8px; padding: 10px; border-top: 1px solid #e2e8f0; background: #fff; }",
+    ".rb-input { flex: 1; border: 1px solid #cbd5e1; border-radius: 10px; padding: 9px 10px; font-size: 14px; outline: none; }",
+    ".rb-input:focus { border-color: " +
       primaryColor +
       "; box-shadow: 0 0 0 3px rgba(15,118,110,0.15); }",
-    "#replybase-webchat-root .rb-send { min-width: 64px; border-radius: 10px; color: #fff; font-weight: 600; }",
-    "#replybase-webchat-root .rb-note { align-self: center; color: #64748b; font-size: 12px; }",
+    ".rb-send { min-width: 64px; border-radius: 10px; color: #fff; font-weight: 600; }",
+    ".rb-note { align-self: center; color: #64748b; font-size: 12px; text-align: center; }",
+    ".rb-note.is-consent { border: 1px dashed #f59e0b; background: #fffbeb; color: #92400e; padding: 12px; border-radius: 12px; width: 100%; }",
+    ".rb-consent-button { align-self: center; border-radius: 10px; padding: 10px 14px; background: #f59e0b; color: #fff; font-weight: 600; }",
+    ":host([data-open='true'][data-mobile-fullscreen='true']) .rb-container { height: 100%; }",
+    ":host([data-open='true'][data-mobile-fullscreen='true']) .rb-panel { display: flex; width: 100%; height: 100%; margin-bottom: 0; border-radius: 0; border: none; box-shadow: none; }",
+    ":host([data-open='true'][data-mobile-fullscreen='true']) .rb-button { display: none; }",
   ].join("\n");
 
   root.setAttribute("data-position", position === "left" ? "left" : "right");
-  button.className = "rb-button";
-  panel.className = "rb-panel";
-  panelHeader.className = "rb-header";
-  closeButton.className = "rb-close";
-  messages.className = "rb-messages";
-  composer.className = "rb-composer";
-  input.className = "rb-input";
-  sendButton.className = "rb-send";
+  root.setAttribute("data-open", "false");
+  root.setAttribute("data-mobile-fullscreen", "false");
 
   button.style.background = primaryColor;
   panelHeader.style.background = primaryColor;
   sendButton.style.background = primaryColor;
 
+  button.appendChild(buttonLabel);
+  button.appendChild(unreadBadge);
+  panelHeader.appendChild(panelTitle);
   panelHeader.appendChild(closeButton);
   composer.appendChild(input);
   composer.appendChild(sendButton);
   panel.appendChild(panelHeader);
   panel.appendChild(messages);
   panel.appendChild(composer);
-  root.appendChild(style);
-  root.appendChild(panel);
-  root.appendChild(button);
+  container.appendChild(panel);
+  container.appendChild(button);
+
+  shadow.appendChild(style);
+  shadow.appendChild(container);
 
   document.body.appendChild(root);
 
+  function syncMobileMode() {
+    if (mobileMode === "windowed") {
+      shouldUseMobileFullscreen = false;
+    } else if (mobileMode === "fullscreen") {
+      shouldUseMobileFullscreen = true;
+    } else {
+      shouldUseMobileFullscreen =
+        window.matchMedia("(max-width: 640px)").matches;
+    }
+
+    root.setAttribute(
+      "data-mobile-fullscreen",
+      shouldUseMobileFullscreen ? "true" : "false",
+    );
+  }
+
+  syncMobileMode();
+  window.addEventListener("resize", syncMobileMode);
+
+  function resolveCookieConsent() {
+    if (cookieConsentMode === "off") {
+      return true;
+    }
+
+    var explicitResolver = resolveWindowPath(cookieConsentCheck);
+    if (typeof explicitResolver === "function") {
+      try {
+        return Boolean(explicitResolver());
+      } catch {
+        return false;
+      }
+    }
+    if (typeof explicitResolver === "boolean") {
+      return explicitResolver;
+    }
+
+    if (
+      window.ReplyBaseWebchatConsent &&
+      typeof window.ReplyBaseWebchatConsent.hasConsent === "function"
+    ) {
+      try {
+        return Boolean(window.ReplyBaseWebchatConsent.hasConsent());
+      } catch {
+        return false;
+      }
+    }
+
+    if (window.ReplyBaseWebchatConsentGranted === true) {
+      return true;
+    }
+    if (window.replybaseWebchatConsentGranted === true) {
+      return true;
+    }
+
+    return false;
+  }
+
+  function canUsePersistentStorage() {
+    return resolveCookieConsent();
+  }
+
+  function normalizeTelemetrySettingsFromConfig(config) {
+    if (!config || typeof config !== "object") {
+      return;
+    }
+
+    if (typeof config.telemetry === "string" && telemetryMode === "all") {
+      telemetryMode = config.telemetry;
+    }
+
+    if (Array.isArray(config.telemetryEvents) && telemetryEvents.length === 0) {
+      telemetryEvents = config.telemetryEvents
+        .map(normalizeEventType)
+        .filter(Boolean);
+    }
+
+    if (typeof config.mobileMode === "string" && mobileMode === "auto") {
+      mobileMode = config.mobileMode;
+      syncMobileMode();
+    }
+  }
+
+  function isTelemetryEnabled(type) {
+    if (telemetryMode === "off") {
+      return false;
+    }
+
+    if (cookieConsentMode === "required" && !resolveCookieConsent()) {
+      return false;
+    }
+
+    var normalizedType = normalizeEventType(type);
+    if (telemetryMode === "essential") {
+      return normalizedType === "ERROR";
+    }
+
+    if (telemetryEvents.length > 0) {
+      return telemetryEvents.indexOf(normalizedType) >= 0;
+    }
+
+    return true;
+  }
+
+  function updateUnreadBadge() {
+    unreadBadge.hidden = unreadCount <= 0;
+    unreadBadge.textContent = unreadCount > 99 ? "99+" : String(unreadCount);
+  }
+
+  function resetUnreadCount() {
+    unreadCount = 0;
+    updateUnreadBadge();
+  }
+
+  function setComposerDisabled(disabled) {
+    input.disabled = disabled;
+    sendButton.disabled = disabled || isSending;
+  }
+
+  function renderConsentNotice() {
+    if (consentNoticeRendered) {
+      return;
+    }
+
+    messages.innerHTML = "";
+    var note = document.createElement("div");
+    note.className = "rb-note is-consent";
+    note.textContent =
+      "Cookie consent is required before webchat can store session data or connect to the ReplyBase runtime.";
+    messages.appendChild(note);
+
+    var action = document.createElement("button");
+    action.type = "button";
+    action.className = "rb-consent-button";
+    action.textContent = "Retry After Consent";
+    action.addEventListener("click", function () {
+      consentNoticeRendered = false;
+      messages.innerHTML = "";
+      openPanel();
+    });
+    messages.appendChild(action);
+    consentNoticeRendered = true;
+  }
+
+  function clearConsentNotice() {
+    if (!consentNoticeRendered) {
+      return;
+    }
+
+    messages.innerHTML = "";
+    consentNoticeRendered = false;
+  }
+
+  window.addEventListener(cookieConsentEvent, function () {
+    if (resolveCookieConsent()) {
+      clearConsentNotice();
+      setComposerDisabled(false);
+      if (isOpen && !initialized) {
+        openPanel();
+      }
+    }
+  });
+
   function getStoredSession() {
+    if (!canUsePersistentStorage()) {
+      return null;
+    }
+
     try {
       var raw = window.localStorage.getItem(
         STORAGE_KEY_PREFIX + ":" + storageScope,
@@ -127,6 +389,10 @@
   }
 
   function setStoredSession(nextSession) {
+    if (!canUsePersistentStorage()) {
+      return;
+    }
+
     try {
       window.localStorage.setItem(
         STORAGE_KEY_PREFIX + ":" + storageScope,
@@ -143,6 +409,11 @@
     bubble.textContent = text;
     messages.appendChild(bubble);
     messages.scrollTop = messages.scrollHeight;
+
+    if (kind === "bot" && !isOpen) {
+      unreadCount += 1;
+      updateUnreadBadge();
+    }
   }
 
   function addSystemNote(text) {
@@ -229,7 +500,7 @@
   }
 
   function trackEvent(type, payload) {
-    if (!token) {
+    if (!token || !isTelemetryEnabled(type)) {
       return Promise.resolve();
     }
 
@@ -261,9 +532,12 @@
         initChallengeToken = data.initChallenge.token.trim();
       }
 
+      telemetryConfig = data.telemetry || telemetryConfig;
+
       var cfg = data.config || {};
+      normalizeTelemetrySettingsFromConfig(cfg);
       if (typeof cfg.title === "string" && cfg.title.trim()) {
-        panelHeader.firstChild.nodeValue = cfg.title.trim();
+        panelTitle.textContent = cfg.title.trim();
       }
       if (typeof cfg.primaryColor === "string" && cfg.primaryColor.trim()) {
         primaryColor = cfg.primaryColor.trim();
@@ -328,9 +602,23 @@
   }
 
   function openPanel() {
+    if (cookieConsentMode === "required" && !resolveCookieConsent()) {
+      panel.classList.add("open");
+      button.style.display = "none";
+      root.setAttribute("data-open", "true");
+      isOpen = true;
+      setComposerDisabled(true);
+      renderConsentNotice();
+      return;
+    }
+
+    clearConsentNotice();
+    setComposerDisabled(false);
     panel.classList.add("open");
     button.style.display = "none";
+    root.setAttribute("data-open", "true");
     isOpen = true;
+    resetUnreadCount();
     if (!initialized) {
       loadConfig()
         .then(function () {
@@ -360,6 +648,7 @@
     button.style.display = "inline-flex";
     button.style.alignItems = "center";
     button.style.justifyContent = "center";
+    root.setAttribute("data-open", "false");
     isOpen = false;
     trackEvent("CLOSE", {
       url: window.location.href,

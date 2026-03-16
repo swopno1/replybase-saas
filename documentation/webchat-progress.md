@@ -97,7 +97,7 @@ Code references:
 
 ### Phase 3: Widget + embed SDK
 
-Status: `Implemented (MVP)`
+Status: `Implemented`
 
 Implemented:
 
@@ -107,14 +107,15 @@ Implemented:
 - Local session persistence
 - Position, title, color, welcome text support
 - Dashboard-generated snippet targets `data-public-key` when site credentials exist
+- Shadow DOM widget isolation
+- Unread badge on the launcher button
+- Mobile full-screen mode support
+- Cookie-consent-aware storage and initialization gating
+- Configurable telemetry toggles via embed attributes/config
 
 Pending:
 
-- iframe sandbox or shadow DOM isolation
-- unread badge
-- mobile full-screen mode
-- cookie consent integration
-- configurable telemetry toggles
+- None for current Phase 3 scope.
 
 Code references:
 

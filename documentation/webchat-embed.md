@@ -7,10 +7,11 @@
   src="https://YOUR_REPLYBASE_DOMAIN/embed/replybase-webchat.js"
   data-base-url="https://YOUR_REPLYBASE_DOMAIN"
   data-public-key="YOUR_WEBCHAT_PUBLIC_KEY"
-  data-channel-id="YOUR_WEB_CHANNEL_ID"
   data-title="Chat with ReplyBase"
   data-primary-color="#0f766e"
   data-position="right"
+  data-mobile-mode="auto"
+  data-telemetry="all"
   defer
 ></script>
 ```
@@ -22,6 +23,24 @@ Use one targeting option:
 - Fallback: `data-bot-id`
 
 Dashboard snippet generation now prefers `data-public-key` when the site record is available, with `data-channel-id` as a fallback.
+
+## Optional runtime controls
+
+You can fine-tune widget behavior with these optional attributes:
+
+- `data-mobile-mode="auto|fullscreen|windowed"`
+- `data-telemetry="all|essential|off"`
+- `data-telemetry-events="OPEN,CLOSE,ERROR"`
+- `data-cookie-consent="off|required"`
+- `data-cookie-consent-check="ReplyBaseWebchatConsent.hasConsent"`
+- `data-cookie-consent-event="replybase:webchat-consent-updated"`
+
+Notes:
+
+- `data-mobile-mode="auto"` enables full-screen mode on small viewports.
+- `data-telemetry="essential"` restricts client telemetry to critical diagnostics.
+- `data-telemetry-events` lets you explicitly whitelist event types when `data-telemetry` is not `off`.
+- When cookie consent is required, the widget blocks initialization and local session storage until consent is granted.
 
 ## 2) API routes used by the widget
 

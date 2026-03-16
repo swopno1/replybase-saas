@@ -95,6 +95,16 @@ Server flow:
 5. Persist sampled event (`OPEN`, `CLOSE`, `TYPING`, `ERROR`, `MESSAGE`) to `WebChatEvent`.
 6. Touch `WebChatSession.lastSeenAt` when a matching session exists.
 
+## Embed Runtime Features
+
+The current widget runtime now includes:
+
+- Shadow DOM isolation so host-page CSS does not leak into the widget UI.
+- Launcher unread badge updates when bot replies land while the panel is closed.
+- Mobile full-screen mode (`data-mobile-mode="auto|fullscreen|windowed"`).
+- Cookie-consent gating (`data-cookie-consent`, `data-cookie-consent-check`, `data-cookie-consent-event`).
+- Configurable telemetry toggles (`data-telemetry="all|essential|off"`, `data-telemetry-events="OPEN,CLOSE,ERROR"`).
+
 ## Dashboard Setup Flow
 
 Path: `/integrations/webchat`
@@ -152,7 +162,6 @@ Still recommended:
 
 ## Known Gaps
 
-- Widget advanced UX is still pending (unread badge, mobile full-screen, iframe/shadow isolation).
 - No webchat-specific automated test suite yet.
 
 ## Upgrade Path (Next)
