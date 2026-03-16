@@ -5,7 +5,7 @@ description: Phase-by-phase implementation status of ReplyBase Webchat against t
 
 # Webchat Progress Status
 
-Last reviewed: 2026-03-16 (Phase 8 expanded — rollout controls + initial Playwright E2E coverage implemented)
+Last reviewed: 2026-03-16 (Phase 8 expanded — rollout controls implemented, 128 Vitest tests passing, 7 Playwright widget scenarios passing)
 
 This document tracks current implementation status for the full webchat roadmap (Phases 0-8).
 
@@ -227,13 +227,16 @@ Implemented:
 
 Pending (future enhancements):
 
-- Expand Playwright E2E scenarios (error paths, mobile fullscreen behavior, consent-required path)
+- Add optional Playwright edge coverage (telemetry-disabled mode, message failure fallback, sampling behavior)
 - Chaos/load tests for rate-limit and concurrent session handling
 
 Code references:
 
 - `vitest.config.ts`
+- `playwright.config.ts`
 - `lib/webchat-metrics.ts`
+- `app/webchat-e2e/page.tsx`
+- `tests/e2e/webchat-widget.spec.ts`
 - `tests/webchat/bot-mitigation.test.ts`
 - `tests/webchat/privacy.test.ts`
 - `tests/webchat/cors.test.ts`
@@ -264,14 +267,14 @@ Implemented:
   - `GET/PATCH /api/admin/webchat-rollout`
   - Dashboard page: `/admin/webchat-rollout`
   - Admin navigation tab for rollout controls
-- Initial Playwright E2E widget test coverage added:
+- Playwright E2E widget coverage added:
   - `playwright.config.ts` + `npm run test:e2e`
   - `app/webchat-e2e/page.tsx` (public harness route)
-  - `tests/e2e/webchat-widget.spec.ts` (open widget + send message happy path with mocked webchat APIs)
+  - `tests/e2e/webchat-widget.spec.ts` (happy path, blocked-origin error, consent-required recovery, mobile fullscreen, session persistence, telemetry assertions, rollout-denied path with mocked webchat APIs)
 - QA coverage for rollout controls:
   - `tests/webchat/rollout.test.ts` — 7 tests (mode parsing, pilot allow/block, tiered plan feature/allowlist, GA explicit deny)
   - Integration denial-path checks added to init/message/events route test suites.
-- Current test baseline after Phase 8 updates: **128 passing Vitest tests across 9 files + 1 passing Playwright E2E test**.
+- Current verified test baseline after Phase 8 updates: **128 passing Vitest tests across 9 files + 7 passing Playwright E2E tests**.
 
 Missing:
 
@@ -280,6 +283,6 @@ Missing:
 
 ## Recommended Next Actions
 
-1. Expand Playwright E2E coverage (blocked-origin flow, consent-required flow, and mobile fullscreen mode).
-2. Add SLA monitoring dashboards and finalize rollout playbook for pilot-to-GA progression.
-3. Execute pilot rollout runbook and promote to GA after telemetry thresholds are stable.
+1. Add SLA monitoring dashboards and finalize rollout playbook for pilot-to-GA progression.
+2. Execute pilot rollout runbook and promote to GA after telemetry thresholds are stable.
+3. Add optional Playwright edge coverage for telemetry-disabled, sampling, and message failure fallback behavior.

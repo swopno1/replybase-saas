@@ -1,64 +1,100 @@
 ---
 title: Subscription Features
-description: ReplyBase offers four tiers designed for businesses of all sizes.
+description: Current ReplyBase plans, limits, and feature availability based on the implemented product
 ---
 
 # Subscription Features
 
-ReplyBase offers four tiers designed for businesses of all sizes.
+This page describes the current plan structure and feature availability reflected in the ReplyBase SaaS application and seed data.
 
 ## Plan Overview
 
 ### Free (£0/month)
 
-For individuals and testing
+Best for testing and first setup
 
 - 1 bot
 - 100 daily messages
-- Basic analytics
-- Community support
+- 3,000 monthly messages
+- 1 channel per bot
+- 100 max conversations
 
-### Starter (£29/month)
+### Starter (£19/month)
 
-For small businesses
+Best for small live deployments
 
-- 5 bots
+- 3 bots
 - 1,000 daily messages
-- API access (rate limited)
-- Email support
+- 30,000 monthly messages
+- 3 channels per bot
+- 1,000 max conversations
 
-### Pro (£99/month)
+### Pro (£49/month)
 
-For growing agencies
+Best for growing teams and agencies
 
-- 25 bots
+- 10 bots
 - 5,000 daily messages
-- Advanced AI
-- 24h chat support
+- 150,000 monthly messages
+- 5 channels per bot
+- 5,000 max conversations
 
-### Business (£299/month)
+### Business (£99/month)
 
-For enterprises at scale
+Best for high-volume deployments
 
-- Unlimited bots
-- Unlimited messages
-- Premium AI + custom models
-- 1h phone support
+- 50 bots
+- 20,000 daily messages
+- 600,000 monthly messages
+- 10 channels per bot
+- 20,000 max conversations
 
-## Core Features (All Plans)
+## Product Areas Available Today
 
-- Bot management with Typebot integration
-- Conversation tracking & history
-- Lead capture and qualification
-- Contact database with identity tracking
-- Analytics dashboard
-- Secure authentication (OIDC)
+### Core Workspace
 
-## Upcoming Features
+- account registration and login
+- tenant-based workspace creation
+- bot management
+- secure builder launch from ReplyBase
+- billing page and Stripe customer portal flow
 
-- WhatsApp integration improvements
-- Industry-specific bot templates
-- Email notification system
-- Advanced analytics and segmentation
+### Conversation Operations
+
+- conversation list
+- contact list with identity badges
+- leads page for captured lead records
+- basic dashboard health cards for AI status, connected pages, engine status, and recent message timing
+
+### Channels
+
+- Facebook Pages integration
+- Telegram Bot integration
+- Webchat Widget integration
+
+### Flow Management
+
+- create, edit, duplicate, activate, and delete flows
+- assign flows to Facebook pages
+- see per-flow lead and session counts
+
+## Current UX Notes
+
+- The main dashboard onboarding path is still Facebook-first in parts of the UI.
+- Telegram and Webchat have dedicated setup pages with stronger guided setup than some older dashboard sections.
+- Settings and Activity exist, but they are still lighter than the channel and webchat areas.
+
+## What Is Not Fully Mature Yet
+
+- activity history is still placeholder/mock in the current UI
+- some usage analytics are still mocked behind the API layer
+- advanced workspace settings are minimal
+- full self-serve team or role management is not present in the current dashboard
+
+## Billing Notes
+
+- Paid plans currently present a 14-day free trial in the pricing UI.
+- Bot and usage limits are enforced by plan-aware checks in the app.
+- Billing management is centered in the dedicated Billing screen, not the Settings page.
 
 [Contact Sales](/contact)

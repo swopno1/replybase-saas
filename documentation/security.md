@@ -1,31 +1,72 @@
 ---
 title: Security Model (Application-Level)
-description: Secure access enforced via OIDC token validation
+description: How ReplyBase currently protects accounts, tenants, admin tools, billing, and webchat traffic
 ---
 
 # Security Model (Application-Level)
 
-Secure access enforced via OIDC token validation
+ReplyBase uses layered application security across authentication, tenant isolation, admin access, billing, and public channel endpoints.
 
-ReplyBase uses application-level security. The SaaS app issues OIDC tokens and the Typebot Engine validates them for every request. No Nginx rules are required.
+## 1. Authentication And Tenant Isolation
 
-## How It Works
-- SaaS app issues OIDC tokens with subscription status claims
-- Typebot Engine validates token signature via JWKS
-- Issuer and audience are strictly verified
-- Subscription status must be active or trialing
-- Expired or invalid tokens receive 401 responses
+- users authenticate through NextAuth-backed flows
+- registration creates a dedicated tenant workspace automatically
+- most protected APIs require both a valid session and a tenant association
+- tenant ownership checks are applied before returning or mutating tenant-scoped resources
 
-## What's Protected
-- Builder access restricted to authenticated users
-- Subscription checks enforce paid access
-- Tokens expire after 1 hour by default
-- All requests are validated at the application layer
+## 2. Secure Builder Access
 
-## Why This Is Secure
-- OIDC tokens are cryptographically signed
-- Issuer/audience checks prevent token misuse
-- Subscription status is enforced on every request
-- No reliance on infrastructure-level rules
+ReplyBase uses a controlled launch flow for bot builder access.
+
+- users do not open the external builder directly from arbitrary URLs
+- ReplyBase checks authentication and subscription state first
+- only eligible users receive the builder authorization redirect
+
+## 3. Billing Protection
+
+- billing endpoints require an authenticated user session
+- subscription lookups are tenant-scoped
+- customer portal access is created server-side through Stripe
+- plan limits are checked before certain resource creation flows such as bot creation
+
+## 4. Admin Access
+
+- admin pages are guarded server-side
+- admin APIs perform their own authorization checks
+- admin access is currently tied to a single allowlisted identity in code
+- non-admin requests are redirected or rejected with `403`
+
+## 5. Webchat Protection
+
+The webchat stack has the strongest explicit public-endpoint hardening in the product today.
+
+- short-lived signed session tokens
+- origin and referer validation
+- allowed-domain enforcement per site
+- rate limiting on init, message, and events
+- replay-resistant init challenge handling
+- bot mitigation checks
+- configurable PII retention behavior
+- rollout gating for staged enablement
+
+## 6. Data And Compliance Utilities
+
+- newsletter subscribe and unsubscribe flows support both app-session and API-key access where intended
+- account data deletion requests are recorded through dedicated endpoints
+- Facebook data deletion support exists as part of the compliance surface
+
+## Practical Security Posture
+
+What is strongest today:
+
+- session and tenant checks on protected APIs
+- webchat public endpoint defenses
+- subscription-aware builder and billing flows
+
+What still needs follow-through:
+
+- broader production observability for some non-webchat areas
+- more complete real usage accounting behind plan enforcement
+- continued removal of hardcoded admin configuration in favor of managed environment-based access
 
 [Typebot Configuration](/docs/typebot-config)

@@ -1,60 +1,52 @@
 ---
 title: Product Roadmap
-description: Our vision for the future of ReplyBase
+description: Current product direction based on the implemented application and the next most practical improvements
 ---
 
 # Product Roadmap
 
-Our vision for the future of ReplyBase
+This roadmap is grounded in the current application rather than long-range speculative features.
 
-**Current Status**: MVP Phase Complete ✅
+## Current Status
 
-ReplyBase has successfully launched with core features including multi-channel bot management, conversation intelligence, lead capture, and subscription billing.
+ReplyBase is beyond the earliest MVP stage in webchat, billing, and core channel management, but the product is still uneven across the dashboard. Some areas are polished, while others are intentionally lightweight or still mocked.
 
-## ✅ Completed Features
-- User Authentication & Multi-tenancy (Google, Facebook, Email)
-- Bot Management System with Typebot integration
-- Facebook Messenger Integration
-- Conversation Intelligence & CRM
-- Lead Management & Qualification
-- Stripe Subscription & Billing (4 pricing tiers)
-- Admin Dashboard with Analytics
-- Contact Database & Activity Audit Log
-- Health Monitoring & Execution Logs
-- Production Docker Deployment
+## Live And Usable Today
 
-## 🚀 Q1 2026 (Current Quarter)
-Focus: Platform stability, WhatsApp integration, and user experience
-- WhatsApp Business Integration (In Progress)
-- Industry-Specific Bot Templates (In Progress)
-- Email Notification System (SendGrid) (Planned)
-- Mobile-Responsive Dashboard (Planned)
-- Onboarding Wizard for New Users (Planned)
-- Video Message Support (Planned)
+- account registration and sign-in
+- tenant-based workspace model
+- bot management and secure builder launch
+- Facebook Pages integration with AI enablement
+- Telegram bot connection flow
+- webchat embed setup, diagnostics, and rollout controls
+- conversations, contacts, and leads views
+- billing and Stripe portal flow
+- internal admin screens for subscribers, onboarding, and webchat rollout
 
-## 📅 Q2 2026
-Focus: Advanced integrations and analytics
-- Instagram Direct Message Integration
-- Advanced Sentiment Analysis
-- Customer Segmentation Tools
-- Bulk Contact Import/Export
-- Predictive Analytics Dashboard
-- A/B Testing for Bot Flows
-- Custom API Webhooks
-- Team Collaboration Features
+## Highest-Value Near-Term Improvements
 
-## 📅 Q3-Q4 2026
-Focus: Enterprise features and global expansion
-- New Channels: Telegram, LinkedIn, TikTok, Twitter/X
-- Enterprise Features: SSO/SAML, Custom Domains, White-Label, Advanced Reporting
-- AI & Automation: GPT-4 Integration, Auto-response Learning, Quality Scoring, Smart Routing
-- Mobile & Apps: iOS and Android Mobile Apps, Push Notifications, Offline Mode
+- stabilize Playwright-based webchat E2E coverage
+- replace placeholder activity data with a real event stream
+- complete usage accounting and plan-usage visibility
+- improve first-run UX so setup is equally clear for Facebook, Telegram, and Webchat
+- expand workspace settings beyond basic account information
 
-## 🔮 Future Vision (2027+)
-- Voice & Video Calls: Handle voice conversations with AI-powered speech recognition
-- Multi-Language Support: Auto-translation for global reach
-- Blockchain Integration: Decentralized data storage and verification
-- Custom ML Models: Train your own conversation models
-- Marketplace: Buy/sell bot templates and integrations
+## Operational Priorities
+
+- finalize webchat rollout playbooks and monitoring
+- continue hardening public channel endpoints
+- improve visibility for onboarding conversion and channel health
+- reduce product mismatch between dashboard copy and implemented capability
+
+## Longer-Term Opportunities
+
+- richer analytics and reporting
+- stronger workspace administration and operator tooling
+- broader channel coverage once existing surfaces are consistently production-ready
+- better collaboration and role-based workflows for larger teams
+
+## Roadmap Principle
+
+The best next investments for ReplyBase are not more speculative channels. They are product consistency, observability, testing stability, and making the existing channel surfaces easier to adopt.
 
 [Submit Feature Request](/contact)

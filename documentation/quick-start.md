@@ -1,75 +1,147 @@
 ---
 title: Quick Start Guide
-description: Get started with ReplyBase in minutes
+description: Get from account creation to a working ReplyBase channel with the current dashboard flow
 ---
 
 # Quick Start Guide
 
-Get started with ReplyBase in minutes
+This guide follows the product flow that is currently implemented in the ReplyBase SaaS dashboard.
 
-**Estimated Time**: 10-15 minutes
+Estimated time: 15 to 25 minutes
 
-This guide will walk you through creating your first chatbot and connecting it to Facebook Messenger.
+By the end, you will have:
+
+- created your workspace
+- opened the bot builder from ReplyBase
+- connected at least one live channel
+- confirmed where conversations, contacts, and leads appear in the dashboard
 
 ## Step 1: Create Your Account
 
 1. Visit [app.replybase.co.uk](https://app.replybase.co.uk)
-2. Click "Sign Up" and choose your preferred method:
-   - Google OAuth (recommended for quick start)
-   - Facebook OAuth
-   - Email & password
-3. Complete email verification if using email signup
+2. Open Sign Up.
+3. Choose one of the currently supported account paths:
+   - Google sign-in
+   - Email and password registration
+4. If you register with email and password, ReplyBase creates a new tenant workspace automatically.
+5. After sign-in, you land in the main dashboard.
+
+Notes:
+
+- The login UI currently shows Apple as a placeholder, but it is not active.
+- Registration requires first name, last name, email, and a password with at least 8 characters.
 
 ## Step 2: Choose Your Plan
 
-ReplyBase offers 4 pricing tiers:
+ReplyBase currently shows four plans in the pricing and billing flow:
 
-- **Free**: £0/month (1 bot, 100 daily messages)
-- **Starter**: £29/month (5 bots, 1,000 daily messages, API access)
-- **Pro**: £99/month (25 bots, 5,000 daily messages, Advanced AI)
-- **Business**: £299/month (Unlimited bots, Unlimited messages)
+- **Free**: £0/month
+- **Starter**: £19/month
+- **Pro**: £49/month
+- **Business**: £99/month
 
-You can start with the Free plan and upgrade anytime.
+Paid plans currently advertise a 14-day free trial in the UI. You can upgrade from the Billing page or start from the Pricing page.
 
 ## Step 3: Create Your First Bot
 
-1. Navigate to the **Bots** section in your dashboard
-2. Click **"Create New Bot"**
-3. Fill in bot details:
-   - Bot Name (e.g., "Customer Support Bot")
-   - Description (optional)
-   - Select a template or start from scratch
-4. Click **"Create Bot"**
+1. Open **Bots** from the left sidebar.
+2. Review any bots already in your workspace.
+3. Use the bot creation flow if you need a new bot.
+4. Use **Launch Builder** to open the external bot builder through ReplyBase.
+
+Important:
+
+- Builder access is intentionally launched through ReplyBase, not by sending users directly to the external builder URL.
+- Subscription status is checked before builder access is granted.
 
 ## Step 4: Design Your Conversation Flow
 
-ReplyBase uses a visual bot builder powered by Typebot. You can create complex conversation flows with drag-and-drop ease.
+ReplyBase currently supports two conversation-design surfaces:
 
-Default flow includes:
+- the external builder launched from **Bots**
+- the in-app **Flows** area for creating and managing conversational flows
 
-- Welcome message
-- Lead qualification questions
-- Interest level tracking
-- Plan preference collection
-- Contact information capture
+In the **Flows** section you can:
 
-## Step 5: Connect to Facebook Messenger
+- create a new flow
+- edit or duplicate an existing flow
+- activate or deactivate a flow
+- assign a flow to a Facebook page
+- review lead and session counts per flow
 
-1. Go to **Channels** section
-2. Click **"Add Channel"**
-3. Select **"Facebook Messenger"**
-4. Click **"Connect Facebook"** and authorize ReplyBase
-5. Select the Facebook Page you want to connect
-6. Configure webhook settings (automatic)
+## Step 5: Connect Your First Channel
 
-_Note: You need to have a Facebook Page to use Messenger integration._
+ReplyBase currently exposes three user-facing integration screens:
+
+- **Facebook Pages**
+- **Telegram Bot**
+- **Webchat Widget**
+
+Choose the one that matches your rollout plan.
+
+### Option A: Facebook Pages
+
+1. Open **Facebook Pages** from the sidebar.
+2. Click **Connect with Facebook**.
+3. Authorize ReplyBase to access pages you manage.
+4. Select the page you want to link.
+5. After connection, go to **AI Status** to enable AI replies for that page.
+
+What to expect:
+
+- The dashboard shows total pages, connected pages, and AI-enabled pages.
+- Facebook is the most prominent first-run setup path in the dashboard today.
+
+### Option B: Telegram Bot
+
+1. Open **Telegram Bot** from the sidebar.
+2. Select which ReplyBase bot should power Telegram replies.
+3. Paste the bot token from **@BotFather**.
+4. Optionally give the channel a friendly internal name.
+5. Click **Connect Bot**.
+
+What ReplyBase handles for you:
+
+- webhook setup
+- webhook health checking
+- reconnect and disconnect actions
+- recent webhook activity logs for that Telegram channel
+
+### Option C: Webchat Widget
+
+1. Open **Webchat Widget** from the sidebar.
+2. Choose a bot.
+3. Create or select a web channel.
+4. Configure title, primary color, welcome message, and launcher position.
+5. Save the site configuration and allowed domains.
+6. Copy the generated embed snippet into your website.
+7. Use the built-in test harness before going live.
 
 ## Step 6: Test Your Bot
 
-1. Open your Facebook Page
-2. Click the **Message** button
-3. Send a test message
-4. Your bot should respond based on your configured flow
-5. Check the **Conversations** tab in ReplyBase to see the interaction
+After you connect a channel, validate the full operator workflow:
+
+1. Send a real test message through the connected channel.
+2. Open **Conversations** to confirm the conversation record exists.
+3. Open **Contacts** to confirm the contact profile appears.
+4. Open **Leads** if your flow collects lead data.
+5. Open **Activity** only for a basic overview. The current activity page still uses placeholder/mock data.
+
+## Step 7: Know Where To Manage Things
+
+- **Dashboard**: top-level health, AI status, connected pages, engine status, last message timestamp
+- **Bots**: bot list and builder launch
+- **Flows**: flow creation, duplication, activation, assignment
+- **Facebook Pages**: page connection and status
+- **Telegram Bot**: token-based bot setup and webhook logs
+- **Webchat Widget**: website chat setup, keys, embed snippet, diagnostics
+- **Billing**: current plan, trial state, billing portal access
+- **Settings**: basic account details only at the moment
+
+## Known MVP Limits
+
+- The Activity page is not yet backed by a full real event feed.
+- Usage accounting and advanced analytics are only partially implemented.
+- Settings is currently a lightweight account page, not a full workspace administration area.
 
 [Explore Features](/docs/features) | [View Roadmap](/docs/roadmap) | [Get Support](/contact) | [Launch Dashboard](https://app.replybase.co.uk)
