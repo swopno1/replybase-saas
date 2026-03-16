@@ -15,11 +15,13 @@ import {
   getWebchatLimiterKeyFromRequest,
 } from "@/lib/webchat-rate-limit";
 import { recordWebchatErrorEvent } from "@/lib/webchat-diagnostics";
+import { validateWebchatBotSignals } from "@/lib/webchat-bot-mitigation";
 import {
   buildWebchatSourceContext,
   executeWebchatFlowFirst,
   mergeConversationMetadata,
 } from "@/lib/webchat-conversation-engine";
+import { sanitizeWebchatMetadataForRetention } from "@/lib/webchat-privacy";
 
 const messageSchema = z.object({
   token: z.string().min(1),
@@ -38,6 +40,12 @@ const messageSchema = z.object({
       utmCampaign: z.string().optional(),
       utmTerm: z.string().optional(),
       utmContent: z.string().optional(),
+    })
+    .optional(),
+  botSignals: z
+    .object({
+      honeypot: z.string().optional(),
+      elapsedMs: z.number().optional(),
     })
     .optional(),
 });
@@ -165,6 +173,35 @@ export async function POST(request: NextRequest) {
 
     const requestOrigin = request.headers.get("origin") || undefined;
     const requestReferer = request.headers.get("referer") || undefined;
+    const mitigation = validateWebchatBotSignals({
+      stage: "message",
+      signals: parsed.data.botSignals,
+    });
+
+    if (!mitigation.allowed) {
+      await recordWebchatErrorEvent({
+        siteId: site.id,
+        reason: "bot_mitigation",
+        stage: "message",
+        payload: {
+          mitigationReason: mitigation.reason || "blocked",
+          origin: requestOrigin || null,
+          referer: requestReferer || null,
+        },
+      });
+
+      return NextResponse.json(
+        {
+          error: "Request blocked",
+          reason: mitigation.reason || "bot_mitigation",
+        },
+        { status: 403, headers: createWebchatCorsHeaders(request) },
+      );
+    }
+
+    const sanitizedMessageMetadata = sanitizeWebchatMetadataForRetention(
+      parsed.data.metadata || null,
+    );
 
     if (!isOriginAllowedForSite(site, requestOrigin, requestReferer)) {
       await recordWebchatErrorEvent({
@@ -250,7 +287,10 @@ export async function POST(request: NextRequest) {
       requestOrigin,
       requestReferer,
       sessionMetadata,
-      messageMetadata: parsed.data.metadata || null,
+      messageMetadata:
+        sanitizedMessageMetadata && typeof sanitizedMessageMetadata === "object"
+          ? (sanitizedMessageMetadata as Record<string, unknown>)
+          : null,
       existingMetadata: existingConversationMetadata,
     });
 

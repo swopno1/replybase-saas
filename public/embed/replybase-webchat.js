@@ -95,6 +95,7 @@
   var isSending = false;
   var initialized = false;
   var lastTypingAt = 0;
+  var widgetBootedAt = Date.now();
   var shouldUseMobileFullscreen = false;
   var consentNoticeRendered = false;
 
@@ -461,6 +462,13 @@
     };
   }
 
+  function buildBotSignals() {
+    return {
+      honeypot: "",
+      elapsedMs: Math.max(Date.now() - widgetBootedAt, 0),
+    };
+  }
+
   function request(path, method, payload) {
     var options = {
       method: method,
@@ -514,6 +522,7 @@
         utmTerm: buildRuntimeMetadata().utmTerm,
         utmContent: buildRuntimeMetadata().utmContent,
       },
+      botSignals: buildBotSignals(),
     };
 
     return request("/api/webchat/init", "POST", payload).then(function (data) {
@@ -606,6 +615,7 @@
       token: token,
       message: text,
       metadata: buildRuntimeMetadata(),
+      botSignals: buildBotSignals(),
     })
       .then(function (data) {
         var texts = normalizeResponseTexts(data);

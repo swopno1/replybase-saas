@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { sanitizeWebchatMetadataForRetention } from "@/lib/webchat-privacy";
 
 export async function recordWebchatErrorEvent(params: {
   siteId: string;
@@ -9,7 +10,8 @@ export async function recordWebchatErrorEvent(params: {
     | "rate_limit"
     | "message_error"
     | "invalid_token"
-    | "invalid_init_challenge";
+    | "invalid_init_challenge"
+    | "bot_mitigation";
   stage: "init" | "config" | "message" | "events";
   payload?: Record<string, unknown>;
 }) {
@@ -22,7 +24,7 @@ export async function recordWebchatErrorEvent(params: {
         payload: {
           reason: params.reason,
           stage: params.stage,
-          ...(params.payload || {}),
+          ...sanitizeWebchatMetadataForRetention(params.payload || {}),
         } as Prisma.InputJsonValue,
       },
     });

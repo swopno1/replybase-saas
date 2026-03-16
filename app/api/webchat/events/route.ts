@@ -19,6 +19,7 @@ import {
   normalizeWebchatTelemetryPayload,
   shouldSampleWebchatTelemetry,
 } from "@/lib/webchat-telemetry";
+import { sanitizeWebchatMetadataForRetention } from "@/lib/webchat-privacy";
 
 const eventSchema = z.object({
   token: z.string().min(1),
@@ -189,9 +190,11 @@ export async function POST(request: NextRequest) {
         sessionId: webChatSession?.id || null,
         type: parsed.data.type,
         payload: {
-          ...normalizeWebchatTelemetryPayload(
-            parsed.data.type,
-            parsed.data.payload,
+          ...sanitizeWebchatMetadataForRetention(
+            normalizeWebchatTelemetryPayload(
+              parsed.data.type,
+              parsed.data.payload,
+            ),
           ),
           origin: requestOrigin || null,
           referer: requestReferer || null,

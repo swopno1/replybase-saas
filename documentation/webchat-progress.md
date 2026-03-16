@@ -147,7 +147,7 @@ Code references:
 
 ### Phase 5: Security + abuse protection
 
-Status: `Partially Implemented`
+Status: `Implemented`
 
 Implemented:
 
@@ -157,11 +157,12 @@ Implemented:
 - Production guard to prevent wildcard CORS defaults unless explicitly overridden.
 - Rate limiting (IP + session) on `init`, `message`, and `events`.
 - Shared rate-limit backend support via Upstash Redis with automatic in-memory fallback.
+- Bot mitigation signals (honeypot + minimum init elapsed checks) on `init` and `message`.
+- Configurable PII retention controls for webchat contact and metadata persistence.
 
 Pending:
 
-- bot mitigation (honeypot/captcha)
-- PII retention controls
+- None for current Phase 5 scope.
 
 Code references:
 
@@ -222,6 +223,5 @@ Missing:
 
 ## Recommended Next Actions
 
-1. Add bot mitigation and PII retention policy controls.
-2. Add test coverage (unit + integration + e2e) before broad rollout.
-3. Add feature-flag rollout controls and pilot policies.
+1. Add test coverage (unit + integration + e2e) before broad rollout.
+2. Add feature-flag rollout controls and pilot policies.

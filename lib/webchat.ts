@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from "crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { sanitizeWebchatMetadataForRetention } from "@/lib/webchat-privacy";
 
 type InitContactInput = {
   name?: string;
@@ -415,6 +416,10 @@ export async function resolveWebchatVisitorSession(params: {
   });
 
   if (!conversation) {
+    const sanitizedMetadata = sanitizeWebchatMetadataForRetention(
+      params.metadata || {},
+    );
+
     conversation = await prisma.crmConversation.create({
       data: {
         contactId: contact.id,
@@ -423,7 +428,7 @@ export async function resolveWebchatVisitorSession(params: {
         metadata: {
           siteId: params.siteId,
           ...(params.channelId ? { channelId: params.channelId } : {}),
-          ...(params.metadata || {}),
+          ...sanitizedMetadata,
         } as Prisma.InputJsonValue,
       },
     });
@@ -438,7 +443,9 @@ export async function resolveWebchatVisitorSession(params: {
     },
   });
 
-  const sessionMetadata = (params.metadata || {}) as Prisma.InputJsonValue;
+  const sessionMetadata = sanitizeWebchatMetadataForRetention(
+    params.metadata || {},
+  ) as Prisma.InputJsonValue;
 
   const webChatSession = existingSession
     ? await prisma.webChatSession.update({

@@ -16,12 +16,17 @@ import {
   isWebchatOriginAllowed,
 } from "@/lib/webchat-cors";
 import { consumeWebchatInitChallenge } from "@/lib/webchat-init-challenge";
+import { validateWebchatBotSignals } from "@/lib/webchat-bot-mitigation";
 import {
   consumeWebchatRateLimit,
   createWebchatRateLimitHeaders,
   getWebchatLimiterKeyFromRequest,
 } from "@/lib/webchat-rate-limit";
 import { recordWebchatErrorEvent } from "@/lib/webchat-diagnostics";
+import {
+  sanitizeWebchatContactForRetention,
+  sanitizeWebchatMetadataForRetention,
+} from "@/lib/webchat-privacy";
 
 const initSchema = z
   .object({
@@ -46,6 +51,12 @@ const initSchema = z
       .optional(),
     initChallenge: z.string().min(1),
     metadata: z.record(z.string(), z.unknown()).optional(),
+    botSignals: z
+      .object({
+        honeypot: z.string().optional(),
+        elapsedMs: z.number().optional(),
+      })
+      .optional(),
   })
   .superRefine((data, ctx) => {
     if (!data.publicKey && !data.channelId && !data.botId) {
@@ -83,10 +94,36 @@ export async function POST(request: NextRequest) {
     const requestOrigin = request.headers.get("origin") || undefined;
     const requestReferer = request.headers.get("referer") || undefined;
     const inputOrigin = parsed.data.origin;
-
     const siteFromKey = parsed.data.publicKey
       ? await findActiveWebChatSite({ publicKey: parsed.data.publicKey })
       : null;
+    const mitigation = validateWebchatBotSignals({
+      stage: "init",
+      signals: parsed.data.botSignals,
+    });
+
+    if (!mitigation.allowed) {
+      if (siteFromKey) {
+        await recordWebchatErrorEvent({
+          siteId: siteFromKey.id,
+          reason: "bot_mitigation",
+          stage: "init",
+          payload: {
+            mitigationReason: mitigation.reason || "blocked",
+            origin: inputOrigin || requestOrigin || null,
+            referer: requestReferer || null,
+          },
+        });
+      }
+
+      return NextResponse.json(
+        {
+          error: "Request blocked",
+          reason: mitigation.reason || "bot_mitigation",
+        },
+        { status: 403, headers: createWebchatCorsHeaders(request) },
+      );
+    }
 
     let channel = null;
     if (!siteFromKey) {
@@ -212,12 +249,14 @@ export async function POST(request: NextRequest) {
       tenantId: site.bot.tenantId,
       channelId: site.channelId || channel?.id,
       visitorId: parsed.data.visitorId,
-      contact: parsed.data.visitorContext || parsed.data.contact,
-      metadata: {
+      contact: sanitizeWebchatContactForRetention(
+        parsed.data.visitorContext || parsed.data.contact,
+      ),
+      metadata: sanitizeWebchatMetadataForRetention({
         ...(parsed.data.metadata || {}),
         origin: inputOrigin || requestOrigin,
         referer: requestReferer,
-      },
+      }),
     });
 
     const resolvedChannelId = site.channelId || channel?.id;

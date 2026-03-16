@@ -42,6 +42,10 @@ Important: call `GET /api/webchat/config` first and pass the returned `initChall
   "metadata": {
     "url": "https://site.example/page",
     "referrer": "https://google.com"
+  },
+  "botSignals": {
+    "honeypot": "",
+    "elapsedMs": 1200
   }
 }
 ```
@@ -51,6 +55,8 @@ Rules:
 - At least one of `publicKey`, `channelId`, or `botId` is required.
 - `initChallenge` is required and is single-use within its replay window.
 - `visitorContext` and `contact` are both accepted for contact enrichment.
+- `botSignals.honeypot` must remain empty.
+- `botSignals.elapsedMs` is used for bot-mitigation checks on init.
 
 ### Success response
 
@@ -145,6 +151,10 @@ Send a visitor message and receive assistant responses.
     "utmSource": "google",
     "utmMedium": "cpc",
     "utmCampaign": "brand"
+  },
+  "botSignals": {
+    "honeypot": "",
+    "elapsedMs": 3000
   }
 }
 ```
@@ -236,6 +246,8 @@ All endpoints support:
 - Token must map to the expected conversation/bot context.
 - Origin policy follows `WEBCHAT_ALLOWED_ORIGINS`.
 - Rate limiting is enforced per IP and per session key on public write endpoints.
+- Bot mitigation checks can block suspicious init/message requests.
+- PII retention is controlled by `WEBCHAT_PII_RETENTION_MODE` (`retain`, `mask`, `drop`).
 
 ## Rate Limit Headers
 

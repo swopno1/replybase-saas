@@ -154,6 +154,15 @@ Optional shared limiter backend:
 - `UPSTASH_REDIS_REST_URL` (required for `upstash` mode)
 - `UPSTASH_REDIS_REST_TOKEN` (required for `upstash` mode)
 
+Optional bot mitigation:
+
+- `WEBCHAT_BOT_MITIGATION_ENABLED` (`true` by default)
+- `WEBCHAT_MIN_INIT_ELAPSED_MS` (defaults to `800`)
+
+Optional PII retention controls:
+
+- `WEBCHAT_PII_RETENTION_MODE` (`retain`, `mask`, `drop`)
+
 ## Security Notes (Current)
 
 Implemented:
@@ -162,11 +171,12 @@ Implemented:
 - Strict Origin + Referer-aware CORS controls for webchat routes.
 - Production wildcard guard for global CORS allowlist defaults.
 - IP and session-based rate limiting for `init`, `message`, and `events`.
+- Bot mitigation checks for suspicious webchat init/message traffic.
+- Configurable PII retention sanitization for webchat metadata and diagnostics payloads.
 
 Still recommended:
 
-- abuse mitigation controls
-- PII retention controls
+- optional captcha challenge verification for high-risk deployments
 
 ## Known Gaps
 
