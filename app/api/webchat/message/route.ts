@@ -23,6 +23,7 @@ import {
 } from "@/lib/webchat-conversation-engine";
 import { sanitizeWebchatMetadataForRetention } from "@/lib/webchat-privacy";
 import { recordWebchatMetric } from "@/lib/webchat-metrics";
+import { getWebchatRolloutDecision } from "@/lib/webchat-rollout";
 
 const messageSchema = z.object({
   token: z.string().min(1),
@@ -84,6 +85,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Invalid session token" },
         { status: 401, headers: createWebchatCorsHeaders(request) },
+      );
+    }
+
+    const rollout = await getWebchatRolloutDecision(session.tenantId);
+    if (!rollout.allowed) {
+      return NextResponse.json(
+        {
+          error: "Webchat is not enabled for this tenant",
+          reason: rollout.reason,
+        },
+        { status: 403, headers: createWebchatCorsHeaders(request) },
       );
     }
 

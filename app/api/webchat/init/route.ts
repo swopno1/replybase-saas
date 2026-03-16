@@ -28,6 +28,7 @@ import {
   sanitizeWebchatMetadataForRetention,
 } from "@/lib/webchat-privacy";
 import { recordWebchatMetric } from "@/lib/webchat-metrics";
+import { getWebchatRolloutDecision } from "@/lib/webchat-rollout";
 
 const initSchema = z
   .object({
@@ -158,6 +159,28 @@ export async function POST(request: NextRequest) {
           origin: inputOrigin || requestOrigin,
         },
       }));
+
+    const rollout = await getWebchatRolloutDecision(site.bot.tenantId);
+    if (!rollout.allowed) {
+      await recordWebchatErrorEvent({
+        siteId: site.id,
+        reason: "rollout_disabled",
+        stage: "init",
+        payload: {
+          rolloutReason: rollout.reason,
+          origin: inputOrigin || requestOrigin || null,
+          referer: requestReferer || null,
+        },
+      });
+
+      return NextResponse.json(
+        {
+          error: "Webchat is not enabled for this tenant",
+          reason: rollout.reason,
+        },
+        { status: 403, headers: createWebchatCorsHeaders(request) },
+      );
+    }
 
     const initRateLimit = await consumeWebchatRateLimit({
       scope: "init_ip",

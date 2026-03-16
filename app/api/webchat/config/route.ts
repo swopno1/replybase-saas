@@ -14,6 +14,7 @@ import {
 import { recordWebchatErrorEvent } from "@/lib/webchat-diagnostics";
 import { createWebchatInitChallenge } from "@/lib/webchat-init-challenge";
 import { getWebchatTelemetryConfig } from "@/lib/webchat-telemetry";
+import { getWebchatRolloutDecision } from "@/lib/webchat-rollout";
 
 export async function GET(request: NextRequest) {
   try {
@@ -46,6 +47,17 @@ export async function GET(request: NextRequest) {
       : null;
 
     if (siteFromKey) {
+      const rollout = await getWebchatRolloutDecision(siteFromKey.bot.tenantId);
+      if (!rollout.allowed) {
+        return NextResponse.json(
+          {
+            error: "Webchat is not enabled for this tenant",
+            reason: rollout.reason,
+          },
+          { status: 403, headers: createWebchatCorsHeaders(request) },
+        );
+      }
+
       if (!isOriginAllowedForSite(siteFromKey, requestOrigin, requestReferer)) {
         await recordWebchatErrorEvent({
           siteId: siteFromKey.id,
@@ -87,6 +99,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { error: "Active web channel not found" },
         { status: 404, headers: createWebchatCorsHeaders(request) },
+      );
+    }
+
+    const rollout = await getWebchatRolloutDecision(channel.bot.tenantId);
+    if (!rollout.allowed) {
+      return NextResponse.json(
+        {
+          error: "Webchat is not enabled for this tenant",
+          reason: rollout.reason,
+        },
+        { status: 403, headers: createWebchatCorsHeaders(request) },
       );
     }
 

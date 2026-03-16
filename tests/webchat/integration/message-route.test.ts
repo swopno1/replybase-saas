@@ -57,12 +57,21 @@ vi.mock("@/lib/webchat-metrics", () => ({
   recordWebchatMetric: vi.fn(),
 }));
 
+vi.mock("@/lib/webchat-rollout", () => ({
+  getWebchatRolloutDecision: vi.fn().mockResolvedValue({
+    allowed: true,
+    mode: "off",
+    reason: "rollout_not_enforced",
+  }),
+}));
+
 import { POST } from "@/app/api/webchat/message/route";
 import { prisma } from "@/lib/prisma";
 import { verifyWebchatSessionToken } from "@/lib/webchat-session";
 import { isOriginAllowedForSite } from "@/lib/webchat";
 import { converse } from "@/lib/ai-engine";
 import { executeWebchatFlowFirst } from "@/lib/webchat-conversation-engine";
+import { getWebchatRolloutDecision } from "@/lib/webchat-rollout";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -139,6 +148,11 @@ describe("POST /api/webchat/message — integration", () => {
     );
     vi.mocked(isOriginAllowedForSite).mockReturnValue(true);
     vi.mocked(executeWebchatFlowFirst).mockResolvedValue(null);
+    vi.mocked(getWebchatRolloutDecision).mockResolvedValue({
+      allowed: true,
+      mode: "off",
+      reason: "rollout_not_enforced",
+    });
     vi.mocked(converse).mockResolvedValue({
       sessionId: "ai_session_1",
       responses: [{ type: "text", text: "Hello from AI" }],
@@ -253,6 +267,25 @@ describe("POST /api/webchat/message — integration", () => {
       expect(res.status).toBe(403);
       const json = await res.json();
       expect(json.error).toBe("Origin not allowed for this site");
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Rollout gating
+  // -------------------------------------------------------------------------
+  describe("rollout gating", () => {
+    it("returns 403 when tenant is blocked by rollout policy", async () => {
+      vi.mocked(getWebchatRolloutDecision).mockResolvedValue({
+        allowed: false,
+        mode: "pilot",
+        reason: "pilot_only",
+      });
+      const req = makeReq(validBody());
+      const res = await POST(req);
+      expect(res.status).toBe(403);
+      const json = await res.json();
+      expect(json.error).toBe("Webchat is not enabled for this tenant");
+      expect(json.reason).toBe("pilot_only");
     });
   });
 
