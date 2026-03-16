@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
         },
       }));
 
-    const initRateLimit = consumeWebchatRateLimit({
+    const initRateLimit = await consumeWebchatRateLimit({
       scope: "init_ip",
       key: `${getWebchatLimiterKeyFromRequest(request)}:${site.id}`,
     });

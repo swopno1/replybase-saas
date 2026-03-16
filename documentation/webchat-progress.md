@@ -156,12 +156,12 @@ Implemented:
 - Strict Origin + Referer verification with reasoned denials.
 - Production guard to prevent wildcard CORS defaults unless explicitly overridden.
 - Rate limiting (IP + session) on `init`, `message`, and `events`.
+- Shared rate-limit backend support via Upstash Redis with automatic in-memory fallback.
 
 Pending:
 
 - bot mitigation (honeypot/captcha)
 - PII retention controls
-- distributed rate-limit backend (current limiter is in-memory per instance)
 
 Code references:
 
@@ -222,7 +222,6 @@ Missing:
 
 ## Recommended Next Actions
 
-1. Upgrade webchat rate limiting to shared storage for multi-instance deployments.
-2. Add bot mitigation and PII retention policy controls.
-3. Add test coverage (unit + integration + e2e) before broad rollout.
-4. Add feature-flag rollout controls and pilot policies.
+1. Add bot mitigation and PII retention policy controls.
+2. Add test coverage (unit + integration + e2e) before broad rollout.
+3. Add feature-flag rollout controls and pilot policies.

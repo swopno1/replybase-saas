@@ -17,6 +17,13 @@ type ScopePolicy = {
   windowMs: number;
 };
 
+type WebchatRateLimitScope =
+  | "init_ip"
+  | "message_ip"
+  | "message_session"
+  | "events_ip"
+  | "events_session";
+
 const counters = new Map<string, CounterState>();
 
 const policies: Record<string, ScopePolicy> = {
@@ -62,6 +69,64 @@ function getPolicy(scope: string): ScopePolicy {
   return policies[scope] || { limit: 60, windowMs: 60_000 };
 }
 
+function getStoreMode() {
+  const explicit = process.env.WEBCHAT_RATE_LIMIT_STORE?.trim().toLowerCase();
+  if (explicit === "memory" || explicit === "upstash") {
+    return explicit;
+  }
+
+  if (
+    process.env.UPSTASH_REDIS_REST_URL &&
+    process.env.UPSTASH_REDIS_REST_TOKEN
+  ) {
+    return "upstash";
+  }
+
+  return "memory";
+}
+
+function getUpstashConfig() {
+  const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
+
+  if (!url || !token) {
+    return null;
+  }
+
+  return {
+    url: url.replace(/\/+$/, ""),
+    token,
+  };
+}
+
+async function runUpstashCommand(command: Array<string | number>) {
+  const config = getUpstashConfig();
+  if (!config) {
+    throw new Error("Upstash REST config missing");
+  }
+
+  const path = command
+    .map((part) => encodeURIComponent(String(part)))
+    .join("/");
+  const response = await fetch(`${config.url}/${path}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${config.token}`,
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const responseText = await response.text();
+    throw new Error(
+      `Upstash command failed: ${response.status} ${responseText}`,
+    );
+  }
+
+  const payload = (await response.json()) as { result?: unknown };
+  return payload.result;
+}
+
 function getClientIp(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
   if (forwarded) {
@@ -96,13 +161,8 @@ function cleanupCounter(now: number) {
   }
 }
 
-export function consumeWebchatRateLimit(input: {
-  scope:
-    | "init_ip"
-    | "message_ip"
-    | "message_session"
-    | "events_ip"
-    | "events_session";
+function consumeInMemoryRateLimit(input: {
+  scope: WebchatRateLimitScope;
   key: string;
 }): WebchatRateLimitResult {
   const now = Date.now();
@@ -144,6 +204,67 @@ export function consumeWebchatRateLimit(input: {
     remaining: Math.max(policy.limit - existing.count, 0),
     retryAfter: Math.max(1, Math.ceil((existing.resetAt - now) / 1000)),
   };
+}
+
+async function consumeUpstashRateLimit(input: {
+  scope: WebchatRateLimitScope;
+  key: string;
+}): Promise<WebchatRateLimitResult> {
+  const now = Date.now();
+  const policy = getPolicy(input.scope);
+  const bucketKey = `webchat:rl:${input.scope}:${input.key}`;
+
+  const incrementResult = await runUpstashCommand(["INCR", bucketKey]);
+  const count = Number(incrementResult || 0);
+
+  if (!Number.isFinite(count) || count <= 0) {
+    throw new Error("Invalid counter response from Upstash");
+  }
+
+  if (count === 1) {
+    await runUpstashCommand(["PEXPIRE", bucketKey, policy.windowMs]);
+  }
+
+  const pttlResult = await runUpstashCommand(["PTTL", bucketKey]);
+  const ttlMs = Number(pttlResult);
+  const effectiveTtlMs =
+    Number.isFinite(ttlMs) && ttlMs > 0 ? ttlMs : policy.windowMs;
+
+  if (count > policy.limit) {
+    return {
+      allowed: false,
+      limit: policy.limit,
+      remaining: 0,
+      retryAfter: Math.max(1, Math.ceil(effectiveTtlMs / 1000)),
+    };
+  }
+
+  return {
+    allowed: true,
+    limit: policy.limit,
+    remaining: Math.max(policy.limit - count, 0),
+    retryAfter: Math.max(1, Math.ceil(effectiveTtlMs / 1000)),
+  };
+}
+
+export async function consumeWebchatRateLimit(input: {
+  scope: WebchatRateLimitScope;
+  key: string;
+}): Promise<WebchatRateLimitResult> {
+  const mode = getStoreMode();
+
+  if (mode === "upstash") {
+    try {
+      return await consumeUpstashRateLimit(input);
+    } catch (error) {
+      console.error(
+        "[Webchat RateLimit] Shared limiter unavailable, falling back to memory:",
+        error,
+      );
+    }
+  }
+
+  return consumeInMemoryRateLimit(input);
 }
 
 export function getWebchatLimiterKeyFromRequest(request: NextRequest) {

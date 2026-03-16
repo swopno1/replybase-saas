@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const ipRateLimit = consumeWebchatRateLimit({
+    const ipRateLimit = await consumeWebchatRateLimit({
       scope: "events_ip",
       key: `${getWebchatLimiterKeyFromRequest(request)}:${site.id}`,
     });
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
     const requestOrigin = request.headers.get("origin") || undefined;
     const requestReferer = request.headers.get("referer") || undefined;
 
-    const sessionRateLimit = consumeWebchatRateLimit({
+    const sessionRateLimit = await consumeWebchatRateLimit({
       scope: "events_session",
       key: `${sessionToken.siteId || sessionToken.channelId}:${sessionToken.visitorId}`,
     });

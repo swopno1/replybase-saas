@@ -148,6 +148,12 @@ Optional rate-limit tuning:
 - `WEBCHAT_RATE_LIMIT_EVENTS_SESSION`
 - `WEBCHAT_RATE_LIMIT_EVENTS_SESSION_WINDOW_MS`
 
+Optional shared limiter backend:
+
+- `WEBCHAT_RATE_LIMIT_STORE` (`memory` or `upstash`)
+- `UPSTASH_REDIS_REST_URL` (required for `upstash` mode)
+- `UPSTASH_REDIS_REST_TOKEN` (required for `upstash` mode)
+
 ## Security Notes (Current)
 
 Implemented:
@@ -160,7 +166,7 @@ Implemented:
 Still recommended:
 
 - abuse mitigation controls
-- shared/distributed limiter backend for horizontally scaled deployments
+- PII retention controls
 
 ## Known Gaps
 
