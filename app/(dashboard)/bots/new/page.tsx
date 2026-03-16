@@ -20,7 +20,7 @@ function CreateBotContent() {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    channel: "facebook",
+    channel: "web",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -108,12 +108,14 @@ function CreateBotContent() {
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
+                <option value="web">Webchat</option>
+                <option value="telegram">Telegram</option>
                 <option value="facebook">Facebook</option>
-                <option value="instagram">Instagram</option>
                 <option value="whatsapp">WhatsApp</option>
               </select>
               <p className="text-xs text-gray-500 mt-1">
-                Select the primary channel for this bot
+                Select the primary channel for this bot. You can add more
+                channels later.
               </p>
             </div>
 

@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 interface CreateBotFormProps {
   projectId: string;
@@ -13,9 +13,9 @@ export function CreateBotForm({ projectId }: CreateBotFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
-    channel: 'webhook',
-    status: true
+    name: "",
+    channel: "webhook",
+    status: true,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -23,23 +23,23 @@ export function CreateBotForm({ projectId }: CreateBotFormProps) {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/bots', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/bots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId,
-          ...formData
-        })
+          ...formData,
+        }),
       });
 
       if (res.ok) {
-        router.push('/dashboard/bots');
+        router.push("/bots");
       } else {
-        alert('Failed to create bot');
+        alert("Failed to create bot");
       }
     } catch (error) {
-      console.error('Error creating bot:', error);
-      alert('An error occurred');
+      console.error("Error creating bot:", error);
+      alert("An error occurred");
     } finally {
       setLoading(false);
     }
@@ -62,7 +62,9 @@ export function CreateBotForm({ projectId }: CreateBotFormProps) {
         <label className="block text-sm font-medium mb-1">Channel</label>
         <select
           value={formData.channel}
-          onChange={(e) => setFormData({ ...formData, channel: e.target.value })}
+          onChange={(e) =>
+            setFormData({ ...formData, channel: e.target.value })
+          }
           className="w-full px-3 py-2 border rounded-md"
         >
           <option value="webhook">Webhook</option>
@@ -76,14 +78,16 @@ export function CreateBotForm({ projectId }: CreateBotFormProps) {
           <input
             type="checkbox"
             checked={formData.status}
-            onChange={(e) => setFormData({ ...formData, status: e.target.checked })}
+            onChange={(e) =>
+              setFormData({ ...formData, status: e.target.checked })
+            }
           />
           <span className="text-sm">Enable bot</span>
         </label>
       </div>
 
       <Button type="submit" disabled={loading} className="w-full">
-        {loading ? 'Creating...' : 'Create Bot'}
+        {loading ? "Creating..." : "Create Bot"}
       </Button>
     </form>
   );

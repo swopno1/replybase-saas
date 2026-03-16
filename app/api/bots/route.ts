@@ -22,14 +22,35 @@ export async function GET(req: NextRequest) {
         tenantId: session.user.tenantId,
       },
       orderBy: { createdAt: "desc" },
+      include: {
+        channels: {
+          select: {
+            id: true,
+            type: true,
+            name: true,
+            enabled: true,
+            isActive: true,
+          },
+          orderBy: { createdAt: "asc" },
+        },
+      },
     });
+
+    const mappedBots = bots.map((bot) => ({
+      id: bot.id,
+      name: bot.name,
+      status: bot.enabled,
+      createdAt: bot.createdAt,
+      primaryChannel: bot.channels[0]?.type || "web",
+      channels: bot.channels,
+    }));
 
     // Mock project structure to satisfy frontend expected interface
     const projects = [
       {
         id: "default",
         name: "My Bots",
-        bots: bots,
+        bots: mappedBots,
       },
     ];
 

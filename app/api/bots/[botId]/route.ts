@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ botId: string }> }
+  { params }: { params: Promise<{ botId: string }> },
 ) {
   const { botId } = await params;
   const session = await getServerSession(authOptions);
@@ -42,7 +42,7 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ botId: string }> }
+  { params }: { params: Promise<{ botId: string }> },
 ) {
   const { botId } = await params;
   const session = await getServerSession(authOptions);
@@ -72,13 +72,14 @@ export async function PATCH(
   }
 
   const body = await req.json();
-  const { name, description } = body;
+  const { name, description, enabled } = body;
 
   const bot = await prisma.bot.update({
     where: { id: botId },
     data: {
       ...(name && { name }),
       ...(description !== undefined && { description }),
+      ...(enabled !== undefined && { enabled: Boolean(enabled) }),
     },
   });
 
@@ -87,7 +88,7 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ botId: string }> }
+  { params }: { params: Promise<{ botId: string }> },
 ) {
   const { botId } = await params;
   const session = await getServerSession(authOptions);
