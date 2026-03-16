@@ -66,6 +66,8 @@ The admin monitoring view is now available at `/admin/webchat-monitoring` and sh
 - widget error-event rate and last-activity freshness
 - blocked-origin, rate-limit, rollout-disabled, invalid-token, and bot-mitigation incident counts
 - recent cross-tenant incident feed for fast triage
+- tracked pilot tenants with per-tenant traffic and error-rate summaries
+- a rollout recommendation card that flags blockers before pilot-to-tiered or tiered-to-GA promotion
 
 ## Recommended Metrics
 
@@ -118,6 +120,7 @@ Use `/admin/webchat-monitoring` at least once per day and verify:
 3. Blocked-origin spikes are understood and not caused by misconfigured embeds.
 4. Rate-limit incidents remain below 10 per 24 hours unless traffic volume explains the spike.
 5. Recent incidents have owner/action notes before expanding rollout.
+6. The rollout recommendation card shows `Ready` before you manually advance the runtime mode in the deployed environment.
 
 ### Promote from pilot to tiered
 
