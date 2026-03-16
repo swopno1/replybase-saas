@@ -110,6 +110,12 @@ export async function middleware(req: NextRequest) {
     if (isAuthPath || isPublicPath) {
       return NextResponse.next();
     }
+
+    // For protected API routes, return 401 instead of redirecting to login.
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     // and tries to access a protected route, redirect to login
     const loginUrl = new URL("/auth/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname);

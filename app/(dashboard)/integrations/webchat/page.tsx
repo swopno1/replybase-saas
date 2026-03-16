@@ -179,6 +179,7 @@ export default function WebchatIntegrationPage() {
   const [isCreatingChannel, setIsCreatingChannel] = useState(false);
   const [isRotatingPublicKey, setIsRotatingPublicKey] = useState(false);
   const [isRotatingSecretKey, setIsRotatingSecretKey] = useState(false);
+  const [isLaunchingTestWidget, setIsLaunchingTestWidget] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(true);
   const [previewDraft, setPreviewDraft] = useState(PREVIEW_DEFAULT_DRAFT);
   const [previewMessages, setPreviewMessages] = useState<PreviewMessage[]>(
@@ -746,15 +747,89 @@ export default function WebchatIntegrationPage() {
     }
   }
 
-  function handleLaunchTestWidget() {
-    if (!site?.publicKey || !testWidgetUrl) {
+  async function handleLaunchTestWidget() {
+    if (
+      !selectedBotId ||
+      !selectedChannelId ||
+      !site?.publicKey ||
+      !testWidgetUrl
+    ) {
       toast.error("Save or load a webchat site first");
       return;
     }
 
-    const nextWindow = window.open(testWidgetUrl, "_blank", "noopener");
-    if (!nextWindow) {
-      toast.error("Unable to open the test widget window");
+    setIsLaunchingTestWidget(true);
+    try {
+      let launchAllowedDomains = normalizedAllowedDomains;
+
+      if (
+        normalizedAllowedDomains.length > 0 &&
+        normalizedDashboardOrigin &&
+        !normalizedAllowedDomains.includes(normalizedDashboardOrigin)
+      ) {
+        const nextAllowedDomains = normalizeAllowedDomains([
+          ...normalizedAllowedDomains,
+          normalizedDashboardOrigin,
+        ]);
+
+        const patchResponse = await fetch(
+          `/api/bots/${selectedBotId}/webchat-site`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              channelId: selectedChannelId,
+              allowedDomains: nextAllowedDomains,
+            }),
+          },
+        );
+
+        const patchData = await patchResponse.json();
+        if (!patchResponse.ok) {
+          throw new Error(
+            patchData.error || "Failed to update allowlist for test launch",
+          );
+        }
+
+        setSite(patchData.site || null);
+        setAllowedDomains(
+          Array.isArray(patchData.site?.allowedDomains)
+            ? patchData.site.allowedDomains
+            : nextAllowedDomains,
+        );
+        launchAllowedDomains = normalizeAllowedDomains(
+          Array.isArray(patchData.site?.allowedDomains)
+            ? patchData.site.allowedDomains
+            : nextAllowedDomains,
+        );
+        toast.success("Current origin added to allowlist for test launch");
+      }
+
+      const params = new URLSearchParams({
+        publicKey: site.publicKey,
+        baseUrl: origin || "",
+        title,
+        primaryColor,
+        position,
+        welcomeMessage,
+        siteName: site.name || channelName,
+      });
+
+      if (launchAllowedDomains.length) {
+        params.set("allowedDomains", launchAllowedDomains.join(","));
+      }
+
+      const launchUrl = `/integrations/webchat/test?${params.toString()}`;
+      const nextWindow = window.open(launchUrl, "_blank", "noopener");
+      if (!nextWindow) {
+        toast.error("Unable to open the test widget window");
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to launch test widget",
+      );
+    } finally {
+      setIsLaunchingTestWidget(false);
     }
   }
 
@@ -1117,11 +1192,20 @@ export default function WebchatIntegrationPage() {
 
             <Button
               variant="outline"
-              onClick={handleLaunchTestWidget}
-              disabled={!selectedChannelId || isSiteLoading || !site?.publicKey}
+              onClick={() => void handleLaunchTestWidget()}
+              disabled={
+                !selectedChannelId ||
+                isSiteLoading ||
+                !site?.publicKey ||
+                isLaunchingTestWidget
+              }
             >
-              <ExternalLink className="mr-2 h-4 w-4" />
-              Launch Test Widget
+              {isLaunchingTestWidget ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <ExternalLink className="mr-2 h-4 w-4" />
+              )}
+              {isLaunchingTestWidget ? "Launching..." : "Launch Test Widget"}
             </Button>
           </div>
 
