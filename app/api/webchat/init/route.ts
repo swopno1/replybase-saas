@@ -77,10 +77,6 @@ export async function POST(request: NextRequest) {
         reason: reason ?? undefined,
         stage: "init",
       });
-      recordWebchatMetric("webchat.rate_limit.hit", {
-        scope: "init_ip",
-        siteId: site.id,
-      });
       return NextResponse.json(
         { error: "Origin not allowed", reason },
         { status: 403, headers: createWebchatCorsHeaders(request) },
@@ -182,6 +178,10 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      recordWebchatMetric("webchat.rate_limit.hit", {
+        scope: "init_ip",
+        siteId: site.id,
+      });
       return NextResponse.json(
         {
           error: "Rate limit exceeded",

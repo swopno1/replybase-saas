@@ -220,6 +220,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    recordWebchatMetric("webchat.event.tracked", {
+      type: parsed.data.type,
+      siteId: site.id,
+    });
     return NextResponse.json(
       { ok: true, sampled: true, sampleRate: telemetryPolicy.sampleRate },
       { headers: createWebchatCorsHeaders(request) },
@@ -232,10 +236,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-recordWebchatMetric("webchat.event.tracked", {
-  type: parsed.data.type,
-  siteId: site.id,
-});
 
 export async function OPTIONS(request: NextRequest) {
   if (!isWebchatOriginAllowed(request)) {
