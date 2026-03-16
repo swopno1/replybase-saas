@@ -14,6 +14,7 @@ Access is enforced server-side and is currently limited to a single allowlisted 
 - **Business Status**: high-level metrics for users, tenants, subscriptions, bots, contacts, conversations, and onboarding conversion.
 - **Subscribers**: internal subscription management, plan changes, and lifecycle operations.
 - **Onboarding**: visibility into onboarding sessions, stage distribution, abandonment, and conversion.
+- **Webchat Monitoring**: cross-tenant SLA dashboard, pilot-tenant telemetry, and rollout-stage recommendations.
 - **Webchat Rollout**: rollout mode controls for staged webchat exposure.
 
 ## Security Controls
@@ -29,6 +30,7 @@ The internal admin navigation currently includes:
 - Business Status
 - Subscribers
 - Onboarding
+- Webchat Monitoring
 - Webchat Rollout
 
 ## What Admin Can See Today
@@ -36,6 +38,7 @@ The internal admin navigation currently includes:
 - monthly revenue derived from active and trialing subscriptions
 - recent subscription signups
 - onboarding completion and abandonment metrics
+- webchat rollout decision support across pilot, tiered, and GA stages
 - staged webchat release settings for `off`, `pilot`, `tiered`, and `ga` rollout modes
 
 ## Notes

@@ -271,6 +271,7 @@ Implemented:
   - Dashboard page: `/admin/webchat-monitoring`
   - Cross-tenant monitoring snapshot for active sites, sessions, messages, widget events, error rate, and recent incidents
   - Rollout posture summary tied to current runtime rollout config
+  - Pilot runbook decision support with promotion recommendation and tenant-level telemetry summaries
 - Playwright E2E widget coverage added:
   - `playwright.config.ts` + `npm run test:e2e`
   - `app/webchat-e2e/page.tsx` (public harness route)
@@ -282,10 +283,10 @@ Implemented:
 
 Missing:
 
-- Pilot runbook execution and staged production enablement
+- Live production pilot promotion and staged tenant enablement still require operator action in the deployed environment
 
 ## Recommended Next Actions
 
-1. Execute pilot rollout runbook and promote to GA after telemetry thresholds are stable.
+1. Use the monitoring dashboard to review live pilot telemetry, then perform tenant promotion in the deployed environment when thresholds are stable.
 2. Add optional Playwright edge coverage for telemetry-disabled, sampling, and message failure fallback behavior.
 3. Add external alerts/dashboards for widget lifecycle events if stdout metrics need centralized monitoring.

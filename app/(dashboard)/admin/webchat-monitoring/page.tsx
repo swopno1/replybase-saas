@@ -90,6 +90,28 @@ function getHealthBadge(status: HealthStatus) {
   }
 }
 
+function getPromotionBadge(
+  status: WebchatMonitoringSnapshot["promotion"]["status"],
+) {
+  switch (status) {
+    case "ready":
+      return {
+        label: "Ready",
+        className: "border-green-200 bg-green-50 text-green-700",
+      };
+    case "stable":
+      return {
+        label: "Stable",
+        className: "border-blue-200 bg-blue-50 text-blue-700",
+      };
+    default:
+      return {
+        label: "Hold",
+        className: "border-amber-200 bg-amber-50 text-amber-700",
+      };
+  }
+}
+
 function getFreshnessStatus(lastActivityAt: string | null): HealthStatus {
   if (!lastActivityAt) {
     return "watch";
@@ -199,6 +221,7 @@ export default async function AdminWebchatMonitoringPage() {
   );
   const rateLimitStatus = getRateLimitStatus(snapshot.reasonCounts.rateLimit);
   const rolloutStatus = getRolloutStatus(snapshot);
+  const promotionBadge = getPromotionBadge(snapshot.promotion.status);
 
   return (
     <div className="space-y-6">
@@ -310,6 +333,57 @@ export default async function AdminWebchatMonitoringPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-2">
+              <CardTitle>Pilot Runbook Decision</CardTitle>
+              <CardDescription>
+                Promotion guidance generated from the current rollout mode and
+                the last {snapshot.windowHours} hours of telemetry.
+              </CardDescription>
+            </div>
+            <Badge variant="outline" className={promotionBadge.className}>
+              {promotionBadge.label}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-lg border p-4">
+            <p className="text-sm font-medium text-gray-900">
+              Current recommendation
+            </p>
+            <p className="mt-1 text-lg font-semibold text-gray-900">
+              {snapshot.promotion.summary}
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Current stage: {snapshot.promotion.currentStage}
+              {snapshot.promotion.recommendedStage
+                ? ` • Suggested next stage: ${snapshot.promotion.recommendedStage}`
+                : " • Suggested next stage: none"}
+            </p>
+          </div>
+
+          {snapshot.promotion.blockers.length === 0 ? (
+            <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+              No rollout blockers are currently detected by the dashboard
+              thresholds.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {snapshot.promotion.blockers.map((blocker) => (
+                <div
+                  key={blocker}
+                  className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+                >
+                  {blocker}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_1fr]">
         <Card>
@@ -443,6 +517,79 @@ export default async function AdminWebchatMonitoringPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <Card>
+          <CardHeader>
+            <CardTitle>Tracked Pilot Tenants</CardTitle>
+            <CardDescription>
+              Tenant-level view for pilot, force-enabled, and force-disabled
+              rollout participants.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {snapshot.trackedTenants.length === 0 ? (
+              <div className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+                No tracked rollout tenants are configured yet.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {snapshot.trackedTenants.map((tenant) => (
+                  <div key={tenant.tenantId} className="rounded-lg border p-4">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-medium text-gray-900">
+                          {tenant.tenantName}
+                        </p>
+                        <Badge variant="secondary">{tenant.rolloutRole}</Badge>
+                        {tenant.planName ? (
+                          <Badge variant="outline">{tenant.planName}</Badge>
+                        ) : null}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                            Active sites
+                          </p>
+                          <p className="mt-1 font-semibold text-gray-900">
+                            {formatNumber(tenant.activeSiteCount)} /{" "}
+                            {formatNumber(tenant.siteCount)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                            Sessions 24h
+                          </p>
+                          <p className="mt-1 font-semibold text-gray-900">
+                            {formatNumber(tenant.sessions24h)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                            Widget events 24h
+                          </p>
+                          <p className="mt-1 font-semibold text-gray-900">
+                            {formatNumber(tenant.widgetEvents24h)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                            Error rate
+                          </p>
+                          <p className="mt-1 font-semibold text-gray-900">
+                            {formatPercent(tenant.errorRate24h)}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Last activity: {formatTimestamp(tenant.lastActivityAt)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Incident Reasons Last 24 Hours</CardTitle>
