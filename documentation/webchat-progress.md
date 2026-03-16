@@ -5,7 +5,7 @@ description: Phase-by-phase implementation status of ReplyBase Webchat against t
 
 # Webchat Progress Status
 
-Last reviewed: 2026-03-16 (Phase 8 expanded — rollout gating + admin controls implemented, 128 tests passing)
+Last reviewed: 2026-03-16 (Phase 8 expanded — rollout controls + initial Playwright E2E coverage implemented)
 
 This document tracks current implementation status for the full webchat roadmap (Phases 0-8).
 
@@ -227,7 +227,7 @@ Implemented:
 
 Pending (future enhancements):
 
-- E2E tests for the embed widget (browser + Playwright)
+- Expand Playwright E2E scenarios (error paths, mobile fullscreen behavior, consent-required path)
 - Chaos/load tests for rate-limit and concurrent session handling
 
 Code references:
@@ -264,10 +264,14 @@ Implemented:
   - `GET/PATCH /api/admin/webchat-rollout`
   - Dashboard page: `/admin/webchat-rollout`
   - Admin navigation tab for rollout controls
+- Initial Playwright E2E widget test coverage added:
+  - `playwright.config.ts` + `npm run test:e2e`
+  - `app/webchat-e2e/page.tsx` (public harness route)
+  - `tests/e2e/webchat-widget.spec.ts` (open widget + send message happy path with mocked webchat APIs)
 - QA coverage for rollout controls:
   - `tests/webchat/rollout.test.ts` — 7 tests (mode parsing, pilot allow/block, tiered plan feature/allowlist, GA explicit deny)
   - Integration denial-path checks added to init/message/events route test suites.
-- Current test baseline after Phase 8 updates: **128 passing tests across 9 files**.
+- Current test baseline after Phase 8 updates: **128 passing Vitest tests across 9 files + 1 passing Playwright E2E test**.
 
 Missing:
 
@@ -276,6 +280,6 @@ Missing:
 
 ## Recommended Next Actions
 
-1. Add E2E widget tests with Playwright (embed script in a real browser against a local server).
+1. Expand Playwright E2E coverage (blocked-origin flow, consent-required flow, and mobile fullscreen mode).
 2. Add SLA monitoring dashboards and finalize rollout playbook for pilot-to-GA progression.
 3. Execute pilot rollout runbook and promote to GA after telemetry thresholds are stable.
