@@ -54,6 +54,7 @@ export async function middleware(req: NextRequest) {
     "/terms",
     "/privacy",
     "/faq",
+    "/webchat-e2e",
     "/data-deletion-status",
     "/data-deletion-request",
     "/newsletter/unsubscribe",

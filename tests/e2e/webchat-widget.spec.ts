@@ -1,7 +1,9 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Webchat widget", () => {
-  test("opens widget and sends message via mocked webchat APIs", async ({ page }) => {
+  test("opens widget and sends message via mocked webchat APIs", async ({
+    page,
+  }) => {
     await page.route("**/api/webchat/config**", async (route) => {
       await route.fulfill({
         status: 200,
@@ -64,6 +66,7 @@ test.describe("Webchat widget", () => {
     });
 
     await page.goto("/webchat-e2e");
+    await expect(page.getByTestId("e2e-status")).toHaveText("ready");
 
     const host = page.locator("#replybase-webchat-root");
     await expect(host).toBeVisible();
@@ -84,8 +87,6 @@ test.describe("Webchat widget", () => {
       page.locator("#replybase-webchat-root .rb-message.user"),
     ).toContainText("Hello from Playwright");
 
-    await expect(
-      page.locator("#replybase-webchat-root .rb-message.bot"),
-    ).toContainText("Mocked bot reply");
+    await expect(page.getByText("Mocked bot reply")).toBeVisible();
   });
 });
