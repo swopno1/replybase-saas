@@ -53,7 +53,9 @@ export default function BotDetailPage() {
   const botId = params.botId as string;
   const [bot, setBot] = useState<Bot | null>(null);
   const [loading, setLoading] = useState(true);
-  const [addingChannelType, setAddingChannelType] = useState<ChannelType | null>(
+  const [addingChannelType, setAddingChannelType] =
+    useState<ChannelType | null>(null);
+  const [deletingChannelId, setDeletingChannelId] = useState<string | null>(
     null,
   );
   const [editing, setEditing] = useState(false);
@@ -153,6 +155,45 @@ export default function BotDetailPage() {
     }
   };
 
+  const handleRemoveChannel = async (
+    channelId: string,
+    channelType: string,
+  ) => {
+    if (!bot) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Remove ${channelLabel(channelType)} channel from this bot?`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingChannelId(channelId);
+    try {
+      const response = await fetch(`/api/bots/${botId}/channels/${channelId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to delete channel");
+      }
+
+      await fetchBot();
+    } catch (error) {
+      console.error("Failed to remove channel:", error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Failed to remove channel. Please try again.",
+      );
+    } finally {
+      setDeletingChannelId(null);
+    }
+  };
+
   if (loading) return <div>Loading...</div>;
   if (!bot) return <div>Bot not found</div>;
 
@@ -239,14 +280,31 @@ export default function BotDetailPage() {
                           <p className="font-medium">
                             {channelLabel(channel.type)}
                           </p>
-                          {href ? (
-                            <Link
-                              href={href}
-                              className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                          <div className="flex items-center gap-3">
+                            {href ? (
+                              <Link
+                                href={href}
+                                className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                              >
+                                Configure
+                              </Link>
+                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void handleRemoveChannel(
+                                  channel.id,
+                                  channel.type,
+                                )
+                              }
+                              disabled={deletingChannelId === channel.id}
+                              className="text-sm text-red-600 hover:text-red-700 disabled:opacity-60"
                             >
-                              Configure
-                            </Link>
-                          ) : null}
+                              {deletingChannelId === channel.id
+                                ? "Removing..."
+                                : "Remove"}
+                            </button>
+                          </div>
                         </div>
                         <p className="text-xs text-gray-500">{channel.name}</p>
                       </div>
