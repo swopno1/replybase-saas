@@ -77,10 +77,13 @@ Server flow:
 1. Validate CORS/origin policy.
 2. Verify signed token and expiry.
 3. Verify conversation ownership (`botId`, `channel=web`).
-4. Call `converse(...)`.
-5. Persist inbound and outbound CRM messages.
-6. Update `WebChatSession` continuity fields and record a `MESSAGE` event.
-7. Return normalized response payload.
+4. Normalize and persist structured web source context (`pageUrl`, `referrer`, `locale`, `utm*`, `origin`) into conversation metadata.
+5. Attempt active/configured flow execution first for webchat.
+6. Fall back to `converse(...)` when no active/configured flow handles the message.
+7. Return safe fallback copy if the AI engine fails.
+8. Persist inbound and outbound CRM messages.
+9. Update `WebChatSession` continuity fields and record a `MESSAGE` event.
+10. Return normalized response payload.
 
 ### 4) Client Telemetry
 
@@ -150,13 +153,12 @@ Optional rate-limit tuning:
 Implemented:
 
 - HMAC-signed session tokens with expiry.
-- Origin-based CORS controls for webchat routes.
+- Strict Origin + Referer-aware CORS controls for webchat routes.
+- Production wildcard guard for global CORS allowlist defaults.
 - IP and session-based rate limiting for `init`, `message`, and `events`.
 
 Still recommended:
 
-- explicit Referer validation policy
-- no wildcard origin in production
 - abuse mitigation controls
 - shared/distributed limiter backend for horizontally scaled deployments
 

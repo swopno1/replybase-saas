@@ -12,6 +12,7 @@ import {
 } from "@/lib/webchat";
 import {
   createWebchatCorsHeaders,
+  getWebchatOriginRejectionReason,
   isWebchatOriginAllowed,
 } from "@/lib/webchat-cors";
 import { consumeWebchatInitChallenge } from "@/lib/webchat-init-challenge";
@@ -59,8 +60,9 @@ const initSchema = z
 export async function POST(request: NextRequest) {
   try {
     if (!isWebchatOriginAllowed(request)) {
+      const reason = getWebchatOriginRejectionReason(request);
       return NextResponse.json(
-        { error: "Origin not allowed" },
+        { error: "Origin not allowed", reason },
         { status: 403, headers: createWebchatCorsHeaders(request) },
       );
     }

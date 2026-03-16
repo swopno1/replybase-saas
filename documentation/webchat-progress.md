@@ -11,7 +11,7 @@ This document tracks current implementation status for the full webchat roadmap 
 
 ## Summary
 
-- Completed: core Phase 0 baseline, core Phase 1 domain model layer, core Phase 2 APIs (including publicKey and telemetry), core Phase 3 embed script, initial Phase 4 engine integration, initial Phase 5 token/CORS/rate-limit controls, initial Phase 6 dashboard setup UI.
+- Completed: core Phase 0 baseline, core Phase 1 domain model layer, core Phase 2 APIs (including publicKey and telemetry), core Phase 3 embed script, core Phase 4 engine integration, strengthened Phase 5 token/CORS/rate-limit controls, initial Phase 6 dashboard setup UI.
 - Partially completed: security hardening, diagnostics, observability, and rollout operations.
 - Not started: full Phase 7 automated QA matrix and Phase 8 feature-flagged rollout process.
 
@@ -124,19 +124,20 @@ Code references:
 
 ### Phase 4: Conversation engine integration
 
-Status: `Partially Implemented`
+Status: `Implemented`
 
 Implemented:
 
 - Reuses `converse(...)` pipeline.
 - Webchat messages are persisted to CRM via existing `crm_messages` flow.
 - Conversation continuity via `conversationId` and `externalSessionId`.
+- Explicit flow-first fallback chain before AI for the webchat message route.
+- Structured source metadata pipeline for `utm`, referrer, locale, page URL, page title, and origin.
+- Dedicated safe fallback copy for engine failures.
 
 Pending:
 
-- Explicit flow-first fallback chain before AI for webchat route.
-- Structured source metadata pipeline (utm/referrer/locale/page URL) with explicit downstream handling.
-- Dedicated safe fallback copy for engine failures.
+- None for current Phase 4 scope.
 
 Code references:
 
@@ -152,15 +153,14 @@ Implemented:
 
 - Signed short-lived session tokens (HMAC + expiry).
 - CORS origin control via `WEBCHAT_ALLOWED_ORIGINS`.
-- Basic origin allow/deny check.
+- Strict Origin + Referer verification with reasoned denials.
+- Production guard to prevent wildcard CORS defaults unless explicitly overridden.
 - Rate limiting (IP + session) on `init`, `message`, and `events`.
 
 Pending:
 
-- strict Origin + Referer verification strategy
 - bot mitigation (honeypot/captcha)
 - PII retention controls
-- production guard to prevent wildcard CORS by default
 - distributed rate-limit backend (current limiter is in-memory per instance)
 
 Code references:
@@ -222,7 +222,7 @@ Missing:
 
 ## Recommended Next Actions
 
-1. Add production CORS hardening defaults and stricter Origin/Referer policy.
-2. Upgrade webchat rate limiting to shared storage for multi-instance deployments.
+1. Upgrade webchat rate limiting to shared storage for multi-instance deployments.
+2. Add bot mitigation and PII retention policy controls.
 3. Add test coverage (unit + integration + e2e) before broad rollout.
 4. Add feature-flag rollout controls and pilot policies.

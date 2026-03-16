@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { verifyWebchatSessionToken } from "@/lib/webchat-session";
 import {
   createWebchatCorsHeaders,
+  getWebchatOriginRejectionReason,
   isWebchatOriginAllowed,
 } from "@/lib/webchat-cors";
 import { isOriginAllowedForSite } from "@/lib/webchat";
@@ -28,8 +29,9 @@ const eventSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     if (!isWebchatOriginAllowed(request)) {
+      const reason = getWebchatOriginRejectionReason(request);
       return NextResponse.json(
-        { error: "Origin not allowed" },
+        { error: "Origin not allowed", reason },
         { status: 403, headers: createWebchatCorsHeaders(request) },
       );
     }
@@ -221,10 +223,14 @@ export async function POST(request: NextRequest) {
 
 export async function OPTIONS(request: NextRequest) {
   if (!isWebchatOriginAllowed(request)) {
-    return new NextResponse(null, {
-      status: 403,
-      headers: createWebchatCorsHeaders(request),
-    });
+    const reason = getWebchatOriginRejectionReason(request);
+    return NextResponse.json(
+      { error: "Origin not allowed", reason },
+      {
+        status: 403,
+        headers: createWebchatCorsHeaders(request),
+      },
+    );
   }
 
   return new NextResponse(null, {

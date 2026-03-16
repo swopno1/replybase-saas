@@ -8,6 +8,7 @@ import {
 } from "@/lib/webchat";
 import {
   createWebchatCorsHeaders,
+  getWebchatOriginRejectionReason,
   isWebchatOriginAllowed,
 } from "@/lib/webchat-cors";
 import { recordWebchatErrorEvent } from "@/lib/webchat-diagnostics";
@@ -17,8 +18,9 @@ import { getWebchatTelemetryConfig } from "@/lib/webchat-telemetry";
 export async function GET(request: NextRequest) {
   try {
     if (!isWebchatOriginAllowed(request)) {
+      const reason = getWebchatOriginRejectionReason(request);
       return NextResponse.json(
-        { error: "Origin not allowed" },
+        { error: "Origin not allowed", reason },
         { status: 403, headers: createWebchatCorsHeaders(request) },
       );
     }

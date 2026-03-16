@@ -135,7 +135,17 @@ Send a visitor message and receive assistant responses.
 ```json
 {
   "token": "signed-session-token",
-  "message": "Hello"
+  "message": "Hello",
+  "metadata": {
+    "pageUrl": "https://site.example/pricing?utm_source=google",
+    "referrer": "https://google.com",
+    "locale": "en-US",
+    "pageTitle": "Pricing",
+    "origin": "https://site.example",
+    "utmSource": "google",
+    "utmMedium": "cpc",
+    "utmCampaign": "brand"
+  }
 }
 ```
 
@@ -145,7 +155,15 @@ Send a visitor message and receive assistant responses.
 {
   "conversationId": "crm-conversation-id",
   "sessionId": "external-engine-session-id",
-  "responses": [{ "type": "text", "text": "Hello, how can I help?" }]
+  "responses": [{ "type": "text", "text": "Hello, how can I help?" }],
+  "meta": {
+    "mode": "flow",
+    "sourceContext": {
+      "pageUrl": "https://site.example/pricing?utm_source=google",
+      "referrer": "https://google.com",
+      "locale": "en-US"
+    }
+  }
 }
 ```
 
@@ -158,6 +176,11 @@ Send a visitor message and receive assistant responses.
 - `429` rate limit exceeded
 - `503` upstream AI unavailable
 - `500` server failure
+
+Notes:
+
+- `meta.mode` can be `flow`, `ai`, or `safe_fallback`.
+- When the AI engine is unavailable, the webchat route now returns safe fallback text instead of surfacing raw engine failure copy to the visitor.
 
 ## POST `/api/webchat/events`
 

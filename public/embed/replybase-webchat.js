@@ -438,6 +438,29 @@
       });
   }
 
+  function buildRuntimeMetadata() {
+    var url = null;
+    try {
+      url = new URL(window.location.href);
+    } catch {
+      url = null;
+    }
+
+    return {
+      pageUrl: url ? url.toString() : window.location.href,
+      referrer: document.referrer || null,
+      locale: navigator.language || null,
+      pageTitle: document.title || null,
+      userAgent: navigator.userAgent,
+      origin: window.location.origin,
+      utmSource: url ? url.searchParams.get("utm_source") : null,
+      utmMedium: url ? url.searchParams.get("utm_medium") : null,
+      utmCampaign: url ? url.searchParams.get("utm_campaign") : null,
+      utmTerm: url ? url.searchParams.get("utm_term") : null,
+      utmContent: url ? url.searchParams.get("utm_content") : null,
+    };
+  }
+
   function request(path, method, payload) {
     var options = {
       method: method,
@@ -483,6 +506,13 @@
         url: window.location.href,
         referrer: document.referrer || null,
         userAgent: navigator.userAgent,
+        locale: navigator.language || null,
+        pageTitle: document.title || null,
+        utmSource: buildRuntimeMetadata().utmSource,
+        utmMedium: buildRuntimeMetadata().utmMedium,
+        utmCampaign: buildRuntimeMetadata().utmCampaign,
+        utmTerm: buildRuntimeMetadata().utmTerm,
+        utmContent: buildRuntimeMetadata().utmContent,
       },
     };
 
@@ -575,6 +605,7 @@
     request("/api/webchat/message", "POST", {
       token: token,
       message: text,
+      metadata: buildRuntimeMetadata(),
     })
       .then(function (data) {
         var texts = normalizeResponseTexts(data);
