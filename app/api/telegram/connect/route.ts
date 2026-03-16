@@ -55,6 +55,8 @@ export async function POST(req: NextRequest) {
         type: "telegram",
       },
     });
+    const nowIso = new Date().toISOString();
+    let createdChannelId: string | null = null;
 
     // Only check the channel limit when creating a new channel, not when updating.
     if (!channel) {
@@ -79,18 +81,18 @@ export async function POST(req: NextRequest) {
           type: "telegram",
           name: defaultName,
           channelId: String(profile.id),
-          accessToken: encryptedToken,
-          isActive: true,
-          enabled: true,
-          killSwitch: false,
+          isActive: false,
+          enabled: false,
+          killSwitch: true,
           config: {
             telegramBotId: String(profile.id),
             botUsername: profile.username || null,
             botFirstName: profile.first_name || null,
-            connectedAt: new Date().toISOString(),
+            provisioningStartedAt: nowIso,
           } as Prisma.JsonObject,
         },
       });
+      createdChannelId = channel.id;
     }
 
     const webhookSecret = generateWebhookSecret();
@@ -110,12 +112,43 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await setTelegramWebhook({
-      token: validated.botToken,
-      webhookUrl,
-      secretToken: webhookSecret,
-      allowedUpdates: ["message", "callback_query"],
-    });
+    try {
+      await setTelegramWebhook({
+        token: validated.botToken,
+        webhookUrl,
+        secretToken: webhookSecret,
+        allowedUpdates: ["message", "callback_query"],
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to set Telegram webhook";
+
+      if (createdChannelId) {
+        await prisma.channel
+          .delete({ where: { id: createdChannelId } })
+          .catch(() => {
+            // Ignore cleanup failures and surface the original webhook error.
+          });
+      } else if (channel) {
+        const currentConfig =
+          (channel.config as Prisma.JsonObject | null) || {};
+        await prisma.channel.update({
+          where: { id: channel.id },
+          data: {
+            config: {
+              ...currentConfig,
+              lastWebhookError: message,
+              lastWebhookErrorAt: nowIso,
+              webhookConnected: false,
+            } as Prisma.JsonObject,
+          },
+        });
+      }
+
+      throw error;
+    }
 
     const currentConfig = (channel.config as Prisma.JsonObject | null) || {};
 
@@ -133,10 +166,13 @@ export async function POST(req: NextRequest) {
           telegramBotId: String(profile.id),
           botUsername: profile.username || null,
           botFirstName: profile.first_name || null,
+          connectedAt: currentConfig.connectedAt || nowIso,
           webhookSecret,
           webhookUrl,
           webhookConnected: true,
-          lastWebhookSetAt: new Date().toISOString(),
+          lastWebhookSetAt: nowIso,
+          lastWebhookError: null,
+          lastWebhookErrorAt: null,
         } as Prisma.JsonObject,
       },
     });

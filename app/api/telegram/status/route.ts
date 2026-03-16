@@ -56,6 +56,50 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    const config = (channel.config as Prisma.JsonObject | null) || {};
+
+    const local = {
+      webhookConnected: Boolean(config.webhookConnected),
+      webhookUrl:
+        typeof config.webhookUrl === "string" ? config.webhookUrl : null,
+      lastWebhookSetAt:
+        typeof config.lastWebhookSetAt === "string"
+          ? config.lastWebhookSetAt
+          : null,
+      lastWebhookEventAt:
+        typeof config.lastWebhookEventAt === "string"
+          ? config.lastWebhookEventAt
+          : null,
+      lastInboundMessageAt:
+        typeof config.lastInboundMessageAt === "string"
+          ? config.lastInboundMessageAt
+          : null,
+      lastDeliverySuccessAt:
+        typeof config.lastDeliverySuccessAt === "string"
+          ? config.lastDeliverySuccessAt
+          : null,
+      lastDeliveryError:
+        typeof config.lastDeliveryError === "string"
+          ? config.lastDeliveryError
+          : null,
+      lastDeliveryErrorAt:
+        typeof config.lastDeliveryErrorAt === "string"
+          ? config.lastDeliveryErrorAt
+          : null,
+      lastWebhookError:
+        typeof config.lastWebhookError === "string"
+          ? config.lastWebhookError
+          : null,
+      lastWebhookErrorAt:
+        typeof config.lastWebhookErrorAt === "string"
+          ? config.lastWebhookErrorAt
+          : null,
+      lastProcessedUpdateId:
+        typeof config.lastProcessedUpdateId === "number"
+          ? config.lastProcessedUpdateId
+          : null,
+    };
+
     let webhookInfo = null;
     let webhookError = null;
 
@@ -81,6 +125,7 @@ export async function GET(req: NextRequest) {
         updatedAt: channel.updatedAt,
       },
       bot: channel.bot,
+      local,
       webhook: webhookInfo,
       webhookError,
     });

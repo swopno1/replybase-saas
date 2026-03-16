@@ -52,6 +52,19 @@ interface TelegramStatus {
     id: string;
     name: string;
   };
+  local?: {
+    webhookConnected: boolean;
+    webhookUrl?: string | null;
+    lastWebhookSetAt?: string | null;
+    lastWebhookEventAt?: string | null;
+    lastInboundMessageAt?: string | null;
+    lastDeliverySuccessAt?: string | null;
+    lastDeliveryError?: string | null;
+    lastDeliveryErrorAt?: string | null;
+    lastWebhookError?: string | null;
+    lastWebhookErrorAt?: string | null;
+    lastProcessedUpdateId?: number | null;
+  };
   webhook?: {
     url: string;
     pending_update_count: number;
@@ -268,7 +281,10 @@ export default function TelegramIntegrationPage() {
 
   const isConnected = status?.connected === true;
   const hasWebhookError = Boolean(
-    status?.webhook?.last_error_message || status?.webhookError,
+    status?.webhook?.last_error_message ||
+    status?.webhookError ||
+    status?.local?.lastWebhookError ||
+    status?.local?.lastDeliveryError,
   );
 
   return (
@@ -413,6 +429,30 @@ export default function TelegramIntegrationPage() {
                         ).toLocaleString()}
                       </div>
                     </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
+                        Last Webhook Event
+                      </div>
+                      <div className="text-sm">
+                        {status.local?.lastWebhookEventAt
+                          ? new Date(
+                              status.local.lastWebhookEventAt,
+                            ).toLocaleString()
+                          : "No events yet"}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
+                        Last Delivery Success
+                      </div>
+                      <div className="text-sm">
+                        {status.local?.lastDeliverySuccessAt
+                          ? new Date(
+                              status.local.lastDeliverySuccessAt,
+                            ).toLocaleString()
+                          : "No successful delivery yet"}
+                      </div>
+                    </div>
                   </div>
 
                   {/* Webhook details */}
@@ -439,6 +479,13 @@ export default function TelegramIntegrationPage() {
                             Last error: {status.webhook.last_error_message}
                           </div>
                         )}
+                        {status.local?.lastProcessedUpdateId !== null &&
+                          status.local?.lastProcessedUpdateId !== undefined && (
+                            <div className="text-xs text-muted-foreground">
+                              Last processed update ID:{" "}
+                              {status.local.lastProcessedUpdateId}
+                            </div>
+                          )}
                       </div>
                     </>
                   )}
@@ -447,6 +494,20 @@ export default function TelegramIntegrationPage() {
                     <div className="flex items-start gap-2 text-xs text-destructive">
                       <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                       Webhook check failed: {status.webhookError}
+                    </div>
+                  )}
+
+                  {status.local?.lastWebhookError && (
+                    <div className="flex items-start gap-2 text-xs text-destructive">
+                      <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      Last webhook setup error: {status.local.lastWebhookError}
+                    </div>
+                  )}
+
+                  {status.local?.lastDeliveryError && (
+                    <div className="flex items-start gap-2 text-xs text-destructive">
+                      <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      Last delivery error: {status.local.lastDeliveryError}
                     </div>
                   )}
 

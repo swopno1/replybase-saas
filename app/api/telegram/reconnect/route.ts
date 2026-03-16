@@ -65,6 +65,7 @@ export async function POST(req: NextRequest) {
     }
 
     const token = decryptTelegramToken(channel.accessToken);
+    const nowIso = new Date().toISOString();
 
     const webhookSecret = generateWebhookSecret();
     const baseUrl = process.env.TELEGRAM_WEBHOOK_BASE_URL || req.nextUrl.origin;
@@ -83,14 +84,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await setTelegramWebhook({
-      token,
-      webhookUrl,
-      secretToken: webhookSecret,
-      allowedUpdates: ["message", "callback_query"],
-    });
-
     const currentConfig = (channel.config as Prisma.JsonObject | null) || {};
+
+    try {
+      await setTelegramWebhook({
+        token,
+        webhookUrl,
+        secretToken: webhookSecret,
+        allowedUpdates: ["message", "callback_query"],
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to reconnect webhook";
+      await prisma.channel.update({
+        where: { id: channel.id },
+        data: {
+          config: {
+            ...currentConfig,
+            webhookConnected: false,
+            lastWebhookError: message,
+            lastWebhookErrorAt: nowIso,
+          } as Prisma.JsonObject,
+        },
+      });
+      throw error;
+    }
 
     await prisma.channel.update({
       where: { id: channel.id },
@@ -103,7 +121,9 @@ export async function POST(req: NextRequest) {
           webhookSecret,
           webhookUrl,
           webhookConnected: true,
-          lastWebhookSetAt: new Date().toISOString(),
+          lastWebhookSetAt: nowIso,
+          lastWebhookError: null,
+          lastWebhookErrorAt: null,
         } as Prisma.JsonObject,
       },
     });

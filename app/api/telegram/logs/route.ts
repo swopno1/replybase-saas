@@ -56,9 +56,19 @@ export async function GET(req: NextRequest) {
     const logs = await prisma.webhookLog.findMany({
       where: {
         source: "telegram",
-        event: {
-          contains: channelId,
-        },
+        OR: [
+          {
+            event: {
+              startsWith: `update:${channelId}:`,
+            },
+          },
+          {
+            event: `send_error:${channelId}`,
+          },
+          {
+            event: `internal_error:${channelId}`,
+          },
+        ],
       },
       orderBy: { createdAt: "desc" },
       take: limit,

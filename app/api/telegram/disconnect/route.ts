@@ -72,6 +72,8 @@ export async function POST(req: NextRequest) {
           ...currentConfig,
           webhookConnected: false,
           webhookSecret: null,
+          lastWebhookError: null,
+          lastWebhookErrorAt: null,
           disconnectedAt: new Date().toISOString(),
         } as Prisma.JsonObject,
       },

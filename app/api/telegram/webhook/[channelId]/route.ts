@@ -35,6 +35,26 @@ function getCommandReply(commandText: string): string | null {
   return null;
 }
 
+async function updateTelegramChannelConfig(
+  channelId: string,
+  currentConfig: Prisma.JsonObject | null,
+  patch: Record<string, unknown>,
+) {
+  const nextConfig = {
+    ...((currentConfig || {}) as Prisma.JsonObject),
+    ...patch,
+  } as Prisma.JsonObject;
+
+  await prisma.channel.update({
+    where: { id: channelId },
+    data: {
+      config: nextConfig,
+    },
+  });
+
+  return nextConfig;
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ channelId: string }> },
@@ -64,7 +84,7 @@ export async function POST(
       return NextResponse.json({ success: true }, { status: 200 });
     }
 
-    const config = (channel.config as Prisma.JsonObject | null) || {};
+    let config = (channel.config as Prisma.JsonObject | null) || {};
     const expectedSecret =
       typeof config.webhookSecret === "string" ? config.webhookSecret : null;
     const secretHeader = req.headers.get("x-telegram-bot-api-secret-token");
@@ -87,6 +107,7 @@ export async function POST(
     }
 
     const update = (await req.json()) as TelegramUpdate;
+    const eventAt = new Date().toISOString();
 
     const updateId = update.update_id;
     if (typeof updateId === "number") {
@@ -116,6 +137,12 @@ export async function POST(
       });
     }
 
+    config = await updateTelegramChannelConfig(channel.id, config, {
+      webhookConnected: true,
+      lastWebhookEventAt: eventAt,
+      lastProcessedUpdateId: typeof updateId === "number" ? updateId : null,
+    });
+
     const tokenEncrypted = channel.accessToken;
     if (!tokenEncrypted) {
       return NextResponse.json({ success: true }, { status: 200 });
@@ -140,6 +167,10 @@ export async function POST(
 
     const tenantId = channel.bot.tenantId;
     const userName = getTelegramUserDisplayName(update);
+
+    config = await updateTelegramChannelConfig(channel.id, config, {
+      lastInboundMessageAt: eventAt,
+    });
 
     let contact = await prisma.contact.findFirst({
       where: {
@@ -253,6 +284,12 @@ export async function POST(
     const sendResult = await sendTelegramTextMessage(token, chatId, replyText);
 
     if (sendResult.success) {
+      config = await updateTelegramChannelConfig(channel.id, config, {
+        lastDeliverySuccessAt: new Date().toISOString(),
+        lastDeliveryError: null,
+        lastDeliveryErrorAt: null,
+      });
+
       await prisma.crmMessage.create({
         data: {
           conversationId: conversation.id,
@@ -275,10 +312,32 @@ export async function POST(
           } as Prisma.InputJsonValue,
         },
       });
+
+      await updateTelegramChannelConfig(channel.id, config, {
+        lastDeliveryError: sendResult.error || "Unknown Telegram send error",
+        lastDeliveryErrorAt: new Date().toISOString(),
+      });
     }
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
+    const { channelId } = await params;
+    await prisma.webhookLog
+      .create({
+        data: {
+          type: "internal_error",
+          source: "telegram",
+          event: `internal_error:${channelId}`,
+          data: {
+            error:
+              error instanceof Error ? error.message : "Unknown internal error",
+          } as Prisma.InputJsonValue,
+        },
+      })
+      .catch(() => {
+        // Best effort only.
+      });
+
     console.error("[Telegram Webhook] Error:", error);
     // Return 200 to prevent excessive retries for transient internal failures.
     return NextResponse.json({ success: true }, { status: 200 });

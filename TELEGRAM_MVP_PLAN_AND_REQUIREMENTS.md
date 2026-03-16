@@ -81,51 +81,51 @@ Current architecture references:
 - `lib/facebook-sender.ts`
 - `lib/flow-execution-engine.ts`
 
-### 5.1 New Components
+### 5.1 Current Components
 
-- `app/api/telegram/webhook/route.ts`
-  - `POST` to receive Telegram updates.
-  - Verify secret token header (`X-Telegram-Bot-Api-Secret-Token`) if configured.
-  - Parse update types: `message`, `edited_message`, `callback_query` (MVP: mostly `message`, `callback_query`).
-  - Respond fast with `200 OK`.
-- `lib/telegram-sender.ts`
-  - `sendMessage` wrapper with retry and error mapping.
-  - Optional methods for `answerCallbackQuery`.
+- `app/api/telegram/webhook/[channelId]/route.ts`
+  - Public `POST` webhook receiver.
+  - Verifies `X-Telegram-Bot-Api-Secret-Token` using timing-safe comparison.
+  - Deduplicates on `update_id` using `WebhookLog`.
+  - Writes local health telemetry such as last webhook event, last processed update id, last inbound message, last delivery success, and last delivery error.
+  - Responds with `200 OK` even on internal failures to avoid Telegram retry storms.
+- `lib/telegram-api.ts`
+  - Telegram API wrapper for `getMe`, `setWebhook`, `deleteWebhook`, `getWebhookInfo`, `sendMessage`, and `answerCallbackQuery`.
+  - Uses request timeouts and single-retry rate-limit handling.
 - `lib/telegram-utils.ts`
-  - Update parsing helpers.
-  - Dedupe helpers using `update_id`.
+  - Update parsing helpers, command detection, token masking, and webhook secret generation.
 - `app/api/telegram/connect/route.ts`
-  - Validate token (`getMe`).
-  - Set webhook (`setWebhook`).
-  - Store connection metadata.
+  - Validates token with `getMe`.
+  - Enforces tenant channel limits.
+  - Creates a placeholder channel only long enough to derive the webhook URL.
+  - Cleans up partial channel state if webhook provisioning fails.
+- `app/api/telegram/reconnect/route.ts`
+  - Re-registers webhook using the stored encrypted token.
+  - Persists webhook provisioning failures for operator visibility.
 - `app/api/telegram/disconnect/route.ts`
-  - Remove webhook (`deleteWebhook`).
-  - Disable channel.
+  - Removes webhook and disables the channel.
+- `app/api/telegram/status/route.ts`
+  - Combines Telegram live webhook info with locally tracked operational telemetry.
+- `app/api/telegram/logs/route.ts`
+  - Tenant-scoped diagnostics endpoint for recent Telegram webhook and delivery logs.
+- `app/api/telegram/health/route.ts`
+  - Public liveness probe for uptime checks.
+- `app/(dashboard)/integrations/telegram/page.tsx`
+  - Operator UI for connect, disconnect, reconnect, health review, and recent log inspection.
 
-### 5.2 Database Additions (Proposed)
+### 5.2 Current Data Model
 
-- `TelegramBotConnection`
-  - `id`
-  - `tenantId`
-  - `botTokenEncrypted`
-  - `botUsername`
-  - `botId`
-  - `webhookUrl`
-  - `webhookSecret`
-  - `isActive`
-  - `createdAt`, `updatedAt`
-- `TelegramChatBinding`
-  - `id`
-  - `tenantId`
-  - `telegramChatId` (string or bigint-safe)
-  - `telegramUserId` (string or bigint-safe)
-  - `contactId`
-  - `leadId`
-  - unique constraints on tenant + Telegram identifiers.
-- `TelegramWebhookLog`
-  - similar to existing webhook log strategy.
-- `TelegramUpdateCursor` or processed update table
-  - store last processed `update_id` per bot for dedupe.
+- `Channel` (`type = "telegram"`)
+  - Stores encrypted bot token in `accessToken`.
+  - Stores Telegram-specific metadata in `config`, including bot identity, webhook secret/url, provisioning timestamps, and local health telemetry.
+- `ContactIdentity`
+  - Maps Telegram user ids and chat ids to tenant contacts.
+- `CrmConversation` and `CrmMessage`
+  - Store inbound and outbound Telegram conversation history.
+- `WebhookLog`
+  - Stores deduplicated updates and delivery/internal error events with event keys scoped to channel id.
+
+Future normalization remains optional. It is no longer required for the current production release.
 
 ### 5.3 Security Controls
 
@@ -253,34 +253,46 @@ Below is a condensed compliance and platform checklist from Telegram official do
 
 ## 8. Delivery Plan
 
-### Phase 0 (1-2 days): Discovery And Design
+### Phase 0: Architecture Baseline
 
-- Finalize channel data model.
-- Confirm tenant/channel limits in subscription plans.
-- Create technical spec and migration plan.
+- Completed.
+- Channel storage strategy finalized on the existing `Channel` + `config` model.
+- Tenant channel limits are enforced in the Telegram connect flow.
+- No schema migration is required for the current release.
 
-### Phase 1 (3-5 days): Core Integration MVP
+### Phase 1: Core Integration
 
-- Build connect/disconnect/status APIs.
-- Build Telegram webhook endpoint.
-- Add sender client and retries.
-- Connect to existing conversation/flow engine.
-- Add webhook logs.
+- Completed.
+- Connect, disconnect, status, reconnect, logs, health, and webhook APIs are implemented.
+- Telegram Bot API wrapper supports validation, webhook lifecycle, callback acknowledgements, and outbound messaging.
+- Incoming Telegram messages are mapped into existing CRM conversation and AI reply flows.
 
-### Phase 2 (2-4 days): Dashboard And Ops
+### Phase 2: Dashboard And Operations
 
-- Add Telegram channel UI in dashboard.
-- Add health indicators and diagnostics screen.
-- Add admin troubleshooting actions.
+- Completed.
+- Dashboard UI exists for connect, rotate token, reconnect webhook, disconnect, inspect health, and inspect recent logs.
+- Status now combines live Telegram webhook info with local application telemetry.
 
-### Phase 3 (2-3 days): Hardening And QA
+### Phase 3: Production Hardening
 
-- Security checks (token encryption, secret headers).
-- Load and retry tests for webhook and sender.
-- E2E tests with test bot.
-- Production rollout checklist.
+- Completed for this release:
+  - Encrypted token storage with no hardcoded fallback key.
+  - Timing-safe secret header verification.
+  - HTTPS-only webhook provisioning in production.
+  - Request timeouts and retry-aware sender logic.
+  - Public Telegram health endpoint.
+  - E2E test script for baseline and live-API verification.
+  - Partial-channel cleanup when initial webhook provisioning fails.
+  - Local operational telemetry persisted on each webhook event.
 
-Estimated MVP total: 8-14 days.
+### Phase 4: Recommended Next Production Iteration
+
+- Add outbound send queueing to absorb bursts and make retry handling independent of webhook request latency.
+- Add alerting on repeated `delivery_error` and `internal_error` log patterns.
+- Run live staging validation with a real bot token and public HTTPS domain before production cutover.
+- Optionally normalize Telegram data into dedicated Prisma models only if reporting or multi-bot complexity requires it.
+
+Estimated delivery status: production-capable MVP with one recommended follow-up hardening iteration.
 
 ## 9. QA And Acceptance Criteria
 
@@ -304,10 +316,10 @@ Estimated MVP total: 8-14 days.
 
 ## 11. Immediate Next Steps
 
-1. Approve MVP scope in Section 3.
-2. Approve data model in Section 5.2.
-3. Create implementation tickets by phase.
-4. Start Phase 1 with webhook + sender + connect APIs.
+1. Run the live E2E suite against a deployed HTTPS environment with a real BotFather token.
+2. Add monitoring/alerts for `delivery_error` and `internal_error` rates.
+3. Decide whether outbound queueing is required before broader tenant rollout.
+4. Publish the Telegram operator runbook alongside deployment steps.
 
 ## 12. Official Reference Links
 
