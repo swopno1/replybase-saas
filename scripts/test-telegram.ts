@@ -19,7 +19,7 @@
  *   TELEGRAM_TEST_SECRET  – Webhook secret for that channel (to test valid delivery)
  */
 
-const BASE_URL = process.env.BASE_URL ?? "http://localhost:3000";
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 const SESSION_COOKIE = process.env.SESSION_COOKIE ?? "";
 const TELEGRAM_TEST_TOKEN = process.env.TELEGRAM_TEST_TOKEN ?? "";
 const TELEGRAM_TEST_CHAT_ID = process.env.TELEGRAM_TEST_CHAT_ID ?? "";

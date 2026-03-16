@@ -15,7 +15,7 @@
 const fetch = require("node-fetch");
 const chalk = require("chalk");
 
-const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 const API_TOKEN = process.env.API_TOKEN || "test-token";
 
 // Test data
