@@ -5,14 +5,14 @@ description: Phase-by-phase implementation status of ReplyBase Webchat against t
 
 # Webchat Progress Status
 
-Last reviewed: 2026-03-16 (Phase 8 started — rollout gating implemented, 128 tests passing)
+Last reviewed: 2026-03-16 (Phase 8 expanded — rollout gating + admin controls implemented, 128 tests passing)
 
 This document tracks current implementation status for the full webchat roadmap (Phases 0-8).
 
 ## Summary
 
 - Completed: Phases 0–7 fully implemented: baseline, domain model, public API, embed SDK, conversation engine, security hardening, dashboard UX, automated test suite (118 tests / 8 files), and structured metrics instrumentation.
-- Partially completed: Phase 8 rollout gating foundation (`webchat_enabled` policy via rollout helper, pilot/plan-tier/GA modes, route enforcement).
+- Partially completed: Phase 8 rollout foundation (`webchat_enabled` policy via rollout helper, pilot/plan-tier/GA modes, route enforcement, and admin rollout controls UI/API).
 
 ## Phase Status Matrix
 
@@ -260,6 +260,10 @@ Implemented:
   - `POST /api/webchat/init`
   - `POST /api/webchat/message`
   - `POST /api/webchat/events`
+- Admin rollout controls implemented:
+  - `GET/PATCH /api/admin/webchat-rollout`
+  - Dashboard page: `/admin/webchat-rollout`
+  - Admin navigation tab for rollout controls
 - QA coverage for rollout controls:
   - `tests/webchat/rollout.test.ts` — 7 tests (mode parsing, pilot allow/block, tiered plan feature/allowlist, GA explicit deny)
   - Integration denial-path checks added to init/message/events route test suites.
@@ -267,12 +271,11 @@ Implemented:
 
 Missing:
 
-- Dashboard controls for rollout configuration (tenant-level toggles and pilot management UX)
 - SLA monitoring and rollout playbook
 - Pilot runbook execution and staged production enablement
 
 ## Recommended Next Actions
 
-1. Add dashboard/admin controls for Phase 8 rollout configuration (toggle mode, pilot tenant lists, plan allowlists).
-2. Add E2E widget tests with Playwright (embed script in a real browser against a local server).
-3. Add SLA monitoring dashboards and finalize rollout playbook for pilot-to-GA progression.
+1. Add E2E widget tests with Playwright (embed script in a real browser against a local server).
+2. Add SLA monitoring dashboards and finalize rollout playbook for pilot-to-GA progression.
+3. Execute pilot rollout runbook and promote to GA after telemetry thresholds are stable.
