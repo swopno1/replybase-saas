@@ -140,7 +140,13 @@ export default function TelegramIntegrationPage() {
     try {
       const res = await fetch("/api/bots");
       const data = await res.json();
-      const list: Bot[] = data.projects || data.bots || [];
+      const list: Bot[] = Array.isArray(data.bots)
+        ? data.bots
+        : Array.isArray(data.projects)
+          ? data.projects.flatMap((project: { bots?: Bot[] }) =>
+              Array.isArray(project?.bots) ? project.bots : [],
+            )
+          : [];
       setBots(list);
       if (list.length === 1) {
         setSelectedBotId(list[0].id);
@@ -519,9 +525,9 @@ export default function TelegramIntegrationPage() {
                   )}
 
                   <p className="text-xs text-muted-foreground">
-                    Last Webhook Event shows when Telegram last sent an update to
-                    ReplyBase. Last Delivery Success shows when ReplyBase last
-                    sent a reply back to Telegram.
+                    Last Webhook Event shows when Telegram last sent an update
+                    to ReplyBase. Last Delivery Success shows when ReplyBase
+                    last sent a reply back to Telegram.
                   </p>
 
                   <Separator />
@@ -621,9 +627,18 @@ export default function TelegramIntegrationPage() {
                     3. Send any message. ReplyBase should respond in a few
                     seconds.
                   </p>
-                  <p>4. Open Conversations to confirm inbound and outbound messages were saved.</p>
-                  <p>5. Open Contacts to confirm the Telegram profile was created.</p>
-                  <p>6. If your flow captures lead fields, check Leads for the new record.</p>
+                  <p>
+                    4. Open Conversations to confirm inbound and outbound
+                    messages were saved.
+                  </p>
+                  <p>
+                    5. Open Contacts to confirm the Telegram profile was
+                    created.
+                  </p>
+                  <p>
+                    6. If your flow captures lead fields, check Leads for the
+                    new record.
+                  </p>
                   <p>
                     If no reply appears, check Recent Webhook Activity below and
                     use Reconnect Webhook.

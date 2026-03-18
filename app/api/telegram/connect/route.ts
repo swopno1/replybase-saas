@@ -156,17 +156,25 @@ export async function POST(req: NextRequest) {
     }
 
     const webhookSecret = generateWebhookSecret();
-    const baseUrl = process.env.TELEGRAM_WEBHOOK_BASE_URL || req.nextUrl.origin;
+    const forwardedProto = req.headers.get("x-forwarded-proto");
+    const forwardedHost = req.headers.get("x-forwarded-host");
+    const host = forwardedHost || req.headers.get("host");
+    const inferredOrigin =
+      forwardedProto && host
+        ? `${forwardedProto}://${host}`
+        : req.nextUrl.origin;
+    const baseUrl =
+      process.env.TELEGRAM_WEBHOOK_BASE_URL?.trim() || inferredOrigin;
     const webhookUrl = `${baseUrl.replace(/\/$/, "")}/api/telegram/webhook/${channel.id}`;
 
-    if (
-      process.env.NODE_ENV === "production" &&
-      !webhookUrl.startsWith("https://")
-    ) {
+    if (!webhookUrl.startsWith("https://")) {
       return NextResponse.json(
         {
           error:
-            "Webhook URL must use HTTPS in production. Set TELEGRAM_WEBHOOK_BASE_URL to your public HTTPS domain.",
+            "Telegram requires an HTTPS webhook URL. Set TELEGRAM_WEBHOOK_BASE_URL to your public HTTPS domain (or tunnel URL) and try again.",
+          details: {
+            webhookUrl,
+          },
         },
         { status: 400 },
       );
