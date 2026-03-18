@@ -1,5 +1,8 @@
 import crypto from "crypto";
 
+export const TELEGRAM_TOKEN_PATTERN = /^\d{6,}:[A-Za-z0-9_-]{20,}$/;
+export const TELEGRAM_MAX_TEXT_LENGTH = 4096;
+
 export interface TelegramUpdate {
   update_id?: number;
   message?: {
@@ -32,6 +35,19 @@ export interface TelegramUpdate {
 export function maskTelegramToken(token: string): string {
   if (token.length < 10) return "***";
   return `${token.slice(0, 5)}...${token.slice(-4)}`;
+}
+
+export function isLikelyTelegramBotToken(token: string): boolean {
+  return TELEGRAM_TOKEN_PATTERN.test(token.trim());
+}
+
+export function normalizeTelegramText(text: string): string {
+  const trimmed = text.trim();
+  if (trimmed.length <= TELEGRAM_MAX_TEXT_LENGTH) {
+    return trimmed;
+  }
+
+  return `${trimmed.slice(0, TELEGRAM_MAX_TEXT_LENGTH - 3)}...`;
 }
 
 export function generateWebhookSecret(): string {

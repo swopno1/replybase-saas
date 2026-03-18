@@ -230,9 +230,11 @@ model Channel {
   updatedAt   DateTime @updatedAt
   bot         Bot      @relation(fields: [botId], references: [id])
 
+  @@unique([botId, type])
   @@index([botId])
   @@index([pageId])
   @@index([channelId])
+  @@index([botId, type])
   @@map("channels")
 }
 
@@ -318,6 +320,7 @@ model ContactIdentity {
 
   @@unique([contactId, type, value])
   @@index([contactId])
+  @@index([type, value])
   @@map("contact_identities")
 }
 
@@ -346,6 +349,7 @@ model CrmConversation {
   @@index([contactId])
   @@index([assigneeId])
   @@index([externalSessionId])
+  @@index([contactId, botId, channel])
   @@map("crm_conversations")
 }
 

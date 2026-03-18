@@ -203,7 +203,12 @@ export default function TelegramIntegrationPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Failed to connect Telegram bot");
+        const validationDetail = Array.isArray(data.details)
+          ? data.details[0]?.message
+          : null;
+        throw new Error(
+          validationDetail || data.error || "Failed to connect Telegram bot",
+        );
       }
 
       toast.success(`Connected @${data.bot?.username || "bot"} successfully`);
@@ -311,7 +316,8 @@ export default function TelegramIntegrationPage() {
             Select Bot
           </CardTitle>
           <CardDescription>
-            Choose which ReplyBase bot to connect with Telegram
+            Choose which ReplyBase bot will handle Telegram replies. If you do
+            not have one yet, create it in Bots first.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -470,7 +476,8 @@ export default function TelegramIntegrationPage() {
                           <div className="flex items-center gap-2 text-xs text-amber-600">
                             <AlertCircle className="h-3.5 w-3.5" />
                             {status.webhook.pending_update_count} pending
-                            update(s) in queue
+                            update(s) in queue. This is usually temporary; if it
+                            remains stuck, use Reconnect Webhook.
                           </div>
                         )}
                         {status.webhook.last_error_message && (
@@ -511,6 +518,12 @@ export default function TelegramIntegrationPage() {
                     </div>
                   )}
 
+                  <p className="text-xs text-muted-foreground">
+                    Last Webhook Event shows when Telegram last sent an update to
+                    ReplyBase. Last Delivery Success shows when ReplyBase last
+                    sent a reply back to Telegram.
+                  </p>
+
                   <Separator />
 
                   <div className="flex flex-wrap items-center gap-3">
@@ -526,6 +539,7 @@ export default function TelegramIntegrationPage() {
                     <Button
                       variant="outline"
                       size="sm"
+                      title="Re-register webhook if delivery is failing, the token rotated, or pending updates remain stuck"
                       onClick={handleReconnect}
                       disabled={isReconnecting}
                     >
@@ -567,11 +581,15 @@ export default function TelegramIntegrationPage() {
                     <Input
                       id="newBotToken"
                       type="password"
-                      placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+                      aria-label="Telegram bot token from BotFather"
+                      placeholder="123456789:ABCDEFghIjkLMNO-pQRSTUVWxYZ123456"
                       value={botToken}
                       onChange={(e) => setBotToken(e.target.value)}
                       className="font-mono max-w-lg"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Use the full token from BotFather. Keep this secret.
+                    </p>
                   </div>
                   <Button
                     onClick={handleConnect}
@@ -600,8 +618,15 @@ export default function TelegramIntegrationPage() {
                     send <code className="bg-muted px-1 rounded">/start</code>.
                   </p>
                   <p>
-                    3. Send any message — your bot will reply using ReplyBase
-                    AI.
+                    3. Send any message. ReplyBase should respond in a few
+                    seconds.
+                  </p>
+                  <p>4. Open Conversations to confirm inbound and outbound messages were saved.</p>
+                  <p>5. Open Contacts to confirm the Telegram profile was created.</p>
+                  <p>6. If your flow captures lead fields, check Leads for the new record.</p>
+                  <p>
+                    If no reply appears, check Recent Webhook Activity below and
+                    use Reconnect Webhook.
                   </p>
                 </CardContent>
               </Card>
@@ -685,7 +710,8 @@ export default function TelegramIntegrationPage() {
                   Connect Your Telegram Bot
                 </CardTitle>
                 <CardDescription>
-                  Create a bot with @BotFather and paste its token below
+                  Create a bot with @BotFather, then paste its token below to
+                  connect one Telegram bot per ReplyBase bot.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -695,13 +721,15 @@ export default function TelegramIntegrationPage() {
                     <Input
                       id="botToken"
                       type="password"
-                      placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+                      aria-label="Telegram bot token from BotFather"
+                      placeholder="123456789:ABCDEFghIjkLMNO-pQRSTUVWxYZ123456"
                       value={botToken}
                       onChange={(e) => setBotToken(e.target.value)}
                       className="font-mono"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Get this from{" "}
+                      Token format is usually number:secret (for example,
+                      123456789:ABC...). Get this from{" "}
                       <a
                         href="https://t.me/botfather"
                         target="_blank"
@@ -710,7 +738,7 @@ export default function TelegramIntegrationPage() {
                       >
                         @BotFather
                       </a>{" "}
-                      after creating a new bot.
+                      after creating a new bot. Never share this token.
                     </p>
                   </div>
                   <div className="space-y-2">
@@ -727,8 +755,8 @@ export default function TelegramIntegrationPage() {
                       onChange={(e) => setChannelName(e.target.value)}
                     />
                     <p className="text-xs text-muted-foreground">
-                      A label for this channel in your dashboard. Auto-filled
-                      from your bot username if left blank.
+                      Optional dashboard label. If left blank, ReplyBase uses
+                      your Telegram bot username from the API.
                     </p>
                   </div>
                 </div>

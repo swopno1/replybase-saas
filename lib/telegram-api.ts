@@ -1,4 +1,6 @@
 const TELEGRAM_API_BASE = "https://api.telegram.org";
+const DEFAULT_TELEGRAM_TIMEOUT_MS = 10_000;
+const TELEGRAM_MAX_RETRIES = 3;
 
 interface TelegramApiResponse<T> {
   ok: boolean;
@@ -40,11 +42,25 @@ function buildApiUrl(token: string, method: string): string {
   return `${TELEGRAM_API_BASE}/bot${token}/${method}`;
 }
 
+function getTelegramTimeoutMs(): number {
+  const raw = process.env.TELEGRAM_API_TIMEOUT_MS;
+  if (!raw) {
+    return DEFAULT_TELEGRAM_TIMEOUT_MS;
+  }
+
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 1_000 || parsed > 60_000) {
+    return DEFAULT_TELEGRAM_TIMEOUT_MS;
+  }
+
+  return parsed;
+}
+
 async function callTelegram<T>(
   token: string,
   method: string,
   body?: Record<string, unknown>,
-  timeoutMs = 10_000,
+  timeoutMs = getTelegramTimeoutMs(),
 ): Promise<TelegramApiResponse<T>> {
   const response = await fetch(buildApiUrl(token, method), {
     method: "POST",
@@ -55,7 +71,21 @@ async function callTelegram<T>(
     signal: AbortSignal.timeout(timeoutMs),
   });
 
-  const data = (await response.json()) as TelegramApiResponse<T>;
+  let data: TelegramApiResponse<T>;
+  try {
+    data = (await response.json()) as TelegramApiResponse<T>;
+  } catch {
+    data = {
+      ok: false,
+      description: "Telegram API returned a non-JSON response",
+    };
+  }
+
+  if (!response.ok && !data.description) {
+    data.description = `Telegram API request failed with HTTP ${response.status}`;
+    data.error_code = response.status;
+  }
+
   return data;
 }
 
@@ -117,19 +147,53 @@ export async function sendTelegramTextMessage(
   chatId: string,
   text: string,
 ): Promise<TelegramSendMessageResult> {
-  const attemptSend = () =>
+  const attemptSend = async () =>
     callTelegram<{ message_id: number }>(token, "sendMessage", {
       chat_id: chatId,
       text,
     });
 
-  let data = await attemptSend();
+  let data: TelegramApiResponse<{ message_id: number }> | null = null;
 
-  // Retry once on rate-limit (429), honouring the retry_after window (capped at 30 s).
-  if (!data.ok && data.error_code === 429 && data.parameters?.retry_after) {
-    const waitMs = Math.min(data.parameters.retry_after * 1000, 30_000);
-    await new Promise((resolve) => setTimeout(resolve, waitMs));
-    data = await attemptSend();
+  for (let attempt = 1; attempt <= TELEGRAM_MAX_RETRIES; attempt += 1) {
+    try {
+      data = await attemptSend();
+    } catch (error) {
+      if (attempt === TELEGRAM_MAX_RETRIES) {
+        return {
+          success: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Telegram sendMessage request failed",
+        };
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, attempt * 1_000));
+      continue;
+    }
+
+    if (data.ok) {
+      break;
+    }
+
+    const isRateLimited = data.error_code === 429;
+    const retryAfterMs = data.parameters?.retry_after
+      ? Math.min(data.parameters.retry_after * 1000, 30_000)
+      : Math.min(attempt * 1_500, 5_000);
+
+    if (!isRateLimited || attempt === TELEGRAM_MAX_RETRIES) {
+      break;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
+  }
+
+  if (!data) {
+    return {
+      success: false,
+      error: "Telegram sendMessage did not return a response",
+    };
   }
 
   if (!data.ok) {

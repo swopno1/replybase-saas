@@ -9,12 +9,14 @@ import {
 } from "@/lib/telegram-api";
 import { decryptTelegramToken } from "@/lib/telegram-crypto";
 import {
+  TELEGRAM_MAX_TEXT_LENGTH,
   TelegramUpdate,
   getTelegramChatId,
   getTelegramText,
   getTelegramUserDisplayName,
   getTelegramUserId,
   isTelegramCommand,
+  normalizeTelegramText,
 } from "@/lib/telegram-utils";
 
 function getCommandReply(commandText: string): string | null {
@@ -81,6 +83,20 @@ export async function POST(
     });
 
     if (!channel || !channel.bot) {
+      await prisma.webhookLog
+        .create({
+          data: {
+            type: "skipped",
+            source: "telegram",
+            event: `skip_inactive:${channelId}`,
+            data: {
+              reason: "channel_not_found_or_inactive",
+            } as Prisma.InputJsonValue,
+          },
+        })
+        .catch(() => {
+          // Best effort only.
+        });
       return NextResponse.json({ success: true }, { status: 200 });
     }
 
@@ -89,21 +105,56 @@ export async function POST(
       typeof config.webhookSecret === "string" ? config.webhookSecret : null;
     const secretHeader = req.headers.get("x-telegram-bot-api-secret-token");
 
-    if (expectedSecret) {
-      // Use timing-safe comparison to prevent secret oracle timing attacks.
-      const matches =
-        secretHeader !== null &&
-        secretHeader.length === expectedSecret.length &&
-        crypto.timingSafeEqual(
-          Buffer.from(secretHeader),
-          Buffer.from(expectedSecret),
-        );
-      if (!matches) {
-        return NextResponse.json(
-          { error: "Invalid webhook secret" },
-          { status: 403 },
-        );
-      }
+    if (!expectedSecret) {
+      await prisma.webhookLog
+        .create({
+          data: {
+            type: "security_error",
+            source: "telegram",
+            event: `missing_secret:${channelId}`,
+            data: {
+              reason: "webhook_secret_not_configured",
+            } as Prisma.InputJsonValue,
+          },
+        })
+        .catch(() => {
+          // Best effort only.
+        });
+
+      return NextResponse.json(
+        { error: "Webhook secret is not configured" },
+        { status: 403 },
+      );
+    }
+
+    // Use timing-safe comparison to prevent secret oracle timing attacks.
+    const matches =
+      secretHeader !== null &&
+      secretHeader.length === expectedSecret.length &&
+      crypto.timingSafeEqual(
+        Buffer.from(secretHeader),
+        Buffer.from(expectedSecret),
+      );
+    if (!matches) {
+      await prisma.webhookLog
+        .create({
+          data: {
+            type: "security_error",
+            source: "telegram",
+            event: `invalid_secret:${channelId}`,
+            data: {
+              reason: "invalid_webhook_secret_header",
+            } as Prisma.InputJsonValue,
+          },
+        })
+        .catch(() => {
+          // Best effort only.
+        });
+
+      return NextResponse.json(
+        { error: "Invalid webhook secret" },
+        { status: 403 },
+      );
     }
 
     const update = (await req.json()) as TelegramUpdate;
@@ -145,10 +196,46 @@ export async function POST(
 
     const tokenEncrypted = channel.accessToken;
     if (!tokenEncrypted) {
+      await prisma.webhookLog
+        .create({
+          data: {
+            type: "config_error",
+            source: "telegram",
+            event: `missing_token:${channelId}`,
+            data: {
+              reason: "missing_encrypted_token",
+            } as Prisma.InputJsonValue,
+          },
+        })
+        .catch(() => {
+          // Best effort only.
+        });
       return NextResponse.json({ success: true }, { status: 200 });
     }
 
-    const token = decryptTelegramToken(tokenEncrypted);
+    let token: string;
+    try {
+      token = decryptTelegramToken(tokenEncrypted);
+    } catch (error) {
+      await prisma.webhookLog
+        .create({
+          data: {
+            type: "config_error",
+            source: "telegram",
+            event: `decrypt_token_error:${channelId}`,
+            data: {
+              reason:
+                error instanceof Error
+                  ? error.message
+                  : "Unable to decrypt token",
+            } as Prisma.InputJsonValue,
+          },
+        })
+        .catch(() => {
+          // Best effort only.
+        });
+      return NextResponse.json({ success: false }, { status: 500 });
+    }
 
     if (update.callback_query?.id) {
       await answerTelegramCallbackQuery(token, update.callback_query.id);
@@ -281,6 +368,26 @@ export async function POST(
         "Sorry, I could not process that right now. Please try again in a moment.";
     }
 
+    replyText = normalizeTelegramText(replyText);
+
+    if (replyText.length >= TELEGRAM_MAX_TEXT_LENGTH) {
+      await prisma.webhookLog
+        .create({
+          data: {
+            type: "delivery_warning",
+            source: "telegram",
+            event: `reply_truncated:${channelId}`,
+            data: {
+              maxLength: TELEGRAM_MAX_TEXT_LENGTH,
+              chatId,
+            } as Prisma.InputJsonValue,
+          },
+        })
+        .catch(() => {
+          // Best effort only.
+        });
+    }
+
     const sendResult = await sendTelegramTextMessage(token, chatId, replyText);
 
     if (sendResult.success) {
@@ -339,7 +446,7 @@ export async function POST(
       });
 
     console.error("[Telegram Webhook] Error:", error);
-    // Return 200 to prevent excessive retries for transient internal failures.
-    return NextResponse.json({ success: true }, { status: 200 });
+    // Return 500 so Telegram retries transient failures; de-dup uses update_id.
+    return NextResponse.json({ success: false }, { status: 500 });
   }
 }

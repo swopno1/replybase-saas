@@ -94,18 +94,35 @@ What to expect:
 
 ### Option B: Telegram Bot
 
+Prerequisites:
+
+- You already created at least one ReplyBase bot in **Bots**
+- You can access **@BotFather** in Telegram to create or manage bot tokens
+
 1. Open **Telegram Bot** from the sidebar.
 2. Select which ReplyBase bot should power Telegram replies.
 3. Paste the bot token from **@BotFather**.
 4. Optionally give the channel a friendly internal name.
 5. Click **Connect Bot**.
 
+Token notes:
+
+- Token format is usually `number:secret` (for example: `123456789:ABC...`)
+- Keep this token secret; anyone with the token can control your bot
+
 What ReplyBase handles for you:
 
-- webhook setup
-- webhook health checking
-- reconnect and disconnect actions
-- recent webhook activity logs for that Telegram channel
+- validates your token against Telegram
+- sets the webhook URL and secret token automatically
+- records webhook health and delivery telemetry
+- provides reconnect and disconnect actions
+- shows recent webhook activity logs for that Telegram channel
+
+If connection fails:
+
+- confirm you copied the full token from **@BotFather**
+- verify your bot still exists in Telegram
+- verify your deployment URL is HTTPS in production
 
 ### Option C: Webchat Widget
 
@@ -126,6 +143,13 @@ After you connect a channel, validate the full operator workflow:
 3. Open **Contacts** to confirm the contact profile appears.
 4. Open **Leads** if your flow collects lead data.
 5. Open **Activity** only for a basic overview. The current activity page still uses placeholder/mock data.
+
+For Telegram specifically:
+
+1. Open Telegram and send `/start` (or any message) to your bot.
+2. Wait a few seconds and verify your bot replies.
+3. In ReplyBase, open **Telegram Bot** and confirm webhook status is active.
+4. If there is no reply, check **Recent Webhook Activity** and use **Reconnect Webhook**.
 
 ## Step 7: Know Where To Manage Things
 
