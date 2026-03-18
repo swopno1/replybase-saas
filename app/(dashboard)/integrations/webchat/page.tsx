@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
+  AlertTriangle,
   ArrowLeft,
+  CheckCircle2,
   Copy,
   Eye,
   EyeOff,
@@ -40,6 +42,7 @@ import { Textarea } from "@/components/ui/textarea";
 type Bot = {
   id: string;
   name: string;
+  entryFlow?: string | null;
 };
 
 type Channel = {
@@ -153,6 +156,9 @@ export default function WebchatIntegrationPage() {
   const [bots, setBots] = useState<Bot[]>([]);
   const [isBotsLoading, setIsBotsLoading] = useState(true);
   const [selectedBotId, setSelectedBotId] = useState("");
+  const [selectedBotEntryFlow, setSelectedBotEntryFlow] = useState<
+    string | null | undefined
+  >(undefined);
 
   const [channels, setChannels] = useState<Channel[]>([]);
   const [isChannelsLoading, setIsChannelsLoading] = useState(false);
@@ -214,9 +220,18 @@ export default function WebchatIntegrationPage() {
       setDiagnostics(null);
       setAllowedDomains([]);
       setAllowedDomainsDraft("");
+      setSelectedBotEntryFlow(undefined);
       return;
     }
     void loadChannels(selectedBotId);
+    void fetch(`/api/bots/${selectedBotId}`)
+      .then((r) => r.json())
+      .then((d: { bot?: { entryFlow?: string | null } }) => {
+        setSelectedBotEntryFlow(
+          typeof d.bot?.entryFlow === "string" ? d.bot.entryFlow : null,
+        );
+      })
+      .catch(() => setSelectedBotEntryFlow(null));
   }, [selectedBotId]);
 
   const webChannels = useMemo(
@@ -942,6 +957,35 @@ export default function WebchatIntegrationPage() {
               )}
             </div>
           </div>
+
+          {selectedBotId && selectedBotEntryFlow === null && (
+            <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
+              <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium text-amber-800">No entry flow assigned</p>
+                <p className="text-amber-700 mt-0.5">
+                  This bot has no entry flow set. Webchat messages will receive
+                  AI fallback responses only — structured conversation flows
+                  will not run.
+                </p>
+                <Link
+                  href={`/bots/${selectedBotId}`}
+                  className="text-amber-800 underline hover:text-amber-900 mt-1 block"
+                >
+                  Open bot settings to assign an entry flow →
+                </Link>
+              </div>
+            </div>
+          )}
+          {selectedBotId && selectedBotEntryFlow && (
+            <div className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-3 text-sm">
+              <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+              <p className="text-green-800">
+                Entry flow configured. Structured flow execution is active for
+                this bot.
+              </p>
+            </div>
+          )}
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">

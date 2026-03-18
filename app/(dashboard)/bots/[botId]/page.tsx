@@ -1,15 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Bot {
   id: string;
   name: string;
   enabled: boolean;
+  entryFlow: string | null;
   createdAt: string;
   channels: Array<{
     id: string;
@@ -23,6 +33,13 @@ interface Bot {
 interface BotFormData {
   name: string;
   status: boolean;
+  entryFlow: string | null;
+}
+
+interface Flow {
+  id: string;
+  name: string;
+  isActive: boolean;
 }
 
 type ChannelType = "web" | "telegram" | "facebook" | "whatsapp";
@@ -50,15 +67,18 @@ function channelConfigHref(type: string) {
 
 export default function BotDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const botId = params.botId as string;
   const [bot, setBot] = useState<Bot | null>(null);
   const [loading, setLoading] = useState(true);
+  const [flows, setFlows] = useState<Flow[]>([]);
   const [addingChannelType, setAddingChannelType] =
     useState<ChannelType | null>(null);
   const [deletingChannelId, setDeletingChannelId] = useState<string | null>(
     null,
   );
   const [editing, setEditing] = useState(false);
+  const [deletingBot, setDeletingBot] = useState(false);
   const [formData, setFormData] = useState<BotFormData | null>(null);
 
   const fetchBot = async () => {
@@ -69,6 +89,7 @@ export default function BotDetailPage() {
       setFormData({
         name: data.bot.name,
         status: data.bot.enabled,
+        entryFlow: data.bot.entryFlow ?? null,
       });
     } catch (error) {
       console.error("Failed to fetch bot:", error);
@@ -77,8 +98,20 @@ export default function BotDetailPage() {
     }
   };
 
+  const fetchFlows = async () => {
+    try {
+      const res = await fetch("/api/flows?type=my");
+      const data = await res.json();
+      setFlows(Array.isArray(data.flows) ? data.flows : []);
+    } catch (error) {
+      console.error("Failed to fetch flows:", error);
+    }
+  };
+
   useEffect(() => {
     void fetchBot();
+    void fetchFlows();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [botId]);
 
   const handleAddChannel = async (type: ChannelType) => {
@@ -135,6 +168,7 @@ export default function BotDetailPage() {
         body: JSON.stringify({
           name: formData.name,
           enabled: formData.status,
+          entryFlow: formData.entryFlow,
         }),
       });
 
@@ -194,6 +228,43 @@ export default function BotDetailPage() {
     }
   };
 
+  const handleDeleteBot = async () => {
+    if (!bot || deletingBot) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete bot \"${bot.name}\"? This removes its channels, webchat sites, and execution logs. Existing conversation history will be detached from the bot reference.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingBot(true);
+    try {
+      const response = await fetch(`/api/bots/${botId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to delete bot");
+      }
+
+      router.push("/bots");
+      router.refresh();
+    } catch (error) {
+      console.error("Failed to delete bot:", error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Failed to delete bot. Please try again.",
+      );
+      setDeletingBot(false);
+    }
+  };
+
   if (loading) return <div>Loading...</div>;
   if (!bot) return <div>Bot not found</div>;
 
@@ -205,7 +276,7 @@ export default function BotDetailPage() {
         {editing ? (
           <>
             <div>
-              <label className="block text-sm font-medium mb-1">Bot Name</label>
+              <Label className="block text-sm font-medium mb-1">Bot Name</Label>
               <Input
                 value={formData?.name || ""}
                 onChange={(e) =>
@@ -217,7 +288,7 @@ export default function BotDetailPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Status</label>
+              <Label className="block text-sm font-medium mb-1">Status</Label>
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -230,6 +301,55 @@ export default function BotDetailPage() {
                 />
                 <span>Enabled</span>
               </label>
+            </div>
+
+            <div>
+              <Label className="block text-sm font-medium mb-1">
+                Entry Flow
+              </Label>
+              <p className="text-xs text-gray-500 mb-2">
+                The first flow that runs when a user sends a message via
+                webchat. Without one, only AI responds.
+              </p>
+              <Select
+                value={formData?.entryFlow ?? "__none__"}
+                onValueChange={(value) =>
+                  setFormData((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          entryFlow: value === "__none__" ? null : value,
+                        }
+                      : null,
+                  )
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="None (AI fallback only)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">
+                    None (AI fallback only)
+                  </SelectItem>
+                  {flows.map((flow) => (
+                    <SelectItem key={flow.id} value={flow.id}>
+                      {flow.name}
+                      {!flow.isActive ? " (inactive)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {flows.length === 0 && (
+                <p className="text-xs text-gray-400 mt-1">
+                  No flows yet.{" "}
+                  <Link
+                    href="/flows"
+                    className="text-blue-600 hover:underline"
+                  >
+                    Create one in Flows →
+                  </Link>
+                </p>
+              )}
             </div>
 
             <div className="flex gap-2">
@@ -327,17 +447,46 @@ export default function BotDetailPage() {
               </span>
             </div>
 
-            <div className="pt-4">
-              <h3 className="font-medium mb-4">Flow Builder</h3>
-              <p className="text-gray-600 text-sm mb-4">
-                Visual flow builder coming soon. For now, configure your bot via
-                API or webhooks.
+            <div className="pt-4 border-t">
+              <p className="text-sm font-medium mb-2">Entry Flow</p>
+              <p className="text-xs text-gray-500 mb-3">
+                When a user sends a message via webchat, ReplyBase runs this
+                flow first. If no flow is set, only the AI fallback responds.
               </p>
+              {bot.entryFlow ? (
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                  <span className="font-medium">
+                    {flows.find((f) => f.id === bot.entryFlow)?.name ??
+                      bot.entryFlow}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-start gap-2 text-sm">
+                  <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                  <span className="text-amber-700">
+                    No entry flow set. Webchat messages will receive AI fallback
+                    responses only.
+                  </span>
+                </div>
+              )}
+              <Link
+                href="/flows"
+                className="text-xs text-blue-600 hover:underline mt-2 block"
+              >
+                Manage flows →
+              </Link>
             </div>
 
             <div className="flex gap-2 pt-4">
               <Button onClick={() => setEditing(true)}>Edit</Button>
-              <Button variant="destructive">Delete Bot</Button>
+              <Button
+                variant="destructive"
+                onClick={() => void handleDeleteBot()}
+                disabled={deletingBot}
+              >
+                {deletingBot ? "Deleting..." : "Delete Bot"}
+              </Button>
             </div>
           </>
         )}

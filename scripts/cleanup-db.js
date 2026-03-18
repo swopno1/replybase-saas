@@ -2,159 +2,193 @@
 
 /**
  * Database Cleanup Script
- * Removes orphaned data and ensures referential integrity
+ * Removes orphaned bot/webchat references and reports current record counts.
  * Run with: npm run db:cleanup
  */
 
-const { PrismaClient } = require("@prisma/client");
+require("dotenv").config();
 
-const prisma = new PrismaClient();
+const { PrismaClient } = require("@prisma/client");
+const { PrismaPg } = require("@prisma/adapter-pg");
+const { Pool } = require("pg");
+
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL environment variable is required");
+}
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+const adapter = new PrismaPg(pool);
+
+const prisma = new PrismaClient({
+  adapter,
+});
 
 async function cleanupOrphanedData() {
-  console.log("🧹 Starting database cleanup...\n");
+  console.log("Starting database cleanup...\n");
 
   try {
-    // 1. Delete conversations with non-existent pages
-    console.log("Checking for orphaned conversations...");
-    const orphanedConversations = await prisma.crmConversation.findMany({
-      where: {
-        page: null,
-      },
+    const bots = await prisma.bot.findMany({ select: { id: true } });
+    const channels = await prisma.channel.findMany({ select: { id: true } });
+    const webChatSites = await prisma.webChatSite.findMany({
+      select: { id: true, channelId: true },
     });
-    if (orphanedConversations.length > 0) {
-      await prisma.crmConversation.deleteMany({
-        where: {
-          page: null,
-        },
+
+    const validBotIds = new Set(bots.map((bot) => bot.id));
+    const validChannelIds = new Set(channels.map((channel) => channel.id));
+    const validSiteIds = new Set(webChatSites.map((site) => site.id));
+
+    console.log("Checking for Facebook pages linked to deleted bots...");
+    const pagesWithMissingBots = await prisma.facebookPage.findMany({
+      where: { botId: { not: null } },
+      select: { id: true, botId: true },
+    });
+    const pageIdsToDetach = pagesWithMissingBots
+      .filter((page) => page.botId && !validBotIds.has(page.botId))
+      .map((page) => page.id);
+
+    if (pageIdsToDetach.length > 0) {
+      await prisma.facebookPage.updateMany({
+        where: { id: { in: pageIdsToDetach } },
+        data: { botId: null },
+      });
+      console.log(`Fixed ${pageIdsToDetach.length} Facebook page bot links\n`);
+    } else {
+      console.log("No orphaned Facebook page bot links found\n");
+    }
+
+    console.log("Checking for conversations linked to deleted bots...");
+    const conversationsWithMissingBots = await prisma.crmConversation.findMany({
+      where: { botId: { not: null } },
+      select: { id: true, botId: true },
+    });
+    const conversationIdsToDetach = conversationsWithMissingBots
+      .filter(
+        (conversation) =>
+          conversation.botId && !validBotIds.has(conversation.botId),
+      )
+      .map((conversation) => conversation.id);
+
+    if (conversationIdsToDetach.length > 0) {
+      await prisma.crmConversation.updateMany({
+        where: { id: { in: conversationIdsToDetach } },
+        data: { botId: null },
       });
       console.log(
-        `✓ Deleted ${orphanedConversations.length} orphaned conversations\n`,
+        `Fixed ${conversationIdsToDetach.length} conversation bot links\n`,
       );
     } else {
-      console.log("✓ No orphaned conversations found\n");
+      console.log("No orphaned conversation bot links found\n");
     }
 
-    // 2. Delete flow assignments with non-existent pages
-    console.log("Checking for orphaned flow assignments...");
-    const orphanedAssignments = await prisma.flowAssignment.findMany({
+    console.log("Checking for usage logs linked to missing bots or channels...");
+    const usageLogs = await prisma.usageLog.findMany({
       where: {
-        page: null,
+        OR: [{ botId: { not: null } }, { channelId: { not: null } }],
       },
+      select: { id: true, botId: true, channelId: true },
     });
-    if (orphanedAssignments.length > 0) {
-      await prisma.flowAssignment.deleteMany({
-        where: {
-          page: null,
-        },
+    const usageLogIdsToReset = usageLogs
+      .filter(
+        (log) =>
+          (log.botId && !validBotIds.has(log.botId)) ||
+          (log.channelId && !validChannelIds.has(log.channelId)),
+      )
+      .map((log) => log.id);
+
+    if (usageLogIdsToReset.length > 0) {
+      await prisma.usageLog.updateMany({
+        where: { id: { in: usageLogIdsToReset } },
+        data: { botId: null, channelId: null },
+      });
+      console.log(`Fixed ${usageLogIdsToReset.length} usage log links\n`);
+    } else {
+      console.log("No orphaned usage log links found\n");
+    }
+
+    console.log("Checking for webchat sites linked to missing channels...");
+    const siteIdsToDetachFromChannel = webChatSites
+      .filter(
+        (site) => site.channelId && !validChannelIds.has(site.channelId),
+      )
+      .map((site) => site.id);
+
+    if (siteIdsToDetachFromChannel.length > 0) {
+      await prisma.webChatSite.updateMany({
+        where: { id: { in: siteIdsToDetachFromChannel } },
+        data: { channelId: null },
       });
       console.log(
-        `✓ Deleted ${orphanedAssignments.length} orphaned flow assignments\n`,
+        `Fixed ${siteIdsToDetachFromChannel.length} webchat site channel links\n`,
       );
     } else {
-      console.log("✓ No orphaned flow assignments found\n");
+      console.log("No orphaned webchat site channel links found\n");
     }
 
-    // 3. Delete leads with non-existent pages
-    console.log("Checking for orphaned leads...");
-    const orphanedLeads = await prisma.lead.findMany({
+    console.log("Checking for webchat flow sessions linked to missing sites...");
+    const webFlowSessions = await prisma.flowSession.findMany({
       where: {
-        page: null,
-      },
-    });
-    if (orphanedLeads.length > 0) {
-      await prisma.lead.deleteMany({
-        where: {
-          page: null,
+        pageId: {
+          startsWith: "web:",
         },
-      });
-      console.log(`✓ Deleted ${orphanedLeads.length} orphaned leads\n`);
-    } else {
-      console.log("✓ No orphaned leads found\n");
-    }
-
-    // 4. Delete flow sessions with non-existent pages
-    console.log("Checking for orphaned flow sessions...");
-    const orphanedSessions = await prisma.flowSession.findMany({
-      where: {
-        page: null,
       },
+      select: { id: true, pageId: true },
     });
-    if (orphanedSessions.length > 0) {
+    const flowSessionIdsToDelete = webFlowSessions
+      .filter((session) => {
+        const siteId = session.pageId.slice(4);
+        return !validSiteIds.has(siteId);
+      })
+      .map((session) => session.id);
+
+    if (flowSessionIdsToDelete.length > 0) {
       await prisma.flowSession.deleteMany({
-        where: {
-          page: null,
-        },
+        where: { id: { in: flowSessionIdsToDelete } },
       });
       console.log(
-        `✓ Deleted ${orphanedSessions.length} orphaned flow sessions\n`,
+        `Deleted ${flowSessionIdsToDelete.length} orphaned webchat flow sessions\n`,
       );
     } else {
-      console.log("✓ No orphaned flow sessions found\n");
+      console.log("No orphaned webchat flow sessions found\n");
     }
 
-    // 5. Delete execution logs with non-existent users
-    console.log("Checking for orphaned execution logs...");
-    const orphanedLogs = await prisma.executionLog.findMany({
-      where: {
-        user: null,
-      },
-    });
-    if (orphanedLogs.length > 0) {
-      await prisma.executionLog.deleteMany({
-        where: {
-          user: null,
-        },
-      });
-      console.log(`✓ Deleted ${orphanedLogs.length} orphaned execution logs\n`);
-    } else {
-      console.log("✓ No orphaned execution logs found\n");
-    }
+    console.log("Current database statistics:\n");
+    const [
+      botCount,
+      channelCount,
+      webChatSiteCount,
+      conversationCount,
+      usageLogCount,
+      executionLogCount,
+      flowSessionCount,
+    ] = await Promise.all([
+      prisma.bot.count(),
+      prisma.channel.count(),
+      prisma.webChatSite.count(),
+      prisma.crmConversation.count(),
+      prisma.usageLog.count(),
+      prisma.executionLog.count(),
+      prisma.flowSession.count(),
+    ]);
 
-    // 6. Delete internal notes with non-existent conversations
-    console.log("Checking for orphaned internal notes...");
-    const orphanedNotes = await prisma.internalNote.findMany({
-      where: {
-        conversation: null,
-      },
-    });
-    if (orphanedNotes.length > 0) {
-      await prisma.internalNote.deleteMany({
-        where: {
-          conversation: null,
-        },
-      });
-      console.log(
-        `✓ Deleted ${orphanedNotes.length} orphaned internal notes\n`,
-      );
-    } else {
-      console.log("✓ No orphaned internal notes found\n");
-    }
-
-    // 7. Get database statistics
-    console.log("📊 Current database statistics:\n");
-    const stats = await prisma.$queryRaw`
-      SELECT 
-        (SELECT COUNT(*) FROM tenants) as tenants,
-        (SELECT COUNT(*) FROM users) as users,
-        (SELECT COUNT(*) FROM facebook_pages) as facebook_pages,
-        (SELECT COUNT(*) FROM "CrmConversation") as conversations,
-        (SELECT COUNT(*) FROM leads) as leads,
-        (SELECT COUNT(*) FROM flows) as flows,
-        (SELECT COUNT(*) FROM flow_assignments) as flow_assignments,
-        (SELECT COUNT(*) FROM "FlowSession") as flow_sessions
-    `;
-
-    Object.entries(stats[0] || {}).forEach(([key, value]) => {
-      console.log(`  ${key}: ${value}`);
-    });
+    console.log(`  bots: ${botCount}`);
+    console.log(`  channels: ${channelCount}`);
+    console.log(`  webchat_sites: ${webChatSiteCount}`);
+    console.log(`  conversations: ${conversationCount}`);
+    console.log(`  usage_logs: ${usageLogCount}`);
+    console.log(`  execution_logs: ${executionLogCount}`);
+    console.log(`  flow_sessions: ${flowSessionCount}`);
     console.log();
 
-    console.log("✅ Database cleanup completed successfully!\n");
+    console.log("Database cleanup completed successfully.\n");
   } catch (error) {
-    console.error("❌ Error during cleanup:", error);
+    console.error("Database cleanup failed:", error);
     process.exit(1);
   } finally {
     await prisma.$disconnect();
+    await pool.end();
   }
 }
 

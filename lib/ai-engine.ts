@@ -248,6 +248,15 @@ async function startTypebotChat(publicId: string, message: string) {
   );
 
   if (!response.ok) {
+    if (response.status === 404) {
+      // The Typebot public ID must match the ReplyBase bot ID exactly.
+      // If this 404s, it means no published Typebot flow exists for that ID.
+      // Ensure the Typebot flow is published and its public ID equals the bot's ID in ReplyBase.
+      throw new AiEngineError(
+        `Typebot flow not found (publicId: ${publicId}). ` +
+          `Publish the flow in Typebot and confirm its public ID matches the ReplyBase bot ID.`,
+      );
+    }
     throw new Error(`Failed to start chat: ${response.statusText}`);
   }
 
@@ -280,6 +289,14 @@ async function continueTypebotChat(sessionId: string, message: string) {
   return (await response.json()) as TypebotResponse;
 }
 
+/**
+ * Send a message to the AI engine and return its responses.
+ *
+ * CONTRACT: `botId` is used directly as the Typebot flow public ID when starting
+ * a new chat session. The Typebot flow must be published with a public ID that
+ * exactly matches the ReplyBase Bot.id. If the IDs diverge the Typebot API will
+ * return 404 and the call will fail with a descriptive AiEngineError.
+ */
 export async function converse(input: ConverseInput) {
   assertServerConfig();
   const {
@@ -290,6 +307,18 @@ export async function converse(input: ConverseInput) {
     conversationId: inputConversationId,
     channel,
   } = input;
+
+  // 0. Authorize: verify bot exists, belongs to this tenant, and is enabled
+  const bot = await prisma.bot.findFirst({
+    where: { id: botId, tenantId },
+    select: { id: true, enabled: true },
+  });
+  if (!bot) {
+    throw new AiEngineError("Bot not found");
+  }
+  if (!bot.enabled) {
+    throw new AiEngineError("Bot is disabled");
+  }
 
   // 1. CRM & Conversation Lookup
   let conversation: {
