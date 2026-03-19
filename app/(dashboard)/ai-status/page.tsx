@@ -50,7 +50,7 @@ export default async function AIStatusPage() {
     : [];
 
   const activePagesCount = connectedPages.filter(
-    (p: { engineConnected: boolean }) => p.engineConnected
+    (p: { engineConnected: boolean }) => p.engineConnected,
   ).length;
   const isAIActive = activePagesCount > 0 && isEngineUp;
 
@@ -66,9 +66,19 @@ export default async function AIStatusPage() {
         </Link>
         <h1 className="text-3xl font-bold tracking-tight">AI Status</h1>
         <p className="text-muted-foreground mt-1">
-          Manage AI reply settings for your Facebook Pages
+          Facebook runtime settings and AI engine health
         </p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Effective Response Scope</CardTitle>
+          <CardDescription>
+            This page controls AI runtime for Facebook pages only. Telegram and
+            Webchat runtime mode are managed in their integration pages.
+          </CardDescription>
+        </CardHeader>
+      </Card>
 
       {/* Engine Status Card */}
       <Card>
@@ -113,12 +123,12 @@ export default async function AIStatusPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Zap className="h-5 w-5" />
-            AI Reply Status
+            Facebook AI Runtime Status
           </CardTitle>
           <CardDescription>
             {isAIActive
-              ? "AI is actively replying to messages"
-              : "AI replies are currently disabled"}
+              ? "AI runtime is active for one or more Facebook pages"
+              : "AI runtime is currently disabled for Facebook pages"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -207,7 +217,7 @@ export default async function AIStatusPage() {
                     disabled={!isEngineUp}
                   />
                 </div>
-              )
+              ),
             )}
           </CardContent>
         </Card>
@@ -216,16 +226,16 @@ export default async function AIStatusPage() {
       {/* Info Card */}
       <Card className="border-dashed">
         <CardHeader>
-          <CardTitle className="text-sm">How It Works</CardTitle>
+          <CardTitle className="text-sm">How Runtime Works</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground space-y-2">
           <p>
-            When AI is enabled for a page, ReplyBase will automatically respond
-            to incoming Facebook Messenger messages using AI.
+            When AI is enabled for a page, ReplyBase can generate automatic
+            replies for incoming Facebook Messenger messages.
           </p>
           <p>
-            The engine must be online for AI replies to work. If the engine is
-            offline, you&apos;ll see a warning above.
+            System health (engine online or offline) and page-level runtime
+            toggles are separate controls. Both must be healthy for AI replies.
           </p>
         </CardContent>
       </Card>

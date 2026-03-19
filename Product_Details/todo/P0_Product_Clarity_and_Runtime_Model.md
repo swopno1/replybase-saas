@@ -1,6 +1,6 @@
 # P0: Product Clarity and Runtime Model
 
-Status: in-progress
+Status: done
 Owner: Product + Engineering
 Target window: 1 sprint
 
@@ -35,7 +35,7 @@ Ensure users and internal teams can immediately understand what responds to a me
   - Telegram integration page
   - Webchat integration page
 - done: Runtime decision path is documented in operational guidance and aligned to product model.
-- in-progress: Final language sweep for any remaining runtime copy that can confuse authoring (builder) with runtime behavior.
+- done: Language sweep completed for Bots and AI Status pages to separate authoring workspace wording from runtime behavior.
 
 ## Acceptance Criteria
 
