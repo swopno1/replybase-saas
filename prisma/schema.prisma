@@ -78,6 +78,7 @@ model Tenant {
   webChatSites  WebChatSite[]
   newsletterSubscriptions NewsletterSubscriber[]
   dataDeletionRequests    DataDeletionRequest[]
+  onboardingMilestoneEvents OnboardingMilestoneEvent[]
 
   @@map("tenants")
 }
@@ -1178,6 +1179,21 @@ enum ChannelType {
   facebook
   telegram
   whatsapp
+}
+
+model OnboardingMilestoneEvent {
+  id          String   @id @default(cuid())
+  tenantId    String
+  milestoneId String   // "first-channel", "first-automated-reply"
+  context     Json?    // additional context (channel type, message ID, etc)
+  createdAt   DateTime @default(now())
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, milestoneId]) // Only one completion per tenant per milestone
+  @@index([tenantId])
+  @@index([milestoneId])
+  @@index([createdAt])
+  @@map("onboarding_milestone_events")
 }
 
 model WebhookLog {

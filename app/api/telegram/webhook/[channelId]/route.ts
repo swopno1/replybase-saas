@@ -9,6 +9,7 @@ import {
 } from "@/lib/telegram-api";
 import { executeBotEntryFlowFirst } from "@/lib/bot-entry-flow-engine";
 import { decryptTelegramToken } from "@/lib/telegram-crypto";
+import { recordMilestoneEvent } from "@/lib/milestone-events";
 import {
   TELEGRAM_MAX_TEXT_LENGTH,
   TelegramUpdate,
@@ -439,6 +440,20 @@ export async function POST(
           source: replySource,
         },
       });
+
+      // Record milestone events for onboarding tracking
+      await recordMilestoneEvent(channel.bot.tenantId, "first-channel", {
+        channelType: "telegram",
+        channelId: channel.id,
+      });
+      await recordMilestoneEvent(
+        channel.bot.tenantId,
+        "first-automated-reply",
+        {
+          channelType: "telegram",
+          source: replySource,
+        },
+      );
     } else {
       await prisma.webhookLog.create({
         data: {

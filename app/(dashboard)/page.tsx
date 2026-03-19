@@ -7,6 +7,11 @@ import { DashboardErrorBoundary } from "@/components/dashboard/error-boundary";
 import { SetupCTA } from "@/components/dashboard/setup-cta";
 import { StatusCards } from "@/components/dashboard/status-cards";
 import { QuickActions } from "@/components/dashboard/quick-actions";
+import Link from "next/link";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { CheckCircle2, Circle, ArrowRight } from "lucide-react";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -85,6 +90,78 @@ export default async function DashboardPage() {
     hasFacebookConnectionBool && connectedPagesCount === 0;
   const needsAIActivation = connectedPagesCount > 0 && activePagesCount === 0;
 
+  const [firstFacebookChannel, firstTelegramChannel, firstWebchatChannel] =
+    await Promise.all([
+      prisma.facebookPage.findFirst({
+        where: { tenantId: user.tenantId },
+        orderBy: { createdAt: "asc" },
+        select: { createdAt: true },
+      }),
+      prisma.channel.findFirst({
+        where: {
+          type: "telegram",
+          accessToken: { not: null },
+          bot: { tenantId: user.tenantId },
+        },
+        orderBy: { createdAt: "asc" },
+        select: { createdAt: true },
+      }),
+      prisma.webChatSite.findFirst({
+        where: { tenantId: user.tenantId },
+        orderBy: { createdAt: "asc" },
+        select: { createdAt: true },
+      }),
+    ]);
+
+  const firstConnectedChannelAt = [
+    firstFacebookChannel?.createdAt,
+    firstTelegramChannel?.createdAt,
+    firstWebchatChannel?.createdAt,
+  ]
+    .filter((value): value is Date => Boolean(value))
+    .sort((a, b) => a.getTime() - b.getTime())[0];
+
+  const firstAutomatedReply = await prisma.crmMessage.findFirst({
+    where: {
+      direction: "outbound",
+      conversation: {
+        contact: {
+          tenantId: user.tenantId,
+        },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+    select: { createdAt: true },
+  });
+
+  const firstAutomatedReplyAt = firstAutomatedReply?.createdAt;
+  const onboardingMilestones = [
+    {
+      id: "first-channel",
+      title: "First connected channel",
+      description:
+        "Connect Facebook, Telegram, or Webchat so ReplyBase can start receiving messages.",
+      completed: Boolean(firstConnectedChannelAt),
+      completedAt: firstConnectedChannelAt,
+      actionLabel: "Connect a channel",
+      actionHref: "/integrations/facebook",
+    },
+    {
+      id: "first-automated-reply",
+      title: "First automated reply",
+      description:
+        "Send a test message and confirm that a flow or AI fallback sends an outbound reply.",
+      completed: Boolean(firstAutomatedReplyAt),
+      completedAt: firstAutomatedReplyAt,
+      actionLabel: "Run a reply test",
+      actionHref: "/integrations/telegram",
+    },
+  ];
+
+  const completedMilestones = onboardingMilestones.filter(
+    (milestone) => milestone.completed,
+  ).length;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -106,6 +183,61 @@ export default async function DashboardPage() {
           needsPageConnection={needsPageConnection}
           needsAIActivation={needsAIActivation}
         />
+      </DashboardErrorBoundary>
+
+      <DashboardErrorBoundary title="Activation Milestones">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between gap-4">
+              <CardTitle>Activation Milestones</CardTitle>
+              <Badge
+                variant={
+                  completedMilestones === onboardingMilestones.length
+                    ? "default"
+                    : "secondary"
+                }
+              >
+                {completedMilestones}/{onboardingMilestones.length} completed
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {onboardingMilestones.map((milestone) => (
+              <div
+                key={milestone.id}
+                className="flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center md:justify-between"
+              >
+                <div className="flex items-start gap-3">
+                  {milestone.completed ? (
+                    <CheckCircle2 className="mt-0.5 h-5 w-5 text-green-600" />
+                  ) : (
+                    <Circle className="mt-0.5 h-5 w-5 text-muted-foreground" />
+                  )}
+                  <div>
+                    <p className="font-medium">{milestone.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {milestone.description}
+                    </p>
+                    {milestone.completedAt && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Completed on{" "}
+                        {milestone.completedAt.toLocaleDateString("en-US")}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {!milestone.completed && (
+                  <Link href={milestone.actionHref}>
+                    <Button size="sm" variant="outline">
+                      {milestone.actionLabel}
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </DashboardErrorBoundary>
 
       {/* Subscription Status - Wrapped in Error Boundary */}

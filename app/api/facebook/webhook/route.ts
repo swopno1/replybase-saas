@@ -9,6 +9,7 @@ import {
 } from "@/lib/default-bot-flow";
 import { OnboardingFlowHandler } from "@/lib/onboarding-flow-handler";
 import { FlowExecutionEngine } from "@/lib/flow-execution-engine";
+import { recordMilestoneEvent } from "@/lib/milestone-events";
 
 // GET: Webhook Verification
 export async function GET(req: NextRequest) {
@@ -419,6 +420,16 @@ async function handleMessage(
         content: replyText,
         source: "ai",
       },
+    });
+
+    // 8. Record milestone events for onboarding tracking
+    await recordMilestoneEvent(tenantId, "first-channel", {
+      channelType: "facebook",
+      pageId: facebookPage.id,
+    });
+    await recordMilestoneEvent(tenantId, "first-automated-reply", {
+      channelType: "facebook",
+      source: "flow",
     });
   } catch (error) {
     console.error("[Facebook Webhook] Error in handleMessage:", error);

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { converse, AiEngineError } from "@/lib/ai-engine";
 import { verifyWebchatSessionToken } from "@/lib/webchat-session";
 import { prisma } from "@/lib/prisma";
+import { recordMilestoneEvent } from "@/lib/milestone-events";
 import {
   createWebchatCorsHeaders,
   getWebchatOriginRejectionReason,
@@ -350,6 +351,16 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      // Record milestone events for onboarding tracking
+      await recordMilestoneEvent(session.tenantId, "first-channel", {
+        channelType: "webchat",
+        siteId: site.id,
+      });
+      await recordMilestoneEvent(session.tenantId, "first-automated-reply", {
+        channelType: "webchat",
+        source: "flow",
+      });
+
       if (webChatSession) {
         await prisma.webChatSession.update({
           where: { id: webChatSession.id },
@@ -473,6 +484,16 @@ export async function POST(request: NextRequest) {
           content: fallbackText,
           source: "system",
         },
+      });
+
+      // Record milestone events for onboarding tracking
+      await recordMilestoneEvent(session.tenantId, "first-channel", {
+        channelType: "webchat",
+        siteId: site.id,
+      });
+      await recordMilestoneEvent(session.tenantId, "first-automated-reply", {
+        channelType: "webchat",
+        source: "fallback",
       });
 
       if (webChatSession) {

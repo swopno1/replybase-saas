@@ -14,10 +14,11 @@ const PLANS = [
     name: "free",
     displayName: "Free",
     price: 0,
-    description: "Perfect for testing and small bots.",
+    description: "Perfect for testing your first live channel.",
     features: [
       "100 messages/day",
       "1 bot",
+      "Facebook, Telegram, and Webchat support",
       "Basic Analytics",
       "Community Support",
     ],
@@ -26,10 +27,11 @@ const PLANS = [
     name: "starter",
     displayName: "Starter",
     price: 19,
-    description: "For creators and small businesses.",
+    description: "For creators and small teams running channel automation.",
     features: [
       "1,000 messages/day",
       "3 bots",
+      "Facebook, Telegram, and Webchat support",
       "Standard Analytics",
       "Email Support",
       "Remove Branding",
@@ -40,10 +42,11 @@ const PLANS = [
     name: "pro",
     displayName: "Pro",
     price: 49,
-    description: "For growing agencies and power users.",
+    description: "For growing agencies and multi-bot operations.",
     features: [
       "5,000 messages/day",
       "10 bots",
+      "Facebook, Telegram, and Webchat support",
       "Advanced Analytics",
       "Priority Support",
       "Custom Domains",
@@ -53,10 +56,11 @@ const PLANS = [
     name: "business",
     displayName: "Business",
     price: 99,
-    description: "For large scale operations.",
+    description: "For high-volume teams with strict response SLAs.",
     features: [
       "20,000 messages/day",
       "50 bots",
+      "Facebook, Telegram, and Webchat support",
       "Enterprise Analytics",
       "Dedicated Support",
       "SLA",
@@ -133,7 +137,18 @@ export default function PricingPage() {
       <div className="text-center mb-8">
         <h1 className="text-4xl font-bold mb-4">Simple, Transparent Pricing</h1>
         <p className="text-muted-foreground text-lg">
-          Choose the plan that fits your needs. Upgrade or cancel anytime.
+          Choose the plan that fits your needs across Facebook, Telegram, and
+          Webchat. Upgrade or cancel anytime.
+        </p>
+      </div>
+
+      <div className="max-w-3xl mx-auto mb-8 rounded-xl border bg-muted/40 p-5">
+        <h2 className="font-semibold mb-2">
+          Runtime behavior included in every plan
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          ReplyBase always resolves active channel flow assignments first. If no
+          active flow handles the message, AI fallback can respond when enabled.
         </p>
       </div>
 
