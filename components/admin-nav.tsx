@@ -9,6 +9,7 @@ const tabs = [
   { name: "Analytics", href: "/admin/analytics" },
   { name: "KPI Health", href: "/admin/kpi-health" },
   { name: "Subscribers", href: "/admin/subscribers" },
+  { name: "Segmented Analytics", href: "/admin/segmented-analytics" },
   { name: "Onboarding", href: "/admin/onboarding" },
   { name: "Webchat Monitoring", href: "/admin/webchat-monitoring" },
   { name: "Webchat Rollout", href: "/admin/webchat-rollout" },
