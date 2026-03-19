@@ -11,6 +11,8 @@ export const authOptions: NextAuthOptions = {
   adapter: {
     ...PrismaAdapter(prisma),
     createUser: async (data: Omit<AdapterUser, "id">) => {
+      const existingUsers = await prisma.user.count();
+
       // Create tenant first
       const tenant = await prisma.tenant.create({
         data: {
@@ -22,6 +24,8 @@ export const authOptions: NextAuthOptions = {
         data: {
           ...data,
           tenantId: tenant.id,
+          // Bootstrap a platform admin if this is the first account.
+          isAdmin: existingUsers === 0,
         },
       });
       return user as unknown as AdapterUser;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 // GET /api/flows - Get all flows (user's own or global)
 export async function GET(req: NextRequest) {
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { tenantId: true },
+      select: { tenantId: true, isAdmin: true },
     });
 
     if (!user?.tenantId) {
@@ -24,23 +25,18 @@ export async function GET(req: NextRequest) {
     const type = searchParams.get("type"); // "my" | "global"
     const isActive = searchParams.get("isActive");
 
-    // Build where clause
-    const where: {
-      tenantId: string;
-      ownerId?: string | null;
-      isGlobal?: boolean;
-      isActive?: boolean;
-    } = {
-      tenantId: user.tenantId,
-    };
+    const where: Prisma.FlowWhereInput = {};
 
     if (type === "my") {
+      where.tenantId = user.tenantId;
       where.ownerId = session.user.id;
       where.isGlobal = false;
     } else if (type === "global") {
       where.isGlobal = true;
-      // Global flows can have owner or be system-wide (ownerId = null)
-      // This query returns all global flows in the tenant
+      // System global templates are visible to all tenants.
+    } else {
+      // Default listing includes tenant flows and global templates.
+      where.OR = [{ tenantId: user.tenantId }, { isGlobal: true }];
     }
 
     if (isActive !== null && isActive !== undefined) {
@@ -105,7 +101,7 @@ export async function POST(req: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { tenantId: true },
+      select: { tenantId: true, isAdmin: true },
     });
 
     if (!user?.tenantId) {
@@ -153,12 +149,41 @@ export async function POST(req: NextRequest) {
       nodes = [],
       language = "en",
       fallbackMessage,
+      isGlobal = false,
     } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json(
         { error: "Flow name is required" },
         { status: 400 },
+      );
+    }
+
+    let canCreateGlobal = Boolean(user.isAdmin);
+    if (isGlobal && !canCreateGlobal) {
+      const adminCount = await prisma.user.count({
+        where: {
+          isAdmin: true,
+        },
+      });
+
+      if (adminCount === 0) {
+        await prisma.user.update({
+          where: {
+            id: session.user.id,
+          },
+          data: {
+            isAdmin: true,
+          },
+        });
+        canCreateGlobal = true;
+      }
+    }
+
+    if (isGlobal && !canCreateGlobal) {
+      return NextResponse.json(
+        { error: "Only admin users can create global template flows" },
+        { status: 403 },
       );
     }
 
@@ -169,7 +194,7 @@ export async function POST(req: NextRequest) {
         description: description?.trim() || null,
         tenantId: user.tenantId,
         ownerId: session.user.id,
-        isGlobal: false,
+        isGlobal: Boolean(isGlobal),
         language,
         fallbackMessage: fallbackMessage || "Sorry, I didn't understand that.",
         nodes: {

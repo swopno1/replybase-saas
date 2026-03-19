@@ -29,7 +29,7 @@ export async function POST(
     const sourceFlow = await prisma.flow.findFirst({
       where: {
         id,
-        tenantId: user.tenantId,
+        OR: [{ tenantId: user.tenantId }, { isGlobal: true }],
       },
       include: {
         nodes: {

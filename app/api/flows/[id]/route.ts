@@ -16,7 +16,7 @@ export async function GET(
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { tenantId: true },
+      select: { tenantId: true, isAdmin: true },
     });
 
     if (!user?.tenantId) {
@@ -28,7 +28,7 @@ export async function GET(
     const flow = await prisma.flow.findFirst({
       where: {
         id,
-        tenantId: user.tenantId,
+        OR: [{ tenantId: user.tenantId }, { isGlobal: true }],
       },
       include: {
         owner: {
@@ -54,23 +54,6 @@ export async function GET(
             },
           },
         },
-        channelAssignments: {
-          include: {
-            channel: {
-              select: {
-                id: true,
-                name: true,
-                type: true,
-                bot: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
-                },
-              },
-            },
-          },
-        },
         _count: {
           select: {
             leads: true,
@@ -84,7 +67,36 @@ export async function GET(
       return NextResponse.json({ error: "Flow not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ flow });
+    const channelAssignments = await prisma.flowChannelAssignment.findMany({
+      where: {
+        flowId: flow.id,
+      },
+      include: {
+        channel: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            bot: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    return NextResponse.json({
+      flow: {
+        ...flow,
+        channelAssignments,
+      },
+    });
   } catch (error) {
     console.error("[Flows API] GET by ID Error:", error);
     return NextResponse.json(
@@ -107,7 +119,7 @@ export async function PUT(
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { tenantId: true },
+      select: { tenantId: true, isAdmin: true },
     });
 
     if (!user?.tenantId) {
@@ -120,7 +132,7 @@ export async function PUT(
     const existingFlow = await prisma.flow.findFirst({
       where: {
         id,
-        tenantId: user.tenantId,
+        OR: [{ tenantId: user.tenantId }, { isGlobal: true }],
       },
     });
 
@@ -128,7 +140,7 @@ export async function PUT(
       return NextResponse.json({ error: "Flow not found" }, { status: 404 });
     }
 
-    // Check if user owns the flow or if it's a global flow (only admins can edit global flows)
+    // Global templates are read-only in regular flow editing.
     if (existingFlow.isGlobal) {
       return NextResponse.json(
         { error: "Cannot edit global flows. Please duplicate it first." },
@@ -206,25 +218,40 @@ export async function PUT(
               page: true,
             },
           },
-          channelAssignments: {
-            include: {
-              channel: {
-                include: {
-                  bot: {
-                    select: {
-                      id: true,
-                      name: true,
-                    },
-                  },
-                },
-              },
-            },
-          },
         },
       });
     });
 
-    return NextResponse.json({ flow: updatedFlow });
+    const channelAssignments = await prisma.flowChannelAssignment.findMany({
+      where: {
+        flowId: updatedFlow.id,
+      },
+      include: {
+        channel: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            bot: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    return NextResponse.json({
+      flow: {
+        ...updatedFlow,
+        channelAssignments,
+      },
+    });
   } catch (error) {
     console.error("[Flows API] PUT Error:", error);
     return NextResponse.json(
@@ -247,7 +274,7 @@ export async function DELETE(
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { tenantId: true },
+      select: { tenantId: true, isAdmin: true },
     });
 
     if (!user?.tenantId) {
@@ -260,7 +287,7 @@ export async function DELETE(
     const existingFlow = await prisma.flow.findFirst({
       where: {
         id,
-        tenantId: user.tenantId,
+        OR: [{ tenantId: user.tenantId }, { isGlobal: true }],
       },
     });
 
@@ -269,9 +296,9 @@ export async function DELETE(
     }
 
     // Check if user owns the flow
-    if (existingFlow.isGlobal) {
+    if (existingFlow.isGlobal && !user.isAdmin) {
       return NextResponse.json(
-        { error: "Cannot delete global flows" },
+        { error: "Only admin users can delete global flows" },
         { status: 403 },
       );
     }
