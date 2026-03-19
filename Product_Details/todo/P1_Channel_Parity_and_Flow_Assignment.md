@@ -1,6 +1,6 @@
 # P1: Channel Parity and Flow Assignment
 
-Status: in-progress
+Status: done
 Owner: Engineering
 Target window: 1-2 sprints
 
@@ -35,8 +35,8 @@ Provide consistent flow deployment behavior across Facebook, Telegram, and Webch
 - done: Global template duplication allowed cross-tenant (`/api/flows/:id/duplicate`).
 - done: Added `isAdmin` to JWT token and session (propagated through `jwt` and `session` callbacks in `lib/auth.ts` and declared in `types/next-auth.d.ts`).
 - done: Added "Global Template" toggle to Create Flow dialog — visible only to admin users; passes `isGlobal: true` to the POST body.
-- pending: Migration and backfill strategy for existing Facebook page assignments.
-- pending: Admin management UI — promote/demote users via dashboard (no UI currently exists beyond first-user bootstrap).
+- done: Added Admin management UI to promote/demote users from dashboard (`/admin/users`) with admin-gated APIs (`GET /api/admin/users`, `PATCH /api/admin/users/:userId`).
+- done: Added migration/backfill strategy script for legacy Facebook page assignments (`scripts/backfill-facebook-flow-assignments.ts`) with dry-run and apply modes; script safely migrates unambiguous mappings and reports conflicts/skips.
 
 ## Acceptance Criteria
 
