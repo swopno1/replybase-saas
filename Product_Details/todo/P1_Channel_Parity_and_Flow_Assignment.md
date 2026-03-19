@@ -1,6 +1,6 @@
 # P1: Channel Parity and Flow Assignment
 
-Status: planned
+Status: in-progress
 Owner: Engineering
 Target window: 1-2 sprints
 
@@ -20,6 +20,13 @@ Provide consistent flow deployment behavior across Facebook, Telegram, and Webch
 3. Align Webchat entry flow and assignment strategy.
 
 4. Add migration and backfill plan for existing Facebook assignments.
+
+## Implementation Progress
+
+- done: Added reusable non-Facebook bot entry-flow runtime engine (`lib/bot-entry-flow-engine.ts`) for channel parity work.
+- done: Telegram webhook now attempts bot entry flow first (when `bot.entryFlow` is configured), then falls back to AI.
+- in-progress: Define and implement channel-agnostic assignment model for Facebook, Telegram, and Webchat.
+- pending: Migration and backfill strategy for existing Facebook page assignments.
 
 ## Acceptance Criteria
 

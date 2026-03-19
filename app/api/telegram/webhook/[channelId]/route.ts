@@ -7,6 +7,7 @@ import {
   answerTelegramCallbackQuery,
   sendTelegramTextMessage,
 } from "@/lib/telegram-api";
+import { executeBotEntryFlowFirst } from "@/lib/bot-entry-flow-engine";
 import { decryptTelegramToken } from "@/lib/telegram-crypto";
 import {
   TELEGRAM_MAX_TEXT_LENGTH,
@@ -77,6 +78,7 @@ export async function POST(
             id: true,
             tenantId: true,
             name: true,
+            entryFlow: true,
           },
         },
       },
@@ -337,26 +339,57 @@ export async function POST(
     });
 
     let replyText = getCommandReply(messageText);
+    let replySource: "system" | "flow" | "ai" = isTelegramCommand(messageText)
+      ? "system"
+      : "ai";
 
     if (!replyText || !isTelegramCommand(messageText)) {
       try {
-        const aiResponse = await converse({
-          botId: channel.bot.id,
-          tenantId,
-          contact: {
-            name: userName,
-          },
-          message: messageText,
-        });
+        if (channel.bot.entryFlow) {
+          const flowResult = await executeBotEntryFlowFirst({
+            tenantId,
+            contactId: contact.id,
+            scopeKey: `telegram:${channel.id}`,
+            message: messageText,
+            entryFlow: channel.bot.entryFlow,
+            variables: {
+              channel: "telegram",
+              chatId,
+              userId,
+              userName,
+            },
+          });
 
-        type TextResponse = { type: "text"; text?: string };
-        const textResponse = aiResponse.responses?.find(
-          (response: TextResponse) =>
-            response.type === "text" && Boolean(response.text),
-        );
+          const flowText = flowResult?.responses?.find(
+            (response) => response.type === "text" && Boolean(response.text),
+          )?.text;
 
-        if (textResponse?.text) {
-          replyText = textResponse.text;
+          if (flowText) {
+            replyText = flowText;
+            replySource = "flow";
+          }
+        }
+
+        if (!replyText) {
+          const aiResponse = await converse({
+            botId: channel.bot.id,
+            tenantId,
+            contact: {
+              name: userName,
+            },
+            message: messageText,
+          });
+
+          type TextResponse = { type: "text"; text?: string };
+          const textResponse = aiResponse.responses?.find(
+            (response: TextResponse) =>
+              response.type === "text" && Boolean(response.text),
+          );
+
+          if (textResponse?.text) {
+            replyText = textResponse.text;
+            replySource = "ai";
+          }
         }
       } catch (error) {
         console.error("[Telegram Webhook] AI error:", error);
@@ -402,7 +435,7 @@ export async function POST(
           conversationId: conversation.id,
           direction: "outbound",
           content: replyText,
-          source: isTelegramCommand(messageText) ? "system" : "ai",
+          source: replySource,
         },
       });
     } else {
