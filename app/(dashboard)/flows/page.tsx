@@ -38,18 +38,21 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Loader2,
-  Plus,
-  MoreVertical,
-  Edit,
-  Trash2,
-  Copy,
-  PlayCircle,
-  PauseCircle,
-  Settings,
-  Globe,
-} from "lucide-react";
+   import {
+     Loader2,
+     Plus,
+     MoreVertical,
+     Edit,
+     Trash2,
+     Copy,
+     PlayCircle,
+     PauseCircle,
+     Settings,
+     Globe,
+     Wrench,
+     Users,
+     Calendar,
+   } from "lucide-react";
 import { toast } from "sonner";
 
 interface FlowNode {
@@ -103,6 +106,8 @@ export default function FlowsPage() {
   const [newFlowDescription, setNewFlowDescription] = useState("");
   const [newFlowIsGlobal, setNewFlowIsGlobal] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<"services" | "agencies" | "booking" | null>(null);
 
   useEffect(() => {
     fetchFlows();
@@ -197,7 +202,48 @@ export default function FlowsPage() {
 
   const handleDuplicateFlow = async (flowId: string) => {
     try {
-      const response = await fetch(`/api/flows/${flowId}/duplicate`, {
+      const response = await fetch(`/api/flows/${flowId}/clone`, {
+
+           const handleCreateFromTemplate = async () => {
+             if (!selectedTemplate) {
+               toast.error("Please select a template");
+               return;
+             }
+
+             try {
+               setCreating(true);
+               const response = await fetch("/api/flows/from-template", {
+                 method: "POST",
+                 headers: { "Content-Type": "application/json" },
+                 body: JSON.stringify({
+                   templateCategory: selectedTemplate,
+                   flowName: newFlowName || undefined,
+                   flowDescription: newFlowDescription || undefined,
+                   isGlobal: newFlowIsGlobal,
+                 }),
+               });
+
+               if (response.ok) {
+                 const data = await response.json();
+                 toast.success("Flow created from template");
+                 setTemplateDialogOpen(false);
+                 setCreateDialogOpen(false);
+                 setNewFlowName("");
+                 setNewFlowDescription("");
+                 setNewFlowIsGlobal(false);
+                 setSelectedTemplate(null);
+                 router.push(`/flows/${data.flow.id}/edit`);
+               } else {
+                 const error = await response.json();
+                 toast.error(error.error || "Failed to create flow");
+               }
+             } catch (error) {
+               console.error("Failed to create flow from template:", error);
+               toast.error("Failed to create flow");
+             } finally {
+               setCreating(false);
+             }
+           };
         method: "POST",
       });
 
@@ -263,10 +309,16 @@ export default function FlowsPage() {
             Create and manage conversational flows for your pages
           </p>
         </div>
-        <Button onClick={() => setCreateDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Flow
-        </Button>
+         <div className="flex gap-2">
+           <Button onClick={() => setTemplateDialogOpen(true)} variant="outline">
+             <Wrench className="h-4 w-4 mr-2" />
+             Use Template
+           </Button>
+           <Button onClick={() => setCreateDialogOpen(true)}>
+             <Plus className="h-4 w-4 mr-2" />
+             Create Flow
+           </Button>
+         </div>
       </div>
 
       <Tabs defaultValue="my" className="space-y-4">
@@ -474,13 +526,41 @@ export default function FlowsPage() {
 
       {/* Create Flow Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+               <Dialog
+                 open={createDialogOpen}
+                 onOpenChange={(open) => {
+                   setCreateDialogOpen(open);
+                   if (!open) {
+                     setSelectedTemplate(null);
+                     setNewFlowName("");
+                     setNewFlowDescription("");
+                     setNewFlowIsGlobal(false);
+                   }
+                 }}
+               >
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New Flow</DialogTitle>
-            <DialogDescription>
-              Create a new conversational flow for your channels
-            </DialogDescription>
-          </DialogHeader>
+           <DialogHeader>
+             <DialogTitle>
+               {selectedTemplate ? "Create Flow from Template" : "Create New Flow"}
+             </DialogTitle>
+             <DialogDescription>
+               {selectedTemplate
+                 ? `Use our ${selectedTemplate} template as a starting point and customize it for your needs`
+                 : "Create a new conversational flow for your channels"}
+             </DialogDescription>
+           </DialogHeader>
+           {selectedTemplate && (
+             <div className="rounded-lg bg-blue-50 p-3 border border-blue-200">
+               <div className="text-sm text-blue-900">
+                 <strong>Template selected:</strong>{" "}
+                 {selectedTemplate === "services"
+                   ? "Services: Qualification & Booking"
+                   : selectedTemplate === "agencies"
+                     ? "Agencies: Project Discovery"
+                     : "Booking: Appointments & Reservations"}
+               </div>
+             </div>
+           )}
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="name">Flow Name</Label>
@@ -490,6 +570,11 @@ export default function FlowsPage() {
                 value={newFlowName}
                 onChange={(e) => setNewFlowName(e.target.value)}
               />
+                         <p className="text-xs text-muted-foreground">
+                           {selectedTemplate
+                             ? "Give your flow a custom name, or we'll use the template name"
+                             : "Give your flow a name"}
+                         </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="description">Description (Optional)</Label>
@@ -522,22 +607,148 @@ export default function FlowsPage() {
             )}
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setCreateDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleCreateFlow} disabled={creating}>
-              {creating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Create Flow
-            </Button>
+             <div className="flex gap-2">
+               <Button
+                 variant="outline"
+                 onClick={() => {
+                   if (selectedTemplate) {
+                     setCreateDialogOpen(false);
+                     setSelectedTemplate(null);
+                     setNewFlowName("");
+                     setNewFlowDescription("");
+                   } else {
+                     setCreateDialogOpen(false);
+                   }
+                 }}
+               >
+                 {selectedTemplate ? "Back" : "Cancel"}
+               </Button>
+               <Button
+                 onClick={
+                   selectedTemplate ? handleCreateFromTemplate : handleCreateFlow
+                 }
+                 disabled={creating}
+               >
+                 {creating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                 {selectedTemplate ? "Create from Template" : "Create Flow"}
+               </Button>
+             </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+
+               {/* Template Selection Dialog */}
+               <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+                       <Dialog
+                         open={templateDialogOpen}
+                         onOpenChange={(open) => {
+                           setTemplateDialogOpen(open);
+                           if (!open) {
+                             setSelectedTemplate(null);
+                           }
+                         }}
+                       >
+                 <DialogContent className="max-w-2xl">
+                   <DialogHeader>
+                     <DialogTitle>Choose a Template</DialogTitle>
+                     <DialogDescription>
+                       Start with a pre-built template for your business type
+                     </DialogDescription>
+                   </DialogHeader>
+                   <div className="space-y-4 py-4">
+                     <div className="grid grid-cols-1 gap-4">
+                       {/* Services Template */}
+                       <div
+                         className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                           selectedTemplate === "services"
+                             ? "border-blue-500 bg-blue-50"
+                             : "border-gray-200 hover:border-gray-300"
+                         }`}
+                         onClick={() => setSelectedTemplate("services")}
+                       >
+                         <div className="flex items-start gap-3">
+                           <Wrench className="h-5 w-5 text-blue-600 mt-1" />
+                           <div>
+                             <div className="font-medium">Services: Qualification & Booking</div>
+                             <div className="text-sm text-muted-foreground">
+                               Perfect for consultants, plumbers, IT support, and other service providers.
+                               Qualifies leads and captures booking requests.
+                             </div>
+                             <div className="text-xs text-muted-foreground mt-2">
+                               6 conversation nodes • Multi-channel ready
+                             </div>
+                           </div>
+                         </div>
+                       </div>
+
+                       {/* Agencies Template */}
+                       <div
+                         className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                           selectedTemplate === "agencies"
+                             ? "border-blue-500 bg-blue-50"
+                             : "border-gray-200 hover:border-gray-300"
+                         }`}
+                         onClick={() => setSelectedTemplate("agencies")}
+                       >
+                         <div className="flex items-start gap-3">
+                           <Users className="h-5 w-5 text-blue-600 mt-1" />
+                           <div>
+                             <div className="font-medium">Agencies: Project Discovery</div>
+                             <div className="text-sm text-muted-foreground">
+                               Built for marketing, digital, and design agencies. Discovers project scope,
+                               budget, and timeline before human handoff.
+                             </div>
+                             <div className="text-xs text-muted-foreground mt-2">
+                               8 conversation nodes • Multi-channel ready
+                             </div>
+                           </div>
+                         </div>
+                       </div>
+
+                       {/* Booking Template */}
+                       <div
+                         className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                           selectedTemplate === "booking"
+                             ? "border-blue-500 bg-blue-50"
+                             : "border-gray-200 hover:border-gray-300"
+                         }`}
+                         onClick={() => setSelectedTemplate("booking")}
+                       >
+                         <div className="flex items-start gap-3">
+                           <Calendar className="h-5 w-5 text-blue-600 mt-1" />
+                           <div>
+                             <div className="font-medium">Booking: Appointments & Reservations</div>
+                             <div className="text-sm text-muted-foreground">
+                               Ideal for salons, gyms, restaurants, and clinics. Confirms service, collects
+                               contact info, and suggests available times.
+                             </div>
+                             <div className="text-xs text-muted-foreground mt-2">
+                               7 conversation nodes • Multi-channel ready
+                             </div>
+                           </div>
+                         </div>
+                       </div>
+                     </div>
+                   </div>
+                   <DialogFooter>
+                     <Button
+                       variant="outline"
+                       onClick={() => {
+                         setTemplateDialogOpen(false);
+                         setSelectedTemplate(null);
+                       }}
+                     >
+                       Cancel
+                     </Button>
+                     <Button onClick={() => setCreateDialogOpen(true)} disabled={!selectedTemplate}>
+                       Next
+                     </Button>
+                   </DialogFooter>
+                 </DialogContent>
+               </Dialog>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Flow</DialogTitle>

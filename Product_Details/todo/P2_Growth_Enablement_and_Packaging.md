@@ -38,6 +38,14 @@ Improve activation, retention, and expansion after runtime consistency is in pla
   - Added helper functions for milestone recording, completion checks, and stats retrieval.
 - planned: Task 3 implementation - vertical template packs and clone-ready starter flows.
 - planned: Task 4 implementation - activation KPI dashboard and reporting views.
+- done: Task 3 (phase-1 delivery) - created 3 vertical template flows with pre-built node structures (services, agencies, booking).
+  - Defined template definitions with multi-node conversation flows for each vertical.
+  - Created API endpoint for creating flows from templates (`POST /api/flows/from-template`).
+  - Created flow cloning API endpoint (`POST /api/flows/[flowId]/clone`) for duplicating template and custom flows.
+  - Updated flows UI to show template selection dialog with category-specific guidance.
+  - Added "Use Template" button to flows page for quick template-based creation.
+  - All templates are channel-compatible (Facebook, Telegram, Webchat ready).
+- planned: Task 4 implementation - activation KPI dashboard and reporting views.
 
 ## Phase Plan
 
@@ -131,11 +139,11 @@ Exit criteria:
 
 ## Immediate Next Actions
 
-1. ✅ Lock instrumentation contract for onboarding milestones and KPI events. (COMPLETED)
-2. Draft vertical template content for three target segments (Phase C).
+1. ✅ Lock instrumentation contract for onboarding milestones and KPI events (COMPLETED)
+2. ✅ Create vertical templates for services, agencies, and booking (COMPLETED - Phase C phase-1)
 3. Implement admin analytics dashboard view for onboarding milestone KPIs (Phase D).
 4. Monitor milestone event data collection and completion rates in production.
-5. Plan follow-up: template selection UI and clone-ready starter flows (Phase C).
+5. Build KPI dashboard with trend visualization and completion metrics (Phase D).
 
 ## Acceptance Criteria
 
