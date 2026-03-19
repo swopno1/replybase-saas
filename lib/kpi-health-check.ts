@@ -73,7 +73,7 @@ const THRESHOLDS = {
  * Check data freshness: ensure KPI data is recent and flowing.
  */
 async function checkDataFreshness(): Promise<{
-  freshness: "fresh" | "stale" | "missing";
+  dataFreshness: "fresh" | "stale" | "missing";
   milestoneEventsLastHour: number;
   webhookLogsLastHour: number;
   runtimeMessagesLastHour: number;
@@ -100,17 +100,17 @@ async function checkDataFreshness(): Promise<{
   const totalActivity =
     milestoneEventCount + webhookLogCount + runtimeMessageCount;
 
-  let freshness: "fresh" | "stale" | "missing";
+  let dataFreshness: "fresh" | "stale" | "missing";
   if (totalActivity === 0) {
-    freshness = "missing";
+    dataFreshness = "missing";
   } else if (totalActivity < 5) {
-    freshness = "stale";
+    dataFreshness = "stale";
   } else {
-    freshness = "fresh";
+    dataFreshness = "fresh";
   }
 
   return {
-    freshness,
+    dataFreshness,
     milestoneEventsLastHour: milestoneEventCount,
     webhookLogsLastHour: webhookLogCount,
     runtimeMessagesLastHour: runtimeMessageCount,
@@ -130,7 +130,7 @@ export async function checkKpiHealth(): Promise<KpiHealthCheckResult> {
     const dataQuality = await checkDataFreshness();
 
     // Check 1: Data freshness
-    if (dataQuality.freshness === "missing") {
+    if (dataQuality.dataFreshness === "missing") {
       alerts.push({
         metric: "data_collection",
         severity: "critical",
@@ -140,7 +140,7 @@ export async function checkKpiHealth(): Promise<KpiHealthCheckResult> {
         recommendation:
           "Verify that onboarding milestones are firing. Check Phase B instrumentation.",
       });
-    } else if (dataQuality.freshness === "stale") {
+    } else if (dataQuality.dataFreshness === "stale") {
       alerts.push({
         metric: "data_collection",
         severity: "warning",
