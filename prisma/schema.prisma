@@ -229,6 +229,7 @@ model Channel {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   bot         Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
+  flowAssignments FlowChannelAssignment[]
 
   @@unique([botId, type])
   @@index([botId])
@@ -496,6 +497,7 @@ model Flow {
   owner           User?             @relation(fields: [ownerId], references: [id])
   nodes           FlowNode[]
   assignments     FlowAssignment[]
+  channelAssignments FlowChannelAssignment[]
   sessions        FlowSession[]
   leads           Lead[]
 
@@ -534,6 +536,23 @@ model FlowAssignment {
   @@index([flowId])
   @@index([pageId])
   @@map("flow_assignments")
+}
+
+model FlowChannelAssignment {
+  id        String   @id @default(cuid())
+  flowId    String
+  channelId String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  flow      Flow     @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId]) // only one active assignment target per channel
+  @@index([flowId])
+  @@index([channelId])
+  @@index([channelId, isActive])
+  @@map("flow_channel_assignments")
 }
 
 model FlowSession {

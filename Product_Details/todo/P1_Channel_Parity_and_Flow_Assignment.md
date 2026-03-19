@@ -25,7 +25,11 @@ Provide consistent flow deployment behavior across Facebook, Telegram, and Webch
 
 - done: Added reusable non-Facebook bot entry-flow runtime engine (`lib/bot-entry-flow-engine.ts`) for channel parity work.
 - done: Telegram webhook now attempts bot entry flow first (when `bot.entryFlow` is configured), then falls back to AI.
-- in-progress: Define and implement channel-agnostic assignment model for Facebook, Telegram, and Webchat.
+- done: Added new channel-agnostic assignment model (`FlowChannelAssignment`) with Prisma migration and regenerated Prisma client.
+- done: Extended flow assignment API (`POST`/`DELETE /api/flows/:id/assign`) to support `channelId` targets while preserving legacy `pageId` behavior.
+- done: Telegram and Webchat runtime now resolve active channel assignments first, then fallback to legacy `entryFlow` configuration.
+- done: Added Telegram and Webchat dashboard controls to assign/unassign channel flows via the new `channelId` contract.
+- done: Extended Flow Settings page with channel assignment management (select, assign, unassign) for non-Facebook channels.
 - pending: Migration and backfill strategy for existing Facebook page assignments.
 
 ## Acceptance Criteria

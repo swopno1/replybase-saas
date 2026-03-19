@@ -246,6 +246,7 @@ async function resolveFlow(params: {
   botId: string;
   contactId: string;
   siteId: string;
+  channelId?: string | null;
   entryFlow?: string | null;
 }) {
   const pageId = `web:${params.siteId}`;
@@ -277,6 +278,43 @@ async function resolveFlow(params: {
     }
   }
 
+  async function startFlowSession(flow: FlowWithNodes) {
+    const session = await prisma.flowSession.create({
+      data: {
+        userId: params.contactId,
+        pageId,
+        flowId: flow.id,
+        currentNodeId: flow.nodes[0]?.id || null,
+        variables: {},
+        isActive: true,
+      },
+    });
+
+    return { flow, session, pageId };
+  }
+
+  if (params.channelId) {
+    const assignedFlow = await prisma.flowChannelAssignment.findFirst({
+      where: {
+        channelId: params.channelId,
+        isActive: true,
+      },
+      include: {
+        flow: {
+          include: {
+            nodes: {
+              orderBy: { order: "asc" },
+            },
+          },
+        },
+      },
+    });
+
+    if (assignedFlow?.flow?.isActive) {
+      return startFlowSession(assignedFlow.flow);
+    }
+  }
+
   if (!params.entryFlow) {
     return null;
   }
@@ -298,18 +336,7 @@ async function resolveFlow(params: {
     return null;
   }
 
-  const session = await prisma.flowSession.create({
-    data: {
-      userId: params.contactId,
-      pageId,
-      flowId: configuredFlow.id,
-      currentNodeId: configuredFlow.nodes[0]?.id || null,
-      variables: {},
-      isActive: true,
-    },
-  });
-
-  return { flow: configuredFlow, session, pageId };
+  return startFlowSession(configuredFlow);
 }
 
 export async function executeWebchatFlowFirst(params: {
@@ -318,6 +345,7 @@ export async function executeWebchatFlowFirst(params: {
   contactId: string;
   siteId: string;
   message: string;
+  channelId?: string | null;
   entryFlow?: string | null;
   sourceContext: WebchatSourceContext;
 }) {

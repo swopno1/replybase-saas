@@ -351,6 +351,7 @@ export async function POST(
             contactId: contact.id,
             scopeKey: `telegram:${channel.id}`,
             message: messageText,
+            channelId: channel.id,
             entryFlow: channel.bot.entryFlow,
             variables: {
               channel: "telegram",

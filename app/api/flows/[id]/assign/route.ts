@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-// POST /api/flows/:id/assign - Assign a flow to a page
+// POST /api/flows/:id/assign - Assign a flow to a page or channel
 export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> },
@@ -25,11 +25,22 @@ export async function POST(
 
     const { id } = await context.params;
     const body = await req.json();
-    const { pageId } = body;
+    const { pageId, channelId } = body as {
+      pageId?: string;
+      channelId?: string;
+    };
 
-    if (!pageId) {
+    const targetCount = Number(Boolean(pageId)) + Number(Boolean(channelId));
+    if (targetCount !== 1) {
       return NextResponse.json(
-        { error: "pageId is required" },
+        { error: "Provide exactly one target: pageId or channelId" },
+        { status: 400 },
+      );
+    }
+
+    if (!pageId && !channelId) {
+      return NextResponse.json(
+        { error: "pageId or channelId is required" },
         { status: 400 },
       );
     }
@@ -46,22 +57,83 @@ export async function POST(
       return NextResponse.json({ error: "Flow not found" }, { status: 404 });
     }
 
-    // Verify page exists and belongs to tenant
-    const page = await prisma.facebookPage.findFirst({
+    if (pageId) {
+      const page = await prisma.facebookPage.findFirst({
+        where: {
+          id: pageId,
+          tenantId: user.tenantId,
+        },
+      });
+
+      if (!page) {
+        return NextResponse.json({ error: "Page not found" }, { status: 404 });
+      }
+
+      await prisma.flowAssignment.updateMany({
+        where: {
+          pageId,
+          isActive: true,
+        },
+        data: {
+          isActive: false,
+        },
+      });
+
+      const assignment = await prisma.flowAssignment.upsert({
+        where: {
+          pageId,
+        },
+        update: {
+          flowId: id,
+          isActive: true,
+        },
+        create: {
+          flowId: id,
+          pageId,
+          isActive: true,
+        },
+        include: {
+          flow: {
+            select: {
+              id: true,
+              name: true,
+              isActive: true,
+            },
+          },
+          page: {
+            select: {
+              id: true,
+              name: true,
+              facebookId: true,
+            },
+          },
+        },
+      });
+
+      return NextResponse.json({ assignment, targetType: "page" });
+    }
+
+    const channel = await prisma.channel.findFirst({
       where: {
-        id: pageId,
-        tenantId: user.tenantId,
+        id: channelId,
+        bot: {
+          tenantId: user.tenantId,
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        type: true,
       },
     });
 
-    if (!page) {
-      return NextResponse.json({ error: "Page not found" }, { status: 404 });
+    if (!channel) {
+      return NextResponse.json({ error: "Channel not found" }, { status: 404 });
     }
 
-    // Deactivate existing assignment for this page (if any)
-    await prisma.flowAssignment.updateMany({
+    await prisma.flowChannelAssignment.updateMany({
       where: {
-        pageId,
+        channelId: channel.id,
         isActive: true,
       },
       data: {
@@ -69,10 +141,9 @@ export async function POST(
       },
     });
 
-    // Create new assignment
-    const assignment = await prisma.flowAssignment.upsert({
+    const assignment = await prisma.flowChannelAssignment.upsert({
       where: {
-        pageId,
+        channelId: channel.id,
       },
       update: {
         flowId: id,
@@ -80,7 +151,7 @@ export async function POST(
       },
       create: {
         flowId: id,
-        pageId,
+        channelId: channel.id,
         isActive: true,
       },
       include: {
@@ -91,17 +162,17 @@ export async function POST(
             isActive: true,
           },
         },
-        page: {
+        channel: {
           select: {
             id: true,
             name: true,
-            facebookId: true,
+            type: true,
           },
         },
       },
     });
 
-    return NextResponse.json({ assignment });
+    return NextResponse.json({ assignment, targetType: "channel" });
   } catch (error) {
     console.error("[Flows API] Assign Error:", error);
     return NextResponse.json(
@@ -111,7 +182,7 @@ export async function POST(
   }
 }
 
-// DELETE /api/flows/:id/assign - Unassign a flow from a page
+// DELETE /api/flows/:id/assign - Unassign a flow from a page or channel
 export async function DELETE(
   req: NextRequest,
   context: { params: Promise<{ id: string }> },
@@ -134,10 +205,19 @@ export async function DELETE(
     const { id } = await context.params;
     const searchParams = req.nextUrl.searchParams;
     const pageId = searchParams.get("pageId");
+    const channelId = searchParams.get("channelId");
 
-    if (!pageId) {
+    const targetCount = Number(Boolean(pageId)) + Number(Boolean(channelId));
+    if (targetCount !== 1) {
       return NextResponse.json(
-        { error: "pageId is required" },
+        { error: "Provide exactly one target: pageId or channelId" },
+        { status: 400 },
+      );
+    }
+
+    if (!pageId && !channelId) {
+      return NextResponse.json(
+        { error: "pageId or channelId is required" },
         { status: 400 },
       );
     }
@@ -154,18 +234,47 @@ export async function DELETE(
       return NextResponse.json({ error: "Flow not found" }, { status: 404 });
     }
 
-    // Deactivate assignment
-    await prisma.flowAssignment.updateMany({
+    if (pageId) {
+      await prisma.flowAssignment.updateMany({
+        where: {
+          flowId: id,
+          pageId,
+        },
+        data: {
+          isActive: false,
+        },
+      });
+
+      return NextResponse.json({ success: true, targetType: "page" });
+    }
+
+    const channel = await prisma.channel.findFirst({
+      where: {
+        id: channelId || "",
+        bot: {
+          tenantId: user.tenantId,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!channel) {
+      return NextResponse.json({ error: "Channel not found" }, { status: 404 });
+    }
+
+    await prisma.flowChannelAssignment.updateMany({
       where: {
         flowId: id,
-        pageId,
+        channelId: channel.id,
       },
       data: {
         isActive: false,
       },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, targetType: "channel" });
   } catch (error) {
     console.error("[Flows API] Unassign Error:", error);
     return NextResponse.json(

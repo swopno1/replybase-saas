@@ -45,6 +45,22 @@ type Bot = {
   entryFlow?: string | null;
 };
 
+type FlowOption = {
+  id: string;
+  name: string;
+  isActive: boolean;
+};
+
+type ChannelFlowAssignment = {
+  id: string;
+  flowId: string;
+  flow?: {
+    id: string;
+    name: string;
+    isActive: boolean;
+  };
+};
+
 type Channel = {
   id: string;
   name: string;
@@ -57,6 +73,7 @@ type Channel = {
     position?: "left" | "right";
     [key: string]: unknown;
   };
+  flowAssignments?: ChannelFlowAssignment[];
 };
 
 type PreviewMessage = {
@@ -163,6 +180,11 @@ export default function WebchatIntegrationPage() {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [isChannelsLoading, setIsChannelsLoading] = useState(false);
   const [selectedChannelId, setSelectedChannelId] = useState("");
+  const [flows, setFlows] = useState<FlowOption[]>([]);
+  const [isFlowsLoading, setIsFlowsLoading] = useState(false);
+  const [selectedFlowId, setSelectedFlowId] = useState("");
+  const [isAssigningFlow, setIsAssigningFlow] = useState(false);
+  const [isUnassigningFlow, setIsUnassigningFlow] = useState(false);
 
   const [channelName, setChannelName] = useState("Website Chat");
   const [title, setTitle] = useState("Chat with us");
@@ -224,6 +246,7 @@ export default function WebchatIntegrationPage() {
       return;
     }
     void loadChannels(selectedBotId);
+    void loadFlows();
     void fetch(`/api/bots/${selectedBotId}`)
       .then((r) => r.json())
       .then((d: { bot?: { entryFlow?: string | null } }) => {
@@ -257,6 +280,23 @@ export default function WebchatIntegrationPage() {
     () => webChannels.find((channel) => channel.id === selectedChannelId),
     [webChannels, selectedChannelId],
   );
+
+  const assignedChannelFlow = useMemo(() => {
+    const assignment = selectedChannel?.flowAssignments?.[0];
+    if (!assignment?.flow) {
+      return null;
+    }
+
+    return {
+      id: assignment.flow.id,
+      name: assignment.flow.name,
+      isActive: assignment.flow.isActive,
+    } satisfies FlowOption;
+  }, [selectedChannel]);
+
+  useEffect(() => {
+    setSelectedFlowId(assignedChannelFlow?.id || "");
+  }, [assignedChannelFlow?.id]);
 
   useEffect(() => {
     if (!selectedChannel) {
@@ -361,6 +401,13 @@ export default function WebchatIntegrationPage() {
       };
     }
 
+    if (assignedChannelFlow) {
+      return {
+        title: "Channel flow first, AI fallback",
+        description: `Webchat first runs the assigned channel flow (${assignedChannelFlow.name}). If no final response is produced, AI handles the reply.`,
+      };
+    }
+
     if (selectedBotEntryFlow) {
       return {
         title: "Flow first, AI fallback",
@@ -374,7 +421,7 @@ export default function WebchatIntegrationPage() {
       description:
         "No entry flow is configured for this bot, so webchat currently uses AI responses only.",
     };
-  }, [selectedBotEntryFlow, selectedBotId]);
+  }, [assignedChannelFlow, selectedBotEntryFlow, selectedBotId]);
 
   const canLaunchTestFromDashboard = useMemo(() => {
     if (!site?.publicKey) {
@@ -519,6 +566,99 @@ export default function WebchatIntegrationPage() {
       setChannels([]);
     } finally {
       setIsChannelsLoading(false);
+    }
+  }
+
+  async function loadFlows() {
+    setIsFlowsLoading(true);
+    try {
+      const response = await fetch("/api/flows?isActive=true");
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to load flows");
+      }
+
+      const flowList: FlowOption[] = Array.isArray(data.flows)
+        ? data.flows.map((flow: FlowOption) => ({
+            id: flow.id,
+            name: flow.name,
+            isActive: flow.isActive,
+          }))
+        : [];
+      setFlows(flowList);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to load flows",
+      );
+      setFlows([]);
+    } finally {
+      setIsFlowsLoading(false);
+    }
+  }
+
+  async function handleAssignFlowToChannel() {
+    if (!selectedChannelId) {
+      toast.error("Select a web channel first");
+      return;
+    }
+
+    if (!selectedFlowId) {
+      toast.error("Select a flow to assign");
+      return;
+    }
+
+    setIsAssigningFlow(true);
+    try {
+      const response = await fetch(`/api/flows/${selectedFlowId}/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channelId: selectedChannelId }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to assign flow");
+      }
+
+      toast.success("Flow assigned to webchat channel");
+      await loadChannels(selectedBotId);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to assign flow",
+      );
+    } finally {
+      setIsAssigningFlow(false);
+    }
+  }
+
+  async function handleUnassignFlowFromChannel() {
+    if (!selectedChannelId || !assignedChannelFlow?.id) {
+      toast.error("No assigned flow found for this channel");
+      return;
+    }
+
+    setIsUnassigningFlow(true);
+    try {
+      const response = await fetch(
+        `/api/flows/${assignedChannelFlow.id}/assign?channelId=${encodeURIComponent(selectedChannelId)}`,
+        {
+          method: "DELETE",
+        },
+      );
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to unassign flow");
+      }
+
+      toast.success("Flow unassigned from webchat channel");
+      await loadChannels(selectedBotId);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to unassign flow",
+      );
+    } finally {
+      setIsUnassigningFlow(false);
     }
   }
 
@@ -913,6 +1053,88 @@ export default function WebchatIntegrationPage() {
           <p className="text-sm text-muted-foreground">
             {webchatEffectiveMode.description}
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Channel Flow Assignment</CardTitle>
+          <CardDescription>
+            Assign an active flow to the selected web channel. Channel
+            assignment takes precedence over bot entry flow.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-2 max-w-lg">
+            <Label htmlFor="webchatFlowSelect">Assigned Flow</Label>
+            {isFlowsLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading flows...
+              </div>
+            ) : flows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No active flows found. Activate a flow in Flow Builder first.
+              </p>
+            ) : (
+              <Select
+                value={selectedFlowId || "none"}
+                onValueChange={(value) =>
+                  setSelectedFlowId(value === "none" ? "" : value)
+                }
+                disabled={!selectedChannelId}
+              >
+                <SelectTrigger id="webchatFlowSelect" className="max-w-lg">
+                  <SelectValue placeholder="Select a flow" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No flow selected</SelectItem>
+                  {flows.map((flow) => (
+                    <SelectItem key={flow.id} value={flow.id}>
+                      {flow.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            {assignedChannelFlow
+              ? `Currently assigned to this channel: ${assignedChannelFlow.name}`
+              : "No channel flow is assigned. Bot entry flow or AI fallback applies."}
+          </p>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              onClick={() => void handleAssignFlowToChannel()}
+              disabled={
+                !selectedChannelId ||
+                !selectedFlowId ||
+                isAssigningFlow ||
+                assignedChannelFlow?.id === selectedFlowId
+              }
+            >
+              {isAssigningFlow ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Assign Flow
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void handleUnassignFlowFromChannel()}
+              disabled={
+                !selectedChannelId || !assignedChannelFlow || isUnassigningFlow
+              }
+            >
+              {isUnassigningFlow ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Unassign Flow
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

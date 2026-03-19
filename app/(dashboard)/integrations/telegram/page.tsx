@@ -40,6 +40,29 @@ interface Bot {
   name: string;
 }
 
+interface FlowOption {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
+interface ChannelFlowAssignment {
+  id: string;
+  flowId: string;
+  flow?: {
+    id: string;
+    name: string;
+    isActive: boolean;
+  };
+}
+
+interface BotChannel {
+  id: string;
+  name: string;
+  type: string;
+  flowAssignments?: ChannelFlowAssignment[];
+}
+
 interface TelegramStatus {
   connected: boolean;
   channel?: {
@@ -92,6 +115,15 @@ export default function TelegramIntegrationPage() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [flows, setFlows] = useState<FlowOption[]>([]);
+  const [isFlowsLoading, setIsFlowsLoading] = useState(false);
+  const [telegramChannel, setTelegramChannel] = useState<BotChannel | null>(
+    null,
+  );
+  const [assignedFlow, setAssignedFlow] = useState<FlowOption | null>(null);
+  const [selectedFlowId, setSelectedFlowId] = useState("");
+  const [isAssigningFlow, setIsAssigningFlow] = useState(false);
+  const [isUnassigningFlow, setIsUnassigningFlow] = useState(false);
   const [logs, setLogs] = useState<WebhookLogEntry[]>([]);
   const [isLogsLoading, setIsLogsLoading] = useState(false);
 
@@ -135,6 +167,19 @@ export default function TelegramIntegrationPage() {
     };
   }, [selectedBotId]);
 
+  useEffect(() => {
+    if (!selectedBotId) {
+      setFlows([]);
+      setTelegramChannel(null);
+      setAssignedFlow(null);
+      setSelectedFlowId("");
+      return;
+    }
+
+    void loadFlows();
+    void loadTelegramChannel(selectedBotId);
+  }, [selectedBotId]);
+
   const loadBots = async () => {
     setIsBotsLoading(true);
     try {
@@ -171,6 +216,136 @@ export default function TelegramIntegrationPage() {
       toast.error("Failed to load Telegram status");
     } finally {
       setIsStatusLoading(false);
+    }
+  };
+
+  const loadFlows = async () => {
+    setIsFlowsLoading(true);
+    try {
+      const res = await fetch("/api/flows?isActive=true");
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to load flows");
+      }
+
+      const flowList: FlowOption[] = Array.isArray(data.flows)
+        ? data.flows.map((flow: FlowOption) => ({
+            id: flow.id,
+            name: flow.name,
+            isActive: flow.isActive,
+          }))
+        : [];
+
+      setFlows(flowList);
+    } catch {
+      toast.error("Failed to load active flows");
+    } finally {
+      setIsFlowsLoading(false);
+    }
+  };
+
+  const loadTelegramChannel = async (botId: string) => {
+    try {
+      const res = await fetch(`/api/bots/${botId}/channels`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to load channels");
+      }
+
+      const channels: BotChannel[] = Array.isArray(data.channels)
+        ? data.channels
+        : [];
+      const channel =
+        channels.find((item) => item.type?.toLowerCase() === "telegram") ||
+        null;
+
+      const activeAssignment = channel?.flowAssignments?.[0];
+
+      setTelegramChannel(channel);
+      setAssignedFlow(
+        activeAssignment?.flow
+          ? {
+              id: activeAssignment.flow.id,
+              name: activeAssignment.flow.name,
+              isActive: activeAssignment.flow.isActive,
+            }
+          : null,
+      );
+      setSelectedFlowId(activeAssignment?.flowId || "");
+    } catch {
+      setTelegramChannel(null);
+      setAssignedFlow(null);
+      setSelectedFlowId("");
+    }
+  };
+
+  const handleAssignFlow = async () => {
+    const targetChannelId = status?.channel?.id || telegramChannel?.id;
+    if (!targetChannelId) {
+      toast.error("Connect Telegram first to assign a flow");
+      return;
+    }
+
+    if (!selectedFlowId) {
+      toast.error("Select a flow to assign");
+      return;
+    }
+
+    setIsAssigningFlow(true);
+    try {
+      const res = await fetch(`/api/flows/${selectedFlowId}/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channelId: targetChannelId }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to assign flow");
+      }
+
+      toast.success("Flow assigned to Telegram channel");
+      await loadTelegramChannel(selectedBotId);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to assign flow",
+      );
+    } finally {
+      setIsAssigningFlow(false);
+    }
+  };
+
+  const handleUnassignFlow = async () => {
+    const targetChannelId = status?.channel?.id || telegramChannel?.id;
+    if (!targetChannelId || !assignedFlow?.id) {
+      toast.error("No assigned flow found");
+      return;
+    }
+
+    setIsUnassigningFlow(true);
+    try {
+      const res = await fetch(
+        `/api/flows/${assignedFlow.id}/assign?channelId=${encodeURIComponent(targetChannelId)}`,
+        {
+          method: "DELETE",
+        },
+      );
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to unassign flow");
+      }
+
+      toast.success("Flow unassigned from Telegram channel");
+      await loadTelegramChannel(selectedBotId);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to unassign flow",
+      );
+    } finally {
+      setIsUnassigningFlow(false);
     }
   };
 
@@ -327,11 +502,15 @@ export default function TelegramIntegrationPage() {
             built-in replies.
           </p>
           <p>
-            2. Other messages are sent to the AI responder for generated
-            replies.
+            2. For other messages, an active channel-assigned flow runs first.
           </p>
           <p>
-            3. If AI is unavailable, users receive a safe fallback message and
+            3. If no channel flow is assigned, the bot entry flow is used when
+            configured.
+          </p>
+          <p>4. If no flow handles the message, AI generates the reply.</p>
+          <p>
+            5. If AI is unavailable, users receive a safe fallback message and
             the error is logged in Webhook Activity.
           </p>
         </CardContent>
@@ -638,6 +817,98 @@ export default function TelegramIntegrationPage() {
               {/* How to test */}
               <Card>
                 <CardHeader>
+                  <CardTitle className="text-base">
+                    Telegram Flow Assignment
+                  </CardTitle>
+                  <CardDescription>
+                    Assign an active flow to this Telegram channel. Channel
+                    assignment takes priority over bot entry flow.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="space-y-2 max-w-lg">
+                    <Label htmlFor="telegramFlowSelect">Assigned Flow</Label>
+                    {isFlowsLoading ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading flows...
+                      </div>
+                    ) : flows.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">
+                        No active flows available. Activate a flow in Flow
+                        Builder first.
+                      </div>
+                    ) : (
+                      <Select
+                        value={selectedFlowId || "none"}
+                        onValueChange={(value) =>
+                          setSelectedFlowId(value === "none" ? "" : value)
+                        }
+                      >
+                        <SelectTrigger id="telegramFlowSelect">
+                          <SelectValue placeholder="Select a flow" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No flow selected</SelectItem>
+                          {flows.map((flow) => (
+                            <SelectItem key={flow.id} value={flow.id}>
+                              {flow.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+
+                  <div className="text-xs text-muted-foreground">
+                    {assignedFlow ? (
+                      <span>
+                        Currently assigned: <strong>{assignedFlow.name}</strong>
+                      </span>
+                    ) : (
+                      <span>
+                        No channel flow is assigned. Bot entry flow and AI
+                        fallback are used.
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      onClick={handleAssignFlow}
+                      disabled={
+                        !selectedFlowId ||
+                        isAssigningFlow ||
+                        !status?.connected ||
+                        assignedFlow?.id === selectedFlowId
+                      }
+                    >
+                      {isAssigningFlow ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : null}
+                      Assign Flow
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleUnassignFlow}
+                      disabled={
+                        !assignedFlow || !status?.connected || isUnassigningFlow
+                      }
+                    >
+                      {isUnassigningFlow ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : null}
+                      Unassign Flow
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
                   <CardTitle className="text-base">How to Test</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-1.5 text-sm text-muted-foreground">
@@ -663,8 +934,8 @@ export default function TelegramIntegrationPage() {
                     new record.
                   </p>
                   <p>
-                    Current Telegram mode is command + AI response (channel flow
-                    assignment parity is a planned next stage).
+                    Current mode is command replies plus flow-first runtime
+                    (channel assignment, then entry flow), with AI fallback.
                   </p>
                   <p>
                     If no reply appears, check Recent Webhook Activity below and

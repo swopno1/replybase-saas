@@ -54,6 +54,23 @@ export async function GET(
             },
           },
         },
+        channelAssignments: {
+          include: {
+            channel: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+                bot: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
         _count: {
           select: {
             leads: true,
@@ -187,6 +204,20 @@ export async function PUT(
           assignments: {
             include: {
               page: true,
+            },
+          },
+          channelAssignments: {
+            include: {
+              channel: {
+                include: {
+                  bot: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
             },
           },
         },

@@ -33,6 +33,8 @@ interface Flow {
   language: string;
   fallbackMessage: string | null;
   maxTimeout: number;
+  assignments?: FlowAssignment[];
+  channelAssignments?: FlowChannelAssignment[];
 }
 
 interface FacebookPage {
@@ -48,6 +50,24 @@ interface FlowAssignment {
   isActive: boolean;
 }
 
+interface ChannelOption {
+  id: string;
+  name: string;
+  type: string;
+  bot: {
+    id: string;
+    name: string;
+  };
+}
+
+interface FlowChannelAssignment {
+  id: string;
+  flowId: string;
+  channelId: string;
+  isActive: boolean;
+  channel: ChannelOption;
+}
+
 export default function FlowSettingsPage() {
   const router = useRouter();
   const params = useParams();
@@ -55,8 +75,11 @@ export default function FlowSettingsPage() {
 
   const [flow, setFlow] = useState<Flow | null>(null);
   const [pages, setPages] = useState<FacebookPage[]>([]);
+  const [channels, setChannels] = useState<ChannelOption[]>([]);
   const [currentAssignment, setCurrentAssignment] =
     useState<FlowAssignment | null>(null);
+  const [currentChannelAssignment, setCurrentChannelAssignment] =
+    useState<FlowChannelAssignment | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -68,13 +91,15 @@ export default function FlowSettingsPage() {
   const [fallbackMessage, setFallbackMessage] = useState("");
   const [maxTimeout, setMaxTimeout] = useState(300);
   const [selectedPageId, setSelectedPageId] = useState<string>("");
+  const [selectedChannelId, setSelectedChannelId] = useState<string>("");
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [flowResponse, pagesResponse] = await Promise.all([
+      const [flowResponse, pagesResponse, botsResponse] = await Promise.all([
         fetch(`/api/flows/${flowId}`),
         fetch("/api/facebook/pages"),
+        fetch("/api/bots"),
       ]);
 
       if (flowResponse.ok) {
@@ -87,6 +112,10 @@ export default function FlowSettingsPage() {
         setLanguage(flowInfo.language);
         setFallbackMessage(flowInfo.fallbackMessage || "");
         setMaxTimeout(flowInfo.maxTimeout);
+        setCurrentAssignment(null);
+        setCurrentChannelAssignment(null);
+        setSelectedPageId("");
+        setSelectedChannelId("");
 
         // Get current assignment
         if (flowInfo.assignments && flowInfo.assignments.length > 0) {
@@ -98,11 +127,69 @@ export default function FlowSettingsPage() {
             setSelectedPageId(activeAssignment.pageId);
           }
         }
+
+        if (
+          flowInfo.channelAssignments &&
+          flowInfo.channelAssignments.length > 0
+        ) {
+          const activeChannelAssignment = flowInfo.channelAssignments.find(
+            (assignment: FlowChannelAssignment) => assignment.isActive,
+          );
+          if (activeChannelAssignment) {
+            setCurrentChannelAssignment(activeChannelAssignment);
+            setSelectedChannelId(activeChannelAssignment.channelId);
+          }
+        }
       }
 
       if (pagesResponse.ok) {
         const pagesData = await pagesResponse.json();
         setPages(pagesData.pages || []);
+      }
+
+      if (botsResponse.ok) {
+        const botsData = await botsResponse.json();
+        const botList: Array<{
+          id: string;
+          name: string;
+          channels?: Array<{
+            id: string;
+            name: string;
+            type: string;
+          }>;
+        }> = Array.isArray(botsData.bots)
+          ? botsData.bots
+          : Array.isArray(botsData.projects)
+            ? botsData.projects.flatMap(
+                (project: {
+                  bots?: Array<{
+                    id: string;
+                    name: string;
+                    channels?: Array<{
+                      id: string;
+                      name: string;
+                      type: string;
+                    }>;
+                  }>;
+                }) => (Array.isArray(project.bots) ? project.bots : []),
+              )
+            : [];
+
+        const availableChannels: ChannelOption[] = botList.flatMap((bot) =>
+          (bot.channels || [])
+            .filter((channel) => channel.type.toLowerCase() !== "facebook")
+            .map((channel) => ({
+              id: channel.id,
+              name: channel.name,
+              type: channel.type,
+              bot: {
+                id: bot.id,
+                name: bot.name,
+              },
+            })),
+        );
+
+        setChannels(availableChannels);
       }
     } catch (error) {
       console.error("Failed to fetch data:", error);
@@ -188,6 +275,58 @@ export default function FlowSettingsPage() {
         toast.success("Flow unassigned successfully");
         setCurrentAssignment(null);
         setSelectedPageId("");
+        fetchData();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to unassign flow");
+      }
+    } catch (error) {
+      console.error("Failed to unassign flow:", error);
+      toast.error("Failed to unassign flow");
+    }
+  };
+
+  const handleAssignToChannel = async () => {
+    if (!selectedChannelId) {
+      toast.error("Please select a channel");
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/flows/${flowId}/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channelId: selectedChannelId }),
+      });
+
+      if (response.ok) {
+        toast.success("Flow assigned to channel successfully");
+        fetchData();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to assign flow");
+      }
+    } catch (error) {
+      console.error("Failed to assign flow:", error);
+      toast.error("Failed to assign flow");
+    }
+  };
+
+  const handleUnassignFromChannel = async () => {
+    if (!currentChannelAssignment) return;
+
+    try {
+      const response = await fetch(
+        `/api/flows/${flowId}/assign?channelId=${currentChannelAssignment.channelId}`,
+        {
+          method: "DELETE",
+        },
+      );
+
+      if (response.ok) {
+        toast.success("Flow unassigned from channel successfully");
+        setCurrentChannelAssignment(null);
+        setSelectedChannelId("");
         fetchData();
       } else {
         const error = await response.json();
@@ -403,6 +542,78 @@ export default function FlowSettingsPage() {
                     disabled={!selectedPageId}
                   >
                     Assign to Page
+                  </Button>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Channel Assignment */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Channel Assignment</CardTitle>
+            <CardDescription>
+              Assign this flow to a Telegram/Webchat/WhatsApp channel
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {channels.length === 0 ? (
+              <div className="text-center py-8 border-2 border-dashed rounded-lg">
+                <p className="text-muted-foreground mb-2">
+                  No non-Facebook channels found
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Create Telegram or Webchat channels in Integrations first.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="channel">Select Channel</Label>
+                  <Select
+                    value={selectedChannelId}
+                    onValueChange={setSelectedChannelId}
+                  >
+                    <SelectTrigger id="channel">
+                      <SelectValue placeholder="Choose a channel..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {channels.map((channel) => (
+                        <SelectItem key={channel.id} value={channel.id}>
+                          {channel.bot.name} - {channel.name} ({channel.type})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Only one flow can be active per channel at a time
+                  </p>
+                </div>
+
+                {currentChannelAssignment ? (
+                  <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
+                    <div>
+                      <p className="font-medium">Currently Assigned</p>
+                      <p className="text-sm text-muted-foreground">
+                        {currentChannelAssignment.channel.bot.name} -{" "}
+                        {currentChannelAssignment.channel.name} ({" "}
+                        {currentChannelAssignment.channel.type})
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={handleUnassignFromChannel}
+                    >
+                      Unassign
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={handleAssignToChannel}
+                    disabled={!selectedChannelId}
+                  >
+                    Assign to Channel
                   </Button>
                 )}
               </>

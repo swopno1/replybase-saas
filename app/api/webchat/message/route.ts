@@ -333,6 +333,7 @@ export async function POST(request: NextRequest) {
       contactId: conversation.contactId,
       siteId: site.id,
       message: parsed.data.message,
+      channelId: session.channelId,
       entryFlow: conversation.bot?.entryFlow,
       sourceContext,
     });

@@ -57,6 +57,20 @@ export async function GET(
 
     const channels = await prisma.channel.findMany({
       where: { botId },
+      include: {
+        flowAssignments: {
+          where: { isActive: true },
+          include: {
+            flow: {
+              select: {
+                id: true,
+                name: true,
+                isActive: true,
+              },
+            },
+          },
+        },
+      },
       orderBy: { createdAt: "desc" },
     });
 

@@ -65,6 +65,7 @@ async function resolveFlow(params: {
   tenantId: string;
   contactId: string;
   scopeKey: string;
+  channelId?: string;
   entryFlow?: string | null;
 }) {
   const activeSession = await prisma.flowSession.findFirst({
@@ -96,7 +97,75 @@ async function resolveFlow(params: {
   }
 
   if (!params.entryFlow) {
-    return null;
+    if (!params.channelId) {
+      return null;
+    }
+
+    const assignedFlow = await prisma.flowChannelAssignment.findFirst({
+      where: {
+        channelId: params.channelId,
+        isActive: true,
+      },
+      include: {
+        flow: {
+          include: {
+            nodes: {
+              orderBy: { order: "asc" },
+            },
+          },
+        },
+      },
+    });
+
+    if (!assignedFlow || !assignedFlow.flow.isActive) {
+      return null;
+    }
+
+    const session = await prisma.flowSession.create({
+      data: {
+        userId: params.contactId,
+        pageId: params.scopeKey,
+        flowId: assignedFlow.flow.id,
+        currentNodeId: assignedFlow.flow.nodes[0]?.id || null,
+        variables: {},
+        isActive: true,
+      },
+    });
+
+    return { flow: assignedFlow.flow, session };
+  }
+
+  if (params.channelId) {
+    const assignedFlow = await prisma.flowChannelAssignment.findFirst({
+      where: {
+        channelId: params.channelId,
+        isActive: true,
+      },
+      include: {
+        flow: {
+          include: {
+            nodes: {
+              orderBy: { order: "asc" },
+            },
+          },
+        },
+      },
+    });
+
+    if (assignedFlow && assignedFlow.flow.isActive) {
+      const session = await prisma.flowSession.create({
+        data: {
+          userId: params.contactId,
+          pageId: params.scopeKey,
+          flowId: assignedFlow.flow.id,
+          currentNodeId: assignedFlow.flow.nodes[0]?.id || null,
+          variables: {},
+          isActive: true,
+        },
+      });
+
+      return { flow: assignedFlow.flow, session };
+    }
   }
 
   const configuredFlow = await prisma.flow.findFirst({
@@ -135,6 +204,7 @@ export async function executeBotEntryFlowFirst(params: {
   contactId: string;
   scopeKey: string;
   message: string;
+  channelId?: string;
   entryFlow?: string | null;
   variables?: Record<string, unknown>;
 }) {
