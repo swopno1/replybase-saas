@@ -76,7 +76,7 @@ Created three documentation files:
 
 #### b) Agent Instructions for Marketing Site
 
-**File:** `AGENT_INSTRUCTIONS_MARKETING_SITE.md` (40+ pages)
+**File:** `MARKETING_SITE_API_INTEGRATION.md`
 
 **Contents:**
 
@@ -278,7 +278,7 @@ curl -X POST https://app.replybase.co.uk/api/data-deletion/request \
 
 1. `lib/api-auth.ts` - API key validation library
 2. `MARKETING_SITE_API_INTEGRATION.md` - Complete API documentation
-3. `AGENT_INSTRUCTIONS_MARKETING_SITE.md` - Implementation guide
+3. `MARKETING_SITE_API_INTEGRATION.md` - Implementation guide
 4. `API_SETUP_QUICKSTART.md` - Quick start guide
 5. `MARKETING_API_SUMMARY.md` - This file
 
@@ -304,7 +304,7 @@ curl -X POST https://app.replybase.co.uk/api/data-deletion/request \
 ### For Marketing Site Team
 
 1. Review `MARKETING_SITE_API_INTEGRATION.md`
-2. Review `AGENT_INSTRUCTIONS_MARKETING_SITE.md`
+2. Review `MARKETING_SITE_API_INTEGRATION.md`
 3. Implement server actions for API calls
 4. Create newsletter subscription form
 5. Create data deletion request form
@@ -403,7 +403,7 @@ Set up alerts for:
 ### Documentation References
 
 - Full API docs: `MARKETING_SITE_API_INTEGRATION.md`
-- Implementation guide: `AGENT_INSTRUCTIONS_MARKETING_SITE.md`
+- Implementation guide: `MARKETING_SITE_API_INTEGRATION.md`
 - Quick setup: `API_SETUP_QUICKSTART.md`
 
 ### Contact

@@ -1,28 +1,66 @@
-# UI/UX Strategy: ReplyBase
+# UI and UX Strategy: ReplyBase
 
-## 1. Design Philosophy: "The Miniature CRM"
-Small business owners often don't have the time to learn complex enterprise tools. The ReplyBase UI/UX is built on the philosophy of **"Maximum Value, Minimum Clicks."**
+## 1. Design Goal
 
-It's designed to be a "miniature CRM" that feels as familiar as a messaging app but provides the power of a professional customer relationship manager.
+Make ReplyBase feel simple to operate even when the backend is complex.
 
-## 2. Core Experience Principles
-- **Unified Simplicity:** Whether a message comes from a website or a Telegram bot, it appears in a consistent, easy-to-read layout.
-- **Action-Oriented Dashboard:** The primary dashboard prioritizes current activity, providing a quick view of new messages and hot leads.
-- **Progressive Disclosure:** Advanced settings (like API configuration or complex flow building) are tucked away until needed, keeping the main interface clean for daily use.
+Primary principle: every operator should immediately understand what will reply to an incoming message and why.
 
-## 3. Key UI/UX Features (Current)
-- **Sidebar-Centric Navigation:** Using a modern, inset sidebar (powered by `lucide-react` icons and `shadcn/ui`) for fast context switching between Bots, Conversations, and Analytics.
-- **Dynamic Onboarding Flow:** A conversational onboarding process (using Facebook Messenger or Webchat) that collects business details in a friendly, step-by-step manner rather than a long form.
-- **Real-Time Feedback:** Webchat widgets provide typing indicators and instant message delivery notifications to build trust with customers.
-- **Mobile-Responsive Design:** Tailored for business owners who manage their operations on the go, ensuring full dashboard functionality on tablets and smartphones.
+## 2. UX Problems To Solve
 
-## 4. UI Tech Stack
-- **Framework:** Next.js (App Router) for fast, server-rendered pages.
-- **Components:** `shadcn/ui` for a clean, accessible, and professional look.
-- **Icons:** `lucide-react` for consistent, meaningful visual cues.
-- **Theming:** Clean, light-themed dashboard with dark-mode support for high-contrast environments.
+1. Terminology overlap between Bot, Flow, Builder, and AI Engine.
+2. Channel-specific behavior hidden behind separate pages.
+3. Status labels that indicate system health and feature behavior in the same place.
 
-## 5. Future UX Goals
-- **Lead Visualizer:** A drag-and-drop Kanban board for managing leads through different stages.
-- **AI Previewer:** A "live test" environment where business owners can talk to their bot before publishing it to their customers.
-- **One-Click Integrations:** Further simplification of the Telegram and Webchat connection process using QR codes or simple "paste-your-token" flows.
+## 3. Core UX Principles (2026)
+
+- Clarity before density: show effective behavior first, advanced config second.
+- One mental model across channels.
+- Explainability: every toggle should include expected runtime effect.
+- Progressive complexity: default setup for non-technical users, advanced controls for power users.
+
+## 4. Proposed Navigation and Information Architecture
+
+### 4.1 Primary Navigation
+
+- Conversations
+- Contacts and Leads
+- Bots
+- Channels
+- Flows
+- Runtime and Health
+- Settings
+
+### 4.2 Why This Structure
+
+- Bots define ownership and routing context.
+- Channels define external connectivity and per-channel behavior.
+- Flows define automation logic.
+- Runtime and Health reveals effective behavior and system state separately.
+
+## 5. Runtime UX Pattern (Must-Have)
+
+For each channel, show an "Effective Response Mode" card:
+
+- Current mode: Flow only, AI only, Flow then AI fallback, AI then Flow fallback
+- Active flow (if any)
+- AI availability and reason if unavailable
+- Last successful inbound/outbound timestamps
+- Last error and suggested fix
+
+This card should appear in Facebook, Telegram, and Webchat management views.
+
+## 6. Content and Labeling Standards
+
+- Use "Bot" to mean routing container.
+- Use "Flow" to mean deterministic rule-based responder.
+- Use "AI Engine" to mean generative responder backend.
+- Use "Builder" only for authoring tools, never runtime status.
+
+## 7. UI Delivery Priorities
+
+- P0: unify status language and response mode visibility.
+- P1: channel-agnostic runtime settings and diagnostics layout.
+- P2: template gallery, flow preview sandbox, and guided optimization suggestions.
+
+See execution tasks in [todo/README.md](todo/README.md).

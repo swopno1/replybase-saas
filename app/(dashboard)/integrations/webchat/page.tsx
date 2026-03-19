@@ -353,6 +353,29 @@ export default function WebchatIntegrationPage() {
     [origin],
   );
 
+  const webchatEffectiveMode = useMemo(() => {
+    if (!selectedBotId) {
+      return {
+        title: "Select a bot",
+        description: "Choose a bot to view the active webchat response mode.",
+      };
+    }
+
+    if (selectedBotEntryFlow) {
+      return {
+        title: "Flow first, AI fallback",
+        description:
+          "Webchat starts with the bot entry flow and uses AI if flow execution does not finish with a final reply.",
+      };
+    }
+
+    return {
+      title: "AI only",
+      description:
+        "No entry flow is configured for this bot, so webchat currently uses AI responses only.",
+    };
+  }, [selectedBotEntryFlow, selectedBotId]);
+
   const canLaunchTestFromDashboard = useMemo(() => {
     if (!site?.publicKey) {
       return false;
@@ -880,6 +903,21 @@ export default function WebchatIntegrationPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Effective Response Mode</CardTitle>
+          <CardDescription>
+            Active runtime behavior for webchat message handling.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <Badge variant="secondary">{webchatEffectiveMode.title}</Badge>
+          <p className="text-sm text-muted-foreground">
+            {webchatEffectiveMode.description}
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Globe className="h-5 w-5" />
             Setup
@@ -962,7 +1000,9 @@ export default function WebchatIntegrationPage() {
             <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
               <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
               <div>
-                <p className="font-medium text-amber-800">No entry flow assigned</p>
+                <p className="font-medium text-amber-800">
+                  No entry flow assigned
+                </p>
                 <p className="text-amber-700 mt-0.5">
                   This bot has no entry flow set. Webchat messages will receive
                   AI fallback responses only — structured conversation flows

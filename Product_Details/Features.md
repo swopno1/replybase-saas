@@ -1,31 +1,97 @@
-# Features & Capabilities: ReplyBase
+# Features and Capabilities: ReplyBase
 
-## 1. Unified Multi-Channel Inbox
-ReplyBase serves as an "Orchestra" for all communication. Business owners no longer need to check multiple apps to find customer inquiries.
-- **Webchat Widget:** A custom-branded widget that can be embedded on any website to capture visitors.
-- **Telegram Bot Integration:** Connect professional Telegram bots to the central ReplyBase dashboard.
-- **Planned Channels:** TikTok and LinkedIn integration are on the roadmap to expand the reach of small businesses.
+## 1. Available Now (Core Product)
 
-## 2. Optional AI "Brain" Engagement
-The AI engine is an optional but powerful layer that can be enabled for any channel.
-- **Typebot Integration:** Leverages the advanced, branched logic of Typebot to handle complex customer interactions, from initial greetings to service bookings.
-- **Internal Flow Builder:** A lightweight, built-in flow builder to define automated responses and logic without external tools.
-- **Context-Aware Replies:** The AI "remembers" conversation context through external session IDs, providing a cohesive experience.
+### 1.1 Multi-Channel Intake
 
-## 3. Miniature CRM & Lead Management
-Beyond just messaging, ReplyBase is a data-driven CRM.
-- **Automatic Contact Creation:** New users from any channel are automatically added as contacts.
-- **Lead Tracking:** Move conversations through a pipeline (New, Contacted, Qualified, Converted, Lost).
-- **Identity Resolution:** Links different identities (Telegram ID, Webchat ID) to a single unified contact record.
-- **Internal Notes & Assignment:** Team members can leave private notes on conversations and assign them to specific staff.
+- Webchat widget capture and session handling.
+- Facebook integration with webhook-based processing.
+- Telegram bot integration with webhook provisioning and diagnostics.
 
-## 4. Professional Multi-Tenant Infrastructure
-Designed for agencies or businesses with multiple locations.
-- **Workspace Isolation (Tenants):** Each business (Tenant) has its own secure, isolated data, bots, and configuration.
-- **Tiered Subscriptions:** Usage-based limits for messages, bots, and conversations, enforced at the tenant level.
-- **System Health Monitoring:** Built-in checks for AI engine connectivity and webhook health.
+### 1.2 Conversation Operations
 
-## 5. Security & Compliance
-- **OIDC-Based Authentication:** Secure access to bot-building engines using OpenID Connect.
-- **Data Privacy:** Automated workflows for GDPR compliance, including data deletion requests.
-- **Newsletter Management:** Integrated subscription and unsubscription logic for customer marketing.
+- Unified conversation and message storage.
+- Contact and identity linking across channels.
+- Lead status and contact enrichment workflows.
+
+### 1.3 Automation Layer
+
+- Flow-based automated conversation handling.
+- AI conversation capability with session continuity.
+- Channel-specific fallback behavior (current behavior differs by channel).
+
+### 1.4 Workspace and Plan Controls
+
+- Tenant isolation and tenant-scoped resources.
+- Usage limits and plan-based gating.
+- Channel-level operational controls and health telemetry.
+
+### 1.5 Security and Compliance Baseline
+
+- Token encryption at rest.
+- Secret-based webhook verification for Telegram.
+- OIDC-secured builder access path.
+- GDPR-aligned data deletion workflows.
+
+## 2. Clarification: Current Functional Gaps
+
+These are not failures; they are active product-shape gaps we are addressing:
+
+1. Flow deployment is not fully channel-parity today.
+2. AI status UX is centered around Facebook semantics.
+3. Runtime controls are represented by multiple flags with overlapping meaning.
+4. Product terms (Bot, Flow, Builder, Engine) can be interpreted inconsistently by users.
+
+## 3. Next Capability Targets
+
+### 3.1 Channel-Parity Automation
+
+- Standardize flow assignment and runtime policy across Facebook, Telegram, and Webchat.
+
+### 3.2 Unified Runtime Controls
+
+- Show one explicit response mode per channel:
+  - Flow only
+  - AI only
+  - Flow then AI fallback
+  - AI then Flow fallback
+
+### 3.3 Better Operator Observability
+
+- Single runtime decision view per channel.
+- Clear visibility of what will respond and why.
+
+### 3.4 Commercial Expansion
+
+- Industry templates and onboarding packs.
+- Additional channels only after runtime model consistency is completed.
+
+### 3.5 TikTok Next-Stage Plan
+
+- Stage 1: capability and policy validation
+  - Validate official API scope for messaging, webhook events, and auth constraints.
+  - Map TikTok identity and conversation context to ContactIdentity and CrmConversation.
+- Stage 2: limited tenant beta
+  - Controlled rollout to a small cohort with explicit success criteria.
+  - Channel-level diagnostics and failure telemetry tuned for TikTok event patterns.
+- Stage 3: general availability
+  - Enable guided setup in dashboard.
+  - Publish runbook and support SOP for onboarding, troubleshooting, and escalation.
+
+### 3.6 Production Deployment Excellence
+
+- Staging to production promotion with release gates.
+- Migration safety checks and rollback rehearsal.
+- Per-channel smoke tests after release.
+- Alerting for webhook failures, delivery errors, and sustained 429 or 5xx spikes.
+- Release health dashboard and 24-hour post-deploy verification window.
+
+## 4. Feature Priorities (Current)
+
+- P0: Product clarity and runtime consistency.
+- P1: Cross-channel flow deployment parity.
+- P1: Unified status and diagnostics UX.
+- P2: TikTok staged rollout and advanced automation packs.
+- P0 ongoing: production deployment reliability and release safety.
+
+See implementation tasks in [todo/README.md](todo/README.md).

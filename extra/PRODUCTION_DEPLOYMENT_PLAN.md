@@ -1,327 +1,97 @@
-# 🚀 Production Deployment Plan
+# Production Deployment Plan (Current)
 
-**Objective**: Deploy ReplyBase SaaS MVP to production with Typebot Builder/Viewer integration  
-**Timeline**: 7-10 days  
-**Environment**: Digital Ocean + Coolify
+Last updated: 2026-03-19
 
----
+This plan aligns with the Product_Details workstreams and current channel architecture.
 
-## 📋 Table of Contents
+## 1. Deployment Principles
 
-1. [Pre-Deployment Checklist](#pre-deployment-checklist)
-2. [Phase 1: Environment Configuration](#phase-1-environment-configuration)
-3. [Phase 2: Database Setup](#phase-2-database-setup)
-4. [Phase 3: Typebot Configuration](#phase-3-typebot-configuration)
-5. [Phase 4: Infrastructure Security](#phase-4-infrastructure-security)
-6. [Phase 5: Testing & Validation](#phase-5-testing--validation)
-7. [Phase 6: Go Live](#phase-6-go-live)
-8. [Post-Deployment](#post-deployment)
-9. [Rollback Plan](#rollback-plan)
+1. Safe migrations first.
+2. Channel behavior must be verifiable after each release.
+3. Every release must be observable and reversible.
 
----
+## 2. Release Gates (Must Pass)
 
-## Pre-Deployment Checklist
+1. Scope freeze and change summary approved.
+2. Staging environment parity confirmed.
+3. Database pre-checks complete and migration rollback path ready.
+4. Channel smoke tests pass for Facebook, Telegram, and Webchat.
+5. Alerting and on-call owner confirmed.
 
-### Access Verification
+## 3. Environment Baseline
 
-- [ ] SSH access to Digital Ocean: `ssh root@104.248.160.102`
-- [ ] Coolify dashboard access
-- [ ] Database access confirmed
-- [ ] Domain DNS configured:
-  - [ ] `app.replybase.co.uk` → SaaS App
-  - [ ] `engine.replybase.co.uk` → Typebot Builder
-  - [ ] `bot.replybase.co.uk` → Typebot Viewer
-- [ ] SSL certificates active for all domains
+Required core env groups:
 
-### External Services
+- Auth and OIDC
+- Database and Prisma
+- Stripe billing
+- Channel integrations (Facebook, Telegram, Webchat)
+- AI engine and Typebot configuration
 
-- [ ] Google OAuth app created
-- [ ] Facebook OAuth app created
-- [ ] Stripe account configured
-- [ ] Stripe webhook endpoints set up
+Telegram-specific note:
 
-### Backup Strategy
+- `TELEGRAM_WEBHOOK_BASE_URL` should be set to the public HTTPS domain.
+- Token encryption uses `TELEGRAM_TOKEN_ENCRYPTION_KEY` or `AUTH_SECRET` fallback.
 
-- [ ] Database backup mechanism in place
-- [ ] Environment variables backed up securely
-- [ ] Code repository backed up
+## 4. Deployment Steps
 
----
+1. Backup checkpoint
 
-## Phase 1: Environment Configuration
+- Verify latest DB snapshot and restore procedure.
 
-**Duration**: 2-3 hours  
-**Risk**: 🔴 Critical
+2. Apply migrations
 
-### Step 1.1: Generate Cryptographic Keys
+- Run migration pre-checks.
+- Apply with deploy workflow.
+- Validate critical schema/index changes.
 
-**On your local machine** (not on server initially):
+3. Deploy application
 
-```bash
-cd /Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas
+- Deploy immutable artifact.
+- Confirm health endpoints and app startup.
 
-# Generate OIDC keys
-node scripts/generate-jwks.js > oidc-keys.txt
+4. Post-deploy verification matrix
 
-# Generate AUTH_SECRET
-echo "AUTH_SECRET=$(openssl rand -base64 32)" >> oidc-keys.txt
+- Facebook: webhook receive, flow/AI response, status page.
+- Telegram: connect/reconnect status, webhook receive, outbound send.
+- Webchat: session init, message receive, flow-first/AI fallback behavior.
 
-# Generate TYPEBOT_OIDC_CLIENT_SECRET
-echo "TYPEBOT_OIDC_CLIENT_SECRET=$(openssl rand -base64 32)" >> oidc-keys.txt
+5. Stabilization window
 
-# Review the file
-cat oidc-keys.txt
-```
+- Monitor for 24 hours.
+- Track webhook errors, delivery errors, and elevated 429/5xx rates.
 
-**Expected Output**:
+## 5. Rollback Strategy
 
-```
-=== OIDC CONFIGURATION ===
+1. Define rollback owner before release.
+2. Use one command path for application rollback.
+3. For DB risk:
 
-OIDC_COOKIE_KEY=<128-char hex string>
-OIDC_JWKS={"keys":[{...}]}
+- Use forward-fix when possible.
+- Use rollback only if migration design explicitly supports it.
 
-==========================
+4. Publish incident note and follow-up actions.
 
-AUTH_SECRET=<44-char base64 string>
-TYPEBOT_OIDC_CLIENT_SECRET=<44-char base64 string>
-```
+## 6. Release Evidence
 
-**⚠️ SECURITY**:
+For each production deployment, capture:
 
-- Store `oidc-keys.txt` in a password manager (1Password, LastPass, etc.)
-- Never commit to git
-- Delete local file after storing: `shred -u oidc-keys.txt` (Linux) or `rm -P oidc-keys.txt` (Mac)
+- release id or commit
+- migration identifiers applied
+- channel smoke test results
+- alert dashboard screenshot or log extract
+- post-release verdict (go, watch, rollback)
 
-### Step 1.2: Create .env File Template
+## 7. Cross-Reference
 
-Create a new file `.env.production` with all required variables:
+- [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md)
+- [../Product_Details/todo/P0_Production_Deployment_Excellence.md](../Product_Details/todo/P0_Production_Deployment_Excellence.md)
+- [../Product_Details/Architecture_and_DB.md](../Product_Details/Architecture_and_DB.md)
+  NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID=price_xxxxx
+  NEXT_PUBLIC_STRIPE_PRO_PRICE_ID=price_xxxxx
+  NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID=price_xxxxx
 
-```bash
-# ==============================================
-# ReplyBase SaaS - Production Environment
-# ==============================================
-# Generated: 2026-01-30
-# Environment: Digital Ocean + Coolify
-# ==============================================
-
-# ----- CORE APPLICATION -----
-NODE_ENV=production
-NEXT_PUBLIC_APP_URL=https://app.replybase.co.uk
-
-# ----- AUTHENTICATION -----
-# Generate with: openssl rand -base64 32
-AUTH_SECRET=<FROM_oidc-keys.txt>
-NEXTAUTH_URL=https://app.replybase.co.uk
-
-# ----- GOOGLE OAUTH -----
-GOOGLE_CLIENT_ID=<FROM_GOOGLE_CONSOLE>
-GOOGLE_CLIENT_SECRET=<FROM_GOOGLE_CONSOLE>
-
-# ----- FACEBOOK OAUTH -----
-FACEBOOK_CLIENT_ID=<FROM_FACEBOOK_DEVELOPERS>
-FACEBOOK_CLIENT_SECRET=<FROM_FACEBOOK_DEVELOPERS>
-FACEBOOK_WEBHOOK_VERIFY_TOKEN=<RANDOM_STRING>
-
-# ----- OIDC PROVIDER (Typebot Integration) -----
-# Generate with: node scripts/generate-jwks.js
-OIDC_JWKS=<FROM_oidc-keys.txt>
-OIDC_COOKIE_KEY=<FROM_oidc-keys.txt>
-
-# Typebot Client Configuration
-TYPEBOT_OIDC_CLIENT_ID=typebot-engine
-TYPEBOT_OIDC_CLIENT_SECRET=<FROM_oidc-keys.txt>
-TYPEBOT_CALLBACK_URL=https://engine.replybase.co.uk/api/auth/oauth/generic-oidc/callback
-
-# ----- DATABASE -----
-# Format: postgresql://user:password@host:5432/dbname?sslmode=require
-DATABASE_URL=postgresql://<USER>:<PASSWORD>@<HOST>:5432/<DBNAME>?sslmode=require
-
-# ----- STRIPE -----
-STRIPE_SECRET_KEY=sk_live_<FROM_STRIPE>
-STRIPE_WEBHOOK_SECRET=whsec_<FROM_STRIPE_WEBHOOKS>
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_<FROM_STRIPE>
-
-# Stripe Price IDs (set after creating products in Stripe)
-NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID=price_<STARTER>
-NEXT_PUBLIC_STRIPE_PRO_PRICE_ID=price_<PRO>
-NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID=price_<BUSINESS>
-
-# ----- OPTIONAL / FUTURE -----
-# AI_ENGINE_URL=https://typebot.io
-# TYPEBOT_TOKEN=<IF_NEEDED>
-# TYPEBOT_DEFAULT_BOT_ID=<FOR_TESTING>
-```
-
-### Step 1.3: Configure Environment in Coolify
-
-**Access Coolify**:
-
-1. Navigate to your Coolify dashboard
-2. Select the ReplyBase SaaS application
-3. Go to "Environment Variables" section
-
-**Add Variables**:
-
-**Option A: Via Coolify UI**
-
-1. Click "Add Variable"
-2. Copy each line from `.env.production`
-3. For `OIDC_JWKS`, ensure JSON is properly formatted (single line, escaped quotes)
-
-**Option B: Via SSH**
-
-```bash
-# SSH into your server
-ssh root@104.248.160.102
-
-# Navigate to your application directory
-cd /path/to/replybase-saas  # Check with Coolify
-
-# Create .env file
-nano .env
-
-# Paste contents from .env.production
-# Save: Ctrl+X, Y, Enter
-```
-
-**⚠️ IMPORTANT**:
-
-- Ensure `OIDC_JWKS` is on a single line
-- Escape any special characters in JSON
-- Verify no trailing spaces or newlines
-
-### Step 1.4: Validate Environment Variables
-
-**On the server**:
-
-```bash
-# Check if critical vars are set
-env | grep -E "(AUTH_SECRET|OIDC_|DATABASE_URL|STRIPE_)"
-
-# Verify OIDC_JWKS is valid JSON
-echo $OIDC_JWKS | jq .
-
-# Expected output: Should show formatted JSON with "keys" array
-```
-
-**✅ Success Criteria**:
-
-- All 22+ environment variables set
-- No errors when parsing OIDC_JWKS as JSON
-- Secrets are 32+ characters (not placeholder values)
-
----
-
-## Phase 2: Database Setup
-
-**Duration**: 1-2 hours  
-**Risk**: 🟡 Medium
-
-### Step 2.1: Verify Database Connection
-
-```bash
-# SSH into server
-ssh root@104.248.160.102
-
-# Test database connection
-psql $DATABASE_URL -c "SELECT version();"
-
-# Expected: PostgreSQL version info
-```
-
-**If connection fails**:
-
-- Check DATABASE_URL format
-- Verify PostgreSQL is running
-- Check firewall rules
-- Verify SSL mode if required
-
-### Step 2.2: Run Prisma Migrations
-
-```bash
-# Navigate to app directory
-cd /path/to/replybase-saas
-
-# Generate Prisma Client
-npx prisma generate
-
-# Apply all migrations
-npx prisma migrate deploy
-
-# Expected output:
-# "Database is now in sync with your Prisma schema"
-```
-
-**Verify Migrations**:
-
-```bash
-# Check tables exist
-psql $DATABASE_URL -c "\dt"
-
-# Expected tables:
-# - users
-# - accounts
-# - sessions
-# - tenants
-# - subscriptions
-# - plans
-# - bots
-# - oidc_models
-# ... and more
-```
-
-### Step 2.3: Seed Stripe Plans
-
-**Prerequisites**: `STRIPE_SECRET_KEY` must be set
-
-```bash
-# Check if plans already exist
-psql $DATABASE_URL -c "SELECT name, price FROM plans;"
-
-# If empty, seed:
-npm run seed:stripe
-# OR
-node -r dotenv/config scripts/seed-stripe.ts
-```
-
-**Expected Output**:
-
-```
-✓ Seeded plan: Starter (price_xxxxx)
-✓ Seeded plan: Pro (price_xxxxx)
-✓ Seeded plan: Business (price_xxxxx)
-```
-
-**Verify**:
-
-```bash
-psql $DATABASE_URL -c "SELECT name, \"displayName\", price, \"maxBots\" FROM plans;"
-```
-
-**Expected**:
-
-```
-   name    | displayName | price | maxBots
------------+-------------+-------+---------
- starter   | Starter     |  9.99 |       1
- pro       | Pro         | 29.99 |       5
- business  | Business    | 99.99 |      20
-```
-
-### Step 2.4: Update Stripe Price IDs
-
-**After seeding** (if script doesn't output price IDs):
-
-1. Go to Stripe Dashboard → Products
-2. Find each plan's Price ID
-3. Update `.env`:
-
-```bash
-NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID=price_xxxxx
-NEXT_PUBLIC_STRIPE_PRO_PRICE_ID=price_xxxxx
-NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID=price_xxxxx
-```
+````
 
 4. Restart application in Coolify
 
@@ -336,8 +106,8 @@ NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID=price_xxxxx
 
 ## Phase 3: Typebot Configuration
 
-**Duration**: 4-6 hours  
-**Risk**: 🔴 Critical  
+**Duration**: 4-6 hours
+**Risk**: 🔴 Critical
 **Complexity**: High (External system)
 
 ### Step 3.1: Access Typebot Engine
@@ -351,7 +121,7 @@ curl -I https://engine.replybase.co.uk
 # Expected: 200 OK (if accessible)
 # If 404/502: Typebot not deployed
 # If 403: Already restricted (good!)
-```
+````
 
 **Document Current Config**:
 

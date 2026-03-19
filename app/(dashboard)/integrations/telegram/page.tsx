@@ -314,6 +314,29 @@ export default function TelegramIntegrationPage() {
         </p>
       </div>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Effective Response Mode</CardTitle>
+          <CardDescription>
+            How ReplyBase responds to Telegram messages for the selected bot.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm text-muted-foreground">
+          <p>
+            1. Telegram commands such as /start, /help, and /settings use
+            built-in replies.
+          </p>
+          <p>
+            2. Other messages are sent to the AI responder for generated
+            replies.
+          </p>
+          <p>
+            3. If AI is unavailable, users receive a safe fallback message and
+            the error is logged in Webhook Activity.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Bot Selection */}
       <Card>
         <CardHeader>
@@ -638,6 +661,10 @@ export default function TelegramIntegrationPage() {
                   <p>
                     6. If your flow captures lead fields, check Leads for the
                     new record.
+                  </p>
+                  <p>
+                    Current Telegram mode is command + AI response (channel flow
+                    assignment parity is a planned next stage).
                   </p>
                   <p>
                     If no reply appears, check Recent Webhook Activity below and

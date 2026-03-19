@@ -93,7 +93,7 @@ Expected response:
 ## Next Steps
 
 1. Review [MARKETING_SITE_API_INTEGRATION.md](./MARKETING_SITE_API_INTEGRATION.md) for complete API documentation
-2. Review [AGENT_INSTRUCTIONS_MARKETING_SITE.md](./AGENT_INSTRUCTIONS_MARKETING_SITE.md) for implementation steps
+2. Review [MARKETING_SITE_API_INTEGRATION.md](./MARKETING_SITE_API_INTEGRATION.md) for implementation steps
 3. Implement newsletter forms on marketing site
 4. Test all endpoints thoroughly
 5. Deploy to production

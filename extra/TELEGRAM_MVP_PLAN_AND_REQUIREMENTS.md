@@ -165,10 +165,14 @@ Future normalization remains optional. It is no longer required for the current 
 
 - Add environment variables:
   - `TELEGRAM_WEBHOOK_BASE_URL`
-  - `TELEGRAM_WEBHOOK_SECRET`
-  - `TELEGRAM_TOKEN_ENCRYPTION_KEY`
+  - `TELEGRAM_TOKEN_ENCRYPTION_KEY` (recommended; falls back to `AUTH_SECRET`)
 - Ensure public HTTPS endpoint is reachable on supported ports (443 preferred).
 - Add observability alerts for webhook failures and sender API 429/5xx spikes.
+
+Notes:
+
+- `TELEGRAM_WEBHOOK_SECRET` is not required as a global env in the current implementation.
+- Webhook secret token is generated per channel and stored in channel config.
 
 ### 6.3 Telegram API Methods Needed For MVP
 

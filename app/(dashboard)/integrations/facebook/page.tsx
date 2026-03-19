@@ -191,6 +191,32 @@ export default function FacebookIntegrationPage() {
         </p>
       </div>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Effective Response Mode</CardTitle>
+          <CardDescription>
+            How ReplyBase decides what responds to incoming Facebook messages.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm text-muted-foreground">
+          <p>
+            1. If an active flow is assigned to the page, that flow handles the
+            message first.
+          </p>
+          <p>
+            2. If no active flow handles the message and AI is enabled for the
+            page, AI generates the reply.
+          </p>
+          <p>
+            3. If neither flow nor AI is active, no automated reply is sent.
+          </p>
+          <p className="text-xs">
+            Configure AI per page in{" "}
+            <strong className="text-foreground">AI Status</strong>.
+          </p>
+        </CardContent>
+      </Card>
+
       {isLoading ? (
         <Card>
           <CardContent className="flex items-center justify-center py-12">
@@ -272,8 +298,8 @@ export default function FacebookIntegrationPage() {
             <CardHeader>
               <CardTitle>Your Facebook Pages</CardTitle>
               <CardDescription>
-                Select pages to connect with ReplyBase. After connecting, enable
-                AI replies in the AI Status page.
+                Select pages to connect with ReplyBase. Then choose each
+                page&apos;s response mode in AI Status.
               </CardDescription>
             </CardHeader>
             <CardContent>
