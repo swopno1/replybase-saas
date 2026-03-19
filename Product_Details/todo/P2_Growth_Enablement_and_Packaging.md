@@ -37,7 +37,12 @@ Improve activation, retention, and expansion after runtime consistency is in pla
   - Created analytics API endpoint (`GET /api/analytics/onboarding-milestones`) with completion rate, trends, and time-to-completion statistics.
   - Added helper functions for milestone recording, completion checks, and stats retrieval.
 - planned: Task 3 implementation - vertical template packs and clone-ready starter flows.
-- planned: Task 4 implementation - activation KPI dashboard and reporting views.
+- done: Task 4 (phase-1 delivery) - shipped admin activation KPI dashboard and reporting layer.
+  - Added shared KPI query layer for tenant activation speed, weekly active runtime tenants, and webhook setup reliability.
+  - Corrected milestone timing logic to measure tenant creation to milestone completion instead of event-to-event spacing.
+  - Added admin analytics page at `/admin/analytics` with activation and reliability trend visualizations.
+  - Extended the onboarding milestone analytics API to serve the shared KPI payload used by the dashboard.
+  - Added Telegram webhook setup success/failure logging for weekly webhook setup rate tracking.
 - done: Task 3 (phase-1 delivery) - created 3 vertical template flows with pre-built node structures (services, agencies, booking).
   - Defined template definitions with multi-node conversation flows for each vertical.
   - Created API endpoint for creating flows from templates (`POST /api/flows/from-template`).
@@ -141,9 +146,9 @@ Exit criteria:
 
 1. ✅ Lock instrumentation contract for onboarding milestones and KPI events (COMPLETED)
 2. ✅ Create vertical templates for services, agencies, and booking (COMPLETED - Phase C phase-1)
-3. Implement admin analytics dashboard view for onboarding milestone KPIs (Phase D).
-4. Monitor milestone event data collection and completion rates in production.
-5. Build KPI dashboard with trend visualization and completion metrics (Phase D).
+3. Monitor milestone event data collection and KPI accuracy in production.
+4. Expand reliability tracking to additional channels if webhook setup telemetry is added outside Telegram.
+5. Iterate on dashboard segmentation by plan, channel, and activation cohort.
 
 ## Acceptance Criteria
 

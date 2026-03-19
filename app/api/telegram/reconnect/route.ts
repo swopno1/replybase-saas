@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { setTelegramWebhook } from "@/lib/telegram-api";
 import { decryptTelegramToken } from "@/lib/telegram-crypto";
 import { generateWebhookSecret } from "@/lib/telegram-utils";
+import { recordTelegramWebhookSetupLog } from "@/lib/telegram-webhook-setup-log";
 
 const reconnectSchema = z.object({
   channelId: z.string().min(1),
@@ -80,6 +81,16 @@ export async function POST(req: NextRequest) {
     const webhookUrl = `${baseUrl.replace(/\/$/, "")}/api/telegram/webhook/${channel.id}`;
 
     if (!webhookUrl.startsWith("https://")) {
+      await recordTelegramWebhookSetupLog({
+        tenantId: user.tenantId,
+        botId: channel.botId,
+        channelId: channel.id,
+        event: "reconnect_webhook",
+        outcome: "setup_error",
+        webhookUrl,
+        reason: "Telegram requires an HTTPS webhook URL",
+      });
+
       return NextResponse.json(
         {
           error:
@@ -115,6 +126,17 @@ export async function POST(req: NextRequest) {
           } as Prisma.JsonObject,
         },
       });
+
+      await recordTelegramWebhookSetupLog({
+        tenantId: user.tenantId,
+        botId: channel.botId,
+        channelId: channel.id,
+        event: "reconnect_webhook",
+        outcome: "setup_error",
+        webhookUrl,
+        reason: message,
+      });
+
       throw error;
     }
 
@@ -134,6 +156,15 @@ export async function POST(req: NextRequest) {
           lastWebhookErrorAt: null,
         } as Prisma.JsonObject,
       },
+    });
+
+    await recordTelegramWebhookSetupLog({
+      tenantId: user.tenantId,
+      botId: channel.botId,
+      channelId: channel.id,
+      event: "reconnect_webhook",
+      outcome: "setup_success",
+      webhookUrl,
     });
 
     return NextResponse.json({ success: true, webhookUrl });
