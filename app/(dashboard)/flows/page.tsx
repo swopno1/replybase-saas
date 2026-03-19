@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
   Card,
@@ -47,6 +48,7 @@ import {
   PlayCircle,
   PauseCircle,
   Settings,
+  Globe,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -89,6 +91,8 @@ interface Flow {
 
 export default function FlowsPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.isAdmin ?? false;
   const [myFlows, setMyFlows] = useState<Flow[]>([]);
   const [globalFlows, setGlobalFlows] = useState<Flow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,6 +101,7 @@ export default function FlowsPage() {
   const [flowToDelete, setFlowToDelete] = useState<Flow | null>(null);
   const [newFlowName, setNewFlowName] = useState("");
   const [newFlowDescription, setNewFlowDescription] = useState("");
+  const [newFlowIsGlobal, setNewFlowIsGlobal] = useState(false);
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
@@ -143,6 +148,7 @@ export default function FlowsPage() {
           name: newFlowName,
           description: newFlowDescription,
           nodes: [],
+          ...(isAdmin && newFlowIsGlobal ? { isGlobal: true } : {}),
         }),
       });
 
@@ -152,6 +158,7 @@ export default function FlowsPage() {
         setCreateDialogOpen(false);
         setNewFlowName("");
         setNewFlowDescription("");
+        setNewFlowIsGlobal(false);
         router.push(`/flows/${data.flow.id}/edit`);
       } else {
         const error = await response.json();
@@ -471,7 +478,7 @@ export default function FlowsPage() {
           <DialogHeader>
             <DialogTitle>Create New Flow</DialogTitle>
             <DialogDescription>
-              Create a new conversational flow for your Facebook page
+              Create a new conversational flow for your channels
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -494,6 +501,25 @@ export default function FlowsPage() {
                 rows={3}
               />
             </div>
+            {isAdmin && (
+              <div className="flex items-center gap-3 rounded-lg border p-3">
+                <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div className="flex-1">
+                  <div className="text-sm font-medium">Global Template</div>
+                  <div className="text-xs text-muted-foreground">
+                    Make this flow available to all tenants as a read-only
+                    template
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  id="isGlobal"
+                  checked={newFlowIsGlobal}
+                  onChange={(e) => setNewFlowIsGlobal(e.target.checked)}
+                  className="h-4 w-4 cursor-pointer"
+                />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button

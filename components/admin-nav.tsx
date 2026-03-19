@@ -10,6 +10,7 @@ const tabs = [
   { name: "Onboarding", href: "/admin/onboarding" },
   { name: "Webchat Monitoring", href: "/admin/webchat-monitoring" },
   { name: "Webchat Rollout", href: "/admin/webchat-rollout" },
+  { name: "User Management", href: "/admin/users" },
 ];
 
 export function AdminNav() {

@@ -30,7 +30,13 @@ Provide consistent flow deployment behavior across Facebook, Telegram, and Webch
 - done: Telegram and Webchat runtime now resolve active channel assignments first, then fallback to legacy `entryFlow` configuration.
 - done: Added Telegram and Webchat dashboard controls to assign/unassign channel flows via the new `channelId` contract.
 - done: Extended Flow Settings page with channel assignment management (select, assign, unassign) for non-Facebook channels.
+- done: Added `isAdmin Boolean` field to User model with DB migration; first registered user bootstrapped as admin; bootstrap fallback if no admins exist on first global flow creation attempt.
+- done: Added `isGlobal` support to `POST /api/flows` (admin-only guard); global flows visible cross-tenant via OR clause in all flow queries.
+- done: Global template duplication allowed cross-tenant (`/api/flows/:id/duplicate`).
+- done: Added `isAdmin` to JWT token and session (propagated through `jwt` and `session` callbacks in `lib/auth.ts` and declared in `types/next-auth.d.ts`).
+- done: Added "Global Template" toggle to Create Flow dialog — visible only to admin users; passes `isGlobal: true` to the POST body.
 - pending: Migration and backfill strategy for existing Facebook page assignments.
+- pending: Admin management UI — promote/demote users via dashboard (no UI currently exists beyond first-user bootstrap).
 
 ## Acceptance Criteria
 

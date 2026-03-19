@@ -104,11 +104,12 @@ export const authOptions: NextAuthOptions = {
         // Fetch user with tenant to get tenantId
         const dbUser = await prisma.user.findUnique({
           where: { id: user.id },
-          select: { tenantId: true },
+          select: { tenantId: true, isAdmin: true },
         });
 
         token.id = user.id;
         token.tenantId = dbUser?.tenantId || "";
+        token.isAdmin = dbUser?.isAdmin ?? false;
 
         // Fetch subscription status separately to avoid complex nested includes typing issues
         if (dbUser?.tenantId) {
@@ -161,6 +162,7 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string;
         session.user.tenantId = token.tenantId as string;
         session.user.subscriptionStatus = token.subscriptionStatus as string;
+        session.user.isAdmin = token.isAdmin as boolean;
       }
       return session;
     },

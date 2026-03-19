@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { AdminNav } from "@/components/admin-nav";
 
-// Hardcoded admin email - DO NOT EXPOSE
+// Hardcoded admin email - kept as bootstrap fallback
 const ADMIN_EMAIL = "amirhossain.limon@gmail.com";
 
 export default async function AdminLayout({
@@ -13,8 +13,11 @@ export default async function AdminLayout({
 }) {
   const session = await getServerSession(authOptions);
 
-  // Security check - only specific email can access
-  if (!session?.user?.email || session.user.email !== ADMIN_EMAIL) {
+  // Allow access via isAdmin flag (DB-backed) OR the bootstrap owner email
+  if (
+    !session?.user?.id ||
+    (!session.user.isAdmin && session.user.email !== ADMIN_EMAIL)
+  ) {
     redirect("/");
   }
 

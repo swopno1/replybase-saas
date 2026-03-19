@@ -5,14 +5,15 @@ declare module "next-auth" {
     user: {
       id: string;
       tenantId: string;
-      subscriptionStatus: string; // Added subscriptionStatus
+      subscriptionStatus: string;
+      isAdmin: boolean;
     } & DefaultSession["user"];
   }
 
   interface User {
     id: string;
     tenantId: string;
-    subscriptionStatus?: string; // Optional on user object initially
+    subscriptionStatus?: string;
   }
 }
 
@@ -20,6 +21,7 @@ declare module "next-auth/jwt" {
   interface JWT {
     id: string;
     tenantId: string;
-    subscriptionStatus: string; // Added subscriptionStatus
+    subscriptionStatus: string;
+    isAdmin: boolean;
   }
 }
