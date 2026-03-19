@@ -204,7 +204,7 @@ export async function getAdminActivationKpis(): Promise<AdminActivationKpis> {
     }),
     prisma.webhookLog.findMany({
       where: {
-        source: "telegram",
+        source: { in: ["telegram", "facebook", "webchat"] },
         type: { in: ["setup_success", "setup_error"] },
         createdAt: { gte: earliestWeekStart },
       },
@@ -345,7 +345,8 @@ export async function getAdminActivationKpis(): Promise<AdminActivationKpis> {
     meta: {
       timestamp: new Date().toISOString(),
       dataWindow: `${weekCount} weeks`,
-      webhookScope: "Telegram webhook setup attempts logged by ReplyBase",
+      webhookScope:
+        "Channel setup attempts (Telegram, Facebook, Webchat) logged by ReplyBase",
     },
   };
 }

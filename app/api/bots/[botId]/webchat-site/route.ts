@@ -9,6 +9,7 @@ import {
   normalizeAllowedDomains,
   rotateWebChatSiteCredentials,
 } from "@/lib/webchat";
+import { recordWebhookSetupLog } from "@/lib/webhook-setup-log";
 
 const updateSchema = z.object({
   channelId: z.string().min(1),
@@ -248,6 +249,25 @@ export async function PATCH(
         { status: 404 },
       );
     }
+
+    // Log webchat site configuration for KPI tracking
+    await recordWebhookSetupLog({
+      source: "webchat",
+      event: "webchat_configure",
+      outcome: "setup_success",
+      tenantId: channel.bot.tenantId,
+      channelId: channel.id,
+      metadata: {
+        siteName: rotatedSite.name,
+        allowedDomainsCount: Array.isArray(rotatedSite.allowedDomains)
+          ? rotatedSite.allowedDomains.filter(
+              (d): d is string => typeof d === "string",
+            ).length
+          : 0,
+      },
+    }).catch((err) =>
+      console.error("[Webchat Site API] Failed to log configuration:", err),
+    );
 
     return NextResponse.json({ site: serializeSite(rotatedSite) });
   } catch (error) {

@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
+import { recordWebhookSetupLog } from "@/lib/webhook-setup-log";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -87,6 +88,19 @@ export async function POST(req: Request) {
       `[Facebook Integration] Page ${verifiedPageId} saved/updated for user ${userId}`,
     );
 
+    // Log Facebook page connection for KPI tracking
+    await recordWebhookSetupLog({
+      source: "facebook",
+      event: "page_connect",
+      outcome: "setup_success",
+      tenantId: tenantId,
+      channelId: verifiedPageId,
+      metadata: {
+        pageName: verifiedPageName,
+        isNew: !facebookPage,
+      },
+    });
+
     // Do not set botId here unless we can verify it exists for this tenant.
     const defaultBot = await prisma.bot.findFirst({
       where: { tenantId },
@@ -109,10 +123,24 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error("[Facebook Integration] Error:", error);
+
+    // Log Facebook page connection failure for KPI tracking
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    await recordWebhookSetupLog({
+      source: "facebook",
+      event: "page_connect",
+      outcome: "setup_error",
+      tenantId: tenantId,
+      reason: errorMessage,
+    }).catch((logErr) =>
+      console.error("[Facebook Integration] Failed to log error:", logErr),
+    );
+
     return NextResponse.json(
       {
         error: "Internal Server Error",
-        details: error instanceof Error ? error.message : "Unknown error",
+        details: errorMessage,
       },
       { status: 500 },
     );

@@ -73,8 +73,8 @@ export function ActivationKpiDashboard({ data }: Props) {
           Activation And Reliability KPIs
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Measures onboarding speed, weekly runtime activity, and Telegram
-          webhook setup reliability.
+          Measures onboarding speed, weekly runtime activity, and multi-channel
+          setup reliability (Telegram, Facebook, Webchat).
         </p>
       </div>
 
