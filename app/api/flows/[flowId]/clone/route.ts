@@ -10,9 +10,11 @@ import { Prisma } from "@prisma/client";
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { flowId: string } },
+  { params }: { params: Promise<{ flowId: string }> },
 ) {
   try {
+    const { flowId } = await params;
+
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
@@ -33,7 +35,7 @@ export async function POST(
 
     // Fetch the source flow
     const sourceFlow = await prisma.flow.findUnique({
-      where: { id: params.flowId },
+      where: { id: flowId },
       include: {
         nodes: {
           orderBy: { order: "asc" },
