@@ -2,7 +2,7 @@
 
 Status: planned
 Owner: Product + Engineering + Marketing
-Target window: after channel parity milestone
+Target window: after channel parity milestone + P0/P1/P2 completion
 
 ## Goal
 
@@ -10,9 +10,15 @@ Launch TikTok as a controlled, high-confidence channel after core runtime consis
 
 ## Entry Gates
 
-1. Runtime policy parity across Facebook, Telegram, and Webchat.
-2. Unified diagnostics UX and support runbook.
-3. Production deployment checklist and rollback process validated.
+1. ✅ Runtime policy parity across Facebook, Telegram, and Webchat. (completed)
+2. ⚠️ Unified diagnostics UX and support runbook. (in-progress; Telegram/Webchat done, Facebook pending, operator handbook pending)
+3. ⚠️ Production deployment checklist and rollback process validated. (documented; automated enforcement pending)
+
+## Implementation Status
+
+- entry-gate-1: ✅ READY - P1_Channel_Parity_and_Flow_Assignment.md fully completed
+- entry-gate-2: ⚠️ NEAR-READY - P1_Status_And_Diagnostics_Unification.md in-progress; most channels done, centralized handbook pending
+- entry-gate-3: ⚠️ NEAR-READY - P0_Production_Deployment_Excellence.md in-progress; checklist exists, automated enforcement pending
 
 ## Tasks
 

@@ -5,15 +5,15 @@ import { authOptions } from "@/lib/auth";
 import { Prisma } from "@prisma/client";
 
 /**
- * POST /api/flows/[flowId]/clone
+ * POST /api/flows/[id]/clone
  * Clone an existing flow
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ flowId: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { flowId } = await params;
+    const { id } = await params;
 
     const session = await getServerSession(authOptions);
 
@@ -35,7 +35,7 @@ export async function POST(
 
     // Fetch the source flow
     const sourceFlow = await prisma.flow.findUnique({
-      where: { id: flowId },
+      where: { id },
       include: {
         nodes: {
           orderBy: { order: "asc" },

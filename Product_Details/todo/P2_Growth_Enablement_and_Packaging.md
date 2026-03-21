@@ -36,13 +36,6 @@ Improve activation, retention, and expansion after runtime consistency is in pla
   - Integrated milestone event capture into Facebook, Telegram, and Webchat webhook handlers.
   - Created analytics API endpoint (`GET /api/analytics/onboarding-milestones`) with completion rate, trends, and time-to-completion statistics.
   - Added helper functions for milestone recording, completion checks, and stats retrieval.
-- planned: Task 3 implementation - vertical template packs and clone-ready starter flows.
-- done: Task 4 (phase-1 delivery) - shipped admin activation KPI dashboard and reporting layer.
-  - Added shared KPI query layer for tenant activation speed, weekly active runtime tenants, and webhook setup reliability.
-  - Corrected milestone timing logic to measure tenant creation to milestone completion instead of event-to-event spacing.
-  - Added admin analytics page at `/admin/analytics` with activation and reliability trend visualizations.
-  - Extended the onboarding milestone analytics API to serve the shared KPI payload used by the dashboard.
-  - Added Telegram webhook setup success/failure logging for weekly webhook setup rate tracking.
 - done: Task 3 (phase-1 delivery) - created 3 vertical template flows with pre-built node structures (services, agencies, booking).
   - Defined template definitions with multi-node conversation flows for each vertical.
   - Created API endpoint for creating flows from templates (`POST /api/flows/from-template`).
@@ -50,7 +43,19 @@ Improve activation, retention, and expansion after runtime consistency is in pla
   - Updated flows UI to show template selection dialog with category-specific guidance.
   - Added "Use Template" button to flows page for quick template-based creation.
   - All templates are channel-compatible (Facebook, Telegram, Webchat ready).
-- planned: Task 4 implementation - activation KPI dashboard and reporting views.
+- done: Task 4 (phase-1 delivery) - shipped admin activation KPI dashboard and reporting layer.
+  - Added shared KPI query layer for tenant activation speed, weekly active runtime tenants, and webhook setup reliability.
+  - Corrected milestone timing logic to measure tenant creation to milestone completion instead of event-to-event spacing.
+  - Added admin analytics page at `/admin/analytics` with activation and reliability trend visualizations.
+  - Extended the onboarding milestone analytics API to serve the shared KPI payload used by the dashboard.
+  - Added Telegram webhook setup success/failure logging for weekly webhook setup rate tracking.
+- done: Task 4 (phase-2 delivery: segmented analytics) - extended KPI dashboard with segment-aware filtering.
+  - Created segmented activation KPI library (`lib/segmented-activation-kpis.ts`) with queryable funnel stages, cohort analysis, and channel-specific breakdown.
+  - Built admin segmented analytics page at `/admin/segmented-analytics` with plan, channel, and cohort filters.
+  - Implemented activation funnel visualization (signup → first-channel → first-reply stages with conversion rates and dropoff timing).
+  - Implemented webchat acquisition attribution analysis with sources, mediums, campaigns, referrers, and landing page breakdown.
+  - Added weekly acquisition trend chart to track attribution accuracy over time.
+  - Integrated all components into unified dashboard with filter-driven data refresh.
 
 ## Phase Plan
 
