@@ -346,30 +346,28 @@ export async function POST(
 
     if (!replyText) {
       try {
-        if (channel.bot.entryFlow) {
-          const flowResult = await executeBotEntryFlowFirst({
-            tenantId,
-            contactId: contact.id,
-            scopeKey: `telegram:${channel.id}`,
-            message: messageText,
-            channelId: channel.id,
-            entryFlow: channel.bot.entryFlow,
-            variables: {
-              channel: "telegram",
-              chatId,
-              userId,
-              userName,
-            },
-          });
+        const flowResult = await executeBotEntryFlowFirst({
+          tenantId,
+          contactId: contact.id,
+          scopeKey: `telegram:${channel.id}`,
+          message: messageText,
+          channelId: channel.id,
+          entryFlow: channel.bot.entryFlow,
+          variables: {
+            channel: "telegram",
+            chatId,
+            userId,
+            userName,
+          },
+        });
 
-          const flowText = flowResult?.responses?.find(
-            (response) => response.type === "text" && Boolean(response.text),
-          )?.text;
+        const flowText = flowResult?.responses?.find(
+          (response) => response.type === "text" && Boolean(response.text),
+        )?.text;
 
-          if (flowText) {
-            replyText = flowText;
-            replySource = "flow";
-          }
+        if (flowText) {
+          replyText = flowText;
+          replySource = "flow";
         }
 
         if (!replyText) {
