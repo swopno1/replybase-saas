@@ -24,10 +24,6 @@ import {
 function getCommandReply(commandText: string): string | null {
   const command = commandText.split(" ")[0]?.toLowerCase();
 
-  if (command === "/start") {
-    return "Welcome to ReplyBase. Send a message and I will help you right away.";
-  }
-
   if (command === "/help") {
     return "You can ask me questions directly. Use /settings to view integration settings in ReplyBase.";
   }
@@ -339,12 +335,16 @@ export async function POST(
       },
     });
 
-    let replyText = getCommandReply(messageText);
-    let replySource: "system" | "flow" | "ai" = isTelegramCommand(messageText)
-      ? "system"
-      : "ai";
+    const isCommand = isTelegramCommand(messageText);
+    const commandName = messageText.split(" ")[0]?.toLowerCase();
+    const isStartCommand = isCommand && commandName === "/start";
 
-    if (!replyText || !isTelegramCommand(messageText)) {
+    // Keep /help and /settings as system commands, but let /start run through
+    // channel assignment / bot entry flow first.
+    let replyText = isStartCommand ? null : getCommandReply(messageText);
+    let replySource: "system" | "flow" | "ai" = replyText ? "system" : "ai";
+
+    if (!replyText) {
       try {
         if (channel.bot.entryFlow) {
           const flowResult = await executeBotEntryFlowFirst({
@@ -398,6 +398,12 @@ export async function POST(
       }
     }
 
+    if (!replyText && isStartCommand) {
+      replyText =
+        "Welcome to ReplyBase. Send a message and I will help you right away.";
+      replySource = "system";
+    }
+
     if (!replyText) {
       replyText =
         "Sorry, I could not process that right now. Please try again in a moment.";
@@ -426,34 +432,46 @@ export async function POST(
     const sendResult = await sendTelegramTextMessage(token, chatId, replyText);
 
     if (sendResult.success) {
-      config = await updateTelegramChannelConfig(channel.id, config, {
-        lastDeliverySuccessAt: new Date().toISOString(),
-        lastDeliveryError: null,
-        lastDeliveryErrorAt: null,
-      });
+      try {
+        config = await updateTelegramChannelConfig(channel.id, config, {
+          lastDeliverySuccessAt: new Date().toISOString(),
+          lastDeliveryError: null,
+          lastDeliveryErrorAt: null,
+        });
+      } catch (error) {
+        console.error(
+          "[Telegram Webhook] Failed to persist delivery success:",
+          error,
+        );
+      }
 
-      await prisma.crmMessage.create({
-        data: {
-          conversationId: conversation.id,
-          direction: "outbound",
-          content: replyText,
-          source: replySource,
-        },
-      });
+      try {
+        await prisma.crmMessage.create({
+          data: {
+            conversationId: conversation.id,
+            direction: "outbound",
+            content: replyText,
+            source: replySource,
+          },
+        });
+      } catch (error) {
+        console.error(
+          "[Telegram Webhook] Failed to persist outbound message:",
+          error,
+        );
+      }
 
-      // Record milestone events for onboarding tracking
-      await recordMilestoneEvent(channel.bot.tenantId, "first-channel", {
-        channelType: "telegram",
-        channelId: channel.id,
-      });
-      await recordMilestoneEvent(
-        channel.bot.tenantId,
-        "first-automated-reply",
-        {
+      // Best effort only: milestone tracking should never fail webhook acknowledgement.
+      await Promise.allSettled([
+        recordMilestoneEvent(channel.bot.tenantId, "first-channel", {
+          channelType: "telegram",
+          channelId: channel.id,
+        }),
+        recordMilestoneEvent(channel.bot.tenantId, "first-automated-reply", {
           channelType: "telegram",
           source: replySource,
-        },
-      );
+        }),
+      ]);
     } else {
       await prisma.webhookLog.create({
         data: {

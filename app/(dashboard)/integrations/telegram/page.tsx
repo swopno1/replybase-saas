@@ -222,7 +222,7 @@ export default function TelegramIntegrationPage() {
   const loadFlows = async () => {
     setIsFlowsLoading(true);
     try {
-      const res = await fetch("/api/flows?isActive=true");
+      const res = await fetch("/api/flows?isActive=true&type=my");
       const data = await res.json();
 
       if (!res.ok) {
