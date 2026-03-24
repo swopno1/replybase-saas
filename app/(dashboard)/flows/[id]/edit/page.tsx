@@ -47,12 +47,30 @@ interface FlowButton {
   url?: string;
 }
 
+interface FlowCondition {
+  variableName: string;
+  operator: "equals" | "contains" | "greater_than" | "less_than";
+  value: string;
+  nextNodeOrder?: number;
+}
+
+interface FlowReference {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
 interface FlowNodeContent {
   text?: string;
   buttons?: FlowButton[];
   variableName?: string;
   inputType?: string;
+  validationMessage?: string;
+  conditions?: FlowCondition[];
   action?: string;
+  targetFlowId?: string;
+  targetFlowName?: string;
+  nextNodeOrder?: number;
   tags?: string[];
   status?: string;
 }
@@ -77,6 +95,7 @@ export default function FlowEditorPage() {
 
   const [flow, setFlow] = useState<Flow | null>(null);
   const [nodes, setNodes] = useState<FlowNode[]>([]);
+  const [availableFlows, setAvailableFlows] = useState<FlowReference[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [addNodeDialogOpen, setAddNodeDialogOpen] = useState(false);
@@ -108,6 +127,55 @@ export default function FlowEditorPage() {
   useEffect(() => {
     fetchFlow();
   }, [fetchFlow]);
+
+  useEffect(() => {
+    const loadAvailableFlows = async () => {
+      try {
+        const [myResponse, globalResponse] = await Promise.all([
+          fetch("/api/flows?type=my"),
+          fetch("/api/flows?type=global"),
+        ]);
+
+        const flowList: FlowReference[] = [];
+
+        if (myResponse.ok) {
+          const data = await myResponse.json();
+          if (Array.isArray(data.flows)) {
+            flowList.push(
+              ...data.flows.map(
+                (item: { id: string; name: string; isActive: boolean }) => ({
+                  id: item.id,
+                  name: item.name,
+                  isActive: item.isActive,
+                }),
+              ),
+            );
+          }
+        }
+
+        if (globalResponse.ok) {
+          const data = await globalResponse.json();
+          if (Array.isArray(data.flows)) {
+            flowList.push(
+              ...data.flows.map(
+                (item: { id: string; name: string; isActive: boolean }) => ({
+                  id: item.id,
+                  name: item.name,
+                  isActive: item.isActive,
+                }),
+              ),
+            );
+          }
+        }
+
+        setAvailableFlows(flowList.filter((item) => item.id !== flowId));
+      } catch (error) {
+        console.error("Failed to load flows for references:", error);
+      }
+    };
+
+    void loadAvailableFlows();
+  }, [flowId]);
 
   const handleSaveFlow = async () => {
     try {
@@ -286,13 +354,52 @@ export default function FlowEditorPage() {
               <p>
                 <strong>Type:</strong> {node.content.inputType || "text"}
               </p>
+              {node.content.nextNodeOrder !== undefined && (
+                <p>
+                  <strong>Next Step:</strong> {node.content.nextNodeOrder + 1}
+                </p>
+              )}
+            </div>
+          )}
+          {node.type === "condition" && (
+            <div className="text-sm space-y-2">
+              {(node.content.conditions || []).length > 0 ? (
+                node.content.conditions?.map((condition, conditionIndex) => (
+                  <p key={conditionIndex}>
+                    <strong>Rule {conditionIndex + 1}:</strong>{" "}
+                    {condition.variableName} {condition.operator}{" "}
+                    {condition.value} → Step{" "}
+                    {(condition.nextNodeOrder ?? 0) + 1}
+                  </p>
+                ))
+              ) : (
+                <p className="text-muted-foreground">
+                  No condition rules configured
+                </p>
+              )}
+              {node.content.nextNodeOrder !== undefined && (
+                <p>
+                  <strong>Fallback Step:</strong>{" "}
+                  {node.content.nextNodeOrder + 1}
+                </p>
+              )}
             </div>
           )}
           {node.type === "action" && (
-            <div className="text-sm">
+            <div className="text-sm space-y-1">
               <p>
                 <strong>Action:</strong> {node.content.action || "N/A"}
               </p>
+              {node.content.targetFlowName && (
+                <p>
+                  <strong>Calls Flow:</strong> {node.content.targetFlowName}
+                </p>
+              )}
+              {node.content.nextNodeOrder !== undefined && (
+                <p>
+                  <strong>Next Step:</strong> {node.content.nextNodeOrder + 1}
+                </p>
+              )}
               {node.content.tags && (
                 <p>
                   <strong>Tags:</strong> {node.content.tags.join(", ")}
@@ -420,6 +527,177 @@ export default function FlowEditorPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label>Next Step Order (Optional)</Label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="Leave blank to continue to the next step"
+                value={
+                  nodeContent.nextNodeOrder !== undefined
+                    ? String(nodeContent.nextNodeOrder)
+                    : ""
+                }
+                onChange={(e) =>
+                  setNodeContent({
+                    ...nodeContent,
+                    nextNodeOrder:
+                      e.target.value === ""
+                        ? undefined
+                        : Number(e.target.value),
+                  })
+                }
+              />
+            </div>
+          </div>
+        )}
+
+        {newNodeType === "condition" && (
+          <div className="space-y-4">
+            <div className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
+              Use conditions to branch the flow in multiple directions. Common
+              variables: <strong>last_user_message</strong>,{" "}
+              <strong>last_user_message_normalized</strong>, or any variable
+              collected by an input node.
+            </div>
+            {(nodeContent.conditions || []).map((condition, index) => (
+              <div key={index} className="rounded-lg border p-3 space-y-3">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Variable</Label>
+                    <Input
+                      placeholder="e.g., last_user_message_normalized"
+                      value={condition.variableName}
+                      onChange={(e) => {
+                        const conditions = [...(nodeContent.conditions || [])];
+                        conditions[index] = {
+                          ...conditions[index],
+                          variableName: e.target.value,
+                        };
+                        setNodeContent({ ...nodeContent, conditions });
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Operator</Label>
+                    <Select
+                      value={condition.operator}
+                      onValueChange={(value) => {
+                        const conditions = [...(nodeContent.conditions || [])];
+                        conditions[index] = {
+                          ...conditions[index],
+                          operator: value as FlowCondition["operator"],
+                        };
+                        setNodeContent({ ...nodeContent, conditions });
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="equals">Equals</SelectItem>
+                        <SelectItem value="contains">Contains</SelectItem>
+                        <SelectItem value="greater_than">
+                          Greater Than
+                        </SelectItem>
+                        <SelectItem value="less_than">Less Than</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Value</Label>
+                    <Input
+                      placeholder="e.g., pricing"
+                      value={condition.value}
+                      onChange={(e) => {
+                        const conditions = [...(nodeContent.conditions || [])];
+                        conditions[index] = {
+                          ...conditions[index],
+                          value: e.target.value,
+                        };
+                        setNodeContent({ ...nodeContent, conditions });
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Go To Step Order</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={
+                        condition.nextNodeOrder !== undefined
+                          ? String(condition.nextNodeOrder)
+                          : ""
+                      }
+                      onChange={(e) => {
+                        const conditions = [...(nodeContent.conditions || [])];
+                        conditions[index] = {
+                          ...conditions[index],
+                          nextNodeOrder:
+                            e.target.value === ""
+                              ? undefined
+                              : Number(e.target.value),
+                        };
+                        setNodeContent({ ...nodeContent, conditions });
+                      }}
+                    />
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const conditions = [...(nodeContent.conditions || [])];
+                    conditions.splice(index, 1);
+                    setNodeContent({ ...nodeContent, conditions });
+                  }}
+                >
+                  Remove Rule
+                </Button>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                setNodeContent({
+                  ...nodeContent,
+                  conditions: [
+                    ...(nodeContent.conditions || []),
+                    {
+                      variableName: "last_user_message_normalized",
+                      operator: "contains",
+                      value: "",
+                    },
+                  ],
+                })
+              }
+            >
+              Add Condition Rule
+            </Button>
+            <div className="space-y-2">
+              <Label>Fallback Step Order (Optional)</Label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="Used when no rule matches"
+                value={
+                  nodeContent.nextNodeOrder !== undefined
+                    ? String(nodeContent.nextNodeOrder)
+                    : ""
+                }
+                onChange={(e) =>
+                  setNodeContent({
+                    ...nodeContent,
+                    nextNodeOrder:
+                      e.target.value === ""
+                        ? undefined
+                        : Number(e.target.value),
+                  })
+                }
+              />
+            </div>
           </div>
         )}
 
@@ -439,6 +717,7 @@ export default function FlowEditorPage() {
                 <SelectContent>
                   <SelectItem value="tag_user">Tag User</SelectItem>
                   <SelectItem value="update_status">Update Status</SelectItem>
+                  <SelectItem value="call_flow">Call Another Flow</SelectItem>
                   <SelectItem value="end_flow">End Flow</SelectItem>
                 </SelectContent>
               </Select>
@@ -484,6 +763,63 @@ export default function FlowEditorPage() {
                 </Select>
               </div>
             )}
+
+            {nodeContent.action === "call_flow" && (
+              <div className="space-y-2">
+                <Label>Flow To Call</Label>
+                <Select
+                  value={nodeContent.targetFlowId || ""}
+                  onValueChange={(value) => {
+                    const selectedFlow = availableFlows.find(
+                      (item) => item.id === value,
+                    );
+                    setNodeContent({
+                      ...nodeContent,
+                      targetFlowId: value,
+                      targetFlowName: selectedFlow?.name,
+                    });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a reusable subflow" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableFlows.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.name} {item.isActive ? "" : "(inactive)"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>Next Step Order (Optional)</Label>
+              <Input
+                type="number"
+                min={0}
+                placeholder={
+                  nodeContent.action === "call_flow"
+                    ? "Where the parent flow should continue after the called flow finishes"
+                    : "Leave blank to continue to the next step"
+                }
+                value={
+                  nodeContent.nextNodeOrder !== undefined
+                    ? String(nodeContent.nextNodeOrder)
+                    : ""
+                }
+                onChange={(e) =>
+                  setNodeContent({
+                    ...nodeContent,
+                    nextNodeOrder:
+                      e.target.value === ""
+                        ? undefined
+                        : Number(e.target.value),
+                  })
+                }
+              />
+            </div>
           </div>
         )}
 
@@ -538,7 +874,8 @@ export default function FlowEditorPage() {
         <CardHeader>
           <CardTitle>Flow Steps</CardTitle>
           <CardDescription>
-            Build your flow by adding steps in sequential order
+            Build your flow with messages, input capture, branching conditions,
+            and reusable subflows
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

@@ -1,12 +1,19 @@
 /**
- * Vertical Template Definitions for Flow Builder
- * These are pre-built flow templates for common business use cases
+ * Starter Template Definitions for Flow Builder
  */
+
+export type FlowTemplateCategory =
+  | "welcome"
+  | "lead-generation"
+  | "real-estate"
+  | "services"
+  | "agencies"
+  | "booking";
 
 export interface FlowTemplateDefinition {
   name: string;
   description: string;
-  category: "services" | "agencies" | "booking";
+  category: FlowTemplateCategory;
   nodes: Array<{
     type: string;
     content: Record<string, unknown>;
@@ -14,10 +21,229 @@ export interface FlowTemplateDefinition {
   }>;
 }
 
-/**
- * Services: Consultants, plumbers, IT support, etc.
- * Flow: Welcome → Service Inquiry → Qualification → Booking/Quote Request
- */
+export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
+  name: "Welcome Flow: Triage & Routing",
+  description:
+    "A simple universal welcome flow that greets visitors, captures intent, and routes them into the right next step.",
+  category: "welcome",
+  nodes: [
+    {
+      type: "message",
+      content: {
+        text: "Welcome. I can help with pricing, services, bookings, or connecting you with the team.",
+      },
+      order: 0,
+    },
+    {
+      type: "input",
+      content: {
+        text: "What would you like help with today?",
+        variableName: "last_request",
+        inputType: "text",
+      },
+      order: 1,
+    },
+    {
+      type: "condition",
+      content: {
+        conditions: [
+          {
+            variableName: "last_request",
+            operator: "contains",
+            value: "price",
+            nextNodeOrder: 3,
+          },
+          {
+            variableName: "last_request",
+            operator: "contains",
+            value: "book",
+            nextNodeOrder: 4,
+          },
+        ],
+        nextNodeOrder: 5,
+      },
+      order: 2,
+    },
+    {
+      type: "message",
+      content: {
+        text: "We can absolutely help with pricing. Please share your name and email, and our team will send the right package options.",
+      },
+      order: 3,
+    },
+    {
+      type: "message",
+      content: {
+        text: "Great. Tell me your preferred date or time window and we will follow up with availability.",
+      },
+      order: 4,
+    },
+    {
+      type: "message",
+      content: {
+        text: "Thanks. Please leave your question and the best contact detail, and we will get back to you shortly.",
+      },
+      order: 5,
+    },
+  ],
+};
+
+export const LEAD_GENERATION_TEMPLATE: FlowTemplateDefinition = {
+  name: "Lead Generation: Qualification Funnel",
+  description:
+    "Captures contact details, budget, timeline, and intent for general lead generation campaigns.",
+  category: "lead-generation",
+  nodes: [
+    {
+      type: "message",
+      content: {
+        text: "Thanks for reaching out. I can help you get a fast quote or connect you with our sales team.",
+      },
+      order: 0,
+    },
+    {
+      type: "input",
+      content: {
+        text: "What's your full name?",
+        variableName: "lead_name",
+        inputType: "text",
+      },
+      order: 1,
+    },
+    {
+      type: "input",
+      content: {
+        text: "What's the best email address for follow-up?",
+        variableName: "lead_email",
+        inputType: "email",
+      },
+      order: 2,
+    },
+    {
+      type: "input",
+      content: {
+        text: "What's your phone number?",
+        variableName: "lead_phone",
+        inputType: "phone",
+      },
+      order: 3,
+    },
+    {
+      type: "input",
+      content: {
+        text: "What are you looking for help with?",
+        variableName: "lead_need",
+        inputType: "text",
+      },
+      order: 4,
+    },
+    {
+      type: "input",
+      content: {
+        text: "What budget range are you working with?",
+        variableName: "lead_budget",
+        inputType: "text",
+      },
+      order: 5,
+    },
+    {
+      type: "message",
+      content: {
+        text: "Perfect. Your details are captured and our team will follow up shortly with the best next step.",
+      },
+      order: 6,
+    },
+    {
+      type: "action",
+      content: {
+        action: "tag_user",
+        tags: ["lead", "new-inquiry"],
+      },
+      order: 7,
+    },
+  ],
+};
+
+export const REAL_ESTATE_TEMPLATE: FlowTemplateDefinition = {
+  name: "Real Estate: Buyer & Seller Leads",
+  description:
+    "Designed for estate agents and property teams. Qualifies buyer, seller, or rental intent and captures follow-up details.",
+  category: "real-estate",
+  nodes: [
+    {
+      type: "message",
+      content: {
+        text: "Welcome to our property team. Are you looking to buy, sell, rent, or book a viewing?",
+      },
+      order: 0,
+    },
+    {
+      type: "input",
+      content: {
+        text: "Tell me your goal in a few words.",
+        variableName: "property_goal",
+        inputType: "text",
+      },
+      order: 1,
+    },
+    {
+      type: "condition",
+      content: {
+        conditions: [
+          {
+            variableName: "property_goal",
+            operator: "contains",
+            value: "sell",
+            nextNodeOrder: 3,
+          },
+          {
+            variableName: "property_goal",
+            operator: "contains",
+            value: "buy",
+            nextNodeOrder: 4,
+          },
+          {
+            variableName: "property_goal",
+            operator: "contains",
+            value: "rent",
+            nextNodeOrder: 5,
+          },
+        ],
+        nextNodeOrder: 6,
+      },
+      order: 2,
+    },
+    {
+      type: "message",
+      content: {
+        text: "Great. Please share your property postcode and best callback number for a valuation.",
+      },
+      order: 3,
+    },
+    {
+      type: "message",
+      content: {
+        text: "Perfect. Please share your target area, bedroom count, and budget, and an agent will send matching options.",
+      },
+      order: 4,
+    },
+    {
+      type: "message",
+      content: {
+        text: "Thanks. Please share your preferred area, move-in date, and monthly budget, and we will recommend suitable rentals.",
+      },
+      order: 5,
+    },
+    {
+      type: "message",
+      content: {
+        text: "Please share the property you are interested in and the best way to reach you, and we will arrange the next step.",
+      },
+      order: 6,
+    },
+  ],
+};
+
 export const SERVICES_TEMPLATE: FlowTemplateDefinition = {
   name: "Services: Qualification & Booking",
   description:
@@ -27,35 +253,16 @@ export const SERVICES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "👋 Welcome! We're here to help you with your service needs.\n\nWhat service are you interested in?",
-        buttons: [
-          {
-            type: "postback",
-            title: "General Inquiry",
-            payload: "inquiry_general",
-          },
-          {
-            type: "postback",
-            title: "Emergency Service",
-            payload: "inquiry_emergency",
-          },
-          {
-            type: "postback",
-            title: "Maintenance",
-            payload: "inquiry_maintenance",
-          },
-        ],
+        text: "Welcome. We can help with new work, urgent requests, or routine maintenance.",
       },
       order: 0,
     },
     {
       type: "input",
       content: {
-        text: "Thanks for reaching out! Could you briefly describe the issue or what you need help with?",
+        text: "What do you need help with?",
         variableName: "service_description",
         inputType: "text",
-        validationMessage:
-          "Please provide a brief description (at least 10 characters)",
       },
       order: 1,
     },
@@ -65,36 +272,19 @@ export const SERVICES_TEMPLATE: FlowTemplateDefinition = {
         text: "What's the best contact number to reach you?",
         variableName: "phone_number",
         inputType: "phone",
-        validationMessage: "Please provide a valid phone number",
       },
       order: 2,
     },
     {
       type: "message",
       content: {
-        text: "Perfect! Here's what happens next:\n\n✅ Our team will review your request\n📧 You'll receive a quote within 24 hours\n📱 We'll call you to confirm details\n\nAny questions in the meantime?",
-        buttons: [
-          {
-            type: "postback",
-            title: "No, I'm all set",
-            payload: "end_inquiry",
-          },
-          {
-            type: "postback",
-            title: "Yes, I have a question",
-            payload: "question",
-          },
-        ],
+        text: "Perfect. Our team will review your request and follow up shortly with the next step.",
       },
       order: 3,
     },
   ],
 };
 
-/**
- * Agencies: Digital agencies, marketing agencies
- * Flow: Welcome → Service Selection → Project Brief → Budget/Timeline → Call CTA
- */
 export const AGENCIES_TEMPLATE: FlowTemplateDefinition = {
   name: "Agencies: Project Discovery",
   description:
@@ -104,40 +294,16 @@ export const AGENCIES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "👏 Welcome to our agency!\n\nWe work with amazing brands to grow their presence online. Let's explore how we can help you.\n\nWhat service are you most interested in?",
-        buttons: [
-          {
-            type: "postback",
-            title: "Website Design",
-            payload: "service_design",
-          },
-          {
-            type: "postback",
-            title: "Digital Marketing",
-            payload: "service_marketing",
-          },
-          {
-            type: "postback",
-            title: "Content Strategy",
-            payload: "service_content",
-          },
-          {
-            type: "postback",
-            title: "Brand Strategy",
-            payload: "service_brand",
-          },
-        ],
+        text: "Welcome to our agency. Let's get a quick outline of your project so the right strategist can follow up.",
       },
       order: 0,
     },
     {
       type: "input",
       content: {
-        text: "Great! Tell us briefly about your project goals.",
+        text: "Tell us briefly about your project goals.",
         variableName: "project_brief",
         inputType: "text",
-        validationMessage:
-          "Please provide project details (at least 20 characters)",
       },
       order: 1,
     },
@@ -147,7 +313,6 @@ export const AGENCIES_TEMPLATE: FlowTemplateDefinition = {
         text: "What's your approximate budget range?",
         variableName: "budget_range",
         inputType: "text",
-        validationMessage: "Please enter a budget range (e.g., £5k-£10k)",
       },
       order: 2,
     },
@@ -157,153 +322,91 @@ export const AGENCIES_TEMPLATE: FlowTemplateDefinition = {
         text: "What's your timeline for this project?",
         variableName: "timeline",
         inputType: "text",
-        validationMessage: "Please specify a timeline",
       },
       order: 3,
     },
     {
       type: "input",
       content: {
-        text: "Finally, what's the best email to send you a proposal?",
+        text: "What's the best email to send you a proposal?",
         variableName: "email",
         inputType: "email",
-        validationMessage: "Please provide a valid email address",
       },
       order: 4,
     },
     {
       type: "message",
       content: {
-        text: "🎉 Perfect! Here's what happens next:\n\n📋 Our team will review your project\n📞 A strategist will reach out within 24 hours\n💡 We'll discuss next steps and timeline\n\nWe're excited to work with you!",
-        buttons: [
-          {
-            type: "postback",
-            title: "Schedule a Call",
-            payload: "schedule_call",
-          },
-          {
-            type: "postback",
-            title: "Done for now",
-            payload: "end_discovery",
-          },
-        ],
+        text: "Perfect. A strategist will review your brief and follow up with next steps.",
       },
       order: 5,
     },
   ],
 };
 
-/**
- * Booking: Salons, gyms, restaurants, clinics
- * Flow: Welcome → Service Selection → Date/Time → Confirmation
- */
 export const BOOKING_TEMPLATE: FlowTemplateDefinition = {
   name: "Booking: Appointments & Reservations",
   description:
-    "Ideal for booking-heavy businesses (salons, gyms, restaurants, clinics). Confirms service, collects contact info, suggests available times.",
+    "Ideal for booking-heavy businesses (salons, gyms, restaurants, clinics). Confirms service and collects booking details.",
   category: "booking",
   nodes: [
     {
       type: "message",
       content: {
-        text: "📅 Welcome! We'd love to have you visit us.\n\nWhat service would you like to book?",
-        buttons: [
-          {
-            type: "postback",
-            title: "Hair Cut",
-            payload: "service_haircut",
-          },
-          {
-            type: "postback",
-            title: "Massage",
-            payload: "service_massage",
-          },
-          {
-            type: "postback",
-            title: "Consultation",
-            payload: "service_consultation",
-          },
-          {
-            type: "postback",
-            title: "Other",
-            payload: "service_other",
-          },
-        ],
+        text: "We'd love to help you book. Tell us what service or appointment you need.",
       },
       order: 0,
     },
     {
       type: "input",
       content: {
-        text: "Great! What's your name?",
+        text: "What's your name?",
         variableName: "name",
         inputType: "text",
-        validationMessage: "Please provide your name",
       },
       order: 1,
     },
     {
       type: "input",
       content: {
-        text: "And your phone number? (so we can send you a confirmation)",
+        text: "What's your phone number?",
         variableName: "phone",
         inputType: "phone",
-        validationMessage: "Please provide a valid phone number",
       },
       order: 2,
     },
     {
-      type: "message",
+      type: "input",
       content: {
-        text: "Perfect! Our team will reach out shortly with available times.\n\n📞 We'll call you or send a confirmation message.\n\nIs there anything else you'd like us to know?",
-        buttons: [
-          {
-            type: "postback",
-            title: "Yes, add notes",
-            payload: "add_notes",
-          },
-          {
-            type: "postback",
-            title: "No, that's all",
-            payload: "confirm_booking",
-          },
-        ],
+        text: "What date or time works best for you?",
+        variableName: "preferred_time",
+        inputType: "text",
       },
       order: 3,
     },
     {
-      type: "input",
-      content: {
-        text: "Please share any special requests or notes for your appointment:",
-        variableName: "notes",
-        inputType: "text",
-        validationMessage: "Notes recorded",
-      },
-      order: 4,
-    },
-    {
       type: "message",
       content: {
-        text: "✅ Your booking request is confirmed!\n\n🙌 Thanks for choosing us. We'll be in touch soon!",
-        buttons: [] as never[],
+        text: "Thanks. Your booking request is received and our team will confirm availability shortly.",
       },
-      order: 5,
+      order: 4,
     },
   ],
 };
 
-/**
- * Get all available templates
- */
 export function getAvailableTemplates(): FlowTemplateDefinition[] {
-  return [SERVICES_TEMPLATE, AGENCIES_TEMPLATE, BOOKING_TEMPLATE];
+  return [
+    WELCOME_TEMPLATE,
+    LEAD_GENERATION_TEMPLATE,
+    REAL_ESTATE_TEMPLATE,
+    SERVICES_TEMPLATE,
+    AGENCIES_TEMPLATE,
+    BOOKING_TEMPLATE,
+  ];
 }
 
-/**
- * Get template by category
- */
 export function getTemplateByCategory(
-  category: "services" | "agencies" | "booking",
+  category: FlowTemplateCategory,
 ): FlowTemplateDefinition | undefined {
   const templates = getAvailableTemplates();
   return templates.find((t) => t.category === category);

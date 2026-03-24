@@ -1,65 +1,17 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-
-type FlowWithNodes = Prisma.FlowGetPayload<{
-  include: {
-    nodes: {
-      orderBy: {
-        order: "asc";
-      };
-    };
-  };
-}>;
-
-type FlowNodeContent = {
-  text?: string;
-  inputType?: "text" | "email" | "phone" | "number";
-  variableName?: string;
-  validationMessage?: string;
-  conditions?: Array<{
-    variableName: string;
-    operator: "equals" | "contains" | "greater_than" | "less_than";
-    value: string;
-    nextNodeOrder?: number;
-  }>;
-  action?: "tag_user" | "update_status" | "send_email" | "end_flow";
-  nextNodeOrder?: number;
-};
-
-function interpolateText(text: string, variables: Record<string, unknown>) {
-  return text.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, key) => {
-    const value = variables[key];
-    return value === undefined || value === null ? "" : String(value);
-  });
-}
-
-function getNextNode(
-  nodes: FlowWithNodes["nodes"],
-  currentOrder: number,
-  explicitNextOrder?: number | null,
-) {
-  const targetOrder = explicitNextOrder ?? currentOrder + 1;
-  return nodes.find((node) => node.order === targetOrder) || null;
-}
-
-function evaluateCondition(
-  value: string | number | boolean | null | undefined,
-  operator: string,
-  compareValue: string,
-) {
-  switch (operator) {
-    case "equals":
-      return String(value).toLowerCase() === compareValue.toLowerCase();
-    case "contains":
-      return String(value).toLowerCase().includes(compareValue.toLowerCase());
-    case "greater_than":
-      return Number(value) > Number(compareValue);
-    case "less_than":
-      return Number(value) < Number(compareValue);
-    default:
-      return false;
-  }
-}
+import {
+  createInitialRuntimeState,
+  evaluateCondition,
+  FlowNodeContent,
+  getNextNode,
+  getRuntimeState,
+  interpolateText,
+  loadAccessibleFlow,
+  resolveReferencedFlow,
+  resumeParentFlow,
+  setRuntimeState,
+} from "@/lib/flow-runtime-utils";
 
 async function resolveFlow(params: {
   tenantId: string;
@@ -78,22 +30,38 @@ async function resolveFlow(params: {
   });
 
   if (activeSession) {
-    const flow = await prisma.flow.findFirst({
-      where: {
-        id: activeSession.flowId,
-        tenantId: params.tenantId,
-        isActive: true,
-      },
-      include: {
-        nodes: {
-          orderBy: { order: "asc" },
-        },
-      },
+    const variables =
+      (activeSession.variables as Record<string, unknown>) || {};
+    const runtime = getRuntimeState(variables, activeSession.flowId);
+    const flow = await loadAccessibleFlow({
+      tenantId: params.tenantId,
+      flowId: runtime.activeFlowId,
     });
 
     if (flow) {
-      return { flow, session: activeSession };
+      return { flow, session: activeSession, isNewSession: false };
     }
+  }
+
+  async function startFlowSession(
+    flow: Awaited<ReturnType<typeof loadAccessibleFlow>> extends infer T
+      ? NonNullable<T>
+      : never,
+  ) {
+    const session = await prisma.flowSession.create({
+      data: {
+        userId: params.contactId,
+        pageId: params.scopeKey,
+        flowId: flow.id,
+        currentNodeId: flow.nodes[0]?.id || null,
+        variables: {
+          __runtime: createInitialRuntimeState(flow.id),
+        },
+        isActive: true,
+      },
+    });
+
+    return { flow, session, isNewSession: true };
   }
 
   if (!params.entryFlow) {
@@ -121,18 +89,7 @@ async function resolveFlow(params: {
       return null;
     }
 
-    const session = await prisma.flowSession.create({
-      data: {
-        userId: params.contactId,
-        pageId: params.scopeKey,
-        flowId: assignedFlow.flow.id,
-        currentNodeId: assignedFlow.flow.nodes[0]?.id || null,
-        variables: {},
-        isActive: true,
-      },
-    });
-
-    return { flow: assignedFlow.flow, session };
+    return startFlowSession(assignedFlow.flow);
   }
 
   if (params.channelId) {
@@ -152,19 +109,8 @@ async function resolveFlow(params: {
       },
     });
 
-    if (assignedFlow && assignedFlow.flow.isActive) {
-      const session = await prisma.flowSession.create({
-        data: {
-          userId: params.contactId,
-          pageId: params.scopeKey,
-          flowId: assignedFlow.flow.id,
-          currentNodeId: assignedFlow.flow.nodes[0]?.id || null,
-          variables: {},
-          isActive: true,
-        },
-      });
-
-      return { flow: assignedFlow.flow, session };
+    if (assignedFlow?.flow?.isActive) {
+      return startFlowSession(assignedFlow.flow);
     }
   }
 
@@ -185,18 +131,7 @@ async function resolveFlow(params: {
     return null;
   }
 
-  const session = await prisma.flowSession.create({
-    data: {
-      userId: params.contactId,
-      pageId: params.scopeKey,
-      flowId: configuredFlow.id,
-      currentNodeId: configuredFlow.nodes[0]?.id || null,
-      variables: {},
-      isActive: true,
-    },
-  });
-
-  return { flow: configuredFlow, session };
+  return startFlowSession(configuredFlow);
 }
 
 export async function executeBotEntryFlowFirst(params: {
@@ -213,18 +148,19 @@ export async function executeBotEntryFlowFirst(params: {
     return null;
   }
 
-  const { flow, session } = resolved;
-  if (!flow.nodes.length) {
+  let activeFlow = resolved.flow;
+  const { session } = resolved;
+  if (!activeFlow.nodes.length) {
     return {
-      handled: Boolean(flow.fallbackMessage),
-      responses: flow.fallbackMessage
-        ? [{ type: "text" as const, text: flow.fallbackMessage }]
+      handled: Boolean(activeFlow.fallbackMessage),
+      responses: activeFlow.fallbackMessage
+        ? [{ type: "text" as const, text: activeFlow.fallbackMessage }]
         : [],
-      flowId: flow.id,
-      flowName: flow.name,
+      flowId: activeFlow.id,
+      flowName: activeFlow.name,
       flowSessionId: session.id,
       completed: true,
-      fallbackMessage: flow.fallbackMessage || null,
+      fallbackMessage: activeFlow.fallbackMessage || null,
     };
   }
 
@@ -232,12 +168,18 @@ export async function executeBotEntryFlowFirst(params: {
     ...((session.variables as Record<string, unknown> | null) || {}),
     ...(params.variables || {}),
   };
-
+  const runtime = getRuntimeState(mergedVariables, session.flowId);
   const responses: Array<{ type: "text"; text: string }> = [];
-  let pendingMessage = params.message.trim();
-  let currentNode: (typeof flow.nodes)[number] | null =
-    flow.nodes.find((node) => node.id === session.currentNodeId) ||
-    flow.nodes[0];
+  let pendingMessage = resolved.isNewSession ? "" : params.message.trim();
+
+  if (pendingMessage) {
+    mergedVariables.last_user_message = pendingMessage;
+    mergedVariables.last_user_message_normalized = pendingMessage.toLowerCase();
+  }
+
+  let currentNode: (typeof activeFlow.nodes)[number] | null =
+    activeFlow.nodes.find((node) => node.id === session.currentNodeId) ||
+    activeFlow.nodes[0];
   let completed = false;
   let safetyCounter = 0;
 
@@ -254,7 +196,7 @@ export async function executeBotEntryFlowFirst(params: {
           responses.push({ type: "text", text: text.trim() });
         }
         currentNode = getNextNode(
-          flow.nodes,
+          activeFlow.nodes,
           currentNode.order,
           content.nextNodeOrder,
         );
@@ -267,7 +209,7 @@ export async function executeBotEntryFlowFirst(params: {
           mergedVariables[variableName] = pendingMessage;
           pendingMessage = "";
           currentNode = getNextNode(
-            flow.nodes,
+            activeFlow.nodes,
             currentNode.order,
             content.nextNodeOrder,
           );
@@ -299,7 +241,7 @@ export async function executeBotEntryFlowFirst(params: {
               )
             ) {
               nextNode = getNextNode(
-                flow.nodes,
+                activeFlow.nodes,
                 currentNode.order,
                 condition.nextNodeOrder,
               );
@@ -309,35 +251,81 @@ export async function executeBotEntryFlowFirst(params: {
         }
         currentNode =
           nextNode ||
-          getNextNode(flow.nodes, currentNode.order, content.nextNodeOrder);
+          getNextNode(
+            activeFlow.nodes,
+            currentNode.order,
+            content.nextNodeOrder,
+          );
         break;
       }
       case "action": {
+        if (content.action === "call_flow") {
+          const referencedFlow = await resolveReferencedFlow({
+            tenantId: params.tenantId,
+            targetFlowId: content.targetFlowId,
+            targetFlowName: content.targetFlowName,
+          });
+
+          if (referencedFlow?.nodes.length) {
+            runtime.callStack.push({
+              flowId: activeFlow.id,
+              nextNodeOrder: content.nextNodeOrder ?? currentNode.order + 1,
+            });
+            runtime.activeFlowId = referencedFlow.id;
+            activeFlow = referencedFlow;
+            currentNode = referencedFlow.nodes[0] || null;
+            break;
+          }
+        }
+
         if (content.action === "end_flow") {
+          const resumed = await resumeParentFlow({
+            tenantId: params.tenantId,
+            runtime,
+          });
+          if (resumed) {
+            activeFlow = resumed.flow;
+            currentNode = resumed.node;
+            break;
+          }
+
           completed = true;
           currentNode = null;
           break;
         }
+
         currentNode = getNextNode(
-          flow.nodes,
+          activeFlow.nodes,
           currentNode.order,
           content.nextNodeOrder,
         );
         break;
       }
       case "end": {
+        const resumed = await resumeParentFlow({
+          tenantId: params.tenantId,
+          runtime,
+        });
+        if (resumed) {
+          activeFlow = resumed.flow;
+          currentNode = resumed.node;
+          break;
+        }
+
         completed = true;
         currentNode = null;
         break;
       }
       default: {
-        currentNode = getNextNode(flow.nodes, currentNode.order);
+        currentNode = getNextNode(activeFlow.nodes, currentNode.order);
         break;
       }
     }
   }
 
   const waitingForInput = Boolean(currentNode && currentNode.type === "input");
+  runtime.activeFlowId = completed ? runtime.rootFlowId : activeFlow.id;
+  setRuntimeState(mergedVariables, runtime);
 
   await prisma.flowSession.update({
     where: { id: session.id },
@@ -349,18 +337,18 @@ export async function executeBotEntryFlowFirst(params: {
     },
   });
 
-  if (!responses.length && flow.fallbackMessage) {
-    responses.push({ type: "text", text: flow.fallbackMessage });
+  if (!responses.length && activeFlow.fallbackMessage) {
+    responses.push({ type: "text", text: activeFlow.fallbackMessage });
   }
 
   return {
     handled: responses.length > 0 || completed || waitingForInput,
     responses,
-    flowId: flow.id,
-    flowName: flow.name,
+    flowId: activeFlow.id,
+    flowName: activeFlow.name,
     flowSessionId: session.id,
     completed,
     waitingForInput,
-    fallbackMessage: flow.fallbackMessage || null,
+    fallbackMessage: activeFlow.fallbackMessage || null,
   };
 }

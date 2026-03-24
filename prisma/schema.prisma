@@ -79,10 +79,24 @@ model Tenant {
   newsletterSubscriptions NewsletterSubscriber[]
   dataDeletionRequests    DataDeletionRequest[]
   onboardingMilestoneEvents OnboardingMilestoneEvent[]
+  channelStatuses TenantChannelStatus[]
 
   @@map("tenants")
 }
 
+model TenantChannelStatus {
+  id        String   @id @default(cuid())
+  tenantId  String   @unique
+  facebook  Boolean  @default(false)
+  telegram  Boolean  @default(true)
+  webchat   Boolean  @default(true)
+  whatsapp  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_channel_statuses")
+}
 model VerificationToken {
   identifier String
   token      String   @unique

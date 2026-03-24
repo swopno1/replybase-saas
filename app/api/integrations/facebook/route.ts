@@ -3,8 +3,17 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { recordWebhookSetupLog } from "@/lib/webhook-setup-log";
+import { isChannelEnabled } from "@/lib/channel-config";
 
 export async function POST(req: Request) {
+  // Check if Facebook channel is enabled
+  if (!isChannelEnabled("facebook")) {
+    return NextResponse.json(
+      { error: "Facebook channel is not enabled" },
+      { status: 403 },
+    );
+  }
+
   const session = await getServerSession(authOptions);
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

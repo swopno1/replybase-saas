@@ -10,9 +10,19 @@ import {
 import { OnboardingFlowHandler } from "@/lib/onboarding-flow-handler";
 import { FlowExecutionEngine } from "@/lib/flow-execution-engine";
 import { recordMilestoneEvent } from "@/lib/milestone-events";
+import { isChannelEnabled } from "@/lib/channel-config";
 
 // GET: Webhook Verification
 export async function GET(req: NextRequest) {
+  // Check if Facebook channel is enabled
+  if (!isChannelEnabled("facebook")) {
+    console.warn("[Facebook Webhook] Channel is disabled");
+    return NextResponse.json(
+      { error: "Facebook channel is not enabled" },
+      { status: 403 },
+    );
+  }
+
   const searchParams = req.nextUrl.searchParams;
   const mode = searchParams.get("hub.mode");
   const token = searchParams.get("hub.verify_token");
@@ -61,6 +71,15 @@ export async function GET(req: NextRequest) {
 
 // POST: Webhook Event Handler
 export async function POST(req: NextRequest) {
+  // Check if Facebook channel is enabled
+  if (!isChannelEnabled("facebook")) {
+    console.warn("[Facebook Webhook] Channel is disabled");
+    return NextResponse.json(
+      { error: "Facebook channel is not enabled" },
+      { status: 403 },
+    );
+  }
+
   try {
     // Verify webhook signature if provided (Facebook sends X-Hub-Signature-256)
     const signature = req.headers.get("x-hub-signature-256");

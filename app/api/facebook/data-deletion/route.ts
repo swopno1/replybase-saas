@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseSignedRequest } from "@/lib/facebook-utils";
 import { prisma } from "@/lib/prisma";
+import { isChannelEnabled } from "@/lib/channel-config";
 
 export async function POST(req: NextRequest) {
+  // Check if Facebook channel is enabled
+  if (!isChannelEnabled("facebook")) {
+    console.warn("[Facebook Data Deletion] Channel is disabled");
+    return NextResponse.json(
+      { error: "Facebook channel is not enabled" },
+      { status: 403 },
+    );
+  }
+
   try {
     const formData = await req.formData();
     const signedRequest = formData.get("signed_request") as string;

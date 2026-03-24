@@ -108,7 +108,13 @@ export default function FlowsPage() {
   const [creating, setCreating] = useState(false);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<
-    "services" | "agencies" | "booking" | null
+    | "welcome"
+    | "lead-generation"
+    | "real-estate"
+    | "services"
+    | "agencies"
+    | "booking"
+    | null
   >(null);
 
   useEffect(() => {
@@ -556,11 +562,17 @@ export default function FlowsPage() {
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
               <div className="text-sm text-blue-900">
                 <strong>Template selected:</strong>{" "}
-                {selectedTemplate === "services"
-                  ? "Services: Qualification & Booking"
-                  : selectedTemplate === "agencies"
-                    ? "Agencies: Project Discovery"
-                    : "Booking: Appointments & Reservations"}
+                {selectedTemplate === "welcome"
+                  ? "Welcome Flow: Triage & Routing"
+                  : selectedTemplate === "lead-generation"
+                    ? "Lead Generation: Qualification Funnel"
+                    : selectedTemplate === "real-estate"
+                      ? "Real Estate: Buyer & Seller Leads"
+                      : selectedTemplate === "services"
+                        ? "Services: Qualification & Booking"
+                        : selectedTemplate === "agencies"
+                          ? "Agencies: Project Discovery"
+                          : "Booking: Appointments & Reservations"}
               </div>
             </div>
           )}
@@ -659,6 +671,82 @@ export default function FlowsPage() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-1 gap-4">
+              <div
+                className={`cursor-pointer rounded-lg border-2 p-4 transition-all ${
+                  selectedTemplate === "welcome"
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+                onClick={() => setSelectedTemplate("welcome")}
+              >
+                <div className="flex items-start gap-3">
+                  <Globe className="mt-1 h-5 w-5 text-blue-600" />
+                  <div>
+                    <div className="font-medium">
+                      Welcome Flow: Triage & Routing
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      A fast starting point for greeting visitors, understanding
+                      intent, and routing them to pricing, booking, or support
+                      paths.
+                    </div>
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      6 conversation nodes • Branching ready
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className={`cursor-pointer rounded-lg border-2 p-4 transition-all ${
+                  selectedTemplate === "lead-generation"
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+                onClick={() => setSelectedTemplate("lead-generation")}
+              >
+                <div className="flex items-start gap-3">
+                  <Users className="mt-1 h-5 w-5 text-blue-600" />
+                  <div>
+                    <div className="font-medium">
+                      Lead Generation: Qualification Funnel
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Built for campaigns and inbound enquiries. Captures
+                      contact details, intent, budget, and follow-up context.
+                    </div>
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      8 conversation nodes • Sales-ready
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className={`cursor-pointer rounded-lg border-2 p-4 transition-all ${
+                  selectedTemplate === "real-estate"
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+                onClick={() => setSelectedTemplate("real-estate")}
+              >
+                <div className="flex items-start gap-3">
+                  <Calendar className="mt-1 h-5 w-5 text-blue-600" />
+                  <div>
+                    <div className="font-medium">
+                      Real Estate: Buyer & Seller Leads
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Qualifies buyer, seller, rental, or viewing enquiries and
+                      routes each request into the right follow-up path.
+                    </div>
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      7 conversation nodes • Multi-branch ready
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Services Template */}
               <div
                 className={`cursor-pointer rounded-lg border-2 p-4 transition-all ${
