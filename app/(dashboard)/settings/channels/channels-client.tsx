@@ -101,7 +101,7 @@ export function ChannelsClient() {
     }
 
     fetchChannels();
-  }, [toast]);
+  }, []);
 
   const handleChannelToggle = async (
     channelId: keyof ChannelStatus,

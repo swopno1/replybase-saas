@@ -3,6 +3,18 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+type WebhookLogDelegate = {
+  findMany?: (args: {
+    take: number;
+    orderBy: { createdAt: "desc" };
+  }) => Promise<unknown[]>;
+  deleteMany?: (args: Record<string, never>) => Promise<{ count?: number }>;
+};
+
+const prismaWithWebhookLogs = prisma as typeof prisma & {
+  webhookLog?: WebhookLogDelegate;
+};
+
 // GET: Fetch recent webhook logs
 export async function GET() {
   try {
@@ -14,7 +26,7 @@ export async function GET() {
     // Get last 50 webhook logs, ordered by most recent
 
     const logs =
-      (await (prisma as any).webhookLog?.findMany({
+      (await prismaWithWebhookLogs.webhookLog?.findMany({
         take: 50,
         orderBy: { createdAt: "desc" },
       })) || [];
@@ -38,8 +50,7 @@ export async function DELETE() {
     }
 
     // Delete ALL webhook logs
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await (prisma as any).webhookLog?.deleteMany({});
+    const result = await prismaWithWebhookLogs.webhookLog?.deleteMany({});
 
     console.log(`[Webhook Logs API] Deleted ${result?.count || 0} logs`);
 

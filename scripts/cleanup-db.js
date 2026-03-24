@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable @typescript-eslint/no-require-imports */
 
 /**
  * Database Cleanup Script
@@ -83,7 +84,9 @@ async function cleanupOrphanedData() {
       console.log("No orphaned conversation bot links found\n");
     }
 
-    console.log("Checking for usage logs linked to missing bots or channels...");
+    console.log(
+      "Checking for usage logs linked to missing bots or channels...",
+    );
     const usageLogs = await prisma.usageLog.findMany({
       where: {
         OR: [{ botId: { not: null } }, { channelId: { not: null } }],
@@ -110,9 +113,7 @@ async function cleanupOrphanedData() {
 
     console.log("Checking for webchat sites linked to missing channels...");
     const siteIdsToDetachFromChannel = webChatSites
-      .filter(
-        (site) => site.channelId && !validChannelIds.has(site.channelId),
-      )
+      .filter((site) => site.channelId && !validChannelIds.has(site.channelId))
       .map((site) => site.id);
 
     if (siteIdsToDetachFromChannel.length > 0) {
@@ -127,7 +128,9 @@ async function cleanupOrphanedData() {
       console.log("No orphaned webchat site channel links found\n");
     }
 
-    console.log("Checking for webchat flow sessions linked to missing sites...");
+    console.log(
+      "Checking for webchat flow sessions linked to missing sites...",
+    );
     const webFlowSessions = await prisma.flowSession.findMany({
       where: {
         pageId: {

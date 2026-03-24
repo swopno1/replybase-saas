@@ -14,6 +14,16 @@ export class AiEngineError extends Error {
   }
 }
 
+type TypebotRichTextNode = {
+  children?: Array<{ text?: string }>;
+};
+
+type TypebotMessageLike = {
+  type?: string;
+  content?: string | { type?: string; richText?: TypebotRichTextNode[] };
+  text?: string;
+};
+
 function assertServerConfig() {
   if (!TYPEBOT_TOKEN) {
     console.error("[AI Engine] TYPEBOT_TOKEN is not configured.");
@@ -392,8 +402,8 @@ export async function converse(input: ConverseInput) {
     if (externalSessionId) {
       try {
         typebotResponse = await continueTypebotChat(externalSessionId, message);
-      } catch (error: any) {
-        if (error.message === "Session not found") {
+      } catch (error: unknown) {
+        if (error instanceof Error && error.message === "Session not found") {
           // Session expired or lost, start new
           console.log(
             `[AI Engine] Session ${externalSessionId} not found, starting new chat.`,
@@ -423,29 +433,35 @@ export async function converse(input: ConverseInput) {
     await logAiUsage(tenantId, botId);
 
     // 3. Process Responses
-    const responses: any[] = [];
+    const responses: Array<{ type: "text"; text: string }> = [];
     if (typebotResponse.messages && Array.isArray(typebotResponse.messages)) {
       for (const msg of typebotResponse.messages) {
+        const messageItem = msg as TypebotMessageLike;
+        const contentObject =
+          typeof messageItem.content === "object" && messageItem.content
+            ? messageItem.content
+            : undefined;
+
         // Handle different message types. For now, we focus on text (bubble)
         if (
-          msg.type === "text" ||
-          (msg.content as any)?.type === "text" ||
-          msg.type === "bubble"
+          messageItem.type === "text" ||
+          contentObject?.type === "text" ||
+          messageItem.type === "bubble"
         ) {
           // Typebot structure varies slightly by version/block.
           // Ideally msg.content.richText or msg.content (if string) or just msg.text if flattened
           let textContent = "";
-          if (typeof msg.content === "string") {
-            textContent = msg.content;
-          } else if ((msg.content as any)?.richText) {
+          if (typeof messageItem.content === "string") {
+            textContent = messageItem.content;
+          } else if (contentObject?.richText) {
             // Simplistic extraction, might need rich text parser
-            textContent = (msg.content as any).richText
-              .map((node: any) =>
-                node.children.map((c: any) => c.text).join(""),
+            textContent = contentObject.richText
+              .map((node) =>
+                (node.children ?? []).map((c) => c.text ?? "").join(""),
               )
               .join("\n");
-          } else if ((msg as any).text) {
-            textContent = (msg as any).text; // Some API versions flat return text
+          } else if (messageItem.text) {
+            textContent = messageItem.text; // Some API versions flat return text
           }
 
           // If we found text, log it

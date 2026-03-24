@@ -10,7 +10,7 @@ async function createIncomingMessage(
   req: NextRequest,
 ): Promise<IncomingMessage> {
   const headersList = await headers();
-  const readable = new IncomingMessage(null as any);
+  const readable = new IncomingMessage(null as unknown as never);
 
   readable.method = req.method;
   readable.url = req.nextUrl.pathname + req.nextUrl.search;
@@ -91,12 +91,12 @@ async function handler(
       const chunks: Buffer[] = [];
 
       // Capture data
-      resShim.write = (chunk: any, ...args: any[]) => {
+      resShim.write = (chunk: unknown) => {
         chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
         return true;
       };
 
-      resShim.end = (chunk: any, ...args: any[]) => {
+      resShim.end = (chunk: unknown) => {
         if (chunk) {
           chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
         }

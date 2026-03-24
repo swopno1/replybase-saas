@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 const ISSUER = process.env.NEXT_PUBLIC_APP_URL || "https://app.replybase.co.uk";
 
 // Helper to find account with proper subscription validation
-const findAccount = async (ctx: any, id: string) => {
+const findAccount = async (_ctx: unknown, id: string) => {
   const user = await prisma.user.findUnique({
     where: { id },
     include: {
@@ -44,7 +44,7 @@ const findAccount = async (ctx: any, id: string) => {
 
   return {
     accountId: id,
-    async claims(use: string, scope: string) {
+    async claims(_use: string, _scope: string) {
       // Return required claims as specified in Phase 1 requirements
       // Note: 'iss' and 'aud' are automatically set by oidc-provider based on issuer and client_id
       return {
@@ -96,7 +96,7 @@ export default function getOidcProvider() {
       required: () => false, // Typebot supports PKCE but not required for MVP
     },
     interactions: {
-      url(ctx: any, interaction: any) {
+      url(_ctx: unknown, interaction: { uid: string }) {
         return `/api/oidc/interaction/${interaction.uid}`;
       },
     },
@@ -119,7 +119,10 @@ export default function getOidcProvider() {
   };
 
   try {
-    oidcProvider = new Provider(ISSUER + "/api/oidc", configuration as any);
+    oidcProvider = new Provider(
+      ISSUER + "/api/oidc",
+      configuration as unknown as ConstructorParameters<typeof Provider>[1],
+    );
     // Trust proxy for secure cookies behind reverse proxy
     oidcProvider.proxy = true;
     console.log(

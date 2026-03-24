@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 
-export async function POST(req: NextRequest) {
+export async function POST(_req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     if (!subscription?.stripeCustomerId) {
       return NextResponse.json(
         { error: "No billing account found" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -31,11 +31,11 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ url: stripeSession.url });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[Billing Portal] Error:", error);
     return NextResponse.json(
-      { error: "Internal Server Error", details: error.message },
-      { status: 500 }
+      { error: "Internal Server Error" },
+      { status: 500 },
     );
   }
 }

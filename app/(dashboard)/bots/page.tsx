@@ -55,7 +55,7 @@ export default function BotsPage() {
       } else {
         throw new Error("Invalid response from authorization endpoint");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[Authoring Workspace] Error:", error);
       alert("Failed to open authoring workspace. Please try again.");
     } finally {

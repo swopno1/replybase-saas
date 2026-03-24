@@ -23,9 +23,11 @@ export async function POST(req: NextRequest) {
       signature,
       process.env.STRIPE_WEBHOOK_SECRET,
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown webhook error";
     console.error(
-      `[Stripe Webhook] Signature verification failed: ${error.message}`,
+      `[Stripe Webhook] Signature verification failed: ${errorMessage}`,
     );
     return NextResponse.json({ error: "Webhook Error" }, { status: 400 });
   }
@@ -84,7 +86,7 @@ export async function POST(req: NextRequest) {
       default:
         console.log(`[Stripe Webhook] Unhandled event type ${event.type}`);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[Stripe Webhook] Error processing event:", error);
     return NextResponse.json(
       { error: "Webhook handling failed" },

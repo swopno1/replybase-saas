@@ -24,7 +24,9 @@ function normalizeOrigin(value: string) {
 function WebchatTestHarnessContent() {
   const searchParams = useSearchParams();
   const [reloadKey, setReloadKey] = useState(0);
-  const [currentOrigin, setCurrentOrigin] = useState("");
+  const [currentOrigin] = useState(
+    typeof window !== "undefined" ? window.location.origin : "",
+  );
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">(
     "idle",
   );
@@ -39,6 +41,7 @@ function WebchatTestHarnessContent() {
     searchParams.get("welcomeMessage")?.trim() ||
     "Hi. How can I help you today?";
   const siteName = searchParams.get("siteName")?.trim() || "Webchat Site";
+  const missingPublicKey = !publicKey;
 
   const allowedDomains = useMemo(() => {
     const raw = searchParams.get("allowedDomains")?.trim();
@@ -73,12 +76,6 @@ function WebchatTestHarnessContent() {
   }, [currentOrigin, normalizedAllowedDomains]);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      setCurrentOrigin(window.location.origin);
-    }
-  }, []);
-
-  useEffect(() => {
     if (typeof document === "undefined") {
       return;
     }
@@ -89,11 +86,7 @@ function WebchatTestHarnessContent() {
     document.getElementById(rootId)?.remove();
     document.getElementById(scriptId)?.remove();
 
-    if (!publicKey) {
-      setStatus("error");
-      setErrorMessage(
-        "Missing public key. Launch this page from the webchat dashboard.",
-      );
+    if (missingPublicKey) {
       return;
     }
 
@@ -107,9 +100,6 @@ function WebchatTestHarnessContent() {
     script.dataset.primaryColor = primaryColor;
     script.dataset.position = position;
     script.defer = true;
-
-    setStatus("loading");
-    setErrorMessage("");
 
     script.onload = () => {
       setStatus("ready");
@@ -126,9 +116,24 @@ function WebchatTestHarnessContent() {
       document.getElementById(rootId)?.remove();
       document.getElementById(scriptId)?.remove();
     };
-  }, [baseUrl, position, primaryColor, publicKey, reloadKey, title]);
+  }, [
+    baseUrl,
+    missingPublicKey,
+    position,
+    primaryColor,
+    publicKey,
+    reloadKey,
+    title,
+  ]);
+
+  const displayedStatus = missingPublicKey ? "error" : status;
+  const displayedErrorMessage = missingPublicKey
+    ? "Missing public key. Launch this page from the webchat dashboard."
+    : errorMessage;
 
   function handleReloadWidget() {
+    setStatus("loading");
+    setErrorMessage("");
     setReloadKey((value) => value + 1);
   }
 
@@ -138,6 +143,8 @@ function WebchatTestHarnessContent() {
     }
 
     window.localStorage.removeItem(`replybase_webchat_session:${publicKey}`);
+    setStatus("loading");
+    setErrorMessage("");
     setReloadKey((value) => value + 1);
   }
 
@@ -187,11 +194,11 @@ function WebchatTestHarnessContent() {
               <div className="rounded-lg border bg-slate-50 p-4">
                 <p className="text-sm text-muted-foreground">Widget Status</p>
                 <p className="mt-2 text-sm font-medium text-slate-900">
-                  {status === "idle"
+                  {displayedStatus === "idle"
                     ? "Waiting to load"
-                    : status === "loading"
+                    : displayedStatus === "loading"
                       ? "Loading embed script"
-                      : status === "ready"
+                      : displayedStatus === "ready"
                         ? "Ready. Click the launcher bubble."
                         : "Load failed"}
                 </p>
@@ -204,9 +211,9 @@ function WebchatTestHarnessContent() {
               </div>
             </div>
 
-            {errorMessage ? (
+            {displayedErrorMessage ? (
               <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                {errorMessage}
+                {displayedErrorMessage}
               </div>
             ) : null}
 
