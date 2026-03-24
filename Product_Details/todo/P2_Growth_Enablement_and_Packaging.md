@@ -1,165 +1,47 @@
 # P2: Growth Enablement and Packaging
 
-Status: in-progress
-Owner: Product Marketing + Product
+Status: planned  
+Owner: Product Marketing + Product  
 Target window: ongoing
 
 ## Goal
 
-Improve activation, retention, and expansion after runtime consistency is in place.
+Improve activation, retention, and expansion after P0/P1 stability goals are met.
 
 ## Tasks
 
-1. Align pricing/package language with actual runtime capabilities.
+1. Align packaging language with real product behavior.
 
-2. Add onboarding guidance for first successful channel connection and first automated reply.
+- Use unified inbox positioning consistently.
+- Avoid unsupported source claims.
 
-3. Create vertical templates (services, agencies, booking-heavy businesses).
+2. Improve onboarding activation flow.
 
-4. Define KPI dashboard for:
+- Guide users to first connected source.
+- Guide users to first automated reply.
 
-- time to first connected channel
+3. Expand reusable templates.
+
+- Services
+- Agencies
+- Booking-heavy businesses
+
+4. Operate KPI dashboard for product growth.
+
+- time to first connected source
 - time to first automated reply
 - weekly active tenants with active runtime mode
-- failed webhook setup rate
-
-## Implementation Progress
-
-- done: Entered P2 execution phase after P0 and P1 completion checkpoints were validated.
-- done: Converted P2 into an actionable work plan with phased deliverables and measurable outputs.
-- done: Task 1 (phase-1 delivery) - updated in-app and marketing pricing copy to align with shipped runtime behavior and channel support (Facebook, Telegram, Webchat).
-- done: Removed unsupported channel claims from high-visibility marketing copy (e.g., WhatsApp/Email as active integrations) and replaced with current parity channels.
-- done: Task 2 (phase-1 delivery) - added dashboard activation milestone card for first connected channel and first automated reply, with direct action CTAs.
-- done: Task 2 (phase-2 delivery) - implemented milestone event instrumentation contract (OnboardingMilestoneEvent model) and analytics persistence layer.
-  - Added Prisma schema model with tenantId + milestoneId unique constraint for idempotent event recording.
-  - Migrated database schema and regenerated Prisma client.
-  - Integrated milestone event capture into Facebook, Telegram, and Webchat webhook handlers.
-  - Created analytics API endpoint (`GET /api/analytics/onboarding-milestones`) with completion rate, trends, and time-to-completion statistics.
-  - Added helper functions for milestone recording, completion checks, and stats retrieval.
-- done: Task 3 (phase-1 delivery) - created 3 vertical template flows with pre-built node structures (services, agencies, booking).
-  - Defined template definitions with multi-node conversation flows for each vertical.
-  - Created API endpoint for creating flows from templates (`POST /api/flows/from-template`).
-  - Created flow cloning API endpoint (`POST /api/flows/[flowId]/clone`) for duplicating template and custom flows.
-  - Updated flows UI to show template selection dialog with category-specific guidance.
-  - Added "Use Template" button to flows page for quick template-based creation.
-  - All templates are channel-compatible (Facebook, Telegram, Webchat ready).
-- done: Task 4 (phase-1 delivery) - shipped admin activation KPI dashboard and reporting layer.
-  - Added shared KPI query layer for tenant activation speed, weekly active runtime tenants, and webhook setup reliability.
-  - Corrected milestone timing logic to measure tenant creation to milestone completion instead of event-to-event spacing.
-  - Added admin analytics page at `/admin/analytics` with activation and reliability trend visualizations.
-  - Extended the onboarding milestone analytics API to serve the shared KPI payload used by the dashboard.
-  - Added Telegram webhook setup success/failure logging for weekly webhook setup rate tracking.
-- done: Task 4 (phase-2 delivery: segmented analytics) - extended KPI dashboard with segment-aware filtering.
-  - Created segmented activation KPI library (`lib/segmented-activation-kpis.ts`) with queryable funnel stages, cohort analysis, and channel-specific breakdown.
-  - Built admin segmented analytics page at `/admin/segmented-analytics` with plan, channel, and cohort filters.
-  - Implemented activation funnel visualization (signup → first-channel → first-reply stages with conversion rates and dropoff timing).
-  - Implemented webchat acquisition attribution analysis with sources, mediums, campaigns, referrers, and landing page breakdown.
-  - Added weekly acquisition trend chart to track attribution accuracy over time.
-  - Integrated all components into unified dashboard with filter-driven data refresh.
-
-## Phase Plan
-
-### Phase A: Packaging and Messaging Alignment (Week 1)
-
-Scope:
-
-- Inventory current pricing page and in-app package wording.
-- Remove legacy/ambiguous language that implies unsupported channel behavior.
-- Align all package claims with current runtime order: active flow assignment first, then AI fallback.
-
-Deliverables:
-
-- Updated pricing copy matrix (old claim -> new claim -> source of truth).
-- Finalized package capability table by channel (Facebook, Telegram, Webchat).
-
-Exit criteria:
-
-- No package claim conflicts with P0/P1 runtime behavior.
-- Product Marketing sign-off complete.
-
-### Phase B: Activation Onboarding (Week 1-2)
-
-Scope:
-
-- Add guided milestones for:
-  - first connected channel
-  - first automated reply
-- Expose milestone progress in onboarding/admin surfaces.
-
-Deliverables:
-
-- Milestone definitions with event names and trigger conditions.
-- UI guidance blocks linking users to the next best action.
-
-Exit criteria:
-
-- New tenants can complete first connection + first automated reply without support intervention.
-
-### Phase C: Vertical Templates (Week 2)
-
-Scope:
-
-- Create launch templates for:
-  - services
-  - agencies
-  - booking-heavy businesses
-
-Deliverables:
-
-- Template flow bundle with channel-compatible defaults.
-- Template selection guidance in flow creation UX.
-
-Exit criteria:
-
-- Users can duplicate and activate a vertical template with minimal edits.
-
-### Phase D: KPI Dashboard (Week 2-3)
-
-Scope:
-
-- Build dashboard views for activation and reliability KPIs.
-- Define metric formulas and data sources per KPI.
-
-Deliverables:
-
-- KPI spec sheet (definition, SQL/ORM source, freshness target).
-- Dashboard section with trend + current-period values.
-
-Exit criteria:
-
-- KPIs are visible, reproducible, and used in weekly product review.
-
-## KPI Definitions (Initial)
-
-1. Time to first connected channel
-
-- Definition: elapsed time between tenant creation and first successful channel connection event.
-
-2. Time to first automated reply
-
-- Definition: elapsed time between tenant creation and first outbound automated reply event.
-
-3. Weekly active tenants with active runtime mode
-
-- Definition: unique tenants with at least one channel in active runtime behavior during the last 7 days.
-
-4. Failed webhook setup rate
-
-- Definition: failed webhook setup attempts / total webhook setup attempts per week.
-
-## Immediate Next Actions
-
-1. ✅ Lock instrumentation contract for onboarding milestones and KPI events (COMPLETED)
-2. ✅ Create vertical templates for services, agencies, and booking (COMPLETED - Phase C phase-1)
-3. Monitor milestone event data collection and KPI accuracy in production.
-4. Expand reliability tracking to additional channels if webhook setup telemetry is added outside Telegram.
-5. Iterate on dashboard segmentation by plan, channel, and activation cohort.
+- failed ingest/setup rate per source
 
 ## Acceptance Criteria
 
-- Activation rate improves with measurable onboarding milestones.
-- Marketing claims match product behavior and channel parity.
+- Activation metrics improve with measurable onboarding milestones.
+- Marketing claims remain aligned with actual shipped capability.
+- Packaging clarity reduces support tickets tied to configuration confusion.
 
 ## Dependencies
 
-- P0 and P1 workstreams
+- P0_Product_Clarity_and_Runtime_Model
+- P1_Channel_Parity_and_Flow_Assignment
+- P1_Status_And_Diagnostics_Unification
+- P0_Production_Deployment_Excellence

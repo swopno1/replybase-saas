@@ -2,55 +2,55 @@
 
 ## 1. Available Now (Core Product)
 
-### 1.1 Multi-Channel Intake
+### 1.1 Unified Inbox Foundations
 
-- Webchat widget capture and session handling.
-- Facebook integration with webhook-based processing.
-- Telegram bot integration with webhook provisioning and diagnostics.
+- Webchat message intake and session handling.
+- Telegram bot intake and webhook-backed operations.
+- Unified conversation storage for active sources.
 
-### 1.2 Conversation Operations
+### 1.2 Conversation and Lead Operations
 
-- Unified conversation and message storage.
-- Contact and identity linking across channels.
-- Lead status and contact enrichment workflows.
+- Conversation and message timeline views.
+- Contact identity linking.
+- Lead status tracking and enrichment workflow.
 
 ### 1.3 Automation Layer
 
-- Flow-based automated conversation handling.
-- AI conversation capability with session continuity.
-- Channel-specific fallback behavior (current behavior differs by channel).
+- Flow-based response handling.
+- AI response handling with fallback logic.
+- Bot-scoped automation ownership model.
 
 ### 1.4 Workspace and Plan Controls
 
 - Tenant isolation and tenant-scoped resources.
 - Usage limits and plan-based gating.
-- Channel-level operational controls and health telemetry.
+- Integration-level operational controls and diagnostics.
 
 ### 1.5 Security and Compliance Baseline
 
-- Token encryption at rest.
-- Secret-based webhook verification for Telegram.
-- OIDC-secured builder access path.
+- Credentials and tokens protected at rest.
+- Webhook authenticity controls for supported channels.
+- Controlled builder access path.
 - GDPR-aligned data deletion workflows.
 
 ## 2. Clarification: Current Functional Gaps
 
-These are not failures; they are active product-shape gaps we are addressing:
+These are active product-shape gaps under improvement:
 
-1. Flow deployment is not fully channel-parity today.
-2. AI status UX is centered around Facebook semantics.
-3. Runtime controls are represented by multiple flags with overlapping meaning.
-4. Product terms (Bot, Flow, Builder, Engine) can be interpreted inconsistently by users.
+1. Inbox behavior is not fully unified across all planned sources.
+2. Email and contact-form adapters are not yet fully productized.
+3. Runtime controls and labels still need simplification in some areas.
+4. Product terms (Bot, Flow, AI) still need tighter consistency in all UX surfaces.
 
 ## 3. Next Capability Targets
 
-### 3.1 Channel-Parity Automation
+### 3.1 Source Parity for Unified Inbox
 
-- Standardize flow assignment and runtime policy across Facebook, Telegram, and Webchat.
+- Standardize behavior across webchat, telegram, email intake, and contact-form intake.
 
-### 3.2 Unified Runtime Controls
+### 3.2 Simple Runtime Controls
 
-- Show one explicit response mode per channel:
+- Show one explicit response mode per source:
   - Flow only
   - AI only
   - Flow then AI fallback
@@ -58,40 +58,32 @@ These are not failures; they are active product-shape gaps we are addressing:
 
 ### 3.3 Better Operator Observability
 
-- Single runtime decision view per channel.
-- Clear visibility of what will respond and why.
+- Single runtime decision view per source.
+- Clear visibility of what replied and why.
 
-### 3.4 Commercial Expansion
+### 3.4 Growth and Packaging
 
 - Industry templates and onboarding packs.
-- Additional channels only after runtime model consistency is completed.
+- Activation-focused guidance for first connected source and first automated reply.
 
-### 3.5 TikTok Next-Stage Plan
+### 3.5 Production Deployment Excellence
 
-- Stage 1: capability and policy validation
-  - Validate official API scope for messaging, webhook events, and auth constraints.
-  - Map TikTok identity and conversation context to ContactIdentity and CrmConversation.
-- Stage 2: limited tenant beta
-  - Controlled rollout to a small cohort with explicit success criteria.
-  - Channel-level diagnostics and failure telemetry tuned for TikTok event patterns.
-- Stage 3: general availability
-  - Enable guided setup in dashboard.
-  - Publish runbook and support SOP for onboarding, troubleshooting, and escalation.
-
-### 3.6 Production Deployment Excellence
-
-- Staging to production promotion with release gates.
+- Staging-to-production release gates.
 - Migration safety checks and rollback rehearsal.
-- Per-channel smoke tests after release.
-- Alerting for webhook failures, delivery errors, and sustained 429 or 5xx spikes.
-- Release health dashboard and 24-hour post-deploy verification window.
+- Source-level smoke tests after release.
+- Alerting for webhook failures, delivery errors, and sustained 429/5xx spikes.
 
 ## 4. Feature Priorities (Current)
 
-- P0: Product clarity and runtime consistency.
-- P1: Cross-channel flow deployment parity.
+- P0: Product clarity and runtime simplification.
+- P1: Source parity for unified inbox behavior.
 - P1: Unified status and diagnostics UX.
-- P2: TikTok staged rollout and advanced automation packs.
-- P0 ongoing: production deployment reliability and release safety.
+- P2: Growth enablement and packaging.
+- P0 ongoing: production deployment reliability.
+
+## 5. Scope Guardrails
+
+- No Facebook-focused delivery scope in current product cycle.
+- TikTok remains parked until unified inbox and operational maturity goals are complete.
 
 See implementation tasks in [todo/README.md](todo/README.md).

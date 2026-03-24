@@ -2,104 +2,96 @@
 
 ## 1. Market and Opportunity
 
-ReplyBase targets UK SMEs that need fast response operations across multiple channels without enterprise CRM complexity.
+ReplyBase targets SMEs that need a practical way to handle customer messaging without enterprise CRM complexity.
 
 Core opportunity:
 
-- Existing tools are either too simple (single-channel inboxes) or too complex/costly (enterprise CRM suites).
-- SMEs need practical automation and lead capture with low setup cost.
+- Teams currently split support and lead follow-up across disconnected tools.
+- Existing options are either single-channel lightweight tools or heavy enterprise suites.
+- SMEs want speed, clarity, and simple automation.
 
 ## 2. Positioning Statement
 
-ReplyBase is the conversation operating layer for SMEs: connect channels, route responses intelligently, and convert conversations into structured customer records.
+ReplyBase helps businesses reply faster and manage customer messages in one place.
 
 ## 3. Messaging Framework
 
 ### 3.1 Core Value Pillars
 
-1. One place for incoming conversations.
-2. Configurable response automation (Flow and AI).
-3. CRM outcomes from daily chat activity.
+1. One inbox for customer messages.
+2. Simple automation using Flow and AI.
+3. Built-in lead management from real conversations.
 
 ### 3.2 Product Truth We Must Keep Consistent
 
-- Bot is a routing container, not just an AI persona.
-- Channels are operational connectors.
-- Flows and AI are response engines.
-- Runtime behavior can differ by channel today, but we are standardizing this.
+- Bot is the response container.
+- Flow is rule-based response logic.
+- AI is generative fallback or primary responder based on mode.
+- Inbox sources are operational connectors, not separate products.
 
 ## 4. Commercial Strategy
 
 ### 4.1 Packaging Direction
 
-- Starter: core channels and basic automation.
-- Pro: expanded conversation volume and advanced runtime controls.
-- Business: multi-team operations, deeper diagnostics, and higher limits.
+- Starter: core inbox operations and basic automation.
+- Pro: higher throughput, richer diagnostics, stronger automation controls.
+- Business: multi-team reliability and operational visibility.
 
 ### 4.2 Near-Term Revenue Lever
 
-Increase activation and retention by reducing setup confusion in first week:
+Increase activation and retention by reducing first-week setup confusion:
 
-- Faster channel connect success.
-- Clear runtime mode visibility.
-- Flow setup parity across channels.
+- faster first source connection success
+- clear response mode visibility
+- faster path to first automated reply
 
 ## 5. Go-To-Market Phases
 
 ### Phase 1: Precision Acquisition
 
-- UK-focused search and landing pages.
-- Verticalized use-cases (services, agencies, bookings).
+- Search and landing pages focused on "unified business inbox" intent.
+- Vertical landing pages (services, agencies, bookings).
 
 ### Phase 2: Activation-Led Growth
 
-- Product-led onboarding that shows first response success quickly.
-- In-app guidance for runtime mode and channel configuration.
+- Guided onboarding from signup to first automated reply.
+- In-app prompts for source setup and response mode selection.
 
 ### Phase 3: Proof and Expansion
 
-- Case studies by vertical.
-- Agency partner motion for multi-tenant use.
+- Case studies with response-time and lead-conversion deltas.
+- Agency partner motion for multi-workspace operation.
 
-### Phase 4: TikTok Expansion (Stage-Gated)
+## 6. Scope Decision (Current Cycle)
 
-- Run TikTok private beta for selected verticals with strong inbound demand.
-- Position ReplyBase as cross-channel follow-up engine from social discovery to conversion.
-- Publish vertical-specific TikTok playbooks only after support workflows are stable.
-
-## 6. Strategic Priority Before Channel Expansion
-
-Do not prioritize new channels until the runtime model is coherent across existing channels.
-
-Why:
-
-- Product clarity has direct impact on conversion, activation, and support burden.
-- Channel parity improves trust and reduces operational escalations.
+- Active focus: Website chat, Telegram, lead operations, and unified inbox UX.
+- In-progress planning: Email and contact-form source adapters.
+- Not in active scope: Facebook-first initiatives.
 
 ## 7. Production Deployment as a Growth Lever
 
-Reliable deployment quality directly impacts conversion and retention.
+Deployment quality directly impacts conversion and retention.
 
-Commercial outcomes tied to deployment quality:
+Commercial outcomes tied to operational reliability:
 
-- Fewer failed channel setups during onboarding.
-- Lower support burden from webhook or delivery regressions.
-- Higher trust for agencies evaluating multi-tenant reliability.
+- fewer failed source setups during onboarding
+- lower support burden from ingest or delivery regressions
+- higher trust for operational teams and agencies
 
 Operational commitments:
 
-- Release checklist for every production deployment.
-- Staging sign-off with channel smoke tests.
-- Post-release 24-hour monitoring and incident capture.
+- release checklist for every production deployment
+- staging sign-off with source smoke tests
+- post-release 24-hour monitoring and incident capture
 
 ## 8. KPIs To Track
 
-- Time to first successful connected channel.
-- Time to first automated reply.
-- Weekly active tenants with at least one active runtime policy.
-- Failed webhook setup rate.
-- Support tickets tagged as "configuration confusion".
-- Post-release incident rate.
-- Mean time to detect and resolve deployment regressions.
+- time to first successful connected source
+- time to first automated reply
+- weekly active tenants with active response mode
+- failed ingest/setup rate per source
+- support tickets tagged as configuration confusion
+- post-release incident rate
+- mean time to detect and resolve regressions
 
 Execution priorities are tracked in [todo/README.md](todo/README.md).

@@ -40,11 +40,12 @@ export async function rateLimitMiddleware(
     return limitCheck;
   } catch (error) {
     console.error("[RateLimit] Error:", error);
-    // Fail open in case of errors (don't block requests)
+    // Fail closed in case of errors to avoid accidental abuse bypass.
     return {
-      allowed: true,
-      remaining: 999999,
-      limit: 999999,
+      allowed: false,
+      remaining: 0,
+      limit: 0,
+      retryAfter: 60,
     };
   }
 }

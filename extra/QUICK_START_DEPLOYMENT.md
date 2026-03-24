@@ -13,8 +13,8 @@ Deploy ReplyBase SaaS with secure Typebot Builder/Viewer integration.
 
 ## 📚 Read First
 
-1. **[PRODUCTION_DIAGNOSIS_REPORT.md](./PRODUCTION_DIAGNOSIS_REPORT.md)** - Understand current state
-2. **[PRODUCTION_DEPLOYMENT_PLAN.md](./PRODUCTION_DEPLOYMENT_PLAN.md)** - Detailed plan
+1. **[PRODUCTION_DEPLOYMENT_PLAN.md](./PRODUCTION_DEPLOYMENT_PLAN.md)** - Detailed plan
+2. **[DEPLOYMENT_CHECKLIST.md](./DEPLOYMENT_CHECKLIST.md)** - Execution checklist
 3. **This file** - Quick reference
 
 ---
@@ -190,7 +190,7 @@ Before you start, ensure you have:
 
 ### Issue: Can't access Typebot at all
 
-**Solution**: Check Nginx isn't blocking OIDC callback endpoint
+**Solution**: Verify OIDC env values and callback URL match between SaaS and Typebot.
 
 ### Issue: Subscription check always fails
 
@@ -216,8 +216,8 @@ Before you start, ensure you have:
   - [ ] OIDC enabled
   - [ ] Public auth disabled
   - [ ] Engine restarted
-- [ ] **Phase 4**: Infrastructure Security
-  - [ ] Nginx rules applied
+- [ ] **Phase 4**: Application Security Verification
+  - [ ] OIDC token validation verified
   - [ ] Access restrictions tested
   - [ ] Viewer configured
 - [ ] **Phase 5**: Testing
@@ -238,7 +238,7 @@ Your deployment is successful when:
 1. ✅ User can register on `app.replybase.co.uk`
 2. ✅ User can subscribe via Stripe
 3. ✅ User can click "Launch Builder" and access Typebot
-4. ✅ Direct access to `engine.replybase.co.uk` returns 403
+4. ✅ Access control behaves as expected under OIDC policy
 5. ✅ OIDC token includes `plan` and `subscription_status` claims
 6. ✅ No critical errors in logs
 7. ✅ Health endpoint returns OK
@@ -248,14 +248,15 @@ Your deployment is successful when:
 ## 📞 Need Help?
 
 1. **Check Documentation**:
-   - [PRODUCTION_DIAGNOSIS_REPORT.md](./PRODUCTION_DIAGNOSIS_REPORT.md)
    - [PRODUCTION_DEPLOYMENT_PLAN.md](./PRODUCTION_DEPLOYMENT_PLAN.md)
+   - [DEPLOYMENT_CHECKLIST.md](./DEPLOYMENT_CHECKLIST.md)
    - [TYPEBOT_ENGINE_CONFIGURATION.md](./TYPEBOT_ENGINE_CONFIGURATION.md)
-   - [INFRASTRUCTURE_SECURITY.md](./INFRASTRUCTURE_SECURITY.md)
+   - [archive/deprecated/INFRASTRUCTURE_SECURITY.md](./archive/deprecated/INFRASTRUCTURE_SECURITY.md)
 
-2. **Review Existing Guides**:
-   - [PHASE1_IMPLEMENTATION_GUIDE.md](./PHASE1_IMPLEMENTATION_GUIDE.md)
-   - [PHASE1_SUMMARY.md](./PHASE1_SUMMARY.md)
+2. **Review Archived Guides**:
+   - [archive/audits/PRODUCTION_DIAGNOSIS_REPORT.md](./archive/audits/PRODUCTION_DIAGNOSIS_REPORT.md)
+   - [archive/phased/PHASE1_IMPLEMENTATION_GUIDE.md](./archive/phased/PHASE1_IMPLEMENTATION_GUIDE.md)
+   - [archive/phased/PHASE1_SUMMARY.md](./archive/phased/PHASE1_SUMMARY.md)
 
 3. **Check Logs**:
 

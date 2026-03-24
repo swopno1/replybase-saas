@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useToast } from "@/hooks/use-toast";
 import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface ChannelConfig {
   id: string;
@@ -30,7 +29,6 @@ const CHANNEL_INFO: Record<string, { icon: string; color: string }> = {
 };
 
 export function ChannelsClient() {
-  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [channels, setChannels] = useState<ChannelConfig[]>([]);
@@ -96,11 +94,7 @@ export function ChannelsClient() {
         });
       } catch (error) {
         console.error("Failed to fetch channels:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load channel settings",
-          variant: "destructive",
-        });
+        toast.error("Failed to load channel settings");
       } finally {
         setLoading(false);
       }
@@ -115,11 +109,7 @@ export function ChannelsClient() {
   ) => {
     const channel = channels.find((c) => c.id === channelId);
     if (!channel || !channel.systemEnabled) {
-      toast({
-        title: "Error",
-        description: "This channel cannot be enabled at the system level",
-        variant: "destructive",
-      });
+      toast.error("This channel cannot be enabled at the system level");
       return;
     }
 
@@ -143,20 +133,16 @@ export function ChannelsClient() {
         [channelId]: checked,
       }));
 
-      toast({
-        title: "Success",
-        description: `${channel.displayName} has been ${checked ? "enabled" : "disabled"}`,
-      });
+      toast.success(
+        `${channel.displayName} has been ${checked ? "enabled" : "disabled"}`,
+      );
     } catch (error) {
       console.error("Failed to update channel:", error);
-      toast({
-        title: "Error",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to update channel settings",
-        variant: "destructive",
-      });
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to update channel settings",
+      );
     } finally {
       setSaving(false);
     }

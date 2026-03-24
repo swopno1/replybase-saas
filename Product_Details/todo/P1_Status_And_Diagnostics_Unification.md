@@ -1,49 +1,43 @@
 # P1: Status and Diagnostics Unification
 
-Status: in-progress
-Owner: Engineering + Product Design
+Status: in-progress  
+Owner: Engineering + Product Design  
 Target window: 1 sprint
 
 ## Goal
 
-Separate system health from feature behavior and remove status ambiguity.
+Separate system health from runtime behavior and provide one diagnostics model across inbox sources.
 
 ## Tasks
 
-1. Define one status model for channel runtime.
+1. Define one status model for runtime behavior.
 
-- ✅ active / paused / disabled / error states defined in codebase
+- active / paused / disabled / error
 
-2. Refactor AI status UX to split:
+2. Keep AI/system health and source behavior separate in UI.
 
-- ✅ System health (engine connectivity) shown in `/ai-status` page
-- ⚠️ Channel behavior (mode + toggle state) visible per-integration page; unified format pending
+- System health in dedicated health surfaces
+- Source behavior in integration/source pages
 
-3. Build a single diagnostics summary block reused across integrations.
+3. Build reusable diagnostics summary.
 
-- ✅ Telegram integration page shows diagnostic info (lastInbound, lastOutbound, currentMode)
-- ✅ Webchat integration page shows diagnostic summary
-- ⚠️ Facebook integration page lacks diagnostic summary block (legacy implementation)
-- ⚠️ Generic DiagnosticSummary component for reuse across all channels not yet extracted
+- Current response mode
+- Last inbound and outbound activity
+- Last error and suggested fix
+- Source health snapshot
 
-4. Add operator hints for common misconfiguration causes.
+4. Add operator troubleshooting hints.
 
-- ⚠️ Individual integration pages have some guidance; centralized operator handbook pending
-
-## Implementation Progress
-
-- done: AI status refactoring to separate system health from channel behavior
-- done: Telegram and Webchat integration pages have diagnostic summary sections
-- done: Status states (active/paused/disabled/error) defined and used in runtime logic
-- in-progress: Extract reusable DiagnosticSummary component for all channels
-- in-progress: Add diagnostic hints and troubleshooting guidance to all integration pages
-- planned: Unified operator handbook with common misconfiguration causes and remediation steps
+- Common misconfiguration causes
+- Quick remediation actions
+- Links to runbook sections
 
 ## Acceptance Criteria
 
-- No page mixes service health and channel behavior without distinction.
-- Operators can diagnose webhook/runtime state in under 30 seconds.
+- No page mixes service health and source behavior without distinction.
+- Operators can diagnose runtime state in under 30 seconds.
+- Diagnostics summary format is consistent across active and planned sources.
 
 ## Dependencies
 
-- P0 runtime model clarity
+- P0_Product_Clarity_and_Runtime_Model

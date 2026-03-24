@@ -1,27 +1,28 @@
 # P0: Product Clarity and Runtime Model
 
-Status: done
+Status: in-progress
 Owner: Product + Engineering
 Target window: 1 sprint
 
 ## Goal
 
-Ensure users and internal teams can immediately understand what responds to a message and why.
+Ensure users and internal teams can immediately understand what responds to a message and why, using a unified inbox model.
 
 ## Tasks
 
 1. Define canonical terminology in product copy and docs.
 
 - Bot: routing container
-- Channel: integration endpoint
+- Source: integration endpoint (webchat, telegram, email, form)
 - Flow: deterministic responder
-- AI Engine: generative responder backend
+- AI: generative responder backend
 
-2. Add "Effective Response Mode" section to each channel management page.
+2. Add "Effective Response Mode" section to each source management page.
 
-- Facebook integration
 - Telegram integration
 - Webchat integration
+- Email integration (when shipped)
+- Contact-form intake settings (when shipped)
 
 3. Publish one runtime decision tree shared by Product, Support, and Engineering.
 
@@ -29,13 +30,10 @@ Ensure users and internal teams can immediately understand what responds to a me
 
 ## Implementation Progress
 
-- done: Canonical terminology has been applied in Product_Details strategy documents and related operational docs.
-- done: Effective Response Mode sections are implemented on:
-  - Facebook integration page
-  - Telegram integration page
-  - Webchat integration page
-- done: Runtime decision path is documented in operational guidance and aligned to product model.
-- done: Language sweep completed for Bots and AI Status pages to separate authoring workspace wording from runtime behavior.
+- done: Canonical terminology updated in Product_Details strategy docs.
+- in-progress: Runtime labels being normalized from channel-centric to source-centric wording.
+- in-progress: Effective Response Mode pattern retained for active sources and queued for email/form surfaces.
+- planned: Final pass on dashboard copy to remove residual ambiguous labels.
 
 ## Acceptance Criteria
 

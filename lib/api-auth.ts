@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 
 /**
  * API Key authentication for external services (e.g., marketing site)
@@ -8,6 +9,17 @@ import { NextRequest } from "next/server";
  */
 
 const API_SECRET_KEY = process.env.API_SECRET_KEY;
+
+function isTimingSafeMatch(candidate: string, secret: string): boolean {
+  const candidateBuffer = Buffer.from(candidate);
+  const secretBuffer = Buffer.from(secret);
+
+  if (candidateBuffer.length !== secretBuffer.length) {
+    return false;
+  }
+
+  return timingSafeEqual(candidateBuffer, secretBuffer);
+}
 
 export interface ApiAuthResult {
   authenticated: boolean;
@@ -33,7 +45,7 @@ export function validateApiKey(request: NextRequest): ApiAuthResult {
   const authHeader = request.headers.get("authorization");
   if (authHeader) {
     const token = authHeader.replace(/^Bearer\s+/i, "");
-    if (token === API_SECRET_KEY) {
+    if (isTimingSafeMatch(token, API_SECRET_KEY)) {
       return {
         authenticated: true,
         source: "api-key",
@@ -43,7 +55,7 @@ export function validateApiKey(request: NextRequest): ApiAuthResult {
 
   // Check x-api-key header (alternative format)
   const apiKeyHeader = request.headers.get("x-api-key");
-  if (apiKeyHeader === API_SECRET_KEY) {
+  if (apiKeyHeader && isTimingSafeMatch(apiKeyHeader, API_SECRET_KEY)) {
     return {
       authenticated: true,
       source: "api-key",

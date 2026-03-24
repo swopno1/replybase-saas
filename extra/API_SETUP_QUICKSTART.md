@@ -92,8 +92,8 @@ Expected response:
 
 ## Next Steps
 
-1. Review [MARKETING_SITE_API_INTEGRATION.md](./MARKETING_SITE_API_INTEGRATION.md) for complete API documentation
-2. Review [MARKETING_SITE_API_INTEGRATION.md](./MARKETING_SITE_API_INTEGRATION.md) for implementation steps
+1. Review [archive/marketing/MARKETING_SITE_API_INTEGRATION.md](./archive/marketing/MARKETING_SITE_API_INTEGRATION.md) for full legacy integration detail
+2. Keep active product scope aligned with [../Product_Details/Overview.md](../Product_Details/Overview.md)
 3. Implement newsletter forms on marketing site
 4. Test all endpoints thoroughly
 5. Deploy to production

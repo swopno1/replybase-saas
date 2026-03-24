@@ -2,136 +2,116 @@
 
 ## 1. Runtime Architecture (Current)
 
-ReplyBase is a multi-tenant, channel-driven conversation platform.
+ReplyBase is a multi-tenant unified inbox platform.
 
 ### Stack
 
-- Next.js 16 App Router (dashboard and API routes)
+- Next.js App Router (dashboard and API routes)
 - TypeScript (application layer)
 - Prisma + PostgreSQL (data layer)
 - NextAuth (auth and tenant session context)
 
 ### Response Engines
 
-- Flow engine (internal)
-- AI engine via Typebot APIs (external)
+- Flow engine (deterministic)
+- AI engine (generative)
 
-### Channel Intake Paths
+### Source Intake Paths
 
-- Facebook webhook route
-- Telegram webhook route
 - Webchat message route
+- Telegram webhook route
+- Email/contact-form adapters (planned and staged)
 
 ## 2. Canonical Entity Relationships
 
-1. Tenant owns users, bots, contacts, subscriptions, and channel resources.
+1. Tenant owns users, bots, contacts, subscriptions, and source resources.
 2. Bot is the routing container for response behavior.
-3. Channel connects a bot to a source channel (web, facebook, telegram).
+3. Source integration attaches a bot to an inbound origin (webchat, telegram, email, form).
 4. Conversation and message tables store normalized communication history.
-5. Contact plus ContactIdentity resolve cross-channel identity.
-6. Flow and FlowNode define rule-based conversation logic.
+5. Contact plus ContactIdentity resolve cross-source identity.
+6. Flow and FlowNode define rule-based response logic.
 
 ## 3. Important Current Constraints
 
-### 3.1 Channel Behavior Is Not Fully Uniform
+### 3.1 Source Behavior Is Not Fully Uniform
 
-- Facebook includes page-centric logic and flow assignment behavior.
-- Telegram currently relies mainly on command handling and AI path.
-- Webchat uses bot entryFlow and flow-first handling.
+- Webchat and Telegram are more mature operationally.
+- Email and contact-form intake still need full parity rollout.
 
-### 3.2 Flow Assignment Model Is Channel-Specific
+### 3.2 Runtime Settings Need Simplification
 
-Flow assignment is currently tied to Facebook pages, which limits channel parity for flow deployment.
+Multiple status flags across pages and integrations still create operator ambiguity in some surfaces.
 
-### 3.3 Runtime Flags Need Consolidation
+### 3.3 Inbox Model Needs Stronger Parity
 
-Multiple status switches exist across bot/channel/page/conversation levels. This increases operator ambiguity and code-branch complexity.
+Unified inbox promise depends on consistent ingestion, routing, and lead mapping across active and planned sources.
 
 ## 4. Data Model Summary (Operational)
 
 - Tenant, User, Plan, Subscription
-- Bot, Channel
+- Bot, Channel (source adapter)
 - Contact, ContactIdentity
 - CrmConversation, CrmMessage
 - Flow, FlowNode, FlowSession, FlowAssignment
-- FacebookPage, WebChatSite
+- WebChatSite
 - SystemHealth, WebhookLog
 
 ## 5. Multi-Tenancy and Security
 
 - Tenant scoping is required for management endpoints and data access.
-- Channel credentials are encrypted at rest.
-- Webhook authenticity controls are required for external channel intake.
-- Subscription gating remains enforced for key builder/runtime actions.
+- Source credentials are encrypted at rest.
+- Webhook authenticity controls are required for external source intake.
+- Subscription gating remains enforced for key operational actions.
 
 ## 6. Target Architecture Improvements
 
 ### P0
 
-- Introduce a single runtime policy concept per channel.
+- Introduce one clear runtime policy concept per source.
 - Separate health reporting from behavior configuration.
 
 ### P1
 
-- Generalize flow assignment from Facebook-only to channel-agnostic targets.
-- Harmonize message decision trees across channels.
+- Normalize source adapters so behavior is consistent across webchat, telegram, email, and forms.
+- Harmonize message decision trees and lead capture outputs.
 
 ### P2
 
-- Expand channels only after runtime policy and diagnostics are unified.
+- Expand only after unified inbox parity and diagnostics maturity are validated.
 
-## 7. Next Stage TikTok Architecture Plan
+## 7. Scope Guardrails
 
-### 7.1 Scope
-
-- Add TikTok as a channel integration with the same canonical model:
-  - Bot ownership
-  - Channel runtime policy
-  - Conversation and message persistence
-  - Unified diagnostics and observability
-
-### 7.2 Data and Integration Blueprint
-
-- Add new channel type and channel config schema for TikTok credentials and webhook metadata.
-- Map TikTok user/thread identifiers into ContactIdentity.
-- Reuse CrmConversation and CrmMessage normalization pipeline.
-- Ensure tenant-scoped authorization and secret handling match existing channel standards.
-
-### 7.3 Rollout Strategy
-
-1. Technical spike and schema draft in staging.
-2. Internal sandbox verification with webhook replay tests.
-3. Limited beta with operational telemetry review.
-4. GA after SLO and error-rate thresholds are met.
+- No Facebook-first engineering priority in this product cycle.
+- TikTok expansion remains parked until inbox parity, diagnostics, and deployment quality are consistently stable.
 
 ## 8. Production Deployment Plan (Improved)
 
 ### 8.1 Release Gates
 
-1. All migrations validated in production-like staging data.
-2. Channel smoke tests pass (connect, status, inbound webhook, outbound reply).
-3. Alerting hooks and dashboards are active before release.
-4. Rollback command path verified and owner on-call confirmed.
+1. Migrations validated in production-like staging data.
+2. Source smoke tests pass (receive, route, reply, lead creation).
+3. Alerting and dashboards active before release.
+4. Rollback path verified and owner on-call confirmed.
 
 ### 8.2 Deployment Steps
 
 1. Freeze release scope and publish change summary.
 2. Apply schema changes with pre-check scripts and backup checkpoint.
 3. Deploy application.
-4. Run post-deploy verification matrix by channel.
+4. Run post-deploy verification matrix by source.
 5. Monitor 24-hour stabilization window.
 
 ### 8.3 Post-Deploy Controls
 
-- Track webhook ingestion success rate per channel.
-- Track outbound delivery success and retry rates.
+- Track ingestion success rate per source.
+- Track outbound delivery success and retry behavior.
 - Escalate on sustained 429 or 5xx patterns.
 - Capture incident learnings and update runbooks.
 
 ## 9. Testing and Validation Focus
 
-- Unit and integration tests for routing decisions and fallbacks.
-- E2E tests per channel for connect, receive, respond, and diagnostics.
+- Unit and integration tests for routing decisions and fallback behavior.
+- E2E tests per source for receive, respond, and diagnostics.
 - Migration-safe database changes with production-like data checks.
 
 Execution backlog is tracked in [todo/README.md](todo/README.md).

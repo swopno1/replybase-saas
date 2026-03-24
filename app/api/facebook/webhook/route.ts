@@ -90,6 +90,18 @@ export async function POST(req: NextRequest) {
       contentType: req.headers.get("content-type"),
     });
 
+    const isProduction = process.env.NODE_ENV === "production";
+
+    if (isProduction && (!signature || !appSecret)) {
+      console.error(
+        "[Facebook Webhook] Missing signature or app secret in production",
+      );
+      return NextResponse.json(
+        { error: "Signature verification required" },
+        { status: 401 },
+      );
+    }
+
     if (signature && appSecret) {
       // Get raw body for signature verification
       const bodyText = await req.text();
@@ -104,20 +116,37 @@ export async function POST(req: NextRequest) {
       }
 
       // Parse the verified body
-      const body = JSON.parse(bodyText);
+      let body: unknown;
+      try {
+        body = JSON.parse(bodyText);
+      } catch (parseError) {
+        console.error("[Facebook Webhook] Invalid JSON payload", parseError);
+        return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+      }
+
+      if (typeof body !== "object" || body === null) {
+        return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+      }
+
+      const parsedBody = body as {
+        object?: string;
+        entry?: Array<{ messaging?: unknown }>;
+      };
+
       console.log("[Facebook Webhook] Received verified event", {
-        object: body?.object,
-        entryCount: Array.isArray(body?.entry) ? body.entry.length : 0,
+        object: parsedBody.object,
+        entryCount: Array.isArray(parsedBody.entry)
+          ? (parsedBody.entry.length ?? 0)
+          : 0,
       });
 
       // Log webhook event to database (async, don't await to avoid blocking)
-      logWebhookEvent(body).catch((err) =>
+      logWebhookEvent(body as Record<string, unknown>).catch((err) =>
         console.error("[Facebook Webhook] Failed to log event:", err),
       );
 
-      // Process each entry in the webhook payload
-      if (body.object === "page" && body.entry) {
-        for (const entry of body.entry) {
+      if (parsedBody.object === "page" && parsedBody.entry) {
+        for (const entry of parsedBody.entry) {
           const messaging = entry.messaging;
           if (!messaging || !Array.isArray(messaging)) continue;
 
