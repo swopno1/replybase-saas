@@ -159,6 +159,24 @@ Why:
 
 - Ensure code quality gates are green and reduce risk of hidden type drift.
 
+### 10) Subscription usage enforcement implemented
+
+File:
+
+- `lib/subscription.ts`
+
+Change:
+
+- Replaced mocked usage values with persisted `usage_logs` aggregation.
+- Enforced daily message, monthly message, and daily flow-execution limits in `checkLimit`.
+- Implemented persisted counter updates in `incrementUsage`.
+- Updated tenant usage API backing data to report real usage values.
+- Treated `trialing` subscriptions as active for limit resolution.
+
+Why:
+
+- Converts plan limits from advisory-only behavior into actual runtime enforcement.
+
 ## Removed or Archived Code
 
 No runtime code was deleted in this hardening pass.
@@ -170,10 +188,9 @@ Notes:
 
 ## Remaining High-Priority Follow-Ups
 
-1. Subscription usage enforcement still includes TODO behavior (`lib/subscription.ts`) and should be completed for true plan-limit enforcement.
-2. Prisma schema contains a large mixed domain model surface (ReplyBase + legacy Typebot-style models). Consider schema split or separate data source boundaries to reduce operational risk.
-3. Add central request validation middleware (Zod) for high-risk POST/PATCH routes to enforce consistent input contracts.
-4. Add structured server logging with redaction policy for tokens, email identifiers, and webhook payload fragments.
+1. Prisma schema contains a large mixed domain model surface (ReplyBase + legacy Typebot-style models). Consider schema split or separate data source boundaries to reduce operational risk.
+2. Add central request validation middleware (Zod) for high-risk POST/PATCH routes to enforce consistent input contracts.
+3. Add structured server logging with redaction policy for tokens, email identifiers, and webhook payload fragments.
 
 ## Build and Validation Status
 
