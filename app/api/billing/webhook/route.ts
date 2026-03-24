@@ -107,8 +107,6 @@ async function syncSubscription(
 
   // 1. Determine Plan based on price ID
   // We assume the first item is the main plan
-  const priceId = sub.items.data[0].price.id;
-
   // Find our local plan that matches this price (via metadata or price lookup?)
   // Our seed script sets price = X. We can iterate limit 1.
   // Or we rely on the product name or metadata set in seed script.

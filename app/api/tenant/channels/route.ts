@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getChannelConfig, getEnabledChannels } from "@/lib/channel-config";
+import { getChannelConfig } from "@/lib/channel-config";
 
 /**
  * GET /api/tenant/channels
  * Get current channel settings for the authenticated tenant
  */
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id || !session.user.tenantId) {

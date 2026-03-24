@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import getOidcProvider from "@/lib/oidc-provider";
@@ -16,7 +16,7 @@ import getOidcProvider from "@/lib/oidc-provider";
  * Security: This is the ONLY way users should access Typebot Builder.
  * Direct access to engine.replybase.co.uk should be blocked at infrastructure level.
  */
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     // Step 1: Verify user is authenticated in SaaS
     const session = await getServerSession(authOptions);
@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
  * POST handler for server-side redirects
  * This allows the SaaS app to redirect users directly without exposing the URL
  */
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
 

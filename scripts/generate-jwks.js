@@ -8,7 +8,7 @@ console.log("\n=== OIDC CONFIGURATION ===\n");
 console.log(`OIDC_COOKIE_KEY=${cookieKey}`);
 
 // 2. Generate JWKS (RSA Key for Signing)
-const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", {
+const { privateKey } = crypto.generateKeyPairSync("rsa", {
   modulusLength: 2048,
   publicKeyEncoding: {
     type: "spki",

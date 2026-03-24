@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { converse, AiEngineError } from "@/lib/ai-engine";
+import { converse } from "@/lib/ai-engine";
 import { verifyWebchatSessionToken } from "@/lib/webchat-session";
 import { prisma } from "@/lib/prisma";
 import { recordMilestoneEvent } from "@/lib/milestone-events";

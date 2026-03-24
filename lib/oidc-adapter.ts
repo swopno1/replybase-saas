@@ -102,7 +102,7 @@ export class PrismaOIDCAdapter implements Adapter {
           },
         },
       });
-    } catch (err) {
+    } catch {
       // Ignore if not found
     }
   }

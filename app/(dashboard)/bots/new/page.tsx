@@ -44,7 +44,7 @@ function CreateBotContent() {
       });
 
       if (response.ok) {
-        const data = await response.json();
+        await response.json();
         alert("Bot created successfully!");
         router.push("/bots");
       } else {

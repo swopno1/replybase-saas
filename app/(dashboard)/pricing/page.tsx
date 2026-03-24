@@ -72,7 +72,7 @@ export default function PricingPage() {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
 
-  const handleSubscribe = async (planName: string, priceId?: string) => {
+  const handleSubscribe = async (planName: string) => {
     if (planName === "free") {
       router.push("/dashboard");
       return;

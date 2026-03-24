@@ -44,7 +44,7 @@ const findAccount = async (_ctx: unknown, id: string) => {
 
   return {
     accountId: id,
-    async claims(_use: string, _scope: string) {
+    async claims() {
       // Return required claims as specified in Phase 1 requirements
       // Note: 'iss' and 'aud' are automatically set by oidc-provider based on issuer and client_id
       return {
@@ -147,12 +147,12 @@ function getJwks() {
   try {
     // Try parsing as raw JSON first
     return JSON.parse(jwksEnv);
-  } catch (e) {
+  } catch {
     // If fail, try Base64 decode
     try {
       const decoded = Buffer.from(jwksEnv, "base64").toString("utf-8");
       return JSON.parse(decoded);
-    } catch (e2) {
+    } catch {
       console.error("Failed to parse OIDC_JWKS as JSON or Base64 JSON.");
       return undefined;
     }

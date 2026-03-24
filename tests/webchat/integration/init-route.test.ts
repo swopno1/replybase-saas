@@ -55,7 +55,6 @@ vi.mock("@/lib/webchat-rollout", () => ({
 import { POST } from "@/app/api/webchat/init/route";
 import {
   findActiveWebChatSite,
-  getOrCreateWebChatSite,
   isOriginAllowedForSite,
   resolveWebchatVisitorSession,
   findActiveWebChannel,

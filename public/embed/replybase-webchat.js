@@ -4,22 +4,6 @@
     return;
   }
 
-  function parseBooleanAttribute(value, defaultValue) {
-    if (value === null || value === undefined || value === "") {
-      return defaultValue;
-    }
-
-    var normalized = String(value).toLowerCase();
-    if (normalized === "true" || normalized === "1" || normalized === "yes") {
-      return true;
-    }
-    if (normalized === "false" || normalized === "0" || normalized === "no") {
-      return false;
-    }
-
-    return defaultValue;
-  }
-
   function parseCsvAttribute(value) {
     if (!value) {
       return [];

@@ -5,7 +5,6 @@ import { getTenantSubscription } from "./subscription";
 
 const AI_ENGINE_URL = process.env.AI_ENGINE_URL || "https://typebot.io";
 const TYPEBOT_TOKEN = process.env.TYPEBOT_TOKEN;
-const AI_ENGINE_HEALTH_THRESHOLD_MINUTES = 5;
 
 export class AiEngineError extends Error {
   constructor(message: string) {
@@ -81,7 +80,7 @@ export async function checkHealth() {
           await updateHealthStatus(true, { lastVerified: new Date() });
           return { engine: "ok", provider: "typebot" };
         }
-      } catch (error) {
+      } catch {
         console.warn(
           "[AI Engine] Verification failed, but assuming healthy for managed service",
         );

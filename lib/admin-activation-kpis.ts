@@ -146,8 +146,6 @@ export async function getAdminActivationKpis(): Promise<AdminActivationKpis> {
   const weekCount = 8;
   const weeks = buildWeeks(weekCount);
   const earliestWeekStart = new Date(weeks[0].weekStart);
-  const currentWeekStart = new Date(weeks[weeks.length - 1].weekStart);
-  const previousWeekStart = addDays(currentWeekStart, -7);
 
   const [
     totalTenants,

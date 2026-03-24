@@ -210,7 +210,6 @@ async function consumeUpstashRateLimit(input: {
   scope: WebchatRateLimitScope;
   key: string;
 }): Promise<WebchatRateLimitResult> {
-  const now = Date.now();
   const policy = getPolicy(input.scope);
   const bucketKey = `webchat:rl:${input.scope}:${input.key}`;
 
