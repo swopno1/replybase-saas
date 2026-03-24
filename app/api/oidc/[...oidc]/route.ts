@@ -5,6 +5,18 @@ import { headers } from "next/headers";
 
 export const runtime = "nodejs";
 
+function toBuffer(chunk: unknown): Buffer {
+  if (Buffer.isBuffer(chunk)) {
+    return chunk;
+  }
+
+  if (typeof chunk === "string" || chunk instanceof Uint8Array) {
+    return Buffer.from(chunk);
+  }
+
+  return Buffer.from(String(chunk ?? ""));
+}
+
 // Helper to bridge NextRequest to IncomingMessage
 async function createIncomingMessage(
   req: NextRequest,
@@ -92,13 +104,13 @@ async function handler(
 
       // Capture data
       resShim.write = (chunk: unknown) => {
-        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        chunks.push(toBuffer(chunk));
         return true;
       };
 
       resShim.end = (chunk: unknown) => {
         if (chunk) {
-          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+          chunks.push(toBuffer(chunk));
         }
         const body = Buffer.concat(chunks);
         const responseHeaders = new Headers();

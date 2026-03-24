@@ -101,6 +101,18 @@ const formatDate = (dateString: string) => {
   });
 };
 
+function readMetadataText(
+  metadata: Record<string, unknown> | undefined,
+  key: string,
+): string | null {
+  if (!metadata) {
+    return null;
+  }
+
+  const value = metadata[key];
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
 // Mock data - in production, this would come from an API
 const getMockActivities = (): Activity[] => [
   {
@@ -231,16 +243,19 @@ export default function ActivityPage() {
                       {/* Metadata */}
                       {activity.metadata && (
                         <div className="mt-2 text-xs text-muted-foreground">
-                          {activity.metadata.botName && (
+                          {readMetadataText(activity.metadata, "botName") && (
                             <span className="inline-block bg-muted px-2 py-1 rounded">
-                              Bot: {activity.metadata.botName}
+                              Bot:{" "}
+                              {readMetadataText(activity.metadata, "botName")}
                             </span>
                           )}
-                          {activity.metadata.from && activity.metadata.to && (
-                            <span className="inline-block bg-muted px-2 py-1 rounded ml-2">
-                              {activity.metadata.from} → {activity.metadata.to}
-                            </span>
-                          )}
+                          {readMetadataText(activity.metadata, "from") &&
+                            readMetadataText(activity.metadata, "to") && (
+                              <span className="inline-block bg-muted px-2 py-1 rounded ml-2">
+                                {readMetadataText(activity.metadata, "from")} →{" "}
+                                {readMetadataText(activity.metadata, "to")}
+                              </span>
+                            )}
                         </div>
                       )}
                     </div>

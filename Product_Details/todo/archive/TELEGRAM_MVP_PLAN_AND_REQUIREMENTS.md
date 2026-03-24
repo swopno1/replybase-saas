@@ -1,5 +1,7 @@
 # Telegram MVP Plan And Requirements
 
+Archived from `extra/` so channel planning lives with Product_Details instead of operational docs.
+
 ## 1. Objective
 
 Build a production-ready Telegram channel integration as the immediate alternative to Meta-dependent onboarding, so customers can connect a Telegram bot and run ReplyBase chatbot flows with minimal setup.
@@ -218,119 +220,4 @@ Below is a condensed compliance and platform checklist from Telegram official do
 
 ### 7.3 Privacy Mode And Message Visibility
 
-- In groups, privacy mode limits what bot receives unless disabled/admin.
-- All private chat messages to the bot are received.
-- Bot never receives messages from other bots.
-
-### 7.4 Rate Limits And Broadcast
-
-- Typical limits (official guidance):
-  - about 1 msg/sec in a single chat,
-  - about 20 msg/min in groups,
-  - about 30 msg/sec bulk broadcast default.
-- Handle `429` with retry-after backoff.
-
-### 7.5 Digital Goods And Payments Rules
-
-- If selling digital goods/services in Telegram, payment must use Stars (`XTR`).
-- Bot should support payment dispute handling and `/paysupport` flow where applicable.
-- For MVP chatbot channel, keep payments disabled unless explicitly needed.
-
-### 7.6 Bot UX Requirements
-
-- Telegram recommends supporting global commands:
-  - `/start`
-  - `/help`
-  - `/settings` (if applicable)
-
-### 7.7 Bot Developer Terms (Critical For SaaS)
-
-- You are an independent third-party provider, not Telegram.
-- Must provide accessible privacy policy for bot/mini app.
-- Must delete user data when no longer needed and on valid request.
-- Must not scrape or repurpose Telegram data beyond service necessity.
-- Must secure data at rest and in transit.
-- For Telegram Business integrations:
-  - Use data only for chatbot service.
-  - Do not disclose business chat data to third parties without authorization.
-  - Be transparent with business owners about capabilities and changes.
-
-## 8. Delivery Plan
-
-### Phase 0: Architecture Baseline
-
-- Completed.
-- Channel storage strategy finalized on the existing `Channel` + `config` model.
-- Tenant channel limits are enforced in the Telegram connect flow.
-- No schema migration is required for the current release.
-
-### Phase 1: Core Integration
-
-- Completed.
-- Connect, disconnect, status, reconnect, logs, health, and webhook APIs are implemented.
-- Telegram Bot API wrapper supports validation, webhook lifecycle, callback acknowledgements, and outbound messaging.
-- Incoming Telegram messages are mapped into existing CRM conversation and AI reply flows.
-
-### Phase 2: Dashboard And Operations
-
-- Completed.
-- Dashboard UI exists for connect, rotate token, reconnect webhook, disconnect, inspect health, and inspect recent logs.
-- Status now combines live Telegram webhook info with local application telemetry.
-
-### Phase 3: Production Hardening
-
-- Completed for this release:
-  - Encrypted token storage with no hardcoded fallback key.
-  - Timing-safe secret header verification.
-  - HTTPS-only webhook provisioning in production.
-  - Request timeouts and retry-aware sender logic.
-  - Public Telegram health endpoint.
-  - E2E test script for baseline and live-API verification.
-  - Partial-channel cleanup when initial webhook provisioning fails.
-  - Local operational telemetry persisted on each webhook event.
-
-### Phase 4: Recommended Next Production Iteration
-
-- Add outbound send queueing to absorb bursts and make retry handling independent of webhook request latency.
-- Add alerting on repeated `delivery_error` and `internal_error` log patterns.
-- Run live staging validation with a real bot token and public HTTPS domain before production cutover.
-- Optionally normalize Telegram data into dedicated Prisma models only if reporting or multi-bot complexity requires it.
-
-Estimated delivery status: production-capable MVP with one recommended follow-up hardening iteration.
-
-## 9. QA And Acceptance Criteria
-
-- Tenant can connect Telegram bot successfully.
-- Webhook receives updates and maps them to correct tenant.
-- Incoming message triggers reply within acceptable latency.
-- Duplicate webhook updates do not create duplicate messages.
-- System recovers from Telegram API transient errors.
-- Logs provide enough data to debug failed updates.
-
-## 10. Risks And Mitigation
-
-- Risk: token leak.
-  - Mitigation: encryption + masked logs + rotation support.
-- Risk: webhook misconfiguration.
-  - Mitigation: connection health checks + setup wizard validation.
-- Risk: API throttling.
-  - Mitigation: queued sends + exponential backoff + jitter.
-- Risk: privacy/compliance drift.
-  - Mitigation: documented retention policy + deletion workflows + privacy policy update.
-
-## 11. Immediate Next Steps
-
-1. Run the live E2E suite against a deployed HTTPS environment with a real BotFather token.
-2. Add monitoring/alerts for `delivery_error` and `internal_error` rates.
-3. Decide whether outbound queueing is required before broader tenant rollout.
-4. Publish the Telegram operator runbook alongside deployment steps.
-
-## 12. Official Reference Links
-
-- Bot API: https://core.telegram.org/bots/api
-- Bot FAQ: https://core.telegram.org/bots/faq
-- Bot Features (privacy mode, commands, business): https://core.telegram.org/bots/features
-- Webhook Guide: https://core.telegram.org/bots/webhooks
-- Bot Developer Terms: https://telegram.org/tos/bot-developers
-- Digital goods payments (Stars): https://core.telegram.org/bots/payments-stars
-- Physical goods payments: https://core.telegram.org/bots/payments
+Refer to current Telegram platform documentation when implementing behavior beyond standard private-chat bot flows.

@@ -140,6 +140,25 @@ Why:
 
 - Reduces unnecessary data retrieval and improves predictable error behavior.
 
+### 9) Lint and type-safety stabilization pass
+
+Files:
+
+- `app/(dashboard)/activity/page.tsx`
+- `app/api/facebook/webhook/route.ts`
+- `app/api/oidc/[...oidc]/route.ts`
+- plus additional app/api/lib/scripts/test files with warning-only cleanup
+
+Change:
+
+- Removed explicit `any` usage in high-signal runtime paths.
+- Fixed strict typing regressions found during production build validation.
+- Removed unused imports/locals/params to produce a clean lint baseline.
+
+Why:
+
+- Ensure code quality gates are green and reduce risk of hidden type drift.
+
 ## Removed or Archived Code
 
 No runtime code was deleted in this hardening pass.
@@ -165,10 +184,9 @@ Ran:
 
 Result summary:
 
-- Touched files compile without direct diagnostics from the editor checks.
-- Repository has pre-existing lint errors and a pre-existing build blocker unrelated to this hardening patch:
-  - duplicate import in `app/api/facebook/pages/route.ts`
-  - missing module `@/hooks/use-toast` referenced by `app/(dashboard)/settings/channels/channels-client.tsx`
+- `npm run lint`: pass (0 errors, 0 warnings)
+- `npm run build`: pass (Next.js + TypeScript + route generation)
+- Build warning remains: middleware convention deprecation in Next.js 16 (`middleware` -> `proxy` migration path).
 
 ## Recommended Production Readiness Commands
 

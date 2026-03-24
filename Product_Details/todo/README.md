@@ -17,6 +17,9 @@ This folder is the execution backlog aligned with Product_Details documents.
 4. [P2_Growth_Enablement_and_Packaging.md](P2_Growth_Enablement_and_Packaging.md)
 5. [P0_Production_Deployment_Excellence.md](P0_Production_Deployment_Excellence.md)
 6. [archive/PARKED_P2_TikTok_Next_Stage_Plan.md](archive/PARKED_P2_TikTok_Next_Stage_Plan.md)
+7. [archive/PRODUCTION_AUDIT_2026-03-24.md](archive/PRODUCTION_AUDIT_2026-03-24.md)
+8. [archive/TELEGRAM_MVP_PLAN_AND_REQUIREMENTS.md](archive/TELEGRAM_MVP_PLAN_AND_REQUIREMENTS.md)
+9. [archive/SECURITY_HARDENING_SUMMARY.md](archive/SECURITY_HARDENING_SUMMARY.md)
 
 ## Moved and Consolidated Tasks
 

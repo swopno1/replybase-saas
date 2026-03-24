@@ -1,10 +1,83 @@
 import { prisma } from "@/lib/prisma";
 
-export async function getTenantLimits(tenantId: string) {
-  const subscription = await prisma.subscription.findFirst({
-    where: { tenantId, status: "active" },
-    include: { plan: true },
+const AGGREGATE_BOT_ID = "__aggregate_bot__";
+const AGGREGATE_CHANNEL_ID = "__aggregate_channel__";
+
+function startOfUtcDay(date = new Date()): Date {
+  const value = new Date(date);
+  value.setUTCHours(0, 0, 0, 0);
+  return value;
+}
+
+function startOfUtcMonth(date = new Date()): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+}
+
+function startOfNextUtcDay(date = new Date()): Date {
+  const value = startOfUtcDay(date);
+  value.setUTCDate(value.getUTCDate() + 1);
+  return value;
+}
+
+function startOfNextUtcMonth(date = new Date()): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1));
+}
+
+function secondsUntil(target: Date, from = new Date()): number {
+  return Math.max(1, Math.ceil((target.getTime() - from.getTime()) / 1000));
+}
+
+function normalizeUsageDimension(
+  value: string | undefined,
+  fallback: string,
+): string {
+  return value && value.length > 0 ? value : fallback;
+}
+
+async function getUsageCount(input: {
+  tenantId: string;
+  type: "message" | "flow_execution";
+  startDate: Date;
+  endDate?: Date;
+}): Promise<number> {
+  const result = await prisma.usageLog.aggregate({
+    where: {
+      tenantId: input.tenantId,
+      type: input.type,
+      date: input.endDate
+        ? {
+            gte: input.startDate,
+            lt: input.endDate,
+          }
+        : {
+            gte: input.startDate,
+          },
+    },
+    _sum: {
+      count: true,
+    },
   });
+
+  return result._sum.count ?? 0;
+}
+
+async function getActiveSubscriptionWithPlan(tenantId: string) {
+  return prisma.subscription.findFirst({
+    where: {
+      tenantId,
+      status: {
+        in: ["active", "trialing"],
+      },
+    },
+    include: { plan: true },
+    orderBy: {
+      currentPeriodEnd: "desc",
+    },
+  });
+}
+
+export async function getTenantLimits(tenantId: string) {
+  const subscription = await getActiveSubscriptionWithPlan(tenantId);
 
   if (!subscription) {
     return {
@@ -49,23 +122,42 @@ export async function checkBotLimit(tenantId: string) {
 // Added missing export
 export async function getTenantUsage(tenantId: string) {
   const limits = await getTenantLimits(tenantId);
+  const today = startOfUtcDay();
+  const monthStart = startOfUtcMonth();
 
-  const botCount = await prisma.bot.count({
-    where: { tenantId },
-  });
-
-  const messageCount = 0; // Mock until analytics are live
+  const [botCount, dailyMessages, monthlyMessages, dailyFlowExecutions] =
+    await Promise.all([
+      prisma.bot.count({
+        where: { tenantId },
+      }),
+      getUsageCount({
+        tenantId,
+        type: "message",
+        startDate: today,
+        endDate: startOfNextUtcDay(today),
+      }),
+      getUsageCount({
+        tenantId,
+        type: "message",
+        startDate: monthStart,
+        endDate: startOfNextUtcMonth(monthStart),
+      }),
+      getUsageCount({
+        tenantId,
+        type: "flow_execution",
+        startDate: today,
+        endDate: startOfNextUtcDay(today),
+      }),
+    ]);
 
   return {
     ...limits,
-    // Back-compat fields expected by /api/usage
-    // These are mocked until analytics are implemented.
-    dailyMessages: 0,
-    monthlyMessages: messageCount,
-    dailyFlowExecutions: 0,
+    dailyMessages,
+    monthlyMessages,
+    dailyFlowExecutions,
     usage: {
       bots: botCount,
-      messages: messageCount,
+      messages: monthlyMessages,
     },
   };
 }
@@ -75,9 +167,7 @@ export const getTenantSubscription = getTenantLimits;
 /**
  * Rate limiting helpers (used by `lib/rate-limit.ts`)
  *
- * NOTE: This implementation is intentionally conservative and currently "fails open"
- * because detailed usage accounting is not yet implemented in analytics.
- * It enforces hard-zero limits for suspended tenants (limits.dailyMessageLimit === 0).
+ * Enforces persisted usage limits using the `usage_logs` table.
  */
 export async function checkLimit(
   userId: string,
@@ -98,15 +188,92 @@ export async function checkLimit(
   }
 
   const limits = await getTenantLimits(user.tenantId);
-  const limit =
-    type === "message" ? limits.dailyMessageLimit : limits.flowExecutionCap;
+  const now = new Date();
+  const today = startOfUtcDay(now);
 
+  if (type === "message") {
+    const dailyLimit = limits.dailyMessageLimit;
+    const monthlyLimit = limits.monthlyMessageLimit;
+
+    if (!dailyLimit || dailyLimit <= 0 || !monthlyLimit || monthlyLimit <= 0) {
+      return { allowed: false, remaining: 0, limit: 0 };
+    }
+
+    const [dailyUsage, monthlyUsage] = await Promise.all([
+      getUsageCount({
+        tenantId: user.tenantId,
+        type: "message",
+        startDate: today,
+        endDate: startOfNextUtcDay(today),
+      }),
+      getUsageCount({
+        tenantId: user.tenantId,
+        type: "message",
+        startDate: startOfUtcMonth(now),
+        endDate: startOfNextUtcMonth(now),
+      }),
+    ]);
+
+    const dailyRemaining = Math.max(dailyLimit - dailyUsage, 0);
+    const monthlyRemaining = Math.max(monthlyLimit - monthlyUsage, 0);
+
+    if (dailyRemaining <= 0) {
+      return {
+        allowed: false,
+        remaining: 0,
+        limit: dailyLimit,
+        retryAfter: secondsUntil(startOfNextUtcDay(now), now),
+      };
+    }
+
+    if (monthlyRemaining <= 0) {
+      return {
+        allowed: false,
+        remaining: 0,
+        limit: monthlyLimit,
+        retryAfter: secondsUntil(startOfNextUtcMonth(now), now),
+      };
+    }
+
+    const monthlyIsTighter = monthlyRemaining < dailyRemaining;
+    return {
+      allowed: true,
+      remaining: monthlyIsTighter ? monthlyRemaining : dailyRemaining,
+      limit: monthlyIsTighter ? monthlyLimit : dailyLimit,
+      retryAfter: monthlyIsTighter
+        ? secondsUntil(startOfNextUtcMonth(now), now)
+        : secondsUntil(startOfNextUtcDay(now), now),
+    };
+  }
+
+  const limit = limits.flowExecutionCap;
   if (!limit || limit <= 0) {
     return { allowed: false, remaining: 0, limit: 0 };
   }
 
-  // Usage counters are not implemented yet; allow for now.
-  return { allowed: true, remaining: limit, limit };
+  const dailyUsage = await getUsageCount({
+    tenantId: user.tenantId,
+    type: "flow_execution",
+    startDate: today,
+    endDate: startOfNextUtcDay(today),
+  });
+
+  const remaining = Math.max(limit - dailyUsage, 0);
+  if (remaining <= 0) {
+    return {
+      allowed: false,
+      remaining: 0,
+      limit,
+      retryAfter: secondsUntil(startOfNextUtcDay(now), now),
+    };
+  }
+
+  return {
+    allowed: true,
+    remaining,
+    limit,
+    retryAfter: secondsUntil(startOfNextUtcDay(now), now),
+  };
 }
 
 export async function incrementUsage(
@@ -116,11 +283,45 @@ export async function incrementUsage(
   botId?: string,
   channelId?: string,
 ): Promise<void> {
-  // TODO: Persist usage accounting (daily/monthly buckets) and decrement remaining in `checkLimit`.
-  // For now, this is a no-op to keep the system functional while analytics are mocked.
-  void userId;
-  void type;
-  void amount;
-  void botId;
-  void channelId;
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { tenantId: true },
+  });
+
+  if (!user?.tenantId || amount <= 0) {
+    return;
+  }
+
+  const date = startOfUtcDay();
+  const normalizedBotId = normalizeUsageDimension(botId, AGGREGATE_BOT_ID);
+  const normalizedChannelId = normalizeUsageDimension(
+    channelId,
+    AGGREGATE_CHANNEL_ID,
+  );
+
+  await prisma.usageLog.upsert({
+    where: {
+      tenantId_type_date_botId_channelId: {
+        tenantId: user.tenantId,
+        type,
+        date,
+        botId: normalizedBotId,
+        channelId: normalizedChannelId,
+      },
+    },
+    create: {
+      tenantId: user.tenantId,
+      userId: null,
+      botId: normalizedBotId,
+      channelId: normalizedChannelId,
+      type,
+      count: amount,
+      date,
+    },
+    update: {
+      count: {
+        increment: amount,
+      },
+    },
+  });
 }
