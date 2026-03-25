@@ -257,3 +257,15 @@ export async function sendNewLeadNotifications(
     email: emailResult,
   };
 }
+
+export async function sendTenantLeadNotificationTest(tenantId: string) {
+  return sendNewLeadNotifications({
+    tenantId,
+    leadId: `test-${Date.now()}`,
+    name: "ReplyBase Test Lead",
+    enquiry:
+      "This is a test alert from your Notification Settings. Real website leads will include the visitor's message.",
+    source: "settings-test",
+    createdAt: new Date(),
+  });
+}

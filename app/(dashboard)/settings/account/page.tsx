@@ -29,6 +29,7 @@ export default function AccountSettingsPage() {
   });
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsSaving, setNotificationsSaving] = useState(false);
+  const [notificationsTesting, setNotificationsTesting] = useState(false);
   const [formData, setFormData] = useState({
     name: session?.user?.name || "",
     email: session?.user?.email || "",
@@ -302,6 +303,51 @@ export default function AccountSettingsPage() {
       console.error("Account deletion error:", error);
       toast.error("Failed to delete account");
       setIsLoading(false);
+    }
+  };
+
+  const handleSendTestNotification = async () => {
+    setNotificationsTesting(true);
+    try {
+      const response = await fetch("/api/tenant/lead-notifications/test", {
+        method: "POST",
+      });
+
+      const data = (await response.json().catch(() => null)) as {
+        error?: string;
+        results?: {
+          telegram?: { delivered: number; failed: number; attempted: boolean };
+          email?: { delivered: number; failed: number; attempted: boolean };
+        };
+      } | null;
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Failed to send test notification");
+      }
+
+      const telegramDelivered = data?.results?.telegram?.delivered || 0;
+      const telegramFailed = data?.results?.telegram?.failed || 0;
+      const emailDelivered = data?.results?.email?.delivered || 0;
+      const emailFailed = data?.results?.email?.failed || 0;
+
+      if (telegramDelivered + emailDelivered === 0) {
+        toast.message(
+          "Test sent, but no destination succeeded. Check your configured recipients and Telegram channel connection.",
+        );
+      } else {
+        toast.success(
+          `Test sent. Telegram delivered: ${telegramDelivered}, failed: ${telegramFailed}. Email delivered: ${emailDelivered}, failed: ${emailFailed}.`,
+        );
+      }
+    } catch (error) {
+      console.error("Lead notification test error:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to send test notification",
+      );
+    } finally {
+      setNotificationsTesting(false);
     }
   };
 
@@ -639,9 +685,26 @@ export default function AccountSettingsPage() {
               <Separator />
               <Button
                 onClick={handleSaveLeadNotificationDestinations}
-                disabled={notificationsLoading || notificationsSaving}
+                disabled={
+                  notificationsLoading ||
+                  notificationsSaving ||
+                  notificationsTesting
+                }
               >
                 {notificationsSaving ? "Saving..." : "Save Preferences"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleSendTestNotification}
+                disabled={
+                  notificationsLoading ||
+                  notificationsSaving ||
+                  notificationsTesting
+                }
+              >
+                {notificationsTesting
+                  ? "Sending Test..."
+                  : "Send Test Notification"}
               </Button>
             </CardContent>
           </Card>
