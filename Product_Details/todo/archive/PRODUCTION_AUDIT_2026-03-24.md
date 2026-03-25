@@ -197,12 +197,17 @@ Notes:
 Ran:
 
 - `npm run lint`
+- `npm run test`
 - `npm run build`
+- `npm run test:e2e`
 
 Result summary:
 
 - `npm run lint`: pass (0 errors, 0 warnings)
+- `npm run test`: pass (134/134 tests)
 - `npm run build`: pass (Next.js + TypeScript + route generation)
+- `npm run test:e2e`: pass (7/7 tests)
+- Test output noise cleanup: milestone-event stderr and test-environment dummy `DATABASE_URL` warning were removed.
 - Build warning remains: middleware convention deprecation in Next.js 16 (`middleware` -> `proxy` migration path).
 
 ## Recommended Production Readiness Commands

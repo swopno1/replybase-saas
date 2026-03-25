@@ -7,7 +7,9 @@ if (!process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL must be configured in production");
   }
 
-  console.warn("DATABASE_URL is not set, using dummy URL outside production");
+  if (process.env.NODE_ENV !== "test") {
+    console.warn("DATABASE_URL is not set, using dummy URL outside production");
+  }
   process.env.DATABASE_URL = "postgresql://dummy:dummy@dummy/dummy";
 }
 
