@@ -344,7 +344,7 @@ export async function getAdminActivationKpis(): Promise<AdminActivationKpis> {
       timestamp: new Date().toISOString(),
       dataWindow: `${weekCount} weeks`,
       webhookScope:
-        "Channel setup attempts (Telegram, Facebook, Webchat) logged by ReplyBase",
+        "Channel setup attempts (Telegram, Legacy Messenger, Webchat) logged by ReplyBase",
     },
   };
 }

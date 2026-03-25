@@ -25,6 +25,18 @@ type Props = {
   onFilterChange: (filters: SegmentationFilters) => void;
 };
 
+function formatChannelTypeLabel(type: "telegram" | "facebook" | "web") {
+  if (type === "telegram") {
+    return "Telegram";
+  }
+
+  if (type === "web") {
+    return "Webchat";
+  }
+
+  return "Legacy Messenger";
+}
+
 export function SegmentationFilters({
   plans,
   channelTypes,
@@ -103,7 +115,7 @@ export function SegmentationFilters({
                   <SelectItem value="">All channels</SelectItem>
                   {channelTypes.map((type) => (
                     <SelectItem key={type} value={type}>
-                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                      {formatChannelTypeLabel(type)}
                     </SelectItem>
                   ))}
                 </SelectContent>

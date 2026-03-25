@@ -110,13 +110,7 @@ export default function WebhookLogsPage() {
                     <CardTitle className="text-lg">
                       {log.event || log.type}
                     </CardTitle>
-                    <Badge
-                      variant={
-                        log.source === "facebook" ? "default" : "secondary"
-                      }
-                    >
-                      {log.source}
-                    </Badge>
+                    <Badge variant="secondary">{log.source}</Badge>
                   </div>
                   <span className="text-sm text-gray-500">
                     {new Date(log.createdAt).toLocaleString()}
