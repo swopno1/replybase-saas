@@ -20,6 +20,7 @@ This folder is the execution backlog aligned with Product_Details documents.
 7. [archive/PRODUCTION_AUDIT_2026-03-24.md](archive/PRODUCTION_AUDIT_2026-03-24.md)
 8. [archive/TELEGRAM_MVP_PLAN_AND_REQUIREMENTS.md](archive/TELEGRAM_MVP_PLAN_AND_REQUIREMENTS.md)
 9. [archive/SECURITY_HARDENING_SUMMARY.md](archive/SECURITY_HARDENING_SUMMARY.md)
+10. [DOCUMENTATION_GOVERNANCE_CHANGELOG_2026-03-25.md](DOCUMENTATION_GOVERNANCE_CHANGELOG_2026-03-25.md)
 
 ## Moved and Consolidated Tasks
 
