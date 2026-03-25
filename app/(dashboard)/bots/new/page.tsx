@@ -16,6 +16,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { isChannelVisibleInUi, type ChannelId } from "@/lib/channel-config";
 
+export const dynamic = 'force-dynamic';
+
 type BotChannelType = "web" | "telegram" | "facebook" | "whatsapp";
 
 function isBotChannelVisible(channel: BotChannelType): boolean {

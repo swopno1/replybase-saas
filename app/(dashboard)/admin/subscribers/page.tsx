@@ -30,6 +30,8 @@ import { Loader2, Search, Pencil, Trash2, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { EditSubscriberDialog } from "@/components/edit-subscriber-dialog";
 
+export const dynamic = 'force-dynamic';
+
 interface Subscriber {
   id: string;
   tenantId: string;

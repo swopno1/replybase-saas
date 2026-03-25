@@ -13,6 +13,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+export const dynamic = 'force-dynamic';
+
 function normalizeOrigin(value: string) {
   try {
     return new URL(value).origin;

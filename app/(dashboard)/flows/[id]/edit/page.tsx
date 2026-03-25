@@ -40,6 +40,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+export const dynamic = 'force-dynamic';
+
 interface FlowButton {
   type: "postback" | "url";
   title: string;

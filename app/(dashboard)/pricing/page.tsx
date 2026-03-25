@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
+export const dynamic = 'force-dynamic';
+
 // This would typically come from your DB via a server component or API
 // For simplicity in this artifact, I'm hardcoding the visual data matching the seed script
 const PLANS = [

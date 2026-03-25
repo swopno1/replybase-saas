@@ -22,6 +22,8 @@ import {
 import { Loader2, ShieldCheck, ShieldOff } from "lucide-react";
 import { toast } from "sonner";
 
+export const dynamic = 'force-dynamic';
+
 interface AdminUser {
   id: string;
   name: string | null;

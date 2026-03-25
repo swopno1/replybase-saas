@@ -35,6 +35,8 @@ import {
 import Link from "next/link";
 import { toast } from "sonner";
 
+export const dynamic = 'force-dynamic';
+
 interface Bot {
   id: string;
   name: string;

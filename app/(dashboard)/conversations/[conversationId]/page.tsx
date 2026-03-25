@@ -13,6 +13,8 @@ import { ConversationHeader } from "@/components/conversation/conversation-heade
 import { MessageFeed } from "@/components/conversation/message-feed";
 import { ReplyComposer } from "@/components/conversation/reply-composer";
 
+export const dynamic = 'force-dynamic';
+
 type ConversationViewData = CrmConversation & {
   messages: CrmMessage[];
   internalNotes: (InternalNote & { author: Partial<User> })[];

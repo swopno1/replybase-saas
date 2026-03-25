@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/table";
 import { Loader2, Mail, Phone } from "lucide-react";
 
+export const dynamic = 'force-dynamic';
+
 interface Lead {
   id: string;
   name: string | null;

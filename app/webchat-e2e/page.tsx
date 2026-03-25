@@ -3,6 +3,8 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
+export const dynamic = 'force-dynamic';
+
 function WebchatE2EHarnessContent() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"loading" | "ready" | "error">(

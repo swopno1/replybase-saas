@@ -33,6 +33,8 @@ import {
   UserPlus,
 } from "lucide-react";
 
+export const dynamic = 'force-dynamic';
+
 interface Activity {
   id: string;
   type: string;

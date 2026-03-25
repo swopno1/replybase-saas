@@ -10,6 +10,8 @@ import { Separator } from "@/components/ui/separator";
 import { authOptions } from "@/lib/auth";
 import { ChannelsClient } from "./channels-client";
 
+export const dynamic = 'force-dynamic';
+
 export default async function ChannelsSettingsPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user) {

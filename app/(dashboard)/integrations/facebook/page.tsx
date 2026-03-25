@@ -24,6 +24,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { isChannelVisibleInUi } from "@/lib/channel-config";
 
+export const dynamic = 'force-dynamic';
+
 interface FBPage {
   id: string;
   name: string;

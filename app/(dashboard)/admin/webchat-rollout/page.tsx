@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
+export const dynamic = 'force-dynamic';
+
 type WebchatRolloutMode = "off" | "pilot" | "tiered" | "ga";
 
 type RolloutConfig = {

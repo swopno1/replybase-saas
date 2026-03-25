@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/field";
 import Link from "next/link";
 
+export const dynamic = 'force-dynamic';
+
 type FeedbackTone = "info" | "success" | "error";
 
 type AuthFeedback = {

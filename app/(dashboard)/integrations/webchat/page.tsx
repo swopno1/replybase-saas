@@ -39,6 +39,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
+export const dynamic = 'force-dynamic';
+
 type Bot = {
   id: string;
   name: string;

@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Secure access to the Typebot authoring workspace via SaaS-controlled OIDC.
  *

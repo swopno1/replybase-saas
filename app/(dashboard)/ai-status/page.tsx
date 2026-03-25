@@ -23,6 +23,8 @@ import { authOptions } from "@/lib/auth";
 import { isChannelVisibleInUi } from "@/lib/channel-config";
 import { redirect } from "next/navigation";
 
+export const dynamic = 'force-dynamic';
+
 export default async function AIStatusPage() {
   if (!isChannelVisibleInUi("facebook")) {
     redirect("/");

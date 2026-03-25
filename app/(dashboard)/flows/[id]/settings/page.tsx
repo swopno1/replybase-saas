@@ -26,6 +26,8 @@ import { Loader2, Save, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { isChannelVisibleInUi } from "@/lib/channel-config";
 
+export const dynamic = 'force-dynamic';
+
 const showFacebookAssignment = isChannelVisibleInUi("facebook");
 
 interface Flow {
