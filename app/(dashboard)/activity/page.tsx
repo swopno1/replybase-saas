@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,7 @@ import {
   UserPlus,
 } from "lucide-react";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 interface Activity {
   id: string;
@@ -177,7 +177,7 @@ function getMetadataEntries(metadata: Record<string, unknown> | undefined) {
     }));
 }
 
-export default function ActivityPage() {
+function ActivityContent() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -539,5 +539,19 @@ export default function ActivityPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function ActivityPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-96">
+          <div className="animate-spin h-8 w-8 rounded-full border-4 border-muted-foreground border-t-transparent" />
+        </div>
+      }
+    >
+      <ActivityContent />
+    </Suspense>
   );
 }
