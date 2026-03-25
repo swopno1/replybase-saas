@@ -4,6 +4,11 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import crypto from "node:crypto";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 export async function DELETE() {
   try {
     const session = await getServerSession(authOptions);

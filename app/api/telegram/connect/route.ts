@@ -14,6 +14,11 @@ import {
 } from "@/lib/telegram-utils";
 import { getTenantLimits } from "@/lib/subscription";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 const connectSchema = z.object({
   botId: z.string().min(1),
   botToken: z.string().min(10),

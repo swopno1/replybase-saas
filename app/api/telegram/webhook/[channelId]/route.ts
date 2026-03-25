@@ -11,6 +11,7 @@ import { executeBotEntryFlowFirst } from "@/lib/bot-entry-flow-engine";
 import { decryptTelegramToken } from "@/lib/telegram-crypto";
 import { recordMilestoneEvent } from "@/lib/milestone-events";
 import {
+
   TELEGRAM_MAX_TEXT_LENGTH,
   TelegramUpdate,
   getTelegramChatId,
@@ -20,6 +21,10 @@ import {
   isTelegramCommand,
   normalizeTelegramText,
 } from "@/lib/telegram-utils";
+
+export const dynamic = 'force-dynamic';
+
+
 
 function getCommandReply(commandText: string): string | null {
   const command = commandText.split(" ")[0]?.toLowerCase();

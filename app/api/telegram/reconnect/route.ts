@@ -9,6 +9,11 @@ import { decryptTelegramToken } from "@/lib/telegram-crypto";
 import { generateWebhookSecret } from "@/lib/telegram-utils";
 import { recordTelegramWebhookSetupLog } from "@/lib/telegram-webhook-setup-log";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 const reconnectSchema = z.object({
   channelId: z.string().min(1),
 });

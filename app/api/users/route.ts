@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 // GET: List tenant's users
 export const GET: (
   request: NextRequest,

@@ -4,6 +4,11 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendTenantLeadNotificationTest } from "@/lib/lead-notifications";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 export async function POST() {
   try {
     const session = await getServerSession(authOptions);

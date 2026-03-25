@@ -12,6 +12,11 @@ import { FlowExecutionEngine } from "@/lib/flow-execution-engine";
 import { recordMilestoneEvent } from "@/lib/milestone-events";
 import { isChannelEnabled } from "@/lib/channel-config";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 // GET: Webhook Verification
 export async function GET(req: NextRequest) {
   // Check if Facebook channel is enabled

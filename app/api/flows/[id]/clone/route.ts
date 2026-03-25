@@ -4,6 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { Prisma } from "@prisma/client";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 /**
  * POST /api/flows/[id]/clone
  * Clone an existing flow

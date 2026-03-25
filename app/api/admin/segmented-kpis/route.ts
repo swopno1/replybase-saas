@@ -13,6 +13,11 @@ import {
 } from "@/lib/segmented-activation-kpis";
 import { getAdminActivationKpis } from "@/lib/admin-activation-kpis";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 /**
  * GET /api/admin/segmented-kpis
  *

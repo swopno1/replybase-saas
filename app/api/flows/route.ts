@@ -4,6 +4,11 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 // GET /api/flows - Get all flows (user's own or global)
 export async function GET(req: NextRequest) {
   try {

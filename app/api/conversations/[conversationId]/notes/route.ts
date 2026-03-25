@@ -3,6 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 const createNoteSchema = z.object({
   content: z.string().min(1),
 });

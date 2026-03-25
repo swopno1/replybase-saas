@@ -2,6 +2,11 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 export const GET = withAuthAndTenant(async ({ id: userId, tenantId }) => {
   // Get FB Account - this is user-specific, not tenant-specific
   const account = await prisma.account.findFirst({

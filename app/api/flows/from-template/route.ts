@@ -4,9 +4,14 @@ import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { Prisma } from "@prisma/client";
 import {
+
   getAvailableTemplates,
   getTemplateByCategory,
 } from "@/lib/flow-templates";
+
+export const dynamic = 'force-dynamic';
+
+
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "amirhossain.limon@gmail.com";
 

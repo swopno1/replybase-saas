@@ -5,6 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { checkBotLimit } from "@/lib/subscription";
 import { z } from "zod";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 const createBotSchema = z.object({
   name: z.string().min(1),
   channel: z.enum(["web", "facebook", "telegram", "whatsapp"]).optional(),

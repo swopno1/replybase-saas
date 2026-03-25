@@ -3,6 +3,11 @@ import { converse, AiEngineError, ConverseInputSchema } from "@/lib/ai-engine";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 export const POST = withAuthAndTenant(
   async ({ tenantId, id: userId }, request) => {
     try {

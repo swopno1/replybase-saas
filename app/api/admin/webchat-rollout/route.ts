@@ -3,10 +3,15 @@ import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import {
+
   getWebchatRolloutConfig,
   updateWebchatRolloutConfig,
   type WebchatRolloutMode,
 } from "@/lib/webchat-rollout";
+
+export const dynamic = 'force-dynamic';
+
+
 
 const ADMIN_EMAIL = "amirhossain.limon@gmail.com";
 

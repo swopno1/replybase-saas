@@ -34,7 +34,7 @@ RUN npm run build
 FROM node:22.12-slim AS runner
 
 WORKDIR /app
-ENV NODE_ENV production
+ENV NODE_ENV=production
 ENV HOME=/app
 
 # Re-install openssl in the final small image
@@ -59,7 +59,7 @@ RUN chown -R nextjs:nodejs /app
 
 USER nextjs
 EXPOSE 3000
-ENV PORT 3000
+ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 # FIX: Run migrations and start. 

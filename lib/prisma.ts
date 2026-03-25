@@ -3,7 +3,12 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 
 if (!process.env.DATABASE_URL) {
-  if (process.env.NODE_ENV === "production") {
+  // During `next build`, NODE_ENV is "production" but DATABASE_URL is not
+  // available in the build container. Allow the build to proceed with a dummy
+  // URL so route modules can be compiled without connecting to the database.
+  const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+
+  if (process.env.NODE_ENV === "production" && !isBuildPhase) {
     throw new Error("DATABASE_URL must be configured in production");
   }
 

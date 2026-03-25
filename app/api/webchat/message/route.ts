@@ -26,6 +26,11 @@ import { sanitizeWebchatMetadataForRetention } from "@/lib/webchat-privacy";
 import { recordWebchatMetric } from "@/lib/webchat-metrics";
 import { getWebchatRolloutDecision } from "@/lib/webchat-rollout";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 const messageSchema = z.object({
   token: z.string().min(1),
   message: z.string().min(1),

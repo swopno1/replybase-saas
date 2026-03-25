@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getTenantExecutionLogs } from "@/lib/execution-logger";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 // GET: Get execution logs
 export const GET: (
   request: NextRequest,

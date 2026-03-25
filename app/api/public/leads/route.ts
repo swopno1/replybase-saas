@@ -10,10 +10,15 @@ import {
   isWebchatOriginAllowed,
 } from "@/lib/webchat-cors";
 import {
+
   consumeWebchatRateLimit,
   createWebchatRateLimitHeaders,
   getWebchatLimiterKeyFromRequest,
 } from "@/lib/webchat-rate-limit";
+
+export const dynamic = 'force-dynamic';
+
+
 
 const leadCaptureSchema = z
   .object({

@@ -3,6 +3,11 @@ import { parseSignedRequest } from "@/lib/facebook-utils";
 import { prisma } from "@/lib/prisma";
 import { isChannelEnabled } from "@/lib/channel-config";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 export async function POST(req: NextRequest) {
   // Check if Facebook channel is enabled
   if (!isChannelEnabled("facebook")) {

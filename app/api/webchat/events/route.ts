@@ -23,6 +23,11 @@ import { sanitizeWebchatMetadataForRetention } from "@/lib/webchat-privacy";
 import { recordWebchatMetric } from "@/lib/webchat-metrics";
 import { getWebchatRolloutDecision } from "@/lib/webchat-rollout";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 const eventSchema = z.object({
   token: z.string().min(1),
   type: z.enum(["OPEN", "CLOSE", "TYPING", "ERROR", "MESSAGE"]),

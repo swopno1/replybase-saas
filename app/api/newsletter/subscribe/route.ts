@@ -5,6 +5,11 @@ import { authOptions } from "@/lib/auth";
 import { validateApiKey } from "@/lib/api-auth";
 import crypto from "node:crypto";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(req: NextRequest) {

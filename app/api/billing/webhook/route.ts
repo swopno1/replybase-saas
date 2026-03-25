@@ -4,6 +4,11 @@ import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import Stripe from "stripe";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 // Disable body parsing logic is not needed for App Router like Pages Router
 // We consume req.text() which reads the stream
 

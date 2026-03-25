@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { checkKpiHealth } from "@/lib/kpi-health-check";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 /**
  * GET /api/admin/kpi-health
  *

@@ -6,6 +6,11 @@ import { z } from "zod";
 import { getTenantLimits } from "@/lib/subscription";
 import { authOptions } from "@/lib/auth";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 const createChannelSchema = z
   .object({
     type: z.enum(["facebook", "whatsapp", "web", "telegram"]),

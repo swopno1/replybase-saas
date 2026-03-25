@@ -2,6 +2,11 @@ import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 export const POST = withAuthAndTenant(
   async ({ tenantId }, req: NextRequest, context) => {
     try {

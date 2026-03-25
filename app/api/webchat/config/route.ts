@@ -16,6 +16,11 @@ import { createWebchatInitChallenge } from "@/lib/webchat-init-challenge";
 import { getWebchatTelemetryConfig } from "@/lib/webchat-telemetry";
 import { getWebchatRolloutDecision } from "@/lib/webchat-rollout";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 export async function GET(request: NextRequest) {
   try {
     if (!isWebchatOriginAllowed(request)) {

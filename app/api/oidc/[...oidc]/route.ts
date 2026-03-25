@@ -3,6 +3,11 @@ import getOidcProvider from "@/lib/oidc-provider";
 import { IncomingMessage, ServerResponse } from "http";
 import { headers } from "next/headers";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 export const runtime = "nodejs";
 
 function toBuffer(chunk: unknown): Buffer {

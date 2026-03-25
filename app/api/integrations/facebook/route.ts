@@ -5,6 +5,11 @@ import { authOptions } from "@/lib/auth";
 import { recordWebhookSetupLog } from "@/lib/webhook-setup-log";
 import { isChannelEnabled } from "@/lib/channel-config";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 export async function POST(req: Request) {
   // Check if Facebook channel is enabled
   if (!isChannelEnabled("facebook")) {

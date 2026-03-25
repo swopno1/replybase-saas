@@ -5,6 +5,11 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateWebChatSite } from "@/lib/webchat";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 function getPayloadField(
   payload: Prisma.JsonValue | null,
   key: string,

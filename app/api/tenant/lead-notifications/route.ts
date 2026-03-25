@@ -4,6 +4,11 @@ import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 const updateSchema = z.object({
   emailRecipients: z.array(z.string().trim().email().max(320)).max(20),
   telegramChatIds: z.array(z.string().trim().min(1).max(64)).max(20),

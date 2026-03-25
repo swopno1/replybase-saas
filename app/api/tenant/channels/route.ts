@@ -4,6 +4,11 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getChannelConfig } from "@/lib/channel-config";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 /**
  * GET /api/tenant/channels
  * Get current channel settings for the authenticated tenant

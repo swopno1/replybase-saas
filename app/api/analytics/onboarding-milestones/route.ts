@@ -3,6 +3,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getAdminActivationKpis } from "@/lib/admin-activation-kpis";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "amirhossain.limon@gmail.com";
 
 /**

@@ -4,6 +4,11 @@ import { z } from "zod";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 import { getTenantSubscription } from "@/lib/subscription";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 const createConversationSchema = z.object({
   contactId: z.string().cuid(),
   channel: z.string().min(1).max(50),

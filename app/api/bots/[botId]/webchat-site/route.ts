@@ -11,6 +11,11 @@ import {
 } from "@/lib/webchat";
 import { recordWebhookSetupLog } from "@/lib/webhook-setup-log";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 const updateSchema = z.object({
   channelId: z.string().min(1),
   name: z.string().min(1).optional(),

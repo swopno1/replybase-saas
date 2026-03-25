@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { checkHealth } from "@/lib/ai-engine";
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const healthStatus = await checkHealth();

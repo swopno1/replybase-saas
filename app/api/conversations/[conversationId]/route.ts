@@ -4,6 +4,11 @@ import { z } from "zod";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 import { ConversationStatus } from "@prisma/client";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 const updateConversationSchema = z.object({
   assigneeId: z.string().cuid().nullable().optional(),
   status: z.nativeEnum(ConversationStatus).optional(),

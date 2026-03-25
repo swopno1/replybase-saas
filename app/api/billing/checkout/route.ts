@@ -6,6 +6,11 @@ import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 const checkoutRequestSchema = z.object({
   priceId: z.string().min(1),
   planName: z.string().optional(),

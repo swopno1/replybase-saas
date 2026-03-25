@@ -3,6 +3,11 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import getOidcProvider from "@/lib/oidc-provider";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 /**
  * PHASE 1: Secure OIDC Authorization Endpoint
  *

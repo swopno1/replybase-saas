@@ -30,6 +30,11 @@ import {
 import { recordWebchatMetric } from "@/lib/webchat-metrics";
 import { getWebchatRolloutDecision } from "@/lib/webchat-rollout";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 const initSchema = z
   .object({
     publicKey: z.string().min(1).optional(),

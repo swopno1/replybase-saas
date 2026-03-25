@@ -4,6 +4,11 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isChannelEnabled } from "@/lib/channel-config";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 // GET /api/facebook/pages - Get connected Facebook pages
 export async function GET() {
   // Check if Facebook channel is enabled

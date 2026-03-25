@@ -7,6 +7,11 @@ import { prisma } from "@/lib/prisma";
 import { deleteTelegramWebhook } from "@/lib/telegram-api";
 import { decryptTelegramToken } from "@/lib/telegram-crypto";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 const disconnectSchema = z.object({
   channelId: z.string().min(1),
   dropPendingUpdates: z.boolean().optional(),

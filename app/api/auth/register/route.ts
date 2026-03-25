@@ -3,6 +3,11 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/password";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 function getDisplayName(firstName: string, lastName: string): string {
   const fullName = `${firstName} ${lastName}`.trim();
   return fullName || "New User";

@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 import {
+
   getConversationsPerBot,
   getMessagesPerChannel,
   getAiVsHumanRatio,
   getResolutionTime,
 } from "@/lib/analytics";
+
+export const dynamic = 'force-dynamic';
+
+
 
 export const GET: (
   request: NextRequest,

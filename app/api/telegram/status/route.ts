@@ -6,6 +6,11 @@ import { prisma } from "@/lib/prisma";
 import { decryptTelegramToken } from "@/lib/telegram-crypto";
 import { getTelegramWebhookInfo } from "@/lib/telegram-api";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);

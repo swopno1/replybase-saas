@@ -10,6 +10,11 @@ import {
 } from "@/lib/analytics";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = 'force-dynamic';
+
+
+
+
 // GET: Get usage statistics
 export async function GET() {
   try {
