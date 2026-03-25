@@ -2,14 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 
-export const dynamic = 'force-dynamic';
-
-
-
+export const dynamic = "force-dynamic";
 
 export const GET: (
   request: NextRequest,
-  context: { params: Promise<Record<string, string | string[]>> }
+  context: { params: Promise<Record<string, string | string[]>> },
 ) => Promise<Response> = withAuthAndTenant(async ({ tenantId }, request) => {
   try {
     const searchParams = request.nextUrl.searchParams;

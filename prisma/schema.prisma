@@ -51,6 +51,7 @@ model User {
   executionLogs         ExecutionLog[]
   internalNotes         InternalNote[]
   sessions              Session[]
+  activityLogs          ActivityLog[]
   usageLogs             UsageLog[]
   flows                 Flow[]
   tenant                Tenant            @relation(fields: [tenantId], references: [id])
@@ -75,6 +76,7 @@ model Tenant {
   subscriptions Subscription?
   usageLogs     UsageLog[]
   users         User[]
+  activityLogs  ActivityLog[]
   webChatSites  WebChatSite[]
   newsletterSubscriptions NewsletterSubscriber[]
   dataDeletionRequests    DataDeletionRequest[]
@@ -309,6 +311,27 @@ model UsageLog {
   @@index([tenantId, date, type])
   @@index([botId, date])
   @@map("usage_logs")
+}
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  tenantId    String
+  userId      String?
+  type        String
+  title       String
+  description String
+  entityType  String?
+  entityId    String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
+  @@index([entityType, entityId])
+  @@map("activity_logs")
 }
 
 model SystemHealth {

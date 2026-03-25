@@ -12,13 +12,18 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Mail, Phone } from "lucide-react";
 
 export function ConversationHeader({
   conversation: initialConversation,
   onRefresh,
 }: {
   conversation: CrmConversation & {
-    contact: { name: string | null };
+    contact: {
+      name: string | null;
+      email?: string | null;
+      phone?: string | null;
+    };
     assignee: Partial<User> | null;
   };
   onRefresh: () => void;
@@ -51,7 +56,27 @@ export function ConversationHeader({
         <h2 className="font-bold text-lg">
           {conversation.contact.name || "Unknown Contact"}
         </h2>
-        <p className="text-sm text-gray-500">Conversation Details</p>
+        <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-gray-500">
+          <span>Conversation Details</span>
+          {conversation.contact.email ? (
+            <a
+              href={`mailto:${conversation.contact.email}`}
+              className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline"
+            >
+              <Mail className="h-3.5 w-3.5" />
+              <span>{conversation.contact.email}</span>
+            </a>
+          ) : null}
+          {conversation.contact.phone ? (
+            <a
+              href={`tel:${conversation.contact.phone}`}
+              className="inline-flex items-center gap-1 text-gray-600 hover:text-gray-900 hover:underline"
+            >
+              <Phone className="h-3.5 w-3.5" />
+              <span>{conversation.contact.phone}</span>
+            </a>
+          ) : null}
+        </div>
       </div>
       <div className="flex items-center gap-4">
         <div className="flex items-center space-x-2">
@@ -68,7 +93,7 @@ export function ConversationHeader({
           }
           value={conversation.status}
         >
-          <SelectTrigger className="w-[120px]">
+          <SelectTrigger className="w-30">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -83,7 +108,7 @@ export function ConversationHeader({
           onValueChange={(assigneeId) => handleUpdate({ assigneeId })}
           value={conversation.assigneeId ?? "unassigned"}
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-45">
             <div className="flex items-center gap-2">
               <Avatar className="w-6 h-6">
                 <AvatarImage src={conversation.assignee?.image ?? ""} />

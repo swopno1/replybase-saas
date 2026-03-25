@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2 } from "lucide-react";
+import { Loader2, Mail, Phone } from "lucide-react";
 
 interface Lead {
   id: string;
@@ -32,12 +32,43 @@ interface Lead {
   selectedPlan: string | null;
   trialRequested: boolean;
   createdAt: string;
+  metadata?: Record<string, unknown> | null;
   contact: {
     id: string;
     name: string | null;
     email: string | null;
     phone: string | null;
   } | null;
+}
+
+function readEnquiry(metadata: Lead["metadata"]): string | null {
+  if (!metadata || typeof metadata !== "object") {
+    return null;
+  }
+
+  const enquiry = metadata.enquiry;
+  return typeof enquiry === "string" && enquiry.trim() ? enquiry : null;
+}
+
+function formatLeadSource(source: string): string {
+  switch (source) {
+    case "website":
+      return "Website";
+    case "webchat":
+      return "Webchat";
+    case "form":
+      return "Lead Form";
+    default:
+      return source.charAt(0).toUpperCase() + source.slice(1);
+  }
+}
+
+function getLeadEmail(lead: Lead): string | null {
+  return lead.email || lead.contact?.email || null;
+}
+
+function getLeadPhone(lead: Lead): string | null {
+  return lead.mobile || lead.contact?.phone || null;
 }
 
 export default function LeadsPage() {
@@ -94,7 +125,8 @@ export default function LeadsPage() {
       <div>
         <h1 className="text-3xl font-bold">Leads</h1>
         <p className="text-muted-foreground mt-2">
-          Manage leads generated through your Facebook conversations
+          Review website enquiries captured through your chat widget and lead
+          forms
         </p>
       </div>
 
@@ -102,7 +134,8 @@ export default function LeadsPage() {
         <CardHeader>
           <CardTitle>All Leads</CardTitle>
           <CardDescription>
-            View and manage leads captured through the default bot flow
+            View the latest captured leads with contact details, enquiry
+            content, and capture time
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -112,8 +145,8 @@ export default function LeadsPage() {
             </div>
           ) : leads.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
-              No leads yet. Leads will appear here when users interact with your
-              Facebook page.
+              No leads yet. New website enquiries will appear here after a
+              visitor submits your chat widget or lead capture form.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -121,13 +154,13 @@ export default function LeadsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead>Company</TableHead>
+                    <TableHead>Enquiry</TableHead>
                     <TableHead>Contact</TableHead>
-                    <TableHead>Business Type</TableHead>
+                    <TableHead>Company</TableHead>
                     <TableHead>Plan</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Source</TableHead>
-                    <TableHead>Created</TableHead>
+                    <TableHead>Captured At</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -136,19 +169,39 @@ export default function LeadsPage() {
                       <TableCell className="font-medium">
                         {lead.name || lead.contact?.name || "—"}
                       </TableCell>
-                      <TableCell>{lead.company || "—"}</TableCell>
+                      <TableCell className="max-w-sm whitespace-pre-wrap text-sm text-muted-foreground">
+                        {readEnquiry(lead.metadata) || "—"}
+                      </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          {lead.email && <div>{lead.email}</div>}
-                          {lead.mobile && (
-                            <div className="text-muted-foreground">
-                              {lead.mobile}
+                          {getLeadEmail(lead) ? (
+                            <div>
+                              <a
+                                href={`mailto:${getLeadEmail(lead)}`}
+                                className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline"
+                              >
+                                <Mail className="h-3.5 w-3.5" />
+                                <span>{getLeadEmail(lead)}</span>
+                              </a>
                             </div>
-                          )}
-                          {!lead.email && !lead.mobile && "—"}
+                          ) : null}
+                          {getLeadPhone(lead) ? (
+                            <div className="mt-1">
+                              <a
+                                href={`tel:${getLeadPhone(lead)}`}
+                                className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground hover:underline"
+                              >
+                                <Phone className="h-3.5 w-3.5" />
+                                <span>{getLeadPhone(lead)}</span>
+                              </a>
+                            </div>
+                          ) : null}
+                          {!getLeadEmail(lead) && !getLeadPhone(lead)
+                            ? "—"
+                            : null}
                         </div>
                       </TableCell>
-                      <TableCell>{lead.businessType || "—"}</TableCell>
+                      <TableCell>{lead.company || "—"}</TableCell>
                       <TableCell>
                         {lead.interestedInSubscription ? (
                           getPlanBadge(lead.selectedPlan, lead.trialRequested)
@@ -165,11 +218,9 @@ export default function LeadsPage() {
                           {lead.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="capitalize">
-                        {lead.source}
-                      </TableCell>
+                      <TableCell>{formatLeadSource(lead.source)}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {new Date(lead.createdAt).toLocaleDateString()}
+                        {new Date(lead.createdAt).toLocaleString()}
                       </TableCell>
                     </TableRow>
                   ))}
