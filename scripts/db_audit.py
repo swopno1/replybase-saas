@@ -287,8 +287,11 @@ def main():
     run(conn, 'SELECT id, name, "displayName", "businessType", enabled, "order" FROM demo_templates ORDER BY "order"',
         "SEED: Demo Templates")
 
-    run(conn, "SELECT EXISTS(SELECT 1 FROM tenants WHERE id = 'cmliz8ul8000013t5xffrwlok') AS seed_tenant_exists",
-        "SEED: seed-flows.sql hardcoded tenant ID 'cmliz8ul8000013t5xffrwlok' - does it exist?")
+    run(conn, '''SELECT id, name, "createdAt"
+                 FROM tenants
+                 ORDER BY "createdAt" ASC
+                 LIMIT 1''',
+        "SEED: tenant selected by seed-flows.sql (oldest tenant)")
 
     run(conn, """SELECT f.id, f.name, f."tenantId", t.name AS tenant_name, f."isActive"
                  FROM flows f
