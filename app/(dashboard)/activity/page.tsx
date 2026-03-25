@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,6 +45,16 @@ interface Activity {
   source: "logged" | "derived";
 }
 
+interface ActivitiesResponse {
+  activities?: Activity[];
+  pagination?: {
+    page: number;
+    pageSize: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+}
+
 const activityTypeOptions = [
   { value: "all", label: "All activity types" },
   { value: "bot_created", label: "Bot created" },
@@ -56,6 +67,13 @@ const activityTypeOptions = [
   { value: "logout", label: "Logout" },
   { value: "onboarding_milestone", label: "Onboarding milestone" },
   { value: "system_event", label: "System event" },
+] as const;
+
+const activityWindowOptions = [
+  { value: "7", label: "Last 7 days" },
+  { value: "30", label: "Last 30 days" },
+  { value: "90", label: "Last 90 days" },
+  { value: "365", label: "Last 12 months" },
 ] as const;
 
 function getActivityIcon(type: string) {
@@ -158,11 +176,52 @@ function getMetadataEntries(metadata: Record<string, unknown> | undefined) {
 }
 
 export default function ActivityPage() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedType, setSelectedType] = useState("all");
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [hasPreviousPage, setHasPreviousPage] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const selectedType = useMemo(() => {
+    const value = searchParams.get("type") || "all";
+    return activityTypeOptions.some((option) => option.value === value)
+      ? value
+      : "all";
+  }, [searchParams]);
+
+  const selectedWindow = useMemo(() => {
+    const value = searchParams.get("days") || "30";
+    return activityWindowOptions.some((option) => option.value === value)
+      ? value
+      : "30";
+  }, [searchParams]);
+
+  const page = useMemo(() => {
+    const value = Number.parseInt(searchParams.get("page") || "1", 10);
+    return Number.isFinite(value) && value > 0 ? value : 1;
+  }, [searchParams]);
+
+  function updateQueryParams(updates: Record<string, string | undefined>) {
+    const params = new URLSearchParams(searchParams.toString());
+
+    Object.entries(updates).forEach(([key, value]) => {
+      if (!value) {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
+    });
+
+    const queryString = params.toString();
+    router.push(queryString ? `${pathname}?${queryString}` : pathname, {
+      scroll: false,
+    });
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -173,8 +232,9 @@ export default function ActivityPage() {
         setLoading(true);
 
         const searchParams = new URLSearchParams({
-          limit: "100",
-          days: "30",
+          page: String(page),
+          pageSize: "25",
+          days: selectedWindow,
         });
 
         if (selectedType !== "all") {
@@ -193,8 +253,10 @@ export default function ActivityPage() {
           throw new Error("Failed to load activities");
         }
 
-        const data = (await response.json()) as { activities?: Activity[] };
+        const data = (await response.json()) as ActivitiesResponse;
         setActivities(Array.isArray(data.activities) ? data.activities : []);
+        setHasNextPage(Boolean(data.pagination?.hasNextPage));
+        setHasPreviousPage(Boolean(data.pagination?.hasPreviousPage));
       } catch (fetchError) {
         if (controller.signal.aborted) {
           return;
@@ -203,6 +265,8 @@ export default function ActivityPage() {
         console.error("Failed to fetch activities:", fetchError);
         setError("Failed to load activity history.");
         setActivities([]);
+        setHasNextPage(false);
+        setHasPreviousPage(page > 1);
       } finally {
         if (!controller.signal.aborted) {
           setLoading(false);
@@ -213,7 +277,7 @@ export default function ActivityPage() {
     void fetchActivities();
 
     return () => controller.abort();
-  }, [selectedType]);
+  }, [page, selectedType, selectedWindow]);
 
   async function handleRefresh() {
     try {
@@ -221,8 +285,9 @@ export default function ActivityPage() {
       setError(null);
 
       const searchParams = new URLSearchParams({
-        limit: "100",
-        days: "30",
+        page: String(page),
+        pageSize: "25",
+        days: selectedWindow,
       });
 
       if (selectedType !== "all") {
@@ -240,14 +305,30 @@ export default function ActivityPage() {
         throw new Error("Failed to refresh activities");
       }
 
-      const data = (await response.json()) as { activities?: Activity[] };
+      const data = (await response.json()) as ActivitiesResponse;
       setActivities(Array.isArray(data.activities) ? data.activities : []);
+      setHasNextPage(Boolean(data.pagination?.hasNextPage));
+      setHasPreviousPage(Boolean(data.pagination?.hasPreviousPage));
     } catch (refreshError) {
       console.error("Failed to refresh activities:", refreshError);
       setError("Failed to refresh activity history.");
     } finally {
       setRefreshing(false);
     }
+  }
+
+  function handleTypeChange(value: string) {
+    updateQueryParams({
+      type: value === "all" ? undefined : value,
+      page: undefined,
+    });
+  }
+
+  function handleWindowChange(value: string) {
+    updateQueryParams({
+      days: value === "30" ? undefined : value,
+      page: undefined,
+    });
   }
 
   return (
@@ -262,7 +343,20 @@ export default function ActivityPage() {
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Select value={selectedType} onValueChange={setSelectedType}>
+          <Select value={selectedWindow} onValueChange={handleWindowChange}>
+            <SelectTrigger className="w-42">
+              <SelectValue placeholder="Select time window" />
+            </SelectTrigger>
+            <SelectContent>
+              {activityWindowOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedType} onValueChange={handleTypeChange}>
             <SelectTrigger className="w-55">
               <SelectValue placeholder="Filter activity type" />
             </SelectTrigger>
@@ -295,7 +389,7 @@ export default function ActivityPage() {
         <CardHeader>
           <CardTitle>Recent Activities</CardTitle>
           <CardDescription>
-            All logged and derived events from the last 30 days
+            All logged and derived events in the selected time window
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -319,6 +413,36 @@ export default function ActivityPage() {
             </div>
           ) : (
             <div className="space-y-4">
+              <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
+                <span>Page {page}</span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      updateQueryParams({
+                        page: page - 1 <= 1 ? undefined : String(page - 1),
+                      })
+                    }
+                    disabled={!hasPreviousPage || loading || refreshing}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      updateQueryParams({ page: String(page + 1) })
+                    }
+                    disabled={!hasNextPage || loading || refreshing}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+
               {activities.map((activity) => {
                 const metadataEntries = getMetadataEntries(activity.metadata);
 
@@ -400,6 +524,10 @@ export default function ActivityPage() {
                 Derived events
               </span>{" "}
               - recent bots, contacts, leads, and onboarding milestones
+            </li>
+            <li>
+              Page controls request server-side pages instead of loading the
+              full history into the browser.
             </li>
             <li>
               Logged events take precedence so newly instrumented write paths do

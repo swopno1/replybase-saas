@@ -9,7 +9,8 @@ export const dynamic = "force-dynamic";
 
 const getActivitiesQuerySchema = z.object({
   type: z.enum(activityLogTypes).optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
   days: z.coerce.number().int().min(1).max(365).default(30),
 });
 
@@ -79,6 +80,9 @@ export const GET: (
       Object.fromEntries(request.nextUrl.searchParams.entries()),
     );
     const sinceDate = new Date(Date.now() - query.days * 24 * 60 * 60 * 1000);
+    const startIndex = (query.page - 1) * query.pageSize;
+    const endIndexExclusive = startIndex + query.pageSize;
+    const fetchLimit = Math.min(endIndexExclusive + query.pageSize, 500);
     const includeType = (type: (typeof activityLogTypes)[number]) => {
       return !query.type || query.type === type;
     };
@@ -102,14 +106,14 @@ export const GET: (
             entityId: true,
           },
           orderBy: { createdAt: "desc" },
-          take: query.limit,
+          take: fetchLimit,
         }),
         includeType("bot_created")
           ? prisma.bot.findMany({
               where: { tenantId, createdAt: { gte: sinceDate } },
               select: { id: true, name: true, createdAt: true },
               orderBy: { createdAt: "desc" },
-              take: query.limit,
+              take: fetchLimit,
             })
           : Promise.resolve([]),
         includeType("contact_created")
@@ -123,7 +127,7 @@ export const GET: (
                 createdAt: true,
               },
               orderBy: { createdAt: "desc" },
-              take: query.limit,
+              take: fetchLimit,
             })
           : Promise.resolve([]),
         includeType("lead_created")
@@ -138,7 +142,7 @@ export const GET: (
                 createdAt: true,
               },
               orderBy: { createdAt: "desc" },
-              take: query.limit,
+              take: fetchLimit,
             })
           : Promise.resolve([]),
         includeType("onboarding_milestone")
@@ -151,7 +155,7 @@ export const GET: (
                 createdAt: true,
               },
               orderBy: { createdAt: "desc" },
-              take: query.limit,
+              take: fetchLimit,
             })
           : Promise.resolve([]),
       ]);
@@ -252,20 +256,30 @@ export const GET: (
       return !signature || !loggedSignatures.has(signature);
     });
 
-    const activities = [...mappedLoggedActivities, ...derivedActivities]
-      .sort(
-        (left, right) =>
-          new Date(right.createdAt).getTime() -
-          new Date(left.createdAt).getTime(),
-      )
-      .slice(0, query.limit);
+    const mergedActivities = [
+      ...mappedLoggedActivities,
+      ...derivedActivities,
+    ].sort(
+      (left, right) =>
+        new Date(right.createdAt).getTime() -
+        new Date(left.createdAt).getTime(),
+    );
+
+    const activities = mergedActivities.slice(startIndex, endIndexExclusive);
+    const hasNextPage = mergedActivities.length > endIndexExclusive;
+    const hasPreviousPage = query.page > 1;
 
     return NextResponse.json({
       activities,
       filters: {
         type: query.type ?? null,
-        limit: query.limit,
         days: query.days,
+      },
+      pagination: {
+        page: query.page,
+        pageSize: query.pageSize,
+        hasNextPage,
+        hasPreviousPage,
       },
     });
   } catch (error) {
