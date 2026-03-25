@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { isChannelVisibleInUi, type ChannelId } from "@/lib/channel-config";
 
 interface Bot {
   id: string;
@@ -65,6 +66,22 @@ function channelConfigHref(type: string) {
   return null;
 }
 
+function isBotChannelVisible(channelType: string): boolean {
+  if (channelType === "web") {
+    return isChannelVisibleInUi("webchat");
+  }
+
+  if (
+    channelType === "telegram" ||
+    channelType === "facebook" ||
+    channelType === "whatsapp"
+  ) {
+    return isChannelVisibleInUi(channelType as ChannelId);
+  }
+
+  return true;
+}
+
 export default function BotDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -80,6 +97,12 @@ export default function BotDetailPage() {
   const [editing, setEditing] = useState(false);
   const [deletingBot, setDeletingBot] = useState(false);
   const [formData, setFormData] = useState<BotFormData | null>(null);
+  const visibleChannelOptions = CHANNEL_OPTIONS.filter((option) =>
+    isBotChannelVisible(option.type),
+  );
+  const visibleBotChannels = bot?.channels.filter((channel) =>
+    isBotChannelVisible(channel.type),
+  );
 
   const fetchBot = async () => {
     try {
@@ -342,10 +365,7 @@ export default function BotDetailPage() {
               {flows.length === 0 && (
                 <p className="text-xs text-gray-400 mt-1">
                   No flows yet.{" "}
-                  <Link
-                    href="/flows"
-                    className="text-blue-600 hover:underline"
-                  >
+                  <Link href="/flows" className="text-blue-600 hover:underline">
                     Create one in Flows →
                   </Link>
                 </p>
@@ -364,7 +384,7 @@ export default function BotDetailPage() {
             <div>
               <p className="text-sm text-gray-600">Channels</p>
               <div className="mt-2 mb-3 flex flex-wrap gap-2">
-                {CHANNEL_OPTIONS.map((option) => {
+                {visibleChannelOptions.map((option) => {
                   const exists = bot.channels.some(
                     (channel) => channel.type === option.type,
                   );
@@ -385,11 +405,11 @@ export default function BotDetailPage() {
                   );
                 })}
               </div>
-              {bot.channels.length === 0 ? (
+              {visibleBotChannels?.length === 0 ? (
                 <p className="font-medium">No channels configured</p>
               ) : (
                 <div className="mt-2 space-y-2">
-                  {bot.channels.map((channel) => {
+                  {visibleBotChannels?.map((channel) => {
                     const href = channelConfigHref(channel.type);
                     return (
                       <div

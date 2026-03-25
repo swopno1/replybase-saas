@@ -14,13 +14,24 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { isChannelVisibleInUi, type ChannelId } from "@/lib/channel-config";
+
+type BotChannelType = "web" | "telegram" | "facebook" | "whatsapp";
+
+function isBotChannelVisible(channel: BotChannelType): boolean {
+  if (channel === "web") {
+    return isChannelVisibleInUi("webchat");
+  }
+
+  return isChannelVisibleInUi(channel as ChannelId);
+}
 
 function CreateBotContent() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    channel: "web",
+    channel: "web" as BotChannelType,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -104,14 +115,25 @@ function CreateBotContent() {
               <select
                 value={formData.channel}
                 onChange={(e) =>
-                  setFormData({ ...formData, channel: e.target.value })
+                  setFormData({
+                    ...formData,
+                    channel: e.target.value as BotChannelType,
+                  })
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="web">Webchat</option>
-                <option value="telegram">Telegram</option>
-                <option value="facebook">Facebook</option>
-                <option value="whatsapp">WhatsApp</option>
+                {isBotChannelVisible("web") ? (
+                  <option value="web">Webchat</option>
+                ) : null}
+                {isBotChannelVisible("telegram") ? (
+                  <option value="telegram">Telegram</option>
+                ) : null}
+                {isBotChannelVisible("facebook") ? (
+                  <option value="facebook">Facebook</option>
+                ) : null}
+                {isBotChannelVisible("whatsapp") ? (
+                  <option value="whatsapp">WhatsApp</option>
+                ) : null}
               </select>
               <p className="text-xs text-gray-500 mt-1">
                 Select the primary channel for this bot. You can add more
