@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
   Card,
@@ -23,10 +23,63 @@ export default function AccountSettingsPage() {
   const [copied, setCopied] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [newsletterLoading, setNewsletterLoading] = useState(false);
+  const [notificationDestinations, setNotificationDestinations] = useState({
+    emailRecipients: "",
+    telegramChatIds: "",
+  });
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsSaving, setNotificationsSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: session?.user?.name || "",
     email: session?.user?.email || "",
   });
+
+  useEffect(() => {
+    if (!session?.user) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadLeadNotificationSettings = async () => {
+      setNotificationsLoading(true);
+      try {
+        const response = await fetch("/api/tenant/lead-notifications");
+        if (!response.ok) {
+          throw new Error("Failed to load lead notification settings");
+        }
+
+        const data = (await response.json()) as {
+          emailRecipients?: string[];
+          telegramChatIds?: string[];
+        };
+
+        if (cancelled) {
+          return;
+        }
+
+        setNotificationDestinations({
+          emailRecipients: (data.emailRecipients || []).join(", "),
+          telegramChatIds: (data.telegramChatIds || []).join(", "),
+        });
+      } catch (error) {
+        console.error("Lead notification settings load error:", error);
+        if (!cancelled) {
+          toast.error("Failed to load lead notification settings");
+        }
+      } finally {
+        if (!cancelled) {
+          setNotificationsLoading(false);
+        }
+      }
+    };
+
+    void loadLeadNotificationSettings();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user]);
 
   if (!session?.user) {
     return (
@@ -180,6 +233,49 @@ export default function AccountSettingsPage() {
     } catch (error) {
       console.error("Data deletion request error:", error);
       toast.error("Failed to submit deletion request");
+    }
+  };
+
+  const handleSaveLeadNotificationDestinations = async () => {
+    setNotificationsSaving(true);
+    try {
+      const emailRecipients = notificationDestinations.emailRecipients
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+      const telegramChatIds = notificationDestinations.telegramChatIds
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+
+      const response = await fetch("/api/tenant/lead-notifications", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          emailRecipients,
+          telegramChatIds,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(data?.error || "Failed to save lead destinations");
+      }
+
+      toast.success("Lead notification destinations saved");
+    } catch (error) {
+      console.error("Lead notification settings save error:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to save lead notification settings",
+      );
+    } finally {
+      setNotificationsSaving(false);
     }
   };
 
@@ -485,10 +581,68 @@ export default function AccountSettingsPage() {
                     </Button>
                   </div>
                 </div>
+
+                <div className="p-3 border rounded-md space-y-3">
+                  <div>
+                    <p className="font-medium text-sm">
+                      Lead Alert Destinations
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      These destinations receive instant notifications when a
+                      new website lead is captured.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="leadNotificationEmails">
+                      Destination emails (comma-separated)
+                    </Label>
+                    <Input
+                      id="leadNotificationEmails"
+                      placeholder="owner@company.com, sales@company.com"
+                      value={notificationDestinations.emailRecipients}
+                      onChange={(event) =>
+                        setNotificationDestinations((previous) => ({
+                          ...previous,
+                          emailRecipients: event.target.value,
+                        }))
+                      }
+                      disabled={notificationsLoading || notificationsSaving}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="leadNotificationTelegram">
+                      Telegram chat IDs (comma-separated)
+                    </Label>
+                    <Input
+                      id="leadNotificationTelegram"
+                      placeholder="123456789, -1009876543210"
+                      value={notificationDestinations.telegramChatIds}
+                      onChange={(event) =>
+                        setNotificationDestinations((previous) => ({
+                          ...previous,
+                          telegramChatIds: event.target.value,
+                        }))
+                      }
+                      disabled={notificationsLoading || notificationsSaving}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Use chat IDs from your own Telegram destinations.
+                      ReplyBase will send notifications using your tenant
+                      Telegram channel.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <Separator />
-              <Button>Save Preferences</Button>
+              <Button
+                onClick={handleSaveLeadNotificationDestinations}
+                disabled={notificationsLoading || notificationsSaving}
+              >
+                {notificationsSaving ? "Saving..." : "Save Preferences"}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>

@@ -51,6 +51,11 @@ export async function POST(request: Request) {
       const tenant = await tx.tenant.create({
         data: {
           name: `${getDisplayName(firstName, lastName)}'s Workspace`,
+          leadNotificationSettings: {
+            create: {
+              emailRecipients: [email],
+            },
+          },
         },
         select: { id: true },
       });
@@ -74,7 +79,7 @@ export async function POST(request: Request) {
     ) {
       return NextResponse.json(
         { error: "An account with this email already exists." },
-        { status: 409 }
+        { status: 409 },
       );
     }
 

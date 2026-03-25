@@ -430,6 +430,11 @@ export class OnboardingService {
     const tenant = await prisma.tenant.create({
       data: {
         name: businessName || "New Business",
+        leadNotificationSettings: {
+          create: {
+            emailRecipients: email ? [email.toLowerCase()] : [],
+          },
+        },
       },
     });
 

@@ -134,6 +134,37 @@ export default async function DashboardPage() {
     select: { createdAt: true },
   });
 
+  const leadNotificationSettings =
+    await prisma.tenantLeadNotificationSettings.findUnique({
+      where: {
+        tenantId: user.tenantId,
+      },
+      select: {
+        emailRecipients: true,
+        telegramChatIds: true,
+        updatedAt: true,
+      },
+    });
+
+  const hasLeadDestinationEmail = Array.isArray(
+    leadNotificationSettings?.emailRecipients,
+  )
+    ? leadNotificationSettings.emailRecipients.some(
+        (entry) => typeof entry === "string" && entry.trim().length > 0,
+      )
+    : false;
+
+  const hasLeadDestinationTelegram = Array.isArray(
+    leadNotificationSettings?.telegramChatIds,
+  )
+    ? leadNotificationSettings.telegramChatIds.some(
+        (entry) => typeof entry === "string" && entry.trim().length > 0,
+      )
+    : false;
+
+  const hasLeadNotificationDestinations =
+    hasLeadDestinationEmail || hasLeadDestinationTelegram;
+
   const firstAutomatedReplyAt = firstAutomatedReply?.createdAt;
   const onboardingMilestones = [
     {
@@ -155,6 +186,18 @@ export default async function DashboardPage() {
       completedAt: firstAutomatedReplyAt,
       actionLabel: "Run a reply test",
       actionHref: "/integrations/telegram",
+    },
+    {
+      id: "lead-notifications",
+      title: "Lead notification destinations",
+      description:
+        "Set your tenant's email or Telegram destinations so new website leads alert your team instantly.",
+      completed: hasLeadNotificationDestinations,
+      completedAt: hasLeadNotificationDestinations
+        ? leadNotificationSettings?.updatedAt || null
+        : null,
+      actionLabel: "Configure destinations",
+      actionHref: "/settings/account",
     },
   ];
 
