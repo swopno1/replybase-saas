@@ -31,7 +31,13 @@ vi.mock("@/lib/webchat-session", () => ({
 }));
 
 vi.mock("@/lib/webchat-init-challenge", () => ({
-  consumeWebchatInitChallenge: vi.fn().mockResolvedValue(undefined),
+  consumeWebchatInitChallenge: vi.fn().mockResolvedValue({
+    jti: "jti_test",
+    siteId: "site_1",
+    publicKey: "pk_test_1",
+    origin: "",
+    exp: Math.floor(Date.now() / 1000) + 300,
+  }),
 }));
 
 vi.mock("@/lib/webchat-diagnostics", () => ({
@@ -113,7 +119,13 @@ describe("POST /api/webchat/init — integration", () => {
       mockSession as never,
     );
     vi.mocked(isOriginAllowedForSite).mockReturnValue(true);
-    vi.mocked(consumeWebchatInitChallenge).mockResolvedValue(undefined);
+    vi.mocked(consumeWebchatInitChallenge).mockResolvedValue({
+      jti: "jti_test",
+      siteId: "site_1",
+      publicKey: "pk_test_1",
+      origin: "",
+      exp: Math.floor(Date.now() / 1000) + 300,
+    });
     vi.mocked(getWebchatRolloutDecision).mockResolvedValue({
       allowed: true,
       mode: "off",

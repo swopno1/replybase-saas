@@ -1,6 +1,6 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-async function mockWebchatApis(page: Parameters<typeof test>[0]["page"]) {
+async function mockWebchatApis(page: Page) {
   await page.route("**/api/webchat/config**", async (route) => {
     await route.fulfill({
       status: 200,
