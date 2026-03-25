@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { recordActivity } from "@/lib/activity-log";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 
-export const dynamic = 'force-dynamic';
-
-
-
+export const dynamic = "force-dynamic";
 
 const createContactSchema = z
   .object({
@@ -27,7 +25,7 @@ const createContactSchema = z
 // GET: List tenant's contacts
 export const GET: (
   request: NextRequest,
-  context: { params: Promise<Record<string, string | string[]>> }
+  context: { params: Promise<Record<string, string | string[]>> },
 ) => Promise<Response> = withAuthAndTenant(async ({ tenantId }) => {
   try {
     const contacts = await prisma.contact.findMany({
@@ -39,7 +37,7 @@ export const GET: (
     console.error("[Contacts API] Error fetching contacts:", error);
     return NextResponse.json(
       { error: "Failed to fetch contacts" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 });
@@ -47,33 +45,45 @@ export const GET: (
 // POST: Create a new contact
 export const POST: (
   request: NextRequest,
-  context: { params: Promise<Record<string, string | string[]>> }
-) => Promise<Response> = withAuthAndTenant(async ({ tenantId }, request) => {
-  try {
-    const body = await request.json();
-    const validated = createContactSchema.parse(body);
+  context: { params: Promise<Record<string, string | string[]>> },
+) => Promise<Response> = withAuthAndTenant(
+  async ({ id, tenantId }, request) => {
+    try {
+      const body = await request.json();
+      const validated = createContactSchema.parse(body);
 
-    const contact = await prisma.contact.create({
-      data: {
+      const contact = await prisma.contact.create({
+        data: {
+          tenantId,
+          name: validated.name,
+          email: validated.email,
+          phone: validated.phone,
+        },
+      });
+
+      await recordActivity({
         tenantId,
-        name: validated.name,
-        email: validated.email,
-        phone: validated.phone,
-      },
-    });
+        userId: id,
+        type: "contact_created",
+        title: "Contact Added",
+        description: `Added contact ${contact.name || contact.email || contact.phone || contact.id}`,
+        entityType: "contact",
+        entityId: contact.id,
+      });
 
-    return NextResponse.json({ contact }, { status: 201 });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
+      return NextResponse.json({ contact }, { status: 201 });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return NextResponse.json(
+          { error: "Invalid input", details: error.issues },
+          { status: 400 },
+        );
+      }
+      console.error("[Contacts API] Error creating contact:", error);
       return NextResponse.json(
-        { error: "Invalid input", details: error.issues },
-        { status: 400 }
+        { error: "Failed to create contact" },
+        { status: 500 },
       );
     }
-    console.error("[Contacts API] Error creating contact:", error);
-    return NextResponse.json(
-      { error: "Failed to create contact" },
-      { status: 500 }
-    );
-  }
-});
+  },
+);

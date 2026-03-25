@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { recordActivity } from "@/lib/activity-log";
 import { prisma } from "@/lib/prisma";
 import { checkBotLimit } from "@/lib/subscription";
 import { z } from "zod";
 
-export const dynamic = 'force-dynamic';
-
-
-
+export const dynamic = "force-dynamic";
 
 const createBotSchema = z.object({
   name: z.string().min(1),
@@ -114,6 +112,16 @@ export async function POST(req: NextRequest) {
           },
         },
       },
+    });
+
+    await recordActivity({
+      tenantId: session.user.tenantId,
+      userId: typeof session.user.id === "string" ? session.user.id : undefined,
+      type: "bot_created",
+      title: "Bot Created",
+      description: `Created bot ${bot.name}`,
+      entityType: "bot",
+      entityId: bot.id,
     });
 
     return NextResponse.json({ bot });

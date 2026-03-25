@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { recordActivity } from "@/lib/activity-log";
 import { prisma } from "@/lib/prisma";
 import { findActiveWebChatSite, isOriginAllowedForSite } from "@/lib/webchat";
 import { sendNewLeadNotifications } from "@/lib/lead-notifications";
@@ -10,15 +11,12 @@ import {
   isWebchatOriginAllowed,
 } from "@/lib/webchat-cors";
 import {
-
   consumeWebchatRateLimit,
   createWebchatRateLimitHeaders,
   getWebchatLimiterKeyFromRequest,
 } from "@/lib/webchat-rate-limit";
 
-export const dynamic = 'force-dynamic';
-
-
+export const dynamic = "force-dynamic";
 
 const leadCaptureSchema = z
   .object({
@@ -216,6 +214,8 @@ export async function POST(request: NextRequest) {
       phone,
     });
 
+    const leadSource = parsed.data.source || "website";
+
     const lead = await prisma.lead.create({
       data: {
         tenantId: site.bot.tenantId,
@@ -223,7 +223,7 @@ export async function POST(request: NextRequest) {
         name,
         email,
         mobile: phone,
-        source: parsed.data.source || "website",
+        source: leadSource,
         status: "new",
         metadata: {
           enquiry: parsed.data.enquiry,
@@ -240,6 +240,19 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    await recordActivity({
+      tenantId: site.bot.tenantId,
+      type: "lead_created",
+      title: "Lead Captured",
+      description: `Captured ${leadSource} lead from ${name}`,
+      entityType: "lead",
+      entityId: lead.id,
+      metadata: {
+        source: leadSource,
+        siteId: site.id,
+      } as Prisma.InputJsonValue,
+    });
+
     const notifications = await sendNewLeadNotifications({
       tenantId: site.bot.tenantId,
       leadId: lead.id,
@@ -247,7 +260,7 @@ export async function POST(request: NextRequest) {
       enquiry: parsed.data.enquiry,
       email,
       phone,
-      source: parsed.data.source || "website",
+      source: leadSource,
       createdAt: lead.createdAt,
     });
 

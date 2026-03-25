@@ -362,6 +362,85 @@ export default function WebchatIntegrationPage() {
     title,
   ]);
 
+  const leadFormSnippet = useMemo(() => {
+    if (!site?.publicKey) {
+      return "";
+    }
+
+    const baseUrl = origin || "https://YOUR_REPLYBASE_DOMAIN";
+    const endpoint = `${baseUrl}/api/public/leads`;
+    const accentColor = /^#[0-9a-fA-F]{6}$/.test(primaryColor.trim())
+      ? primaryColor.trim()
+      : "#0f766e";
+
+    return `<div id="replybase-lead-form"></div>
+<script>
+(function () {
+  var mount = document.getElementById("replybase-lead-form");
+  if (!mount) return;
+
+  var endpoint = ${JSON.stringify(endpoint)};
+  var publicKey = ${JSON.stringify(site.publicKey)};
+  var accentColor = ${JSON.stringify(accentColor)};
+
+  mount.innerHTML = [
+    '<form id="replybaseLeadForm" style="max-width:480px;padding:20px;border:1px solid #e2e8f0;border-radius:16px;background:#ffffff;font-family:Segoe UI,Tahoma,sans-serif;box-shadow:0 12px 30px rgba(15,23,42,0.08)">',
+    '<div style="margin-bottom:16px">',
+    '<h3 style="margin:0 0 6px;font-size:20px;color:#0f172a">Request a Callback</h3>',
+    '<p style="margin:0;font-size:14px;color:#475569">Share your enquiry and ReplyBase will send it straight to your team.</p>',
+    '</div>',
+    '<label style="display:block;margin-bottom:12px;font-size:14px;color:#0f172a">Name<input name="name" required style="display:block;width:100%;margin-top:6px;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px" /></label>',
+    '<label style="display:block;margin-bottom:12px;font-size:14px;color:#0f172a">Enquiry<textarea name="enquiry" required rows="4" style="display:block;width:100%;margin-top:6px;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px;resize:vertical"></textarea></label>',
+    '<label style="display:block;margin-bottom:12px;font-size:14px;color:#0f172a">Email<input name="email" type="email" style="display:block;width:100%;margin-top:6px;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px" /></label>',
+    '<label style="display:block;margin-bottom:12px;font-size:14px;color:#0f172a">Phone<input name="phone" type="tel" style="display:block;width:100%;margin-top:6px;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px" /></label>',
+    '<button type="submit" style="width:100%;padding:12px 16px;border:none;border-radius:10px;background:' + accentColor + ';color:#ffffff;font-weight:600;cursor:pointer">Send Enquiry</button>',
+    '<p data-status style="margin:12px 0 0;font-size:13px;color:#475569"></p>',
+    '</form>',
+  ].join('');
+
+  var form = mount.querySelector('#replybaseLeadForm');
+  var status = mount.querySelector('[data-status]');
+
+  form.addEventListener('submit', async function (event) {
+    event.preventDefault();
+    status.textContent = 'Sending...';
+
+    var formData = new FormData(form);
+    var payload = {
+      publicKey: publicKey,
+      source: 'form',
+      name: String(formData.get('name') || '').trim(),
+      enquiry: String(formData.get('enquiry') || '').trim(),
+      email: String(formData.get('email') || '').trim(),
+      phone: String(formData.get('phone') || '').trim(),
+      metadata: {
+        pageUrl: window.location.href,
+        pageTitle: document.title,
+      },
+    };
+
+    try {
+      var response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      var result = await response.json().catch(function () { return {}; });
+      if (!response.ok) {
+        throw new Error(result.error || 'Unable to submit enquiry');
+      }
+
+      form.reset();
+      status.textContent = 'Thanks. Your enquiry has been sent.';
+    } catch (error) {
+      status.textContent = error instanceof Error ? error.message : 'Unable to submit enquiry right now.';
+    }
+  });
+})();
+</script>`;
+  }, [origin, primaryColor, site?.publicKey]);
+
   const previewColor = useMemo(() => {
     const hexColor = primaryColor.trim();
     if (/^#[0-9a-fA-F]{6}$/.test(hexColor)) {
@@ -1025,6 +1104,20 @@ export default function WebchatIntegrationPage() {
     }
   }
 
+  async function copyLeadFormSnippet() {
+    if (!leadFormSnippet) {
+      toast.error("Save or load a webchat site first");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(leadFormSnippet);
+      toast.success("Lead form snippet copied");
+    } catch {
+      toast.error("Failed to copy lead form snippet");
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -1036,8 +1129,8 @@ export default function WebchatIntegrationPage() {
         </Link>
         <h1 className="text-3xl font-bold tracking-tight">Webchat Widget</h1>
         <p className="text-muted-foreground mt-1">
-          Generate your website chat embed snippet and manage webchat channel,
-          public key, and domain config.
+          Generate your website chat and lead form snippets, then manage webchat
+          channel, public key, and domain config.
         </p>
       </div>
 
@@ -1556,6 +1649,38 @@ export default function WebchatIntegrationPage() {
             }
             readOnly
             rows={10}
+            className="font-mono text-xs"
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Lead Form Snippet</CardTitle>
+          <CardDescription>
+            Paste this where you want a simple enquiry form. It submits to the
+            public leads endpoint and triggers the same lead dashboard and
+            notification flow.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => void copyLeadFormSnippet()}
+              disabled={!site?.publicKey}
+            >
+              <Copy className="mr-2 h-4 w-4" />
+              Copy Lead Form Snippet
+            </Button>
+          </div>
+          <Textarea
+            value={
+              leadFormSnippet ||
+              "Save or load a webchat site to generate the lead form snippet."
+            }
+            readOnly
+            rows={18}
             className="font-mono text-xs"
           />
         </CardContent>
