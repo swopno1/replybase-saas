@@ -119,6 +119,18 @@ export function getDisabledChannels(): ChannelId[] {
   );
 }
 
+const HIDDEN_CHANNELS_IN_UI = new Set<ChannelId>(["facebook", "whatsapp"]);
+
+export function isChannelVisibleInUi(channelId: ChannelId): boolean {
+  return !HIDDEN_CHANNELS_IN_UI.has(channelId);
+}
+
+export function getUiVisibleChannels(): ChannelStatus[] {
+  return getAllChannelConfigs().filter((channel) =>
+    isChannelVisibleInUi(channel.id),
+  );
+}
+
 /**
  * Assert that a channel is enabled, throw error if not
  */

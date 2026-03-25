@@ -20,8 +20,14 @@ import {
 } from "lucide-react";
 import { AIToggle } from "@/components/ai-toggle";
 import { authOptions } from "@/lib/auth";
+import { isChannelVisibleInUi } from "@/lib/channel-config";
+import { redirect } from "next/navigation";
 
 export default async function AIStatusPage() {
+  if (!isChannelVisibleInUi("facebook")) {
+    redirect("/");
+  }
+
   const session = await getServerSession(authOptions);
   if (!session?.user) {
     return null;

@@ -20,7 +20,9 @@ import {
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { isChannelVisibleInUi } from "@/lib/channel-config";
 
 interface FBPage {
   id: string;
@@ -32,6 +34,8 @@ interface FBPage {
 }
 
 export default function FacebookIntegrationPage() {
+  const router = useRouter();
+  const channelVisible = isChannelVisibleInUi("facebook");
   const [isLoading, setIsLoading] = useState(true);
   const [pages, setPages] = useState<FBPage[]>([]);
   const [connected, setConnected] = useState(false);
@@ -40,8 +44,17 @@ export default function FacebookIntegrationPage() {
   >({});
 
   useEffect(() => {
+    if (!channelVisible) {
+      router.replace("/");
+      return;
+    }
+
     fetchPages();
-  }, []);
+  }, [channelVisible, router]);
+
+  if (!channelVisible) {
+    return null;
+  }
 
   const fetchPages = async () => {
     try {

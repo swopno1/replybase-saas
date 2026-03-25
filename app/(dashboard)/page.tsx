@@ -32,33 +32,28 @@ export default async function DashboardPage() {
   const health = await checkHealth();
   const isEngineUp = health.engine === "ok";
 
-  // Get connected Facebook pages (tenant-scoped)
-  const connectedPages = await prisma.facebookPage.findMany({
-    where: { tenantId: user.tenantId },
-    select: {
-      id: true,
-      facebookId: true,
-      name: true,
-      engineConnected: true,
-    },
-  });
-
-  const connectedPagesCount = connectedPages.length;
-  const activePagesCount = connectedPages.filter(
-    (p) => p.engineConnected,
-  ).length;
-  // Always show AI as active once pages are connected (Typebot is managed service)
-  const isAIActive = activePagesCount > 0;
-
-  // Get last message timestamp (tenant-scoped via the new facebookPageId relation)
-  let lastMessageTimestamp: Date | null = null;
-  if (connectedPages.length > 0) {
-    const pageIds = connectedPages.map((p) => p.id);
-    const lastMessage = await prisma.crmMessage.findFirst({
+  const [
+    telegramChannelsCount,
+    webchatSitesCount,
+    lastMessage,
+    firstTelegramChannel,
+    firstWebchatChannel,
+  ] = await Promise.all([
+    prisma.channel.count({
+      where: {
+        type: "telegram",
+        accessToken: { not: null },
+        bot: { tenantId: user.tenantId },
+      },
+    }),
+    prisma.webChatSite.count({
+      where: { tenantId: user.tenantId },
+    }),
+    prisma.crmMessage.findFirst({
       where: {
         conversation: {
-          facebookPageId: {
-            in: pageIds,
+          contact: {
+            tenantId: user.tenantId,
           },
         },
       },
@@ -68,53 +63,28 @@ export default async function DashboardPage() {
       select: {
         createdAt: true,
       },
-    });
-    lastMessageTimestamp = lastMessage?.createdAt || null;
-  }
+    }),
+    prisma.channel.findFirst({
+      where: {
+        type: "telegram",
+        accessToken: { not: null },
+        bot: { tenantId: user.tenantId },
+      },
+      orderBy: { createdAt: "asc" },
+      select: { createdAt: true },
+    }),
+    prisma.webChatSite.findFirst({
+      where: { tenantId: user.tenantId },
+      orderBy: { createdAt: "asc" },
+      select: { createdAt: true },
+    }),
+  ]);
 
-  // Determine setup status (tenant-scoped)
-  const hasFacebookAccount = await prisma.account.findFirst({
-    where: {
-      userId: session.user.id,
-      provider: "facebook",
-    },
-  });
-
-  const hasFacebookConnectionBool = !!hasFacebookAccount;
-  const setupComplete =
-    hasFacebookConnectionBool &&
-    connectedPagesCount > 0 &&
-    activePagesCount > 0;
-  const needsFacebookConnection = !hasFacebookConnectionBool;
-  const needsPageConnection =
-    hasFacebookConnectionBool && connectedPagesCount === 0;
-  const needsAIActivation = connectedPagesCount > 0 && activePagesCount === 0;
-
-  const [firstFacebookChannel, firstTelegramChannel, firstWebchatChannel] =
-    await Promise.all([
-      prisma.facebookPage.findFirst({
-        where: { tenantId: user.tenantId },
-        orderBy: { createdAt: "asc" },
-        select: { createdAt: true },
-      }),
-      prisma.channel.findFirst({
-        where: {
-          type: "telegram",
-          accessToken: { not: null },
-          bot: { tenantId: user.tenantId },
-        },
-        orderBy: { createdAt: "asc" },
-        select: { createdAt: true },
-      }),
-      prisma.webChatSite.findFirst({
-        where: { tenantId: user.tenantId },
-        orderBy: { createdAt: "asc" },
-        select: { createdAt: true },
-      }),
-    ]);
+  const connectedChannelsCount = telegramChannelsCount + webchatSitesCount;
+  const isAutomationReady = connectedChannelsCount > 0;
+  const lastMessageTimestamp = lastMessage?.createdAt || null;
 
   const firstConnectedChannelAt = [
-    firstFacebookChannel?.createdAt,
     firstTelegramChannel?.createdAt,
     firstWebchatChannel?.createdAt,
   ]
@@ -164,6 +134,12 @@ export default async function DashboardPage() {
 
   const hasLeadNotificationDestinations =
     hasLeadDestinationEmail || hasLeadDestinationTelegram;
+  const connectedLeadDestinationsCount =
+    Number(hasLeadDestinationEmail) + Number(hasLeadDestinationTelegram);
+  const setupComplete =
+    connectedChannelsCount > 0 && hasLeadNotificationDestinations;
+  const needsChannelConnection = connectedChannelsCount === 0;
+  const needsLeadNotificationSetup = !hasLeadNotificationDestinations;
 
   const firstAutomatedReplyAt = firstAutomatedReply?.createdAt;
   const onboardingMilestones = [
@@ -171,11 +147,11 @@ export default async function DashboardPage() {
       id: "first-channel",
       title: "First connected channel",
       description:
-        "Connect Facebook, Telegram, or Webchat so ReplyBase can start receiving messages.",
+        "Connect Telegram or Webchat so ReplyBase can start receiving website enquiries.",
       completed: Boolean(firstConnectedChannelAt),
       completedAt: firstConnectedChannelAt,
       actionLabel: "Connect a channel",
-      actionHref: "/integrations/facebook",
+      actionHref: "/integrations/webchat",
     },
     {
       id: "first-automated-reply",
@@ -197,7 +173,7 @@ export default async function DashboardPage() {
         ? leadNotificationSettings?.updatedAt || null
         : null,
       actionLabel: "Configure destinations",
-      actionHref: "/settings/account",
+      actionHref: "/settings",
     },
   ];
 
@@ -214,17 +190,16 @@ export default async function DashboardPage() {
         </h1>
         <p className="text-muted-foreground mt-1">
           {setupComplete
-            ? "Your AI is ready to reply to messages automatically."
-            : "Get started by connecting your Facebook Page and enabling AI replies."}
+            ? "Your lead capture stack is live and notifications are configured."
+            : "Connect Webchat or Telegram, then add instant notifications for new leads."}
         </p>
       </div>
 
       {/* Setup CTA - Wrapped in Error Boundary */}
       <DashboardErrorBoundary title="Setup Guide">
         <SetupCTA
-          needsFacebookConnection={needsFacebookConnection}
-          needsPageConnection={needsPageConnection}
-          needsAIActivation={needsAIActivation}
+          needsChannelConnection={needsChannelConnection}
+          needsLeadNotificationSetup={needsLeadNotificationSetup}
         />
       </DashboardErrorBoundary>
 
@@ -293,9 +268,9 @@ export default async function DashboardPage() {
       {/* Status Cards - Wrapped in Error Boundary */}
       <DashboardErrorBoundary title="Status Overview">
         <StatusCards
-          isAIActive={isAIActive}
-          activePagesCount={activePagesCount}
-          connectedPagesCount={connectedPagesCount}
+          isAutomationReady={isAutomationReady}
+          connectedChannelsCount={connectedChannelsCount}
+          connectedLeadDestinationsCount={connectedLeadDestinationsCount}
           isEngineUp={isEngineUp}
           lastMessageTimestamp={lastMessageTimestamp}
         />
@@ -303,7 +278,7 @@ export default async function DashboardPage() {
 
       {/* Quick Actions - Wrapped in Error Boundary */}
       <DashboardErrorBoundary title="Quick Actions">
-        <QuickActions setupComplete={setupComplete} />
+        <QuickActions hasConnectedChannels={connectedChannelsCount > 0} />
       </DashboardErrorBoundary>
     </div>
   );

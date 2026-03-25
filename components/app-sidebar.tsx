@@ -10,12 +10,12 @@ import {
   UserCheck,
   GitBranch,
   Bot,
-  CreditCard,
   Send,
   Globe,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { isChannelVisibleInUi, type ChannelId } from "@/lib/channel-config";
 
 import {
   Sidebar,
@@ -64,21 +64,19 @@ const items = [
     title: "Facebook Pages",
     url: "/integrations/facebook",
     icon: MessageSquare,
+    channelId: "facebook" as ChannelId,
   },
   {
     title: "Telegram Bot",
     url: "/integrations/telegram",
     icon: Send,
+    channelId: "telegram" as ChannelId,
   },
   {
     title: "Webchat Widget",
     url: "/integrations/webchat",
     icon: Globe,
-  },
-  {
-    title: "Billing",
-    url: "/billing",
-    icon: CreditCard,
+    channelId: "webchat" as ChannelId,
   },
   {
     title: "Activity",
@@ -94,6 +92,9 @@ const items = [
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
+  const visibleItems = items.filter(
+    (item) => !item.channelId || isChannelVisibleInUi(item.channelId),
+  );
 
   return (
     <Sidebar {...props}>
@@ -102,7 +103,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarGroupLabel>ReplyBase</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => {
+              {visibleItems.map((item) => {
                 const isActive =
                   pathname === item.url ||
                   (item.url !== "/" && pathname?.startsWith(item.url));

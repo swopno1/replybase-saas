@@ -53,6 +53,9 @@ export function BotList() {
   const toLabel = (value: string) =>
     value.charAt(0).toUpperCase() + value.slice(1);
 
+  const isLegacyHiddenChannel = (value: string) =>
+    ["facebook", "whatsapp"].includes(value.toLowerCase());
+
   const getConfigHref = (type: string) => {
     if (type === "web") {
       return "/integrations/webchat";
@@ -106,36 +109,49 @@ export function BotList() {
                         <div>
                           <p className="font-medium">{bot.name}</p>
                           <p className="text-sm text-gray-600">
-                            Primary: {toLabel(bot.primaryChannel)}
+                            Primary:{" "}
+                            {isLegacyHiddenChannel(bot.primaryChannel)
+                              ? "Legacy"
+                              : toLabel(bot.primaryChannel)}
                           </p>
                           <div className="mt-2 flex flex-wrap gap-2">
-                            {bot.channels.map((channel) => (
-                              <span
-                                key={channel.id}
-                                className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-700"
-                              >
-                                {toLabel(channel.type)}
-                              </span>
-                            ))}
+                            {bot.channels
+                              .filter(
+                                (channel) =>
+                                  !isLegacyHiddenChannel(channel.type),
+                              )
+                              .map((channel) => (
+                                <span
+                                  key={channel.id}
+                                  className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-700"
+                                >
+                                  {toLabel(channel.type)}
+                                </span>
+                              ))}
                           </div>
                           <div className="mt-2 flex flex-wrap gap-2">
-                            {bot.channels.map((channel) => {
-                              const href = getConfigHref(channel.type);
-                              if (!href) {
-                                return null;
-                              }
+                            {bot.channels
+                              .filter(
+                                (channel) =>
+                                  !isLegacyHiddenChannel(channel.type),
+                              )
+                              .map((channel) => {
+                                const href = getConfigHref(channel.type);
+                                if (!href) {
+                                  return null;
+                                }
 
-                              return (
-                                <Link
-                                  key={`${bot.id}-${channel.id}-config`}
-                                  href={href}
-                                  onClick={(event) => event.stopPropagation()}
-                                  className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
-                                >
-                                  Configure {toLabel(channel.type)}
-                                </Link>
-                              );
-                            })}
+                                return (
+                                  <Link
+                                    key={`${bot.id}-${channel.id}-config`}
+                                    href={href}
+                                    onClick={(event) => event.stopPropagation()}
+                                    className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                                  >
+                                    Configure {toLabel(channel.type)}
+                                  </Link>
+                                );
+                              })}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">

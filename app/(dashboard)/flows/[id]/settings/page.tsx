@@ -24,6 +24,9 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Save, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { isChannelVisibleInUi } from "@/lib/channel-config";
+
+const showFacebookAssignment = isChannelVisibleInUi("facebook");
 
 interface Flow {
   id: string;
@@ -98,7 +101,9 @@ export default function FlowSettingsPage() {
       setLoading(true);
       const [flowResponse, pagesResponse, botsResponse] = await Promise.all([
         fetch(`/api/flows/${flowId}`),
-        fetch("/api/facebook/pages"),
+        showFacebookAssignment
+          ? fetch("/api/facebook/pages")
+          : Promise.resolve(null),
         fetch("/api/bots"),
       ]);
 
@@ -142,9 +147,11 @@ export default function FlowSettingsPage() {
         }
       }
 
-      if (pagesResponse.ok) {
+      if (showFacebookAssignment && pagesResponse?.ok) {
         const pagesData = await pagesResponse.json();
         setPages(pagesData.pages || []);
+      } else {
+        setPages([]);
       }
 
       if (botsResponse.ok) {
@@ -177,7 +184,10 @@ export default function FlowSettingsPage() {
 
         const availableChannels: ChannelOption[] = botList.flatMap((bot) =>
           (bot.channels || [])
-            .filter((channel) => channel.type.toLowerCase() !== "facebook")
+            .filter(
+              (channel) =>
+                !["facebook", "whatsapp"].includes(channel.type.toLowerCase()),
+            )
             .map((channel) => ({
               id: channel.id,
               name: channel.name,
@@ -478,90 +488,94 @@ export default function FlowSettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Page Assignment */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Page Assignment</CardTitle>
-            <CardDescription>
-              Assign this flow to a Facebook page
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {pages.length === 0 ? (
-              <div className="text-center py-8 border-2 border-dashed rounded-lg">
-                <p className="text-muted-foreground mb-4">
-                  No Facebook pages connected
-                </p>
-                <Button
-                  variant="outline"
-                  onClick={() => router.push("/integrations/facebook")}
-                >
-                  Connect Facebook Page
-                </Button>
-              </div>
-            ) : (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="page">Select Page</Label>
-                  <Select
-                    value={selectedPageId}
-                    onValueChange={setSelectedPageId}
-                  >
-                    <SelectTrigger id="page">
-                      <SelectValue placeholder="Choose a page..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {pages.map((page) => (
-                        <SelectItem key={page.id} value={page.id}>
-                          {page.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Only one flow can be active per page at a time
+        {showFacebookAssignment && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Page Assignment</CardTitle>
+              <CardDescription>
+                Assign this flow to a Facebook page
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {pages.length === 0 ? (
+                <div className="text-center py-8 border-2 border-dashed rounded-lg">
+                  <p className="text-muted-foreground mb-4">
+                    No Facebook pages connected
                   </p>
-                </div>
-
-                {currentAssignment ? (
-                  <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
-                    <div>
-                      <p className="font-medium">Currently Assigned</p>
-                      <p className="text-sm text-muted-foreground">
-                        {pages.find((p) => p.id === currentAssignment.pageId)
-                          ?.name || "Unknown page"}
-                      </p>
-                    </div>
-                    <Button variant="outline" onClick={handleUnassignFromPage}>
-                      Unassign
-                    </Button>
-                  </div>
-                ) : (
                   <Button
-                    onClick={handleAssignToPage}
-                    disabled={!selectedPageId}
+                    variant="outline"
+                    onClick={() => router.push("/integrations/facebook")}
                   >
-                    Assign to Page
+                    Connect Facebook Page
                   </Button>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="page">Select Page</Label>
+                    <Select
+                      value={selectedPageId}
+                      onValueChange={setSelectedPageId}
+                    >
+                      <SelectTrigger id="page">
+                        <SelectValue placeholder="Choose a page..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {pages.map((page) => (
+                          <SelectItem key={page.id} value={page.id}>
+                            {page.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Only one flow can be active per page at a time
+                    </p>
+                  </div>
+
+                  {currentAssignment ? (
+                    <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
+                      <div>
+                        <p className="font-medium">Currently Assigned</p>
+                        <p className="text-sm text-muted-foreground">
+                          {pages.find((p) => p.id === currentAssignment.pageId)
+                            ?.name || "Unknown page"}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        onClick={handleUnassignFromPage}
+                      >
+                        Unassign
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      onClick={handleAssignToPage}
+                      disabled={!selectedPageId}
+                    >
+                      Assign to Page
+                    </Button>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Channel Assignment */}
         <Card>
           <CardHeader>
             <CardTitle>Channel Assignment</CardTitle>
             <CardDescription>
-              Assign this flow to a Telegram/Webchat/WhatsApp channel
+              Assign this flow to a Telegram or Webchat channel
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {channels.length === 0 ? (
               <div className="text-center py-8 border-2 border-dashed rounded-lg">
                 <p className="text-muted-foreground mb-2">
-                  No non-Facebook channels found
+                  No Telegram or Webchat channels found
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Create Telegram or Webchat channels in Integrations first.

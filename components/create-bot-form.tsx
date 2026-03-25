@@ -67,8 +67,7 @@ export function CreateBotForm({ projectId }: CreateBotFormProps) {
           }
           className="w-full px-3 py-2 border rounded-md"
         >
-          <option value="webhook">Webhook</option>
-          <option value="facebook">Facebook</option>
+          <option value="webhook">Web Chat</option>
           <option value="slack">Slack (Coming Soon)</option>
         </select>
       </div>

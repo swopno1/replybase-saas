@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { isChannelVisibleInUi, type ChannelId } from "@/lib/channel-config";
 
 interface ChannelConfig {
   id: string;
@@ -85,7 +86,11 @@ export function ChannelsClient() {
           },
         ];
 
-        setChannels(channelList);
+        setChannels(
+          channelList.filter((channel) =>
+            isChannelVisibleInUi(channel.id as ChannelId),
+          ),
+        );
         setStatus({
           facebook: data.tenantOnly.facebook,
           telegram: data.tenantOnly.telegram,

@@ -9,20 +9,18 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { AlertCircle, MessageSquare, Zap, ArrowRight } from "lucide-react";
+import { ArrowRight, Bell, Globe, Send } from "lucide-react";
 
 interface SetupCTAProps {
-  needsFacebookConnection: boolean;
-  needsPageConnection: boolean;
-  needsAIActivation: boolean;
+  needsChannelConnection: boolean;
+  needsLeadNotificationSetup: boolean;
 }
 
 export function SetupCTA({
-  needsFacebookConnection,
-  needsPageConnection,
-  needsAIActivation,
+  needsChannelConnection,
+  needsLeadNotificationSetup,
 }: SetupCTAProps) {
-  if (!needsFacebookConnection && !needsPageConnection && !needsAIActivation) {
+  if (!needsChannelConnection && !needsLeadNotificationSetup) {
     return null;
   }
 
@@ -30,55 +28,49 @@ export function SetupCTA({
     <Card className="border-primary/50 bg-primary/5">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          {needsFacebookConnection && (
+          {needsChannelConnection && (
             <>
-              <AlertCircle className="h-5 w-5 text-primary" />
-              Connect Your Facebook Account
+              <Globe className="h-5 w-5 text-primary" />
+              Connect Your First Lead Channel
             </>
           )}
-          {needsPageConnection && (
+          {needsLeadNotificationSetup && (
             <>
-              <MessageSquare className="h-5 w-5 text-primary" />
-              Connect Your Facebook Page
-            </>
-          )}
-          {needsAIActivation && (
-            <>
-              <Zap className="h-5 w-5 text-primary" />
-              Enable AI Replies
+              <Bell className="h-5 w-5 text-primary" />
+              Configure Instant Lead Alerts
             </>
           )}
         </CardTitle>
         <CardDescription>
-          {needsFacebookConnection &&
-            "Connect your Facebook account to get started."}
-          {needsPageConnection &&
-            "Select a Facebook Page to connect with ReplyBase."}
-          {needsAIActivation && "Enable AI replies for your connected pages."}
+          {needsChannelConnection &&
+            "Connect Telegram or Webchat so ReplyBase can start receiving website enquiries."}
+          {needsLeadNotificationSetup &&
+            "Add an email address or Telegram chat ID so new leads alert your team instantly."}
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        {needsFacebookConnection && (
-          <Link href="/integrations/facebook">
-            <Button>
-              Connect Facebook Account
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </Link>
+      <CardContent className="flex flex-wrap gap-3">
+        {needsChannelConnection && (
+          <>
+            <Link href="/integrations/webchat">
+              <Button>
+                <Globe className="mr-2 h-4 w-4" />
+                Set Up Webchat
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+            <Link href="/integrations/telegram">
+              <Button variant="outline">
+                <Send className="mr-2 h-4 w-4" />
+                Set Up Telegram
+              </Button>
+            </Link>
+          </>
         )}
-        {needsPageConnection && (
-          <Link href="/integrations/facebook">
-            <Button>
-              Connect Facebook Page
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </Link>
-        )}
-        {needsAIActivation && (
-          <Link href="/ai-status">
-            <Button>
-              Enable AI Replies
-              <ArrowRight className="ml-2 h-4 w-4" />
+        {needsLeadNotificationSetup && (
+          <Link href="/settings">
+            <Button variant={needsChannelConnection ? "outline" : "default"}>
+              <Bell className="mr-2 h-4 w-4" />
+              Configure Alerts
             </Button>
           </Link>
         )}

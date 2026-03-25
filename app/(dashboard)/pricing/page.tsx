@@ -18,7 +18,7 @@ const PLANS = [
     features: [
       "100 messages/day",
       "1 bot",
-      "Facebook, Telegram, and Webchat support",
+      "Telegram and Webchat support",
       "Basic Analytics",
       "Community Support",
     ],
@@ -31,7 +31,7 @@ const PLANS = [
     features: [
       "1,000 messages/day",
       "3 bots",
-      "Facebook, Telegram, and Webchat support",
+      "Telegram and Webchat support",
       "Standard Analytics",
       "Email Support",
       "Remove Branding",
@@ -46,7 +46,7 @@ const PLANS = [
     features: [
       "5,000 messages/day",
       "10 bots",
-      "Facebook, Telegram, and Webchat support",
+      "Telegram and Webchat support",
       "Advanced Analytics",
       "Priority Support",
       "Custom Domains",
@@ -60,7 +60,7 @@ const PLANS = [
     features: [
       "20,000 messages/day",
       "50 bots",
-      "Facebook, Telegram, and Webchat support",
+      "Telegram and Webchat support",
       "Enterprise Analytics",
       "Dedicated Support",
       "SLA",
@@ -137,8 +137,8 @@ export default function PricingPage() {
       <div className="text-center mb-8">
         <h1 className="text-4xl font-bold mb-4">Simple, Transparent Pricing</h1>
         <p className="text-muted-foreground text-lg">
-          Choose the plan that fits your needs across Facebook, Telegram, and
-          Webchat. Upgrade or cancel anytime.
+          Choose the plan that fits your lead capture workflow across Telegram
+          and Webchat. Upgrade or cancel anytime.
         </p>
       </div>
 

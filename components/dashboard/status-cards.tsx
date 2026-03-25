@@ -4,15 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   CheckCircle2,
   AlertCircle,
-  MessageSquare,
   Activity,
   Clock,
+  Bell,
+  Radio,
 } from "lucide-react";
 
 interface StatusCardsProps {
-  isAIActive: boolean;
-  activePagesCount: number;
-  connectedPagesCount: number;
+  isAutomationReady: boolean;
+  connectedChannelsCount: number;
+  connectedLeadDestinationsCount: number;
   isEngineUp: boolean;
   lastMessageTimestamp: Date | null;
 }
@@ -33,9 +34,9 @@ function formatTimeAgo(date: Date): string {
 }
 
 export function StatusCards({
-  isAIActive,
-  activePagesCount,
-  connectedPagesCount,
+  isAutomationReady,
+  connectedChannelsCount,
+  connectedLeadDestinationsCount,
   isEngineUp,
   lastMessageTimestamp,
 }: StatusCardsProps) {
@@ -44,8 +45,8 @@ export function StatusCards({
       {/* AI Status */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">AI Status</CardTitle>
-          {isAIActive ? (
+          <CardTitle className="text-sm font-medium">Automation</CardTitle>
+          {isAutomationReady ? (
             <CheckCircle2 className="h-4 w-4 text-green-500" />
           ) : (
             <AlertCircle className="h-4 w-4 text-muted-foreground" />
@@ -53,30 +54,30 @@ export function StatusCards({
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {isAIActive ? "Active" : "Inactive"}
+            {isAutomationReady ? "Ready" : "Pending"}
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            {isAIActive
-              ? `${activePagesCount} page${
-                  activePagesCount !== 1 ? "s" : ""
-                } active`
-              : "No pages connected"}
+            {isAutomationReady
+              ? "Lead capture channels are connected"
+              : "Connect Webchat or Telegram to start receiving leads"}
           </p>
         </CardContent>
       </Card>
 
-      {/* Connected Pages */}
+      {/* Connected Channels */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Facebook Pages</CardTitle>
-          <MessageSquare className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-sm font-medium">
+            Connected Channels
+          </CardTitle>
+          <Radio className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{connectedPagesCount}</div>
+          <div className="text-2xl font-bold">{connectedChannelsCount}</div>
           <p className="text-xs text-muted-foreground mt-1">
-            {connectedPagesCount === 0
-              ? "No pages connected"
-              : `${activePagesCount} with AI enabled`}
+            {connectedChannelsCount === 0
+              ? "No channels connected"
+              : `${connectedChannelsCount} channel${connectedChannelsCount !== 1 ? "s" : ""} live`}
           </p>
         </CardContent>
       </Card>
@@ -101,10 +102,28 @@ export function StatusCards({
         </CardContent>
       </Card>
 
-      {/* Last Message */}
+      {/* Lead Destinations */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Last Message</CardTitle>
+          <CardTitle className="text-sm font-medium">Lead Alerts</CardTitle>
+          <Bell className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">
+            {connectedLeadDestinationsCount}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            {connectedLeadDestinationsCount === 0
+              ? "No email or Telegram alerts configured"
+              : `${connectedLeadDestinationsCount} destination${connectedLeadDestinationsCount !== 1 ? "s" : ""} configured`}
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Last Activity */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Last Activity</CardTitle>
           <Clock className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
@@ -112,7 +131,9 @@ export function StatusCards({
             {lastMessageTimestamp ? formatTimeAgo(lastMessageTimestamp) : "—"}
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            {lastMessageTimestamp ? "Most recent activity" : "No messages yet"}
+            {lastMessageTimestamp
+              ? "Most recent lead activity"
+              : "No conversations yet"}
           </p>
         </CardContent>
       </Card>

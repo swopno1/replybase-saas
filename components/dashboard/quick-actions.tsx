@@ -9,14 +9,14 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { MessageSquare, Zap, Activity } from "lucide-react";
+import { Activity, Bell, Globe, Send } from "lucide-react";
 
 interface QuickActionsProps {
-  setupComplete: boolean;
+  hasConnectedChannels: boolean;
 }
 
-export function QuickActions({ setupComplete }: QuickActionsProps) {
-  if (!setupComplete) {
+export function QuickActions({ hasConnectedChannels }: QuickActionsProps) {
+  if (!hasConnectedChannels) {
     return null;
   }
 
@@ -25,19 +25,25 @@ export function QuickActions({ setupComplete }: QuickActionsProps) {
       <Card>
         <CardHeader>
           <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>Manage your integration</CardDescription>
+          <CardDescription>Manage your lead capture stack</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
-          <Link href="/integrations/facebook">
+          <Link href="/integrations/webchat">
             <Button variant="outline" className="w-full justify-start">
-              <MessageSquare className="mr-2 h-4 w-4" />
-              Manage Facebook Pages
+              <Globe className="mr-2 h-4 w-4" />
+              Manage Webchat Widget
             </Button>
           </Link>
-          <Link href="/ai-status">
+          <Link href="/integrations/telegram">
             <Button variant="outline" className="w-full justify-start">
-              <Zap className="mr-2 h-4 w-4" />
-              Configure AI Status
+              <Send className="mr-2 h-4 w-4" />
+              Manage Telegram Notifications
+            </Button>
+          </Link>
+          <Link href="/settings">
+            <Button variant="outline" className="w-full justify-start">
+              <Bell className="mr-2 h-4 w-4" />
+              Configure Lead Alerts
             </Button>
           </Link>
           <Link href="/activity">

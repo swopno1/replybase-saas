@@ -14,8 +14,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { User, Lock, Bell, Shield, Copy, Check } from "lucide-react";
+import {
+  User,
+  Lock,
+  Bell,
+  Shield,
+  Copy,
+  Check,
+  CreditCard,
+} from "lucide-react";
 import { toast } from "sonner";
+import BillingContent from "@/app/(dashboard)/settings/billing/page";
 
 export default function SettingsPage() {
   const { data: session, update } = useSession();
@@ -378,6 +387,10 @@ export default function SettingsPage() {
           <TabsTrigger value="privacy">
             <Shield className="mr-2 h-4 w-4" />
             Privacy
+          </TabsTrigger>
+          <TabsTrigger value="billing">
+            <CreditCard className="mr-2 h-4 w-4" />
+            Billing
           </TabsTrigger>
         </TabsList>
 
@@ -793,6 +806,11 @@ export default function SettingsPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* BILLING TAB */}
+        <TabsContent value="billing">
+          <BillingContent />
         </TabsContent>
       </Tabs>
     </div>
