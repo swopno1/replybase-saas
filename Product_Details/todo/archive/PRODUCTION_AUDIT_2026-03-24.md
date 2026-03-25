@@ -140,6 +140,43 @@ Why:
 
 - Reduces unnecessary data retrieval and improves predictable error behavior.
 
+### 9) Lint and type-safety stabilization pass
+
+Files:
+
+- `app/(dashboard)/activity/page.tsx`
+- `app/api/facebook/webhook/route.ts`
+- `app/api/oidc/[...oidc]/route.ts`
+- plus additional app/api/lib/scripts/test files with warning-only cleanup
+
+Change:
+
+- Removed explicit `any` usage in high-signal runtime paths.
+- Fixed strict typing regressions found during production build validation.
+- Removed unused imports, locals, and params to produce a clean lint baseline.
+
+Why:
+
+- Ensure code quality gates are green and reduce risk of hidden type drift.
+
+### 10) Subscription usage enforcement implemented
+
+File:
+
+- `lib/subscription.ts`
+
+Change:
+
+- Replaced mocked usage values with persisted `usage_logs` aggregation.
+- Enforced daily message, monthly message, and daily flow-execution limits in `checkLimit`.
+- Implemented persisted counter updates in `incrementUsage`.
+- Updated tenant usage API backing data to report real usage values.
+- Treated `trialing` subscriptions as active for limit resolution.
+
+Why:
+
+- Converts plan limits from advisory-only behavior into actual runtime enforcement.
+
 ## Removed or Archived Code
 
 No runtime code was deleted in this hardening pass.
@@ -151,10 +188,9 @@ Notes:
 
 ## Remaining High-Priority Follow-Ups
 
-1. Subscription usage enforcement still includes TODO behavior (`lib/subscription.ts`) and should be completed for true plan-limit enforcement.
-2. Prisma schema contains a large mixed domain model surface (ReplyBase + legacy Typebot-style models). Consider schema split or separate data source boundaries to reduce operational risk.
-3. Add central request validation middleware (Zod) for high-risk POST/PATCH routes to enforce consistent input contracts.
-4. Add structured server logging with redaction policy for tokens, email identifiers, and webhook payload fragments.
+1. Prisma schema contains a large mixed domain model surface (ReplyBase + legacy Typebot-style models). Consider schema split or separate data source boundaries to reduce operational risk.
+2. Add central request validation middleware (Zod) for high-risk POST/PATCH routes to enforce consistent input contracts.
+3. Add structured server logging with redaction policy for tokens, email identifiers, and webhook payload fragments.
 
 ## Build and Validation Status
 
@@ -165,10 +201,9 @@ Ran:
 
 Result summary:
 
-- Touched files compile without direct diagnostics from the editor checks.
-- Repository has pre-existing lint errors and a pre-existing build blocker unrelated to this hardening patch:
-  - duplicate import in `app/api/facebook/pages/route.ts`
-  - missing module `@/hooks/use-toast` referenced by `app/(dashboard)/settings/channels/channels-client.tsx`
+- `npm run lint`: pass (0 errors, 0 warnings)
+- `npm run build`: pass (Next.js + TypeScript + route generation)
+- Build warning remains: middleware convention deprecation in Next.js 16 (`middleware` -> `proxy` migration path).
 
 ## Recommended Production Readiness Commands
 
