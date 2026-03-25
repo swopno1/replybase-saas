@@ -74,7 +74,8 @@ export function ActivationKpiDashboard({ data }: Props) {
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Measures onboarding speed, weekly runtime activity, and multi-channel
-          setup reliability (Telegram, Facebook, Webchat).
+          setup reliability across Telegram, Webchat, and lead capture entry
+          points.
         </p>
       </div>
 
@@ -179,7 +180,7 @@ export function ActivationKpiDashboard({ data }: Props) {
           </CardHeader>
           <CardContent>
             <ChartContainer
-              className="h-[320px] w-full"
+              className="h-80 w-full"
               config={activationChartConfig}
             >
               <LineChart data={data.weeklyTrend}>
@@ -223,7 +224,7 @@ export function ActivationKpiDashboard({ data }: Props) {
           </CardHeader>
           <CardContent>
             <ChartContainer
-              className="h-[320px] w-full"
+              className="h-80 w-full"
               config={reliabilityChartConfig}
             >
               <BarChart data={data.weeklyTrend}>

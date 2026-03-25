@@ -69,7 +69,8 @@ export default function WebhookLogsPage() {
         <div>
           <h1 className="text-3xl font-bold">Webhook Logs</h1>
           <p className="text-gray-600">
-            Real-time Facebook webhook event monitoring
+            Real-time webhook event monitoring for connected channels and lead
+            capture endpoints
           </p>
         </div>
         <div className="flex gap-2">
@@ -94,8 +95,8 @@ export default function WebhookLogsPage() {
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-gray-500">
-              No webhook events logged yet. Send a message to your Facebook page
-              to test.
+              No webhook events logged yet. Trigger a webchat, Telegram, or
+              public lead submission event to test logging.
             </p>
           </CardContent>
         </Card>
