@@ -56,13 +56,13 @@ export function NavUser({
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <Link href="/settings/account">
+          <Link href="/settings">
             <DropdownMenuItem>
               <User className="mr-2 h-4 w-4" />
               <span>Account</span>
             </DropdownMenuItem>
           </Link>
-          <Link href="/settings/billing">
+          <Link href="/settings?tab=billing">
             <DropdownMenuItem>
               <CreditCard className="mr-2 h-4 w-4" />
               <span>Billing</span>

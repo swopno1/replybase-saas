@@ -1,15 +1,28 @@
 /**
  * Channel Configuration System
  *
- * This module manages which communication channels are enabled/disabled.
- * Each channel can be toggled via environment variables without code changes.
+ * This module manages which communication channels are enabled/disabled,
+ * and which are visible in the UI.  Both dimensions are controlled via
+ * environment variables without code changes.
+ *
+ * Backend enablement:
+ *   ENABLE_CHANNEL_FACEBOOK=true    # allow Facebook API routes
+ *   ENABLE_CHANNEL_TELEGRAM=true    # allow Telegram API routes
+ *   ENABLE_CHANNEL_WEBCHAT=true     # allow Webchat API routes
+ *   ENABLE_CHANNEL_WHATSAPP=true    # allow WhatsApp API routes
+ *
+ * UI visibility (independent of backend enablement):
+ *   ENABLE_UI_CHANNEL_FACEBOOK=true    # show Facebook surfaces in the UI
+ *   ENABLE_UI_CHANNEL_WHATSAPP=true    # show WhatsApp surfaces in the UI
+ *
+ * When a UI env var is absent the channel falls back to the hardcoded
+ * `uiVisibleByDefault` flag defined in CHANNEL_DEFAULTS below.
  *
  * Usage:
- *   import { getChannelConfig, isChannelEnabled } from '@/lib/channel-config';
+ *   import { getChannelConfig, isChannelEnabled, isChannelVisibleInUi } from '@/lib/channel-config';
  *
- *   if (isChannelEnabled('facebook')) {
- *     // Facebook features available
- *   }
+ *   if (isChannelEnabled('facebook')) { ... }      // backend gate
+ *   if (isChannelVisibleInUi('facebook')) { ... }  // UI gate
  */
 
 export type ChannelId = "facebook" | "telegram" | "webchat" | "whatsapp";
@@ -20,23 +33,32 @@ export interface ChannelStatus {
   description: string;
   enabled: boolean;
   envVar: string;
+  /** Env var that controls whether this channel appears in the UI.
+   *  When absent, `uiVisibleByDefault` is used. */
+  uiEnvVar?: string;
   notes?: string;
 }
 
-const CHANNEL_DEFAULTS: Record<ChannelId, Omit<ChannelStatus, "enabled">> = {
+const CHANNEL_DEFAULTS: Record<
+  ChannelId,
+  Omit<ChannelStatus, "enabled"> & { uiVisibleByDefault: boolean }
+> = {
   facebook: {
     id: "facebook",
     displayName: "Facebook Messenger",
     description: "Meta Facebook Messenger integration",
     envVar: "ENABLE_CHANNEL_FACEBOOK",
+    uiEnvVar: "ENABLE_UI_CHANNEL_FACEBOOK",
+    uiVisibleByDefault: false,
     notes:
-      "Requires Meta App verification. Currently disabled due to verification failure.",
+      "Requires Meta App verification. Currently hidden from UI; set ENABLE_UI_CHANNEL_FACEBOOK=true to restore.",
   },
   telegram: {
     id: "telegram",
     displayName: "Telegram",
     description: "Telegram Bot integration",
     envVar: "ENABLE_CHANNEL_TELEGRAM",
+    uiVisibleByDefault: true,
     notes: "Production ready",
   },
   webchat: {
@@ -44,6 +66,7 @@ const CHANNEL_DEFAULTS: Record<ChannelId, Omit<ChannelStatus, "enabled">> = {
     displayName: "Web Chat",
     description: "Embedded webchat widget for websites",
     envVar: "ENABLE_CHANNEL_WEBCHAT",
+    uiVisibleByDefault: true,
     notes: "Production ready",
   },
   whatsapp: {
@@ -51,7 +74,9 @@ const CHANNEL_DEFAULTS: Record<ChannelId, Omit<ChannelStatus, "enabled">> = {
     displayName: "WhatsApp",
     description: "WhatsApp Business API integration",
     envVar: "ENABLE_CHANNEL_WHATSAPP",
-    notes: "In development",
+    uiEnvVar: "ENABLE_UI_CHANNEL_WHATSAPP",
+    uiVisibleByDefault: false,
+    notes: "In development. Set ENABLE_UI_CHANNEL_WHATSAPP=true to show in UI.",
   },
 };
 
@@ -78,7 +103,8 @@ function isChannelEnabledInternal(channelId: ChannelId): boolean {
  * Get full config for a single channel
  */
 export function getChannelConfig(channelId: ChannelId): ChannelStatus {
-  const base = CHANNEL_DEFAULTS[channelId];
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { uiVisibleByDefault, ...base } = CHANNEL_DEFAULTS[channelId];
   return {
     ...base,
     enabled: isChannelEnabledInternal(channelId),
@@ -119,10 +145,24 @@ export function getDisabledChannels(): ChannelId[] {
   );
 }
 
-const HIDDEN_CHANNELS_IN_UI = new Set<ChannelId>(["facebook", "whatsapp"]);
-
+/**
+ * Returns true when a channel should be shown in the UI.
+ *
+ * Resolution order (first match wins):
+ *  1. If the channel defines `uiEnvVar` AND that env var is set → use its value
+ *  2. Otherwise fall back to the `uiVisibleByDefault` flag in CHANNEL_DEFAULTS
+ *
+ * Examples:
+ *   ENABLE_UI_CHANNEL_FACEBOOK=true  → Facebook surfaces appear in the UI
+ *   ENABLE_UI_CHANNEL_FACEBOOK=false → Facebook surfaces are hidden (same as default)
+ *   (unset)                          → falls back to uiVisibleByDefault (false for facebook)
+ */
 export function isChannelVisibleInUi(channelId: ChannelId): boolean {
-  return !HIDDEN_CHANNELS_IN_UI.has(channelId);
+  const { uiEnvVar, uiVisibleByDefault } = CHANNEL_DEFAULTS[channelId];
+  if (uiEnvVar !== undefined && process.env[uiEnvVar] !== undefined) {
+    return parseBoolEnv(process.env[uiEnvVar]);
+  }
+  return uiVisibleByDefault;
 }
 
 export function getUiVisibleChannels(): ChannelStatus[] {
@@ -148,12 +188,19 @@ export function requireChannelEnabled(
 }
 
 /**
- * Default channel status: Facebook is disabled
- * Set the following environment variables to enable/disable channels:
- *   ENABLE_CHANNEL_FACEBOOK=true    # Facebook - currently disabled due to Meta verification failure
- *   ENABLE_CHANNEL_TELEGRAM=true    # Telegram - default enabled
- *   ENABLE_CHANNEL_WEBCHAT=true     # Web Chat - default enabled
- *   ENABLE_CHANNEL_WHATSAPP=true    # WhatsApp - optional
+ * Default channel status summary:
+ *
+ * Backend enablement (API routes):
+ *   ENABLE_CHANNEL_FACEBOOK=true    # off by default — Meta verification failed
+ *   ENABLE_CHANNEL_TELEGRAM=true    # on by default
+ *   ENABLE_CHANNEL_WEBCHAT=true     # on by default
+ *   ENABLE_CHANNEL_WHATSAPP=true    # off by default — in development
+ *
+ * UI visibility (dashboard surfaces, sidebar, settings):
+ *   ENABLE_UI_CHANNEL_FACEBOOK=true   # hidden by default — set to show Facebook UI
+ *   ENABLE_UI_CHANNEL_WHATSAPP=true   # hidden by default — set to show WhatsApp UI
+ *
+ * Telegram and Webchat are always visible in the UI (no env var needed).
  */
 export const CHANNEL_DEFAULTS_ENV = {
   facebook: "false", // Currently disabled - Meta verification failed
