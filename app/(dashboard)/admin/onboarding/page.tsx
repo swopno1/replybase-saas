@@ -34,7 +34,6 @@ export default async function OnboardingSessionsPage() {
   const sessions = await prisma.onboardingSession.findMany({
     include: {
       contact: true,
-      facebookPage: true,
       plan: true,
     },
     orderBy: {
@@ -149,7 +148,10 @@ export default async function OnboardingSessionsPage() {
               {Object.entries(stageDistribution)
                 .sort()
                 .map(([stage, count]) => (
-                  <div key={stage} className="flex items-center justify-between">
+                  <div
+                    key={stage}
+                    className="flex items-center justify-between"
+                  >
                     <span className="text-sm font-medium capitalize">
                       {stage.toLowerCase().replace(/_/g, " ")}
                     </span>
