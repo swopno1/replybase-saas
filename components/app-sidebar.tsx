@@ -5,7 +5,6 @@ import {
   MessageSquare,
   Settings,
   Activity,
-  Zap,
   Users,
   MessagesSquare,
   UserCheck,
@@ -75,11 +74,6 @@ const items = [
     title: "Webchat Widget",
     url: "/integrations/webchat",
     icon: Globe,
-  },
-  {
-    title: "AI Status",
-    url: "/ai-status",
-    icon: Zap,
   },
   {
     title: "Billing",
