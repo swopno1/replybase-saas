@@ -79,12 +79,10 @@ describe("webchat CORS origin checks", () => {
       (process.env as Record<string, string>).NODE_ENV = "production";
     });
 
-    it("blocks all origins when WEBCHAT_ALLOWED_ORIGINS is not configured", () => {
+    it("allows requests when WEBCHAT_ALLOWED_ORIGINS is not configured so the site allowlist can decide dynamically", () => {
       const req = makeReq({ origin: "https://example.com" });
-      expect(isWebchatOriginAllowed(req)).toBe(false);
-      expect(getWebchatOriginRejectionReason(req)).toBe(
-        "No webchat origins configured",
-      );
+      expect(isWebchatOriginAllowed(req)).toBe(true);
+      expect(getWebchatOriginRejectionReason(req)).toBeNull();
     });
 
     it("allows same-origin dashboard requests even when WEBCHAT_ALLOWED_ORIGINS is not configured", () => {
@@ -258,6 +256,15 @@ describe("webchat CORS origin checks", () => {
       process.env.WEBCHAT_ALLOWED_ORIGINS = "https://example.com";
       const req = makeReq({ origin: "https://evil.com" });
       expect(getWebchatCorsOrigin(req)).toBe("");
+    });
+
+    it("returns the request origin when no WEBCHAT_ALLOWED_ORIGINS is configured", () => {
+      delete process.env.WEBCHAT_ALLOWED_ORIGINS;
+      (process.env as Record<string, string>).NODE_ENV = "production";
+      const req = makeReq({ origin: "https://www.vivescriptsolutions.com" });
+      expect(getWebchatCorsOrigin(req)).toBe(
+        "https://www.vivescriptsolutions.com",
+      );
     });
   });
 });

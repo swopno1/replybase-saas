@@ -124,10 +124,7 @@ function checkWebchatOrigin(request: NextRequest): WebchatOriginCheckResult {
   }
 
   if (!allowedOrigins.length) {
-    return {
-      allowed: false,
-      reason: "No webchat origins configured",
-    };
+    return { allowed: true };
   }
 
   if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
@@ -175,6 +172,10 @@ export function getWebchatCorsOrigin(request: NextRequest): string {
       (requestRefererOrigin && requestRefererOrigin === requestTargetOrigin))
   ) {
     return requestOrigin || requestRefererOrigin || requestTargetOrigin;
+  }
+
+  if (!allowedOrigins.length) {
+    return requestOrigin || requestRefererOrigin || requestTargetOrigin || "";
   }
 
   if (!requestOrigin) {
