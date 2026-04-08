@@ -20,6 +20,22 @@ function normalizeOrigin(value?: string | null): string {
   }
 }
 
+function getRequestTargetOrigin(request: NextRequest): string {
+  const nextUrlOrigin = normalizeOrigin(request.nextUrl?.origin);
+  if (nextUrlOrigin) {
+    return nextUrlOrigin;
+  }
+
+  const host =
+    request.headers.get("x-forwarded-host") || request.headers.get("host");
+  if (!host) {
+    return "";
+  }
+
+  const proto = request.headers.get("x-forwarded-proto") || "https";
+  return normalizeOrigin(`${proto}://${host}`);
+}
+
 function isProductionEnvironment() {
   return process.env.NODE_ENV === "production";
 }
@@ -65,6 +81,7 @@ function checkWebchatOrigin(request: NextRequest): WebchatOriginCheckResult {
   const allowedOrigins = parseAllowedOrigins();
   const requestOrigin = normalizeOrigin(request.headers.get("origin"));
   const requestRefererOrigin = normalizeOrigin(request.headers.get("referer"));
+  const requestTargetOrigin = getRequestTargetOrigin(request);
 
   if (
     requireMatchingOriginAndReferer() &&
@@ -84,6 +101,14 @@ function checkWebchatOrigin(request: NextRequest): WebchatOriginCheckResult {
       allowed: false,
       reason: "Origin or Referer header is required",
     };
+  }
+
+  if (
+    requestTargetOrigin &&
+    ((requestOrigin && requestOrigin === requestTargetOrigin) ||
+      (requestRefererOrigin && requestRefererOrigin === requestTargetOrigin))
+  ) {
+    return { allowed: true };
   }
 
   if (allowedOrigins.includes("*")) {
@@ -142,6 +167,15 @@ export function getWebchatCorsOrigin(request: NextRequest): string {
 
   const requestOrigin = normalizeOrigin(request.headers.get("origin"));
   const requestRefererOrigin = normalizeOrigin(request.headers.get("referer"));
+  const requestTargetOrigin = getRequestTargetOrigin(request);
+
+  if (
+    requestTargetOrigin &&
+    ((requestOrigin && requestOrigin === requestTargetOrigin) ||
+      (requestRefererOrigin && requestRefererOrigin === requestTargetOrigin))
+  ) {
+    return requestOrigin || requestRefererOrigin || requestTargetOrigin;
+  }
 
   if (!requestOrigin) {
     return requestRefererOrigin || allowedOrigins[0] || "";

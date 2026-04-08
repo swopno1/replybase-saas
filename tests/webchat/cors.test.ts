@@ -6,8 +6,11 @@ import {
   getWebchatCorsOrigin,
 } from "@/lib/webchat-cors";
 
-// Minimal NextRequest mock — only headers.get() is used by the CORS helpers
-function makeReq(headers: Record<string, string> = {}): NextRequest {
+// Minimal NextRequest mock for the CORS helpers
+function makeReq(
+  headers: Record<string, string> = {},
+  url: string = "https://api.replybase.test/api/webchat/init",
+): NextRequest {
   const normalized: Record<string, string> = {};
   for (const [k, v] of Object.entries(headers)) {
     normalized[k.toLowerCase()] = v;
@@ -16,6 +19,8 @@ function makeReq(headers: Record<string, string> = {}): NextRequest {
     headers: {
       get: (name: string) => normalized[name.toLowerCase()] ?? null,
     },
+    nextUrl: new URL(url),
+    url,
   } as unknown as NextRequest;
 }
 
@@ -80,6 +85,19 @@ describe("webchat CORS origin checks", () => {
       expect(getWebchatOriginRejectionReason(req)).toBe(
         "No webchat origins configured",
       );
+    });
+
+    it("allows same-origin dashboard requests even when WEBCHAT_ALLOWED_ORIGINS is not configured", () => {
+      const req = makeReq(
+        {
+          origin: "https://app.replybase.co.uk",
+          referer: "https://app.replybase.co.uk/integrations/webchat/test",
+        },
+        "https://app.replybase.co.uk/api/webchat/init",
+      );
+
+      expect(isWebchatOriginAllowed(req)).toBe(true);
+      expect(getWebchatOriginRejectionReason(req)).toBeNull();
     });
 
     it("blocks wildcard in WEBCHAT_ALLOWED_ORIGINS without explicit override", () => {
@@ -221,6 +239,19 @@ describe("webchat CORS origin checks", () => {
       process.env.WEBCHAT_ALLOWED_ORIGINS = "https://example.com";
       const req = makeReq({ origin: "https://example.com" });
       expect(getWebchatCorsOrigin(req)).toBe("https://example.com");
+    });
+
+    it("returns the same origin for dashboard-controlled same-origin requests in production", () => {
+      (process.env as Record<string, string>).NODE_ENV = "production";
+      delete process.env.WEBCHAT_ALLOWED_ORIGINS;
+      const req = makeReq(
+        {
+          origin: "https://app.replybase.co.uk",
+          referer: "https://app.replybase.co.uk/integrations/webchat/test",
+        },
+        "https://app.replybase.co.uk/api/webchat/init",
+      );
+      expect(getWebchatCorsOrigin(req)).toBe("https://app.replybase.co.uk");
     });
 
     it("returns empty string when origin is not allowed", () => {
