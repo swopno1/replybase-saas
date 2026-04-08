@@ -55,7 +55,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 interface FlowNode {
   id: string;
@@ -664,14 +664,14 @@ export default function FlowsPage() {
           }
         }}
       >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[85vh] max-w-2xl flex-col overflow-hidden p-0">
+          <DialogHeader className="px-6 pt-6">
             <DialogTitle>Choose a Template</DialogTitle>
             <DialogDescription>
               Start with a pre-built template for your business type
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="flex-1 overflow-y-auto px-6 py-4">
             <div className="grid grid-cols-1 gap-4">
               <div
                 className={`cursor-pointer rounded-lg border-2 p-4 transition-all ${
@@ -831,7 +831,7 @@ export default function FlowsPage() {
               </div>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="border-t px-6 py-4">
             <Button
               variant="outline"
               onClick={() => {
