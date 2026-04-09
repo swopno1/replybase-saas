@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "ReplyBase",
     short_name: "ReplyBase",
     description:
-      "AI-Powered chatbot platform for customer engagement and lead capture.",
+      "Capture every lead, reply instantly, and manage your conversations—all in one simple platform.",
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",

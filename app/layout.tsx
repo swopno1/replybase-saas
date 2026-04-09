@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     template: "%s | ReplyBase",
   },
   description:
-    "AI-Powered chatbot platform for customer engagement and lead capture.",
+    "Capture every lead, reply instantly, and manage your conversations—all in one simple platform.",
   applicationName: "ReplyBase",
   keywords: [
     "chatbot",
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
     url: appUrl,
     title: "ReplyBase",
     description:
-      "AI-Powered chatbot platform for customer engagement and lead capture.",
+      "Capture every lead, reply instantly, and manage your conversations—all in one simple platform.",
     siteName: "ReplyBase",
     images: [
       {
@@ -57,7 +57,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "ReplyBase",
     description:
-      "AI-Powered chatbot platform for customer engagement and lead capture.",
+      "Capture every lead, reply instantly, and manage your conversations—all in one simple platform.",
     images: ["/twitter-image.png"],
   },
   robots: {
