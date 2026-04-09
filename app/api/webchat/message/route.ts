@@ -61,6 +61,8 @@ const messageSchema = z.object({
 
 const SAFE_WEBCHAT_FALLBACK_MESSAGE =
   "I’m having trouble answering right now. Please try again in a moment, or leave your details and our team will follow up.";
+const LIVE_AGENT_HANDOFF_MESSAGE =
+  "Thanks — a team member has joined the chat and will reply shortly.";
 
 export async function POST(request: NextRequest) {
   try {
@@ -256,6 +258,7 @@ export async function POST(request: NextRequest) {
         botId: true,
         channel: true,
         contactId: true,
+        botPaused: true,
         metadata: true,
         bot: {
           select: {
@@ -333,6 +336,60 @@ export async function POST(request: NextRequest) {
         }),
       },
     });
+
+    if (conversation.botPaused) {
+      await prisma.crmMessage.create({
+        data: {
+          conversationId: session.conversationId,
+          direction: "inbound",
+          content: parsed.data.message,
+          source: "human_handoff",
+        },
+      });
+
+      if (webChatSession) {
+        await prisma.webChatSession.update({
+          where: { id: webChatSession.id },
+          data: {
+            conversationId: session.conversationId,
+            lastSeenAt: new Date(),
+          },
+        });
+
+        await prisma.webChatEvent.create({
+          data: {
+            siteId: webChatSession.siteId,
+            sessionId: webChatSession.id,
+            type: "MESSAGE",
+            payload: {
+              messageLength: parsed.data.message.length,
+              responseCount: 1,
+              responseSource: "human_handoff",
+              botPaused: true,
+            },
+          },
+        });
+      }
+
+      recordWebchatMetric("webchat.message.processed", {
+        siteId: site.id,
+        responseSource: "human_handoff",
+        responseCount: 1,
+      });
+
+      return NextResponse.json(
+        {
+          conversationId: session.conversationId,
+          sessionId: webChatSession?.externalSessionId || null,
+          responses: [{ type: "text", text: LIVE_AGENT_HANDOFF_MESSAGE }],
+          meta: {
+            mode: "human_handoff",
+            sourceContext,
+          },
+        },
+        { headers: createWebchatCorsHeaders(request) },
+      );
+    }
 
     const flowResult = await executeWebchatFlowFirst({
       tenantId: session.tenantId,

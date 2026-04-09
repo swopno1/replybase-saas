@@ -4,10 +4,7 @@ import { z } from "zod";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 import { ConversationStatus } from "@prisma/client";
 
-export const dynamic = 'force-dynamic';
-
-
-
+export const dynamic = "force-dynamic";
 
 const updateConversationSchema = z.object({
   assigneeId: z.string().cuid().nullable().optional(),
@@ -51,6 +48,23 @@ async function getConversation(conversationId: string, tenantId: string) {
         },
       },
       contact: true,
+      webChatSessions: {
+        orderBy: {
+          lastSeenAt: "desc",
+        },
+        take: 1,
+        select: {
+          id: true,
+          visitorId: true,
+          lastSeenAt: true,
+          site: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
     },
   });
 }
@@ -58,20 +72,20 @@ async function getConversation(conversationId: string, tenantId: string) {
 // GET: Retrieve a specific conversation
 export const GET: (
   request: NextRequest,
-  context: { params: Promise<Record<string, string | string[]>> }
+  context: { params: Promise<Record<string, string | string[]>> },
 ) => Promise<Response> = withAuthAndTenant(
   async ({ tenantId }, request, context) => {
     const { conversationId } = await context.params;
     try {
       const conversation = await getConversation(
         conversationId as string,
-        tenantId
+        tenantId,
       );
 
       if (!conversation) {
         return NextResponse.json(
           { error: "Conversation not found" },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
@@ -80,28 +94,28 @@ export const GET: (
       console.error("[Conversations API] Error fetching conversation:", error);
       return NextResponse.json(
         { error: "Failed to fetch conversation" },
-        { status: 500 }
+        { status: 500 },
       );
     }
-  }
+  },
 );
 
 // PUT: Update a specific conversation
 export const PUT: (
   request: NextRequest,
-  context: { params: Promise<Record<string, string | string[]>> }
+  context: { params: Promise<Record<string, string | string[]>> },
 ) => Promise<Response> = withAuthAndTenant(
   async ({ tenantId }, request, context) => {
     const { conversationId } = await context.params;
     try {
       const conversation = await getConversation(
         conversationId as string,
-        tenantId
+        tenantId,
       );
       if (!conversation) {
         return NextResponse.json(
           { error: "Conversation not found" },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
@@ -120,34 +134,34 @@ export const PUT: (
       if (error instanceof z.ZodError) {
         return NextResponse.json(
           { error: "Invalid input", details: error.issues },
-          { status: 400 }
+          { status: 400 },
         );
       }
       console.error("[Conversations API] Error updating conversation:", error);
       return NextResponse.json(
         { error: "Failed to update conversation" },
-        { status: 500 }
+        { status: 500 },
       );
     }
-  }
+  },
 );
 
 // DELETE: Delete a specific conversation
 export const DELETE: (
   request: NextRequest,
-  context: { params: Promise<Record<string, string | string[]>> }
+  context: { params: Promise<Record<string, string | string[]>> },
 ) => Promise<Response> = withAuthAndTenant(
   async ({ tenantId }, request, context) => {
     const { conversationId } = await context.params;
     try {
       const conversation = await getConversation(
         conversationId as string,
-        tenantId
+        tenantId,
       );
       if (!conversation) {
         return NextResponse.json(
           { error: "Conversation not found" },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
@@ -160,8 +174,8 @@ export const DELETE: (
       console.error("[Conversations API] Error deleting conversation:", error);
       return NextResponse.json(
         { error: "Failed to delete conversation" },
-        { status: 500 }
+        { status: 500 },
       );
     }
-  }
+  },
 );

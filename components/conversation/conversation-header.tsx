@@ -20,16 +20,30 @@ export function ConversationHeader({
 }: {
   conversation: CrmConversation & {
     contact: {
+      id: string;
       name: string | null;
       email?: string | null;
       phone?: string | null;
     };
     assignee: Partial<User> | null;
+    webChatSessions?: Array<{
+      id: string;
+      visitorId: string;
+      lastSeenAt: string | Date;
+      site?: {
+        id: string;
+        name: string;
+      } | null;
+    }>;
   };
   onRefresh: () => void;
 }) {
   const [conversation, setConversation] = useState(initialConversation);
   const [users, setUsers] = useState<User[]>([]);
+
+  useEffect(() => {
+    setConversation(initialConversation);
+  }, [initialConversation]);
 
   useEffect(() => {
     fetch("/api/users")
@@ -45,19 +59,53 @@ export function ConversationHeader({
     })
       .then((res) => res.json())
       .then((data) => {
-        setConversation(data.conversation);
+        setConversation((current) =>
+          current ? { ...current, ...data.conversation } : data.conversation,
+        );
         onRefresh();
       });
   };
 
+  const latestWebSession = conversation.webChatSessions?.[0] ?? null;
+  const latestWebSeenAt = latestWebSession?.lastSeenAt
+    ? new Date(latestWebSession.lastSeenAt)
+    : null;
+  const isVisitorOnline = latestWebSeenAt
+    ? Date.now() - latestWebSeenAt.getTime() < 5 * 60 * 1000
+    : false;
+  const contactDisplayName =
+    conversation.contact.name ||
+    conversation.contact.email ||
+    conversation.contact.phone ||
+    (conversation.channel === "web" ? "Website Visitor" : "Unknown Contact");
+
   return (
     <div className="p-4 border-b flex justify-between items-center">
       <div>
-        <h2 className="font-bold text-lg">
-          {conversation.contact.name || "Unknown Contact"}
-        </h2>
+        <h2 className="font-bold text-lg">{contactDisplayName}</h2>
         <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-gray-500">
           <span>Conversation Details</span>
+          {conversation.channel === "web" ? (
+            <span
+              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                isVisitorOnline
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "bg-slate-100 text-slate-700"
+              }`}
+            >
+              {isVisitorOnline ? "Visitor online" : "Webchat visitor"}
+            </span>
+          ) : null}
+          {latestWebSession?.site?.name ? (
+            <span className="text-xs text-slate-500">
+              Site: {latestWebSession.site.name}
+            </span>
+          ) : null}
+          {conversation.botPaused ? (
+            <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+              Human handoff active
+            </span>
+          ) : null}
           {conversation.contact.email ? (
             <a
               href={`mailto:${conversation.contact.email}`}
@@ -105,7 +153,11 @@ export function ConversationHeader({
           </SelectContent>
         </Select>
         <Select
-          onValueChange={(assigneeId) => handleUpdate({ assigneeId })}
+          onValueChange={(assigneeId) =>
+            handleUpdate({
+              assigneeId: assigneeId === "unassigned" ? null : assigneeId,
+            })
+          }
           value={conversation.assigneeId ?? "unassigned"}
         >
           <SelectTrigger className="w-45">

@@ -96,6 +96,7 @@ const mockConversation = {
   botId: "bot_1",
   channel: "web",
   contactId: "contact_1",
+  botPaused: false,
   metadata: {},
   bot: { id: "bot_1", name: "TestBot", entryFlow: null, welcomeMessage: null },
 };
@@ -134,6 +135,7 @@ function validBody(overrides: Record<string, unknown> = {}) {
 // ---------------------------------------------------------------------------
 describe("POST /api/webchat/message — integration", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     vi.mocked(verifyWebchatSessionToken).mockReturnValue(
       mockTokenPayload as never,
     );
@@ -276,6 +278,30 @@ describe("POST /api/webchat/message — integration", () => {
       expect(res.status).toBe(403);
       const json = await res.json();
       expect(json.reason).toBe("honeypot_triggered");
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Human handoff
+  // -------------------------------------------------------------------------
+  describe("human handoff", () => {
+    it("returns a human handoff response when bot automation is paused", async () => {
+      vi.mocked(prisma.crmConversation.findUnique).mockResolvedValue({
+        ...mockConversation,
+        botPaused: true,
+      } as never);
+
+      const req = makeReq(validBody(), {
+        origin: "https://www.vivescriptsolutions.com",
+      });
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(json.meta.mode).toBe("human_handoff");
+      expect(json.responses[0].text).toContain("team member");
+      expect(executeWebchatFlowFirst).not.toHaveBeenCalled();
+      expect(converse).not.toHaveBeenCalled();
     });
   });
 

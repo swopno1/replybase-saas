@@ -82,6 +82,9 @@
   var widgetBootedAt = Date.now();
   var shouldUseMobileFullscreen = false;
   var consentNoticeRendered = false;
+  var agentReplyPollTimer = null;
+  var lastHumanReplyCursor = "";
+  var seenHumanMessageIds = Object.create(null);
 
   var root = document.createElement("div");
   root.id = "replybase-webchat-root";
@@ -157,6 +160,7 @@
     ".rb-message { max-width: 82%; padding: 9px 12px; border-radius: 12px; font-size: 14px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }",
     ".rb-message.user { align-self: flex-end; background: #0f172a; color: #fff; }",
     ".rb-message.bot { align-self: flex-start; background: #fff; color: #0f172a; border: 1px solid #e2e8f0; }",
+    ".rb-message.agent { align-self: flex-start; background: #e0f2fe; color: #0c4a6e; border: 1px solid #bae6fd; }",
     ".rb-composer { display: flex; gap: 8px; padding: 10px; border-top: 1px solid #e2e8f0; background: #fff; }",
     ".rb-input { flex: 1; border: 1px solid #cbd5e1; border-radius: 10px; padding: 9px 10px; font-size: 14px; outline: none; }",
     ".rb-input:focus { border-color: " +
@@ -388,6 +392,15 @@
     }
   }
 
+  function persistSession() {
+    setStoredSession({
+      token: token,
+      conversationId: conversationId,
+      visitorId: visitorId,
+      lastHumanReplyCursor: lastHumanReplyCursor,
+    });
+  }
+
   function addMessage(kind, text) {
     var bubble = document.createElement("div");
     bubble.className = "rb-message " + kind;
@@ -395,7 +408,7 @@
     messages.appendChild(bubble);
     messages.scrollTop = messages.scrollHeight;
 
-    if (kind === "bot" && !isOpen) {
+    if ((kind === "bot" || kind === "agent") && !isOpen) {
       unreadCount += 1;
       updateUnreadBadge();
     }
@@ -421,6 +434,61 @@
       .map(function (item) {
         return item.text;
       });
+  }
+
+  function pollAgentReplies() {
+    if (!token) {
+      return Promise.resolve(null);
+    }
+
+    var query = "token=" + encodeURIComponent(token);
+    if (lastHumanReplyCursor) {
+      query += "&after=" + encodeURIComponent(lastHumanReplyCursor);
+    }
+
+    return request("/api/webchat/messages?" + query, "GET")
+      .then(function (data) {
+        if (!data || !Array.isArray(data.messages)) {
+          return null;
+        }
+
+        data.messages.forEach(function (entry) {
+          if (!entry || !entry.id || seenHumanMessageIds[entry.id]) {
+            return;
+          }
+
+          seenHumanMessageIds[entry.id] = true;
+
+          if (typeof entry.text === "string" && entry.text.trim()) {
+            addMessage("agent", entry.text.trim());
+          }
+
+          if (typeof entry.createdAt === "string" && entry.createdAt) {
+            lastHumanReplyCursor = entry.createdAt;
+          }
+        });
+
+        if (typeof data.cursor === "string" && data.cursor) {
+          lastHumanReplyCursor = data.cursor;
+        }
+
+        persistSession();
+        return data;
+      })
+      .catch(function () {
+        return null;
+      });
+  }
+
+  function startAgentReplyPolling() {
+    if (agentReplyPollTimer !== null || !token) {
+      return;
+    }
+
+    pollAgentReplies();
+    agentReplyPollTimer = window.setInterval(function () {
+      pollAgentReplies();
+    }, 4000);
   }
 
   function buildRuntimeMetadata() {
@@ -478,6 +546,7 @@
 
   function initializeSession() {
     if (initialized && token) {
+      startAgentReplyPolling();
       return Promise.resolve();
     }
 
@@ -486,6 +555,14 @@
     }
 
     var existing = getStoredSession();
+    if (
+      existing &&
+      typeof existing.lastHumanReplyCursor === "string" &&
+      existing.lastHumanReplyCursor
+    ) {
+      lastHumanReplyCursor = existing.lastHumanReplyCursor;
+    }
+
     var payload = {
       publicKey: publicKey || undefined,
       channelId: channelId || undefined,
@@ -514,11 +591,11 @@
       conversationId = data.conversationId;
       visitorId = data.visitorId;
       initialized = true;
-      setStoredSession({
-        token: token,
-        conversationId: conversationId,
-        visitorId: visitorId,
-      });
+      if (!lastHumanReplyCursor) {
+        lastHumanReplyCursor = new Date().toISOString();
+      }
+      persistSession();
+      startAgentReplyPolling();
     });
   }
 
@@ -661,6 +738,7 @@
           );
         });
     } else {
+      startAgentReplyPolling();
       trackEvent("OPEN", {
         url: window.location.href,
         trigger: "launcher",
