@@ -681,6 +681,14 @@
       .then(function (data) {
         var texts = normalizeResponseTexts(data);
         if (!texts.length) {
+          if (
+            data &&
+            data.meta &&
+            typeof data.meta.mode === "string" &&
+            data.meta.mode.indexOf("human_handoff") === 0
+          ) {
+            return;
+          }
           addSystemNote("No response received");
           return;
         }

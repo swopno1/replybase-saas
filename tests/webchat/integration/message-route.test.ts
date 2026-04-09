@@ -26,6 +26,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     crmMessage: {
       create: vi.fn().mockResolvedValue({ id: "msg_1" }),
+      findFirst: vi.fn(),
     },
   },
 }));
@@ -148,6 +149,7 @@ describe("POST /api/webchat/message — integration", () => {
     vi.mocked(prisma.webChatSession.findFirst).mockResolvedValue(
       mockWebChatSession as never,
     );
+    vi.mocked(prisma.crmMessage.findFirst).mockResolvedValue(null as never);
     vi.mocked(isOriginAllowedForSite).mockReturnValue(true);
     vi.mocked(executeWebchatFlowFirst).mockResolvedValue(null);
     vi.mocked(getWebchatRolloutDecision).mockResolvedValue({
@@ -300,6 +302,28 @@ describe("POST /api/webchat/message — integration", () => {
       const json = await res.json();
       expect(json.meta.mode).toBe("human_handoff");
       expect(json.responses[0].text).toContain("team member");
+      expect(executeWebchatFlowFirst).not.toHaveBeenCalled();
+      expect(converse).not.toHaveBeenCalled();
+    });
+
+    it("does not repeat the handoff notice after a human reply already exists", async () => {
+      vi.mocked(prisma.crmConversation.findUnique).mockResolvedValue({
+        ...mockConversation,
+        botPaused: true,
+      } as never);
+      vi.mocked(prisma.crmMessage.findFirst)
+        .mockResolvedValueOnce({ id: "msg_human_1" } as never)
+        .mockResolvedValueOnce(null as never);
+
+      const req = makeReq(validBody(), {
+        origin: "https://www.vivescriptsolutions.com",
+      });
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(json.meta.mode).toBe("human_handoff_waiting");
+      expect(json.responses).toEqual([]);
       expect(executeWebchatFlowFirst).not.toHaveBeenCalled();
       expect(converse).not.toHaveBeenCalled();
     });

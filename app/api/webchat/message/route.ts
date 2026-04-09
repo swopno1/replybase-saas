@@ -347,6 +347,40 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      const [latestHumanReply, existingHandoffNotice] = await Promise.all([
+        prisma.crmMessage.findFirst({
+          where: {
+            conversationId: session.conversationId,
+            direction: "outbound",
+            source: "human",
+          },
+          select: { id: true },
+        }),
+        prisma.crmMessage.findFirst({
+          where: {
+            conversationId: session.conversationId,
+            direction: "outbound",
+            source: "system",
+            content: LIVE_AGENT_HANDOFF_MESSAGE,
+          },
+          select: { id: true },
+        }),
+      ]);
+
+      const shouldSendHandoffNotice =
+        !latestHumanReply && !existingHandoffNotice;
+
+      if (shouldSendHandoffNotice) {
+        await prisma.crmMessage.create({
+          data: {
+            conversationId: session.conversationId,
+            direction: "outbound",
+            content: LIVE_AGENT_HANDOFF_MESSAGE,
+            source: "system",
+          },
+        });
+      }
+
       if (webChatSession) {
         await prisma.webChatSession.update({
           where: { id: webChatSession.id },
@@ -363,8 +397,10 @@ export async function POST(request: NextRequest) {
             type: "MESSAGE",
             payload: {
               messageLength: parsed.data.message.length,
-              responseCount: 1,
-              responseSource: "human_handoff",
+              responseCount: shouldSendHandoffNotice ? 1 : 0,
+              responseSource: shouldSendHandoffNotice
+                ? "human_handoff"
+                : "human_handoff_waiting",
               botPaused: true,
             },
           },
@@ -373,17 +409,23 @@ export async function POST(request: NextRequest) {
 
       recordWebchatMetric("webchat.message.processed", {
         siteId: site.id,
-        responseSource: "human_handoff",
-        responseCount: 1,
+        responseSource: shouldSendHandoffNotice
+          ? "human_handoff"
+          : "human_handoff_waiting",
+        responseCount: shouldSendHandoffNotice ? 1 : 0,
       });
 
       return NextResponse.json(
         {
           conversationId: session.conversationId,
           sessionId: webChatSession?.externalSessionId || null,
-          responses: [{ type: "text", text: LIVE_AGENT_HANDOFF_MESSAGE }],
+          responses: shouldSendHandoffNotice
+            ? [{ type: "text", text: LIVE_AGENT_HANDOFF_MESSAGE }]
+            : [],
           meta: {
-            mode: "human_handoff",
+            mode: shouldSendHandoffNotice
+              ? "human_handoff"
+              : "human_handoff_waiting",
             sourceContext,
           },
         },
