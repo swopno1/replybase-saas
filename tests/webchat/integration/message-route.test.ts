@@ -191,6 +191,29 @@ describe("POST /api/webchat/message — integration", () => {
       const res = await POST(req);
       expect(res.status).toBe(400);
     });
+
+    it("accepts widget metadata when optional fields are null", async () => {
+      const req = makeReq(
+        validBody({
+          metadata: {
+            pageUrl: "https://www.vivescriptsolutions.com/",
+            referrer: null,
+            locale: "en-GB",
+            pageTitle: "ViveScript Solutions",
+            userAgent: "Mozilla/5.0",
+            origin: "https://www.vivescriptsolutions.com",
+            utmSource: null,
+            utmMedium: null,
+            utmCampaign: null,
+            utmTerm: null,
+            utmContent: null,
+          },
+        }),
+        { origin: "https://www.vivescriptsolutions.com" },
+      );
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+    });
   });
 
   // -------------------------------------------------------------------------

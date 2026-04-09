@@ -26,29 +26,30 @@ import { sanitizeWebchatMetadataForRetention } from "@/lib/webchat-privacy";
 import { recordWebchatMetric } from "@/lib/webchat-metrics";
 import { getWebchatRolloutDecision } from "@/lib/webchat-rollout";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-
-
+const nullableOptionalString = z.string().nullable().optional();
+const nullableOptionalUrl = z.string().url().nullable().optional();
 
 const messageSchema = z.object({
   token: z.string().min(1),
   message: z.string().min(1),
   metadata: z
     .object({
-      pageUrl: z.string().url().optional(),
-      url: z.string().url().optional(),
-      referrer: z.string().url().optional(),
-      locale: z.string().optional(),
-      pageTitle: z.string().optional(),
-      userAgent: z.string().optional(),
-      origin: z.string().url().optional(),
-      utmSource: z.string().optional(),
-      utmMedium: z.string().optional(),
-      utmCampaign: z.string().optional(),
-      utmTerm: z.string().optional(),
-      utmContent: z.string().optional(),
+      pageUrl: nullableOptionalUrl,
+      url: nullableOptionalUrl,
+      referrer: nullableOptionalUrl,
+      locale: nullableOptionalString,
+      pageTitle: nullableOptionalString,
+      userAgent: nullableOptionalString,
+      origin: nullableOptionalUrl,
+      utmSource: nullableOptionalString,
+      utmMedium: nullableOptionalString,
+      utmCampaign: nullableOptionalString,
+      utmTerm: nullableOptionalString,
+      utmContent: nullableOptionalString,
     })
+    .passthrough()
     .optional(),
   botSignals: z
     .object({
