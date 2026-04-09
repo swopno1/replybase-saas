@@ -191,6 +191,132 @@ function toFlowVariables(sourceContext: WebchatSourceContext) {
   } as Record<string, string | null>;
 }
 
+function getVariableString(
+  variables: Record<string, unknown>,
+  ...keys: string[]
+) {
+  for (const key of keys) {
+    const value = variables[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return null;
+}
+
+function mergeTags(existing: unknown, incoming?: string[]) {
+  const currentTags = Array.isArray(existing)
+    ? existing.filter(
+        (tag): tag is string => typeof tag === "string" && tag.trim().length > 0,
+      )
+    : [];
+  const nextTags = Array.isArray(incoming)
+    ? incoming.filter((tag) => typeof tag === "string" && tag.trim().length > 0)
+    : [];
+
+  return Array.from(new Set([...currentTags, ...nextTags]));
+}
+
+async function persistLeadCapture(params: {
+  tenantId: string;
+  contactId: string;
+  flowId: string;
+  siteId: string;
+  sourceContext: WebchatSourceContext;
+  variables: Record<string, unknown>;
+  tags?: string[];
+  status?: string;
+}) {
+  const name = getVariableString(params.variables, "lead_name", "name");
+  const email = getVariableString(params.variables, "lead_email", "email");
+  const phone = getVariableString(
+    params.variables,
+    "lead_phone",
+    "phone",
+    "mobile",
+  );
+  const company = getVariableString(
+    params.variables,
+    "lead_company",
+    "company",
+  );
+  const need = getVariableString(
+    params.variables,
+    "lead_need",
+    "businessType",
+    "business_type",
+  );
+  const budget = getVariableString(params.variables, "lead_budget", "budget");
+
+  if (!name && !email && !phone && !company && !need && !budget) {
+    return;
+  }
+
+  const contactData = {
+    ...(name ? { name } : {}),
+    ...(email ? { email } : {}),
+    ...(phone ? { phone } : {}),
+  };
+
+  if (Object.keys(contactData).length > 0) {
+    await prisma.contact.update({
+      where: { id: params.contactId },
+      data: contactData,
+    });
+  }
+
+  const existingLead = await prisma.lead.findFirst({
+    where: {
+      tenantId: params.tenantId,
+      contactId: params.contactId,
+    },
+    orderBy: { updatedAt: "desc" },
+  });
+
+  const existingMetadata =
+    existingLead?.metadata &&
+    typeof existingLead.metadata === "object" &&
+    !Array.isArray(existingLead.metadata)
+      ? (existingLead.metadata as Record<string, unknown>)
+      : {};
+
+  const leadData = {
+    tenantId: params.tenantId,
+    contactId: params.contactId,
+    flowId: params.flowId,
+    name: name ?? undefined,
+    email: email ?? undefined,
+    mobile: phone ?? undefined,
+    company: company ?? undefined,
+    businessType: need ?? undefined,
+    source: "website",
+    status: params.status || existingLead?.status || "contacted",
+    tags: mergeTags(existingLead?.tags, params.tags),
+    metadata: {
+      ...existingMetadata,
+      siteId: params.siteId,
+      captureSource: "webchat_flow",
+      sourceContext: params.sourceContext,
+      need,
+      budget,
+      lastUserMessage: getVariableString(params.variables, "last_user_message"),
+    } as Prisma.InputJsonValue,
+  };
+
+  if (existingLead) {
+    await prisma.lead.update({
+      where: { id: existingLead.id },
+      data: leadData,
+    });
+    return;
+  }
+
+  await prisma.lead.create({
+    data: leadData,
+  });
+}
+
 async function resolveFlow(params: {
   tenantId: string;
   botId: string;
@@ -226,6 +352,21 @@ async function resolveFlow(params: {
   async function startFlowSession(
     flow: NonNullable<Awaited<ReturnType<typeof loadAccessibleFlow>>>,
   ) {
+    const completedSession = await prisma.flowSession.findFirst({
+      where: {
+        userId: params.contactId,
+        pageId,
+        flowId: flow.id,
+        isActive: false,
+        completedAt: { not: null },
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+
+    if (completedSession) {
+      return null;
+    }
+
     const session = await prisma.flowSession.create({
       data: {
         userId: params.contactId,
@@ -336,6 +477,7 @@ export async function executeWebchatFlowFirst(params: {
     activeFlow.nodes.find((node) => node.id === session.currentNodeId) ||
     activeFlow.nodes[0];
   let completed = false;
+  let leadPersisted = false;
   let safetyCounter = 0;
 
   while (currentNode && safetyCounter < 30) {
@@ -414,6 +556,43 @@ export async function executeWebchatFlowFirst(params: {
         break;
       }
       case "action": {
+        if (content.action === "tag_user") {
+          const tagValues = (content as { tags?: unknown[] }).tags;
+          const tags = Array.isArray(tagValues)
+            ? tagValues.filter(
+                (tag): tag is string =>
+                  typeof tag === "string" && tag.trim().length > 0,
+              )
+            : undefined;
+
+          await persistLeadCapture({
+            tenantId: params.tenantId,
+            contactId: params.contactId,
+            flowId: runtime.rootFlowId,
+            siteId: params.siteId,
+            sourceContext: params.sourceContext,
+            variables,
+            tags,
+          });
+          leadPersisted = true;
+        }
+
+        if (content.action === "update_status") {
+          await persistLeadCapture({
+            tenantId: params.tenantId,
+            contactId: params.contactId,
+            flowId: runtime.rootFlowId,
+            siteId: params.siteId,
+            sourceContext: params.sourceContext,
+            variables,
+            status:
+              typeof (content as { status?: unknown }).status === "string"
+                ? (content as { status?: string }).status
+                : undefined,
+          });
+          leadPersisted = true;
+        }
+
         if (content.action === "call_flow") {
           const referencedFlow = await resolveReferencedFlow({
             tenantId: params.tenantId,
@@ -475,6 +654,17 @@ export async function executeWebchatFlowFirst(params: {
         break;
       }
     }
+  }
+
+  if (completed && !leadPersisted) {
+    await persistLeadCapture({
+      tenantId: params.tenantId,
+      contactId: params.contactId,
+      flowId: runtime.rootFlowId,
+      siteId: params.siteId,
+      sourceContext: params.sourceContext,
+      variables,
+    });
   }
 
   const waitingForInput = Boolean(currentNode && currentNode.type === "input");

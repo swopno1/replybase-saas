@@ -445,6 +445,14 @@ export async function POST(request: NextRequest) {
     });
 
     if (flowResult?.handled) {
+      await prisma.crmMessage.create({
+        data: {
+          conversationId: session.conversationId,
+          direction: "inbound",
+          content: parsed.data.message,
+        },
+      });
+
       for (const response of flowResult.responses) {
         await prisma.crmMessage.create({
           data: {

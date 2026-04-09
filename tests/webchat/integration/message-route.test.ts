@@ -403,6 +403,15 @@ describe("POST /api/webchat/message — integration", () => {
       const json = await res.json();
       expect(json.meta.mode).toBe("flow");
       expect(json.responses[0].text).toBe("Flow reply");
+      expect(prisma.crmMessage.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            conversationId: "conv_1",
+            direction: "inbound",
+            content: "Hello bot",
+          }),
+        }),
+      );
     });
   });
 
