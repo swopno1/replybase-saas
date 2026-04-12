@@ -9,17 +9,17 @@ export const stripe = process.env.STRIPE_SECRET_KEY
 export const PLANS = {
   starter: {
     name: "Starter",
-    price: 1900, // in cents
+    price: 2900, // in cents
     priceId: process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID || "",
   },
   pro: {
     name: "Pro",
-    price: 2900,
+    price: 8900,
     priceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || "",
   },
   business: {
     name: "Business",
-    price: 4900,
+    price: 24900,
     priceId: process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID || "",
   },
 };

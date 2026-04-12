@@ -152,7 +152,7 @@ export default function BillingTabContent() {
                       {subscription.plan.displayName}
                     </h3>
                     <p className="text-2xl font-bold mt-2">
-                      ${subscription.plan.price}
+                      £{subscription.plan.price}
                       <span className="text-sm font-normal text-muted-foreground">
                         /month
                       </span>

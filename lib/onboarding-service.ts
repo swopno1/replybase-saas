@@ -229,7 +229,7 @@ export class OnboardingService {
           {
             title: "Starter",
             description:
-              "Perfect for small businesses\n£29/month\n• 100 daily messages\n• 1 bot\n• Basic analytics",
+              "Smart Automation\n£29/month\n• 1,500 automations/month\n• 1,000 AI responses/month\n• 3 bots\n• CRM access",
             buttons: [
               {
                 title: "Select Starter",
@@ -239,26 +239,26 @@ export class OnboardingService {
             ],
           },
           {
-            title: "Professional",
+            title: "Pro",
             description:
-              "For growing teams\n£79/month\n• 500 daily messages\n• 3 bots\n• Advanced analytics",
+              "AI Co-Pilot\n£89/month\n• 10,000 automations/month\n• 7,500 AI responses/month\n• 10 bots\n• API access",
             buttons: [
               {
                 title: "Select Pro",
                 type: "postback",
-                payload: "plan_professional",
+                payload: "plan_pro",
               },
             ],
           },
           {
-            title: "Enterprise",
+            title: "Business",
             description:
-              "Custom solution\nContact us\n• Unlimited messages\n• Unlimited bots\n• Priority support",
+              "AI Agent\n£249/month\n• 40,000 automations/month\n• 25,000 AI responses/month\n• 25 bots\n• API access",
             buttons: [
               {
-                title: "Contact Sales",
+                title: "Select Business",
                 type: "postback",
-                payload: "plan_enterprise",
+                payload: "plan_business",
               },
             ],
           },

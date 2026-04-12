@@ -2,73 +2,79 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Shield, CreditCard, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-// This would typically come from your DB via a server component or API
-// For simplicity in this artifact, I'm hardcoding the visual data matching the seed script
 const PLANS = [
   {
     name: "free",
     displayName: "Free",
+    aiLabel: "Basic AI Assist",
     price: 0,
-    description: "Perfect for testing your first live channel.",
-    features: [
-      "100 messages/day",
-      "1 bot",
-      "Telegram and Webchat support",
-      "Basic Analytics",
-      "Community Support",
-    ],
+    automations: "200",
+    aiResponses: "100",
+    aiOverage: "Upgrade",
+    bots: "1",
+    supportedChannels: "Webchat, Facebook, Website Forms",
+    crmAccess: false,
+    apiAccess: false,
+    support: "Community",
+    cta: "Get Started",
+    highlight: false,
   },
   {
     name: "starter",
     displayName: "Starter",
-    price: 19,
-    description: "For creators and small teams running channel automation.",
-    features: [
-      "1,000 messages/day",
-      "3 bots",
-      "Telegram and Webchat support",
-      "Standard Analytics",
-      "Email Support",
-      "Remove Branding",
-    ],
-    highlight: true,
+    aiLabel: "Smart Automation",
+    price: 29,
+    automations: "1,500",
+    aiResponses: "1,000",
+    aiOverage: "£12 / 1k",
+    bots: "3",
+    supportedChannels: "Telegram, Webchat, Facebook, WhatsApp, Website Forms",
+    crmAccess: true,
+    apiAccess: false,
+    support: "Email",
+    cta: "Start Free Trial",
+    highlight: false,
   },
   {
     name: "pro",
     displayName: "Pro",
-    price: 49,
-    description: "For growing agencies and multi-bot operations.",
-    features: [
-      "5,000 messages/day",
-      "10 bots",
-      "Telegram and Webchat support",
-      "Advanced Analytics",
-      "Priority Support",
-      "Custom Domains",
-    ],
+    aiLabel: "AI Co-Pilot",
+    price: 89,
+    automations: "10,000",
+    aiResponses: "7,500",
+    aiOverage: "£10 / 1k",
+    bots: "10",
+    supportedChannels: "Telegram, Webchat, Facebook, WhatsApp, Website Forms",
+    crmAccess: true,
+    apiAccess: true,
+    support: "Priority",
+    cta: "Start Free Trial",
+    highlight: true,
   },
   {
     name: "business",
     displayName: "Business",
-    price: 99,
-    description: "For high-volume teams with strict response SLAs.",
-    features: [
-      "20,000 messages/day",
-      "50 bots",
-      "Telegram and Webchat support",
-      "Enterprise Analytics",
-      "Dedicated Support",
-      "SLA",
-    ],
+    aiLabel: "AI Agent",
+    price: 249,
+    automations: "40,000",
+    aiResponses: "25,000",
+    aiOverage: "£8 / 1k",
+    bots: "25",
+    supportedChannels: "Telegram, Webchat, Facebook, WhatsApp, Website Forms",
+    crmAccess: true,
+    apiAccess: true,
+    support: "Priority +",
+    cta: "Start Free Trial",
+    highlight: false,
   },
-];
+] as const;
 
 export default function PricingPage() {
   const router = useRouter();
@@ -88,25 +94,6 @@ export default function PricingPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        // In a real app with dynamic prices from Stripe, you'd pass the priceId strictly
-        // Here we rely on the backend looking up the price or us passing it if we fetched from API
-        // For MVP, the backend will lookup based on the hardcoded Price IDs in env if we wanted,
-        // OR we should have fetched valid price IDs from the server.
-        // Let's assume the backend needs `priceId` which we don't have here without fetching.
-        // FIX: The checkout endpoint expects { priceId }.
-        // We really should fetch plans from an API that returns DB plans + Stripe Price IDs.
-        // Since I can't easily change the server component structure right this second without more file edits,
-        // I will make the checkout endpoint accept `planName` and lookup the price ID internally if possible?
-        // No, `scripts/seed-stripe.ts` created prices. We don't know them here.
-        // OPTION B: Hardcode them in env vars NEXT_PUBLIC_STRIPE_PRICE_ID_STARTER etc?
-        // OPTION C: Fetch from an API endpoint `/api/billing/plans` (doesn't exist yet).
-
-        // Let's use a server action or simpler fetch in useEffect pattern if we were strict.
-        // For now, I will assume the user has set the price IDs in public env vars as per `lib/stripe.ts`
-        // Wait, `lib/stripe.ts` ALREADY has `PLANS` export with `process.env.NEXT_PUBLIC_STRIPE_...`
-        // I can import that if I switch this to use that config.
-
-        // Actually, let's just error if missing for now and tell user to set envs.
         body: JSON.stringify({
           planName,
           priceId: getPriceId(planName),
@@ -136,178 +123,224 @@ export default function PricingPage() {
 
   return (
     <div className="py-20 px-4 max-w-7xl mx-auto">
-      <div className="text-center mb-8">
+      <div className="text-center mb-12">
+        <Badge variant="secondary" className="mb-4">
+          14-Day Free Trial
+        </Badge>
         <h1 className="text-4xl font-bold mb-4">Simple, Transparent Pricing</h1>
-        <p className="text-muted-foreground text-lg">
-          Choose the plan that fits your lead capture workflow across Telegram
-          and Webchat. Upgrade or cancel anytime.
+        <p className="text-muted-foreground text-lg max-w-3xl mx-auto">
+          Start free, upgrade as you grow. Paid plans unlock Telegram and
+          WhatsApp alongside Webchat, Facebook, and website lead capture with
+          flow-first runtime and optional AI fallback.
         </p>
-      </div>
-
-      <div className="max-w-3xl mx-auto mb-8 rounded-xl border bg-muted/40 p-5">
-        <h2 className="font-semibold mb-2">
-          Runtime behavior included in every plan
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          ReplyBase always resolves active channel flow assignments first. If no
-          active flow handles the message, AI fallback can respond when enabled.
-        </p>
-      </div>
-
-      {/* Trial Banner */}
-      <div className="max-w-3xl mx-auto mb-12 rounded-xl border-2 border-primary bg-primary/5 p-6">
-        <div className="flex items-start gap-4">
-          <div className="rounded-full bg-primary/10 p-3">
-            <Shield className="h-6 w-6 text-primary" />
-          </div>
-          <div className="flex-1">
-            <h2 className="text-xl font-semibold mb-2">
-              14-Day Free Trial on All Paid Plans
-            </h2>
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <div className="flex items-start gap-2">
-                <Check className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                <p>
-                  <strong className="text-foreground">
-                    No charge for 14 days
-                  </strong>{" "}
-                  - Your card will only be charged after the trial period ends
-                </p>
-              </div>
-              <div className="flex items-start gap-2">
-                <Check className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                <p>
-                  <strong className="text-foreground">Cancel anytime</strong> -
-                  You can cancel your subscription at any point before the trial
-                  ends, with no charge
-                </p>
-              </div>
-              <div className="flex items-start gap-2">
-                <Check className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                <p>
-                  <strong className="text-foreground">
-                    Full access immediately
-                  </strong>{" "}
-                  - Get complete access to all features during your trial period
-                </p>
-              </div>
-            </div>
-          </div>
+        <div className="mt-6 inline-flex flex-wrap items-center justify-center gap-2 rounded-full border bg-muted/50 px-5 py-3 text-sm">
+          <span className="font-semibold">14 days free on paid plans</span>
+          <span className="text-muted-foreground">
+            No card charged until trial ends • Cancel anytime
+          </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-        {PLANS.map((plan) => (
-          <div
-            key={plan.name}
-            className={`rounded-2xl p-8 border flex flex-col relative bg-card ${
-              plan.highlight
-                ? "border-primary shadow-lg scale-105 z-10"
-                : "border-border"
-            }`}
-          >
-            {plan.highlight && (
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-medium">
-                Most Popular
-              </div>
-            )}
-            {plan.price > 0 && (
-              <Badge className="absolute -top-3 right-4 bg-green-600 hover:bg-green-600">
-                14-Day Free Trial
-              </Badge>
-            )}
-            <div className="mb-8">
-              <h3 className="text-xl font-bold mb-2">{plan.displayName}</h3>
-              <p className="text-muted-foreground text-sm mb-4">
-                {plan.description}
-              </p>
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-bold">£{plan.price}</span>
-                <span className="text-muted-foreground">/mo</span>
-              </div>
-              {plan.price > 0 && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  First 14 days free, then £{plan.price}/mo
-                </p>
-              )}
-            </div>
-
-            <ul className="mb-8 space-y-4 flex-1">
-              {plan.features.map((feature) => (
-                <li key={feature} className="flex items-center gap-2 text-sm">
-                  <Check className="h-4 w-4 text-primary shrink-0" />
-                  {feature}
-                </li>
+      <div className="overflow-x-auto rounded-2xl border bg-card p-2 shadow-sm">
+        <table className="w-full text-sm text-left">
+          <thead className="text-xs uppercase text-muted-foreground">
+            <tr>
+              <th className="p-4 w-1/5">Feature</th>
+              {PLANS.map((plan) => (
+                <th
+                  key={plan.name}
+                  className={`p-4 text-center ${plan.highlight ? "text-primary" : ""}`}
+                >
+                  <div className="font-semibold text-foreground text-sm">
+                    {plan.displayName}
+                  </div>
+                  {plan.highlight && (
+                    <div className="mt-1 text-[11px] font-medium text-primary">
+                      Most Popular
+                    </div>
+                  )}
+                </th>
               ))}
-            </ul>
-
-            <Button
-              className="w-full"
-              variant={plan.highlight ? "default" : "outline"}
-              onClick={() => handleSubscribe(plan.name)}
-              disabled={loading !== null}
-            >
-              {loading === plan.name
-                ? "Processing..."
-                : plan.price === 0
-                  ? "Get Started"
-                  : "Start Free Trial"}
-            </Button>
-            {plan.price > 0 && (
-              <p className="text-xs text-center text-muted-foreground mt-3">
-                No charge now • Cancel anytime
-              </p>
-            )}
-          </div>
-        ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            <tr>
+              <td className="p-4 font-semibold text-foreground">
+                Monthly Price
+              </td>
+              {PLANS.map((plan) => (
+                <td
+                  key={`${plan.name}-price`}
+                  className={`p-4 text-center ${plan.highlight ? "font-bold text-primary" : "text-foreground"}`}
+                >
+                  £{plan.price}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className="p-4 font-semibold text-foreground">AI Role</td>
+              {PLANS.map((plan) => (
+                <td
+                  key={`${plan.name}-ai-role`}
+                  className="p-4 text-center text-muted-foreground"
+                >
+                  {plan.aiLabel}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className="p-4 font-semibold text-foreground">
+                Automations / Month
+              </td>
+              {PLANS.map((plan) => (
+                <td
+                  key={`${plan.name}-automations`}
+                  className="p-4 text-center text-muted-foreground"
+                >
+                  {plan.automations}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className="p-4 font-semibold text-foreground">
+                AI Responses / Month
+              </td>
+              {PLANS.map((plan) => (
+                <td
+                  key={`${plan.name}-ai-responses`}
+                  className="p-4 text-center text-muted-foreground"
+                >
+                  {plan.aiResponses}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className="p-4 font-semibold text-foreground">AI Overage</td>
+              {PLANS.map((plan) => (
+                <td
+                  key={`${plan.name}-ai-overage`}
+                  className="p-4 text-center text-muted-foreground"
+                >
+                  {plan.aiOverage}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className="p-4 font-semibold text-foreground">Bots</td>
+              {PLANS.map((plan) => (
+                <td
+                  key={`${plan.name}-bots`}
+                  className="p-4 text-center text-muted-foreground"
+                >
+                  {plan.bots}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className="p-4 font-semibold text-foreground">
+                Supported Channels
+              </td>
+              {PLANS.map((plan) => (
+                <td
+                  key={`${plan.name}-channels`}
+                  className="p-4 text-center text-muted-foreground"
+                >
+                  {plan.supportedChannels}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className="p-4 font-semibold text-foreground">CRM Access</td>
+              {PLANS.map((plan) => (
+                <td
+                  key={`${plan.name}-crm-access`}
+                  className={
+                    "p-4 text-center " +
+                    (plan.crmAccess ? "text-green-600" : "text-red-500")
+                  }
+                >
+                  {plan.crmAccess ? (
+                    <Check className="mx-auto h-4 w-4" />
+                  ) : (
+                    <X className="mx-auto h-4 w-4" />
+                  )}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className="p-4 font-semibold text-foreground">API Access</td>
+              {PLANS.map((plan) => (
+                <td
+                  key={`${plan.name}-api-access`}
+                  className={
+                    "p-4 text-center " +
+                    (plan.apiAccess ? "text-green-600" : "text-red-500")
+                  }
+                >
+                  {plan.apiAccess ? (
+                    <Check className="mx-auto h-4 w-4" />
+                  ) : (
+                    <X className="mx-auto h-4 w-4" />
+                  )}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className="p-4 font-semibold text-foreground">Support</td>
+              {PLANS.map((plan) => (
+                <td
+                  key={`${plan.name}-support`}
+                  className="p-4 text-center text-muted-foreground"
+                >
+                  {plan.support}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className="p-4 font-semibold text-foreground">Get Started</td>
+              {PLANS.map((plan) => (
+                <td
+                  key={`${plan.name}-cta`}
+                  className="p-4 text-center align-top"
+                >
+                  <Button
+                    className="w-full"
+                    variant={plan.highlight ? "default" : "outline"}
+                    onClick={() => handleSubscribe(plan.name)}
+                    disabled={loading !== null}
+                  >
+                    {loading === plan.name ? "Processing..." : plan.cta}
+                  </Button>
+                  {plan.price > 0 && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      14 days free
+                    </p>
+                  )}
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
       </div>
 
-      {/* Additional Guarantee Section */}
-      <div className="mt-16 max-w-4xl mx-auto">
-        <div className="bg-muted/50 rounded-xl p-8">
-          <div className="grid md:grid-cols-3 gap-6 text-center">
-            <div className="flex flex-col items-center gap-3">
-              <div className="rounded-full bg-background p-3">
-                <CreditCard className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="font-semibold">No Hidden Fees</h3>
-              <p className="text-sm text-muted-foreground">
-                Your card is only charged after the 14-day trial period ends. No
-                surprises.
-              </p>
-            </div>
-            <div className="flex flex-col items-center gap-3">
-              <div className="rounded-full bg-background p-3">
-                <X className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="font-semibold">Cancel Anytime</h3>
-              <p className="text-sm text-muted-foreground">
-                No contracts, no commitments. Cancel before the trial ends and
-                pay nothing.
-              </p>
-            </div>
-            <div className="flex flex-col items-center gap-3">
-              <div className="rounded-full bg-background p-3">
-                <Shield className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="font-semibold">Secure Payment</h3>
-              <p className="text-sm text-muted-foreground">
-                Your payment information is encrypted and secured by Stripe.
-              </p>
-            </div>
-          </div>
-        </div>
+      <div className="mt-8 max-w-4xl mx-auto rounded-xl border border-primary/20 bg-primary/5 p-4 text-center text-sm text-muted-foreground">
+        <strong className="text-foreground">Transparent billing:</strong> all
+        paid plans include a 14-day free trial, then continue at Starter £29,
+        Pro £89, and Business £249.
       </div>
     </div>
   );
 }
 
-// Helper to get price ID from env or fallback
 function getPriceId(planName: string) {
-  if (planName === "starter")
+  if (planName === "starter") {
     return process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID;
-  if (planName === "pro") return process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID;
-  if (planName === "business")
+  }
+  if (planName === "pro") {
+    return process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID;
+  }
+  if (planName === "business") {
     return process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID;
+  }
   return "";
 }

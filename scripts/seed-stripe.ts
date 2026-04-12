@@ -29,7 +29,7 @@ const PLANS = [
   {
     name: "starter",
     displayName: "Starter",
-    price: 1900, // £19.00
+    price: 2900, // £29.00
     limits: {
       dailyMessageLimit: 1000,
       monthlyMessageLimit: 30000,
@@ -42,7 +42,7 @@ const PLANS = [
   {
     name: "pro",
     displayName: "Pro",
-    price: 4900, // £49.00
+    price: 8900, // £89.00
     limits: {
       dailyMessageLimit: 5000,
       monthlyMessageLimit: 150000,
@@ -55,7 +55,7 @@ const PLANS = [
   {
     name: "business",
     displayName: "Business",
-    price: 9900, // £99.00
+    price: 24900, // £249.00
     limits: {
       dailyMessageLimit: 20000,
       monthlyMessageLimit: 600000,

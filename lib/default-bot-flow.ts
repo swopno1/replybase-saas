@@ -90,7 +90,7 @@ export async function processDefaultBotFlow(
 
     case FlowState.ASK_BUSINESS_TYPE:
       state.leadData!.businessType = userMessage.trim();
-      response = `Awesome! Thanks for sharing, ${state.leadData!.name}! 🎉\n\nWe offer AI-powered conversation management to help businesses like ${state.leadData!.company} automate customer support.\n\n💎 **Our Plans:**\n\n🆓 **Free** - Perfect to get started\n• 100 AI messages/month\n• 1 bot\n• Basic analytics\n\n🚀 **Starter (£19/month)** - For growing teams\n• 1,000 AI messages/month\n• 5 bots\n• Advanced analytics\n• Priority support\n\n⭐ **Pro (£49/month)** - Most popular\n• 10,000 AI messages/month\n• Unlimited bots\n• Custom integrations\n• API access\n\n💼 **Business (£99/month)** - For enterprises\n• 50,000 AI messages/month\n• Everything in Pro\n• Dedicated support\n• Custom features\n\n🎁 **Special Offer:** Start with a 14-day free trial of any paid plan!\n\nAre you interested in subscribing?\n\nReply:\n• "Yes" - to choose a plan\n• "Trial" - to start 14-day free trial\n• "No" - maybe later`;
+      response = `Awesome! Thanks for sharing, ${state.leadData!.name}! 🎉\n\nWe offer AI-powered conversation management to help businesses like ${state.leadData!.company} automate customer support.\n\n💎 **Our Plans:**\n\n🆓 **Free** - Perfect to get started\n• 150 AI responses/month\n• 250 automations/month\n• 1 bot\n\n🚀 **Starter (£29/month)** - Smart Automation\n• 1,000 AI responses/month\n• 1,500 automations/month\n• 3 bots\n• CRM access\n\n⭐ **Pro (£89/month)** - AI Co-Pilot\n• 7,500 AI responses/month\n• 10,000 automations/month\n• 10 bots\n• API access\n\n💼 **Business (£249/month)** - AI Agent\n• 25,000 AI responses/month\n• 40,000 automations/month\n• 25 bots\n• Priority plus support\n\n🎁 **Special Offer:** Start with a 14-day free trial of any paid plan!\n\nAre you interested in subscribing?\n\nReply:\n• "Yes" - to choose a plan\n• "Trial" - to start 14-day free trial\n• "No" - maybe later`;
       nextState = FlowState.ASK_SUBSCRIPTION;
       break;
 
@@ -99,12 +99,12 @@ export async function processDefaultBotFlow(
 
       if (userResponse.includes("yes") || userResponse.includes("interested")) {
         state.leadData!.interestedInSubscription = true;
-        response = `Fantastic! 🎊 Which plan works best for you?\n\nReply with:\n• "Free" - Start free forever\n• "Starter" - £19/month\n• "Pro" - £49/month (Recommended ⭐)\n• "Business" - £99/month`;
+        response = `Fantastic! 🎊 Which plan works best for you?\n\nReply with:\n• "Free" - Start free forever\n• "Starter" - £29/month\n• "Pro" - £89/month (Recommended ⭐)\n• "Business" - £249/month`;
         nextState = FlowState.SUBSCRIPTION_SELECTED;
       } else if (userResponse.includes("trial")) {
         state.leadData!.interestedInSubscription = true;
         state.leadData!.trialRequested = true;
-        response = `Perfect! Which plan would you like to try for 14 days free?\n\nReply with:\n• "Starter" - Try £19/month plan\n• "Pro" - Try £49/month plan (Recommended ⭐)\n• "Business" - Try £99/month plan`;
+        response = `Perfect! Which plan would you like to try for 14 days free?\n\nReply with:\n• "Starter" - Try £29/month plan\n• "Pro" - Try £89/month plan (Recommended ⭐)\n• "Business" - Try £249/month plan`;
         nextState = FlowState.SUBSCRIPTION_SELECTED;
       } else {
         state.leadData!.interestedInSubscription = false;
