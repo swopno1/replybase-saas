@@ -10,8 +10,8 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { getSession, signIn } from "next-auth/react";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import {
   Field,
@@ -21,8 +21,9 @@ import {
   FieldSeparator,
 } from "@/components/ui/field";
 import Link from "next/link";
+import { setClarityTags, trackEvent } from "@/lib/client-analytics";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 type FeedbackTone = "info" | "success" | "error";
 
@@ -32,6 +33,39 @@ type AuthFeedback = {
   message: string;
   instruction?: string;
 };
+
+type SignupPlanIntent = "free" | "starter" | "pro" | "business";
+
+function parseSignupPlanIntent(value?: string | null): SignupPlanIntent | null {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (
+    normalized === "free" ||
+    normalized === "starter" ||
+    normalized === "pro" ||
+    normalized === "business"
+  ) {
+    return normalized;
+  }
+
+  return null;
+}
+
+function parseSignupSourceIntent(value?: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (!/^[a-z0-9_-]{2,48}$/.test(normalized)) {
+    return null;
+  }
+
+  return normalized;
+}
 
 function mapSignInError(error?: string | null): AuthFeedback {
   if (error === "CredentialsSignin") {
@@ -78,9 +112,45 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [feedback, setFeedback] = useState<AuthFeedback | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const signupPlanIntent = useMemo(
+    () => parseSignupPlanIntent(searchParams.get("plan")),
+    [searchParams],
+  );
+  const signupSourceIntent = useMemo(
+    () => parseSignupSourceIntent(searchParams.get("source")),
+    [searchParams],
+  );
+
+  const signupPlanLabel = useMemo(() => {
+    if (signupPlanIntent === "free") return "Free";
+    if (signupPlanIntent === "starter") return "Starter";
+    if (signupPlanIntent === "pro") return "Pro";
+    if (signupPlanIntent === "business") return "Business";
+    return null;
+  }, [signupPlanIntent]);
+
+  useEffect(() => {
+    setClarityTags({
+      page_type: "signup",
+      funnel_step: "signup",
+    });
+  }, []);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    trackEvent("signup_started", {
+      onceKey: `signup_started:${email.trim().toLowerCase() || "unknown"}`,
+      onceScope: "session",
+      properties: {
+        method: "credentials",
+        source: signupSourceIntent || "direct",
+        plan: signupPlanIntent || "unknown",
+      },
+    });
+
     setIsLoading(true);
     setFeedback({
       tone: "info",
@@ -99,6 +169,8 @@ export default function RegisterPage() {
           lastName,
           email,
           password,
+          signupPlanIntent,
+          signupSourceIntent,
         }),
       });
 
@@ -161,6 +233,17 @@ export default function RegisterPage() {
         title: "Registration successful",
         message: "Your account is ready. Redirecting to dashboard...",
       });
+
+      trackEvent("signup_completed", {
+        onceKey: `signup_completed:${email.trim().toLowerCase() || "unknown"}`,
+        onceScope: "local",
+        properties: {
+          method: "credentials",
+          source: signupSourceIntent || "direct",
+          plan: signupPlanIntent || "unknown",
+        },
+      });
+
       router.push("/");
       router.refresh();
     } catch {
@@ -176,6 +259,14 @@ export default function RegisterPage() {
   };
 
   const handleGoogleLogin = () => {
+    trackEvent("signup_started", {
+      properties: {
+        method: "google",
+        source: signupSourceIntent || "direct",
+        plan: signupPlanIntent || "unknown",
+      },
+    });
+
     setIsLoading(true);
     signIn("google", { callbackUrl: "/" });
   };
@@ -183,9 +274,18 @@ export default function RegisterPage() {
   return (
     <Card>
       <CardHeader className="text-center">
-        <CardTitle className="text-xl">Sign Up</CardTitle>
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-emerald-50 border border-emerald-200 px-4 py-1.5 text-xs font-semibold text-emerald-700">
+          🎁 14-day free trial &middot; No credit card required
+        </div>
+        {signupPlanLabel ? (
+          <p className="mb-2 text-xs text-muted-foreground">
+            We&apos;ll preselect <span className="font-semibold">{signupPlanLabel}</span> during onboarding.
+          </p>
+        ) : null}
+        <CardTitle className="text-xl">Create your free account</CardTitle>
         <CardDescription>
-          Enter your information to create an account
+          Start capturing leads and replying instantly — setup takes under 5
+          minutes.
         </CardDescription>
       </CardHeader>
 
@@ -260,6 +360,9 @@ export default function RegisterPage() {
                     )}
                   </button>
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  At least 8 characters
+                </p>
               </Field>
               <Field>
                 <Button type="submit" className="w-full" disabled={isLoading}>
@@ -270,21 +373,10 @@ export default function RegisterPage() {
           </div>
 
           <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
-            Or Login with your Apple or Google account
+            Or continue with
           </FieldSeparator>
 
           <Field>
-            <Button variant="outline" type="button" disabled>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path
-                  d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"
-                  fill="currentColor"
-                />
-              </svg>{" "}
-              Coming Soon...
-              {/* TODO: Change the text */}
-              {/* Login with Apple */}
-            </Button>
             <Button
               variant="outline"
               type="button"
@@ -298,7 +390,7 @@ export default function RegisterPage() {
                   fill="currentColor"
                 />
               </svg>
-              Login with Google
+              Continue with Google
             </Button>
           </Field>
 

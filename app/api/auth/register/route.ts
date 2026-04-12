@@ -3,10 +3,40 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/password";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
+type SignupPlanIntent = "free" | "starter" | "pro" | "business";
 
+function parseSignupPlanIntent(value: unknown): SignupPlanIntent | null {
+  if (typeof value !== "string") {
+    return null;
+  }
 
+  const normalized = value.trim().toLowerCase();
+  if (
+    normalized === "free" ||
+    normalized === "starter" ||
+    normalized === "pro" ||
+    normalized === "business"
+  ) {
+    return normalized;
+  }
+
+  return null;
+}
+
+function parseSignupSourceIntent(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (!/^[a-z0-9_-]{2,48}$/.test(normalized)) {
+    return null;
+  }
+
+  return normalized;
+}
 
 function getDisplayName(firstName: string, lastName: string): string {
   const fullName = `${firstName} ${lastName}`.trim();
@@ -23,6 +53,10 @@ export async function POST(request: Request) {
       .trim()
       .toLowerCase();
     const password = String(body?.password ?? "");
+    const signupPlanIntent = parseSignupPlanIntent(body?.signupPlanIntent);
+    const signupSourceIntent = parseSignupSourceIntent(
+      body?.signupSourceIntent,
+    );
 
     if (!firstName || !lastName || !email || !password) {
       return NextResponse.json(
@@ -65,7 +99,7 @@ export async function POST(request: Request) {
         select: { id: true },
       });
 
-      await tx.user.create({
+      const createdUser = await tx.user.create({
         data: {
           name: getDisplayName(firstName, lastName),
           email,
@@ -74,6 +108,25 @@ export async function POST(request: Request) {
         },
         select: { id: true },
       });
+
+      if (signupPlanIntent || signupSourceIntent) {
+        await tx.activityLog.create({
+          data: {
+            tenantId: tenant.id,
+            userId: createdUser.id,
+            type: "signup_intent",
+            title: "Signup intent captured",
+            description:
+              "Captured plan/source intent from pre-signup CTA to personalize onboarding.",
+            entityType: "signup",
+            entityId: createdUser.id,
+            metadata: {
+              plan: signupPlanIntent,
+              source: signupSourceIntent,
+            },
+          },
+        });
+      }
     });
 
     return NextResponse.json({ success: true }, { status: 201 });

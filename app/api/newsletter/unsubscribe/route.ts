@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { validateApiKey } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 
-export const dynamic = 'force-dynamic';
-
-
-
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
@@ -39,16 +34,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    // Support both API key (from marketing site) and user session (from SaaS app)
     const apiAuth = validateApiKey(req);
-    const session = await getServerSession(authOptions);
-
-    if (!apiAuth.authenticated && !session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized. Provide valid API key or user session" },
-        { status: 401 },
-      );
-    }
 
     const { email, token } = await req.json();
 
@@ -56,6 +42,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Email or token is required" },
         { status: 400 },
+      );
+    }
+
+    // Token-based unsubscribe is the public flow used in newsletter footers.
+    // Email-based unsubscribe requires API key to prevent arbitrary opt-outs.
+    if (!token && !apiAuth.authenticated) {
+      return NextResponse.json(
+        {
+          error: "Unauthorized. Provide valid API key or unsubscribe token",
+        },
+        { status: 401 },
       );
     }
 
@@ -83,10 +80,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       email: updated.email,
-      source: apiAuth.authenticated ? "api-key" : "session",
+      source: token ? "token" : "api-key",
     });
-
-    return NextResponse.json({ success: true, subscriber: updated });
   } catch (error: unknown) {
     console.error("[Newsletter Unsubscribe] Error:", error);
     return NextResponse.json(

@@ -1,26 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { validateApiKey } from "@/lib/api-auth";
 import crypto from "node:crypto";
 
-export const dynamic = 'force-dynamic';
-
-
-
+export const dynamic = "force-dynamic";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(req: NextRequest) {
   try {
-    // Support both API key (from marketing site) and user session (from SaaS app)
+    // Newsletter subscribe must come from trusted server-side callers
+    // (e.g. marketing site server action) using API secret.
     const apiAuth = validateApiKey(req);
-    const session = await getServerSession(authOptions);
 
-    if (!apiAuth.authenticated && !session?.user?.id) {
+    if (!apiAuth.authenticated) {
       return NextResponse.json(
-        { error: "Unauthorized. Provide valid API key or user session" },
+        { error: "Unauthorized. Provide valid API key" },
         { status: 401 },
       );
     }
@@ -43,16 +38,12 @@ export async function POST(req: NextRequest) {
         unsubscribedAt: null,
         source: source || "web",
         unsubscribeToken,
-        userId: session?.user?.id || undefined,
-        tenantId: session?.user?.tenantId || undefined,
       },
       create: {
         email,
         status: "SUBSCRIBED",
         source: source || "web",
         unsubscribeToken,
-        userId: session?.user?.id || undefined,
-        tenantId: session?.user?.tenantId || undefined,
       },
     });
 
@@ -65,7 +56,7 @@ export async function POST(req: NextRequest) {
       subscriberId: subscriber.id,
       email: subscriber.email,
       unsubscribeUrl,
-      source: apiAuth.authenticated ? "api-key" : "session",
+      source: "api-key",
     });
   } catch (error: unknown) {
     console.error("[Newsletter Subscribe] Error:", error);

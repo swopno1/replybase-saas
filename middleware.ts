@@ -36,6 +36,11 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Newsletter APIs implement their own API key / token validation.
+  if (pathname.startsWith("/api/newsletter/")) {
+    return NextResponse.next();
+  }
+
   // Allow OIDC discovery and health endpoints to be public
   if (
     pathname.startsWith("/api/oidc") ||

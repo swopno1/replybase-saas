@@ -15,7 +15,7 @@ export default function AuthLayout({
         <div className="flex flex-col gap-6">
           {children}
           <FieldDescription className="px-6 text-center">
-            By clicking continue, you agree to our{" "}
+            By creating an account, you agree to our{" "}
             <a href="https://replybase.co.uk/terms">Terms of Service</a> and{" "}
             <a href="https://replybase.co.uk/privacy">Privacy Policy</a>.
           </FieldDescription>

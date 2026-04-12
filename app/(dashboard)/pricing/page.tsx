@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { setClarityTags, trackEvent } from "@/lib/client-analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -76,11 +77,55 @@ const PLANS = [
   },
 ] as const;
 
+type PlanName = (typeof PLANS)[number]["name"];
+
+function parsePlanName(value: string | null): PlanName | null {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (
+    normalized === "free" ||
+    normalized === "starter" ||
+    normalized === "pro" ||
+    normalized === "business"
+  ) {
+    return normalized;
+  }
+
+  return null;
+}
+
 export default function PricingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState<string | null>(null);
+  const preferredPlan = parsePlanName(searchParams.get("plan")) || "pro";
+  const source = searchParams.get("source");
+
+  useEffect(() => {
+    setClarityTags({
+      page_type: "pricing",
+      funnel_step: "landing",
+    });
+
+    trackEvent("pricing_viewed", {
+      onceKey: "pricing_viewed",
+      onceScope: "session",
+      properties: { origin: "app" },
+    });
+  }, []);
 
   const handleSubscribe = async (planName: string) => {
+    trackEvent("get_started_click", {
+      properties: {
+        plan: planName,
+        source: "pricing_table",
+        origin: "app",
+      },
+    });
+
     if (planName === "free") {
       router.push("/dashboard");
       return;
@@ -139,6 +184,11 @@ export default function PricingPage() {
             No card charged until trial ends • Cancel anytime
           </span>
         </div>
+        {source ? (
+          <p className="mt-3 text-xs text-muted-foreground">
+            Recommended based on your onboarding path.
+          </p>
+        ) : null}
       </div>
 
       <div className="overflow-x-auto rounded-2xl border bg-card p-2 shadow-sm">
@@ -147,9 +197,12 @@ export default function PricingPage() {
             <tr>
               <th className="p-4 w-1/5">Feature</th>
               {PLANS.map((plan) => (
+                (() => {
+                  const isRecommended = plan.name === preferredPlan;
+                  return (
                 <th
                   key={plan.name}
-                  className={`p-4 text-center ${plan.highlight ? "text-primary" : ""}`}
+                  className={`p-4 text-center ${plan.highlight || isRecommended ? "text-primary" : ""}`}
                 >
                   <div className="font-semibold text-foreground text-sm">
                     {plan.displayName}
@@ -159,7 +212,14 @@ export default function PricingPage() {
                       Most Popular
                     </div>
                   )}
+                  {!plan.highlight && isRecommended && (
+                    <div className="mt-1 text-[11px] font-medium text-primary">
+                      Recommended for you
+                    </div>
+                  )}
                 </th>
+                  );
+                })()
               ))}
             </tr>
           </thead>
@@ -299,17 +359,24 @@ export default function PricingPage() {
             <tr>
               <td className="p-4 font-semibold text-foreground">Get Started</td>
               {PLANS.map((plan) => (
+                (() => {
+                  const isRecommended = plan.name === preferredPlan;
+                  return (
                 <td
                   key={`${plan.name}-cta`}
                   className="p-4 text-center align-top"
                 >
                   <Button
                     className="w-full"
-                    variant={plan.highlight ? "default" : "outline"}
+                    variant={plan.highlight || isRecommended ? "default" : "outline"}
                     onClick={() => handleSubscribe(plan.name)}
                     disabled={loading !== null}
                   >
-                    {loading === plan.name ? "Processing..." : plan.cta}
+                    {loading === plan.name
+                      ? "Processing..."
+                      : isRecommended
+                        ? `${plan.cta} (Recommended)`
+                        : plan.cta}
                   </Button>
                   {plan.price > 0 && (
                     <p className="mt-2 text-xs text-muted-foreground">
@@ -317,6 +384,8 @@ export default function PricingPage() {
                     </p>
                   )}
                 </td>
+                  );
+                })()
               ))}
             </tr>
           </tbody>

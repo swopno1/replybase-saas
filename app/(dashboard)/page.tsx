@@ -12,8 +12,36 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Circle, ArrowRight } from "lucide-react";
+import { DashboardFunnelTracker } from "@/components/analytics/dashboard-funnel-tracker";
 
 export const dynamic = 'force-dynamic';
+
+type SignupPlanIntent = "free" | "starter" | "pro" | "business";
+
+function parseSignupPlanIntent(value: unknown): SignupPlanIntent | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (
+    normalized === "free" ||
+    normalized === "starter" ||
+    normalized === "pro" ||
+    normalized === "business"
+  ) {
+    return normalized;
+  }
+
+  return null;
+}
+
+function planDisplayName(plan: SignupPlanIntent): string {
+  if (plan === "free") return "Free";
+  if (plan === "starter") return "Starter";
+  if (plan === "pro") return "Pro";
+  return "Business";
+}
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -40,6 +68,8 @@ export default async function DashboardPage() {
     lastMessage,
     firstTelegramChannel,
     firstWebchatChannel,
+    signupIntentLog,
+    activeSubscription,
   ] = await Promise.all([
     prisma.channel.count({
       where: {
@@ -79,6 +109,29 @@ export default async function DashboardPage() {
       where: { tenantId: user.tenantId },
       orderBy: { createdAt: "asc" },
       select: { createdAt: true },
+    }),
+    prisma.activityLog.findFirst({
+      where: {
+        tenantId: user.tenantId,
+        type: "signup_intent",
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        metadata: true,
+      },
+    }),
+    prisma.subscription.findUnique({
+      where: {
+        tenantId: user.tenantId,
+      },
+      select: {
+        id: true,
+        plan: {
+          select: {
+            name: true,
+          },
+        },
+      },
     }),
   ]);
 
@@ -143,6 +196,50 @@ export default async function DashboardPage() {
   const needsChannelConnection = connectedChannelsCount === 0;
   const needsLeadNotificationSetup = !hasLeadNotificationDestinations;
 
+  const intentMetadata =
+    signupIntentLog?.metadata && typeof signupIntentLog.metadata === "object"
+      ? (signupIntentLog.metadata as Record<string, unknown>)
+      : null;
+  const intentPlan = parseSignupPlanIntent(intentMetadata?.plan);
+  const intentSource =
+    typeof intentMetadata?.source === "string" ? intentMetadata.source : null;
+  const recommendedPlan: SignupPlanIntent = intentPlan || "pro";
+  const recommendedPlanLabel = planDisplayName(recommendedPlan);
+  const hasSelectedPlan = Boolean(activeSubscription?.id);
+  const isBusinessIntent = recommendedPlan === "business";
+
+  const recommendedPlanBenefits =
+    recommendedPlan === "business"
+      ? [
+          "Scale to high conversation volume with advanced AI capacity",
+          "Priority+ support and faster escalation when issues happen",
+          "Designed for teams managing multiple channels and agents",
+        ]
+      : recommendedPlan === "starter"
+        ? [
+            "Start small with enough automation for early traction",
+            "Keep costs low while validating your lead workflow",
+            "Upgrade seamlessly as inbound volume grows",
+          ]
+        : recommendedPlan === "free"
+          ? [
+              "Launch quickly without cost while your stack is being configured",
+              "Validate your first lead flows before committing budget",
+              "Move to a paid trial later when you need scale",
+            ]
+          : [
+              "Best balance of automation scale and AI usage for growth teams",
+              "Includes API + priority support for serious lead operations",
+              "Strong fit once your first channel is live and producing leads",
+            ];
+
+  const planActionHref = isBusinessIntent
+    ? "mailto:sales@replybase.co.uk?subject=Business%20Plan%20Onboarding"
+    : `/pricing?plan=${recommendedPlan}&source=onboarding_plan_step`;
+  const planActionLabel = isBusinessIntent
+    ? "Talk to Business Specialist"
+    : `Choose ${recommendedPlanLabel}`;
+
   const firstAutomatedReplyAt = firstAutomatedReply?.createdAt;
   const onboardingMilestones = [
     {
@@ -166,6 +263,17 @@ export default async function DashboardPage() {
       actionHref: "/integrations/telegram",
     },
     {
+      id: "plan-selection",
+      title: `Confirm your ${recommendedPlanLabel} plan`,
+      description: isBusinessIntent
+        ? "Business includes concierge onboarding support. We will tailor setup to your team and volume."
+        : "No charge during trial and you can change plans anytime. Pick the best fit once your setup has momentum.",
+      completed: hasSelectedPlan,
+      completedAt: null,
+      actionLabel: planActionLabel,
+      actionHref: planActionHref,
+    },
+    {
       id: "lead-notifications",
       title: "Lead notification destinations",
       description:
@@ -182,18 +290,30 @@ export default async function DashboardPage() {
   const completedMilestones = onboardingMilestones.filter(
     (milestone) => milestone.completed,
   ).length;
+  const completedMilestoneIds = onboardingMilestones
+    .filter((milestone) => milestone.completed)
+    .map((milestone) => milestone.id);
 
   return (
     <div className="space-y-6">
+      <DashboardFunnelTracker
+        tenantId={user.tenantId}
+        completedMilestoneIds={completedMilestoneIds}
+      />
+
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">
-          Welcome{session?.user?.name ? `, ${session.user.name}` : ""}
+          {completedMilestones === 0
+            ? `Welcome, ${session?.user?.name?.split(" ")[0] ?? "there"} \u2014 let\u2019s capture your first lead`
+            : `Welcome back${session?.user?.name ? `, ${session.user.name}` : ""}`}
         </h1>
         <p className="text-muted-foreground mt-1">
           {setupComplete
             ? "Your lead capture stack is live and notifications are configured."
-            : "Connect Webchat or Telegram, then add instant notifications for new leads."}
+            : completedMilestones === 0
+              ? `You\u2019re ${onboardingMilestones.length} quick steps away from automatically capturing and replying to leads.`
+              : `${onboardingMilestones.length - completedMilestones} step${onboardingMilestones.length - completedMilestones === 1 ? "" : "s"} left to complete your setup.`}
         </p>
       </div>
 
@@ -204,6 +324,50 @@ export default async function DashboardPage() {
           needsLeadNotificationSetup={needsLeadNotificationSetup}
         />
       </DashboardErrorBoundary>
+
+      {!hasSelectedPlan && (
+        <DashboardErrorBoundary title="Plan Recommendation">
+          <Card className="border-primary/40 bg-primary/5">
+            <CardHeader>
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle>
+                  Recommended plan: {recommendedPlanLabel}
+                </CardTitle>
+                <Badge variant="secondary">No charge during trial</Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {isBusinessIntent
+                  ? "Based on your signup intent, we prepared a Business onboarding path with specialist support."
+                  : "Choose your plan after setup momentum, not before. You can change anytime."}
+                {intentSource ? ` Source: ${intentSource.replaceAll("_", " ")}.` : ""}
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <ul className="list-disc pl-5 text-sm text-muted-foreground">
+                {recommendedPlanBenefits.map((benefit) => (
+                  <li key={benefit}>{benefit}</li>
+                ))}
+              </ul>
+              <div className="flex flex-wrap gap-3">
+                <Link href={planActionHref}>
+                  <Button>
+                    {planActionLabel}
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+                {!isBusinessIntent && (
+                  <Link href="/pricing?source=onboarding_plan_compare">
+                    <Button variant="outline">Compare all plans</Button>
+                  </Link>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Reassurance: no card charge during trial, and you can switch plans anytime.
+              </p>
+            </CardContent>
+          </Card>
+        </DashboardErrorBoundary>
+      )}
 
       <DashboardErrorBoundary title="Activation Milestones">
         <Card>
@@ -222,10 +386,12 @@ export default async function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {onboardingMilestones.map((milestone) => (
+            {onboardingMilestones.map((milestone, idx) => {
+              const isNextAction = !milestone.completed && onboardingMilestones.slice(0, idx).every((m) => m.completed);
+              return (
               <div
                 key={milestone.id}
-                className="flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center md:justify-between"
+                className={`flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center md:justify-between${isNextAction ? " border-primary bg-primary/5" : ""}`}
               >
                 <div className="flex items-start gap-3">
                   {milestone.completed ? (
@@ -248,14 +414,15 @@ export default async function DashboardPage() {
                 </div>
                 {!milestone.completed && (
                   <Link href={milestone.actionHref}>
-                    <Button size="sm" variant="outline">
+                    <Button size="sm" variant={isNextAction ? "default" : "outline"}>
                       {milestone.actionLabel}
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>
                 )}
               </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
       </DashboardErrorBoundary>
