@@ -24,7 +24,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { isChannelVisibleInUi } from "@/lib/channel-config";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 interface FBPage {
   id: string;
@@ -35,12 +35,28 @@ interface FBPage {
   engineConnected?: boolean;
 }
 
+interface MetaSetupStatus {
+  facebook?: {
+    oauthConfigured: boolean;
+    webhookVerifyTokenConfigured: boolean;
+    oauthCallbackUrl: string;
+    webhookCallbackUrl: string;
+    requiredScopes: string[];
+  };
+  whatsapp?: {
+    appSecretConfigured: boolean;
+    webhookVerifyTokenConfigured: boolean;
+    webhookCallbackUrl: string;
+  };
+}
+
 export default function FacebookIntegrationPage() {
   const router = useRouter();
   const channelVisible = isChannelVisibleInUi("facebook");
   const [isLoading, setIsLoading] = useState(true);
   const [pages, setPages] = useState<FBPage[]>([]);
   const [connected, setConnected] = useState(false);
+  const [setupStatus, setSetupStatus] = useState<MetaSetupStatus | null>(null);
   const [statusMap, setStatusMap] = useState<
     Record<string, string | undefined>
   >({});
@@ -61,14 +77,23 @@ export default function FacebookIntegrationPage() {
   const fetchPages = async () => {
     try {
       setIsLoading(true);
-      const res = await fetch("/api/integrations/facebook/pages");
-      const data = await res.json();
+      const [pagesResponse, setupResponse] = await Promise.all([
+        fetch("/api/integrations/facebook/pages"),
+        fetch("/api/meta/setup-status"),
+      ]);
+
+      const data = await pagesResponse.json();
       if (data.connected) {
         setConnected(true);
         setPages(data.pages || []);
       } else {
         setConnected(false);
         setPages([]);
+      }
+
+      if (setupResponse.ok) {
+        const setupData = (await setupResponse.json()) as MetaSetupStatus;
+        setSetupStatus(setupData);
       }
     } catch (e) {
       console.error(e);
@@ -229,6 +254,54 @@ export default function FacebookIntegrationPage() {
             Configure AI per page in{" "}
             <strong className="text-foreground">AI Status</strong>.
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Meta Setup Checklist</CardTitle>
+          <CardDescription>
+            Verify your Facebook app setup before connecting pages.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <p>
+            OAuth callback URL:
+            <span className="ml-2 rounded bg-muted px-2 py-1 font-mono text-xs text-foreground">
+              {setupStatus?.facebook?.oauthCallbackUrl || "Loading..."}
+            </span>
+          </p>
+          <p>
+            Webhook callback URL:
+            <span className="ml-2 rounded bg-muted px-2 py-1 font-mono text-xs text-foreground">
+              {setupStatus?.facebook?.webhookCallbackUrl || "Loading..."}
+            </span>
+          </p>
+
+          <div className="flex flex-wrap gap-2">
+            <span
+              className={`rounded px-2 py-1 text-xs ${
+                setupStatus?.facebook?.oauthConfigured
+                  ? "bg-green-100 text-green-700"
+                  : "bg-yellow-100 text-yellow-700"
+              }`}
+            >
+              OAuth credentials{" "}
+              {setupStatus?.facebook?.oauthConfigured ? "ready" : "missing"}
+            </span>
+            <span
+              className={`rounded px-2 py-1 text-xs ${
+                setupStatus?.facebook?.webhookVerifyTokenConfigured
+                  ? "bg-green-100 text-green-700"
+                  : "bg-yellow-100 text-yellow-700"
+              }`}
+            >
+              Webhook verify token{" "}
+              {setupStatus?.facebook?.webhookVerifyTokenConfigured
+                ? "ready"
+                : "missing"}
+            </span>
+          </div>
         </CardContent>
       </Card>
 

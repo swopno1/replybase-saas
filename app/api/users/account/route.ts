@@ -2,12 +2,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import crypto from "node:crypto";
 
-export const dynamic = 'force-dynamic';
-
-
-
+export const dynamic = "force-dynamic";
 
 export async function DELETE() {
   try {
@@ -16,25 +12,81 @@ export async function DELETE() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const confirmationCode = `acct_${crypto.randomBytes(12).toString("hex")}`;
-
-    const request = await prisma.dataDeletionRequest.create({
-      data: {
-        email: session.user.email || "unknown",
-        confirmationCode,
-        source: "account",
-        userId: session.user.id,
-        tenantId: session.user.tenantId,
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        id: true,
+        tenantId: true,
       },
     });
 
-    const appUrl =
-      process.env.NEXT_PUBLIC_APP_URL || "https://app.replybase.co.uk";
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const deletionResult = await prisma.$transaction(async (tx) => {
+      const usersInTenant = await tx.user.count({
+        where: { tenantId: user.tenantId },
+      });
+
+      // Remove user-bound records with restrictive FKs before deleting the user.
+      await tx.executionLog.deleteMany({ where: { userId: user.id } });
+      await tx.internalNote.deleteMany({ where: { authorId: user.id } });
+
+      await tx.user.delete({ where: { id: user.id } });
+
+      if (usersInTenant > 1) {
+        return { deletedScope: "user" as const };
+      }
+
+      // Last user in tenant: remove remaining tenant-bound data that uses RESTRICT.
+      await tx.crmMessage.deleteMany({
+        where: { conversation: { contact: { tenantId: user.tenantId } } },
+      });
+      await tx.internalNote.deleteMany({
+        where: { conversation: { contact: { tenantId: user.tenantId } } },
+      });
+      await tx.crmConversation.deleteMany({
+        where: { contact: { tenantId: user.tenantId } },
+      });
+
+      await tx.contactIdentity.deleteMany({
+        where: { contact: { tenantId: user.tenantId } },
+      });
+
+      await tx.lead.deleteMany({ where: { tenantId: user.tenantId } });
+
+      await tx.channel.deleteMany({
+        where: { bot: { tenantId: user.tenantId } },
+      });
+      await tx.webChatSite.deleteMany({ where: { tenantId: user.tenantId } });
+      await tx.executionLog.deleteMany({
+        where: { bot: { tenantId: user.tenantId } },
+      });
+      await tx.facebookPage.deleteMany({ where: { tenantId: user.tenantId } });
+
+      await tx.flow.deleteMany({ where: { tenantId: user.tenantId } });
+      await tx.contact.deleteMany({ where: { tenantId: user.tenantId } });
+      await tx.usageLog.deleteMany({ where: { tenantId: user.tenantId } });
+      await tx.bot.deleteMany({ where: { tenantId: user.tenantId } });
+
+      // These models are tenant-keyed but not FK-linked to tenants.
+      await tx.onboardingSession.deleteMany({
+        where: { tenantId: user.tenantId },
+      });
+      await tx.onboardingMetrics.deleteMany({
+        where: { tenantId: user.tenantId },
+      });
+
+      await tx.tenant.delete({ where: { id: user.tenantId } });
+
+      return { deletedScope: "tenant" as const };
+    });
 
     return NextResponse.json({
       success: true,
-      confirmationCode: request.confirmationCode,
-      statusUrl: `${appUrl}/data-deletion-status?code=${request.confirmationCode}`,
+      deletedScope: deletionResult.deletedScope,
+      redirectTo: "/auth/login?accountDeleted=1",
     });
   } catch (error: unknown) {
     console.error("[Account Deletion] Error:", error);

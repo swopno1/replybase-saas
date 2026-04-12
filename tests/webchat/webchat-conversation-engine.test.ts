@@ -53,23 +53,21 @@ describe("executeWebchatFlowFirst", () => {
   });
 
   it("does not restart an entry flow after it already completed for the same visitor", async () => {
-    vi.mocked(prisma.flowSession.findFirst).mockImplementation(
-      async (args: any) => {
-        if (args?.where?.isActive === true) {
-          return null as never;
-        }
+    vi.mocked(prisma.flowSession.findFirst).mockImplementation(((args: any) => {
+      if (args?.where?.isActive === true) {
+        return Promise.resolve(null as never);
+      }
 
-        if (args?.where?.completedAt) {
-          return {
-            id: "sess_done_1",
-            flowId: "flow_lead",
-            completedAt: new Date("2026-04-09T10:00:00.000Z"),
-          } as never;
-        }
+      if (args?.where?.completedAt) {
+        return Promise.resolve({
+          id: "sess_done_1",
+          flowId: "flow_lead",
+          completedAt: new Date("2026-04-09T10:00:00.000Z"),
+        } as never);
+      }
 
-        return null as never;
-      },
-    );
+      return Promise.resolve(null as never);
+    }) as never);
 
     vi.mocked(prisma.flow.findFirst).mockResolvedValue({
       id: "flow_lead",
@@ -102,32 +100,30 @@ describe("executeWebchatFlowFirst", () => {
   });
 
   it("creates a lead record from collected lead variables when tag_user runs", async () => {
-    vi.mocked(prisma.flowSession.findFirst).mockImplementation(
-      async (args: any) => {
-        if (args?.where?.isActive === true) {
-          return {
-            id: "sess_active_1",
-            flowId: "flow_lead",
-            currentNodeId: "node_action",
-            variables: {
-              __runtime: {
-                rootFlowId: "flow_lead",
-                activeFlowId: "flow_lead",
-                callStack: [],
-              },
-              lead_name: "Amir",
-              lead_email: "amir@example.com",
-              lead_phone: "+8801819062270",
-              lead_need: "Need a TikTok inbox chatbot",
-              lead_budget: "$30/month",
+    vi.mocked(prisma.flowSession.findFirst).mockImplementation(((args: any) => {
+      if (args?.where?.isActive === true) {
+        return Promise.resolve({
+          id: "sess_active_1",
+          flowId: "flow_lead",
+          currentNodeId: "node_action",
+          variables: {
+            __runtime: {
+              rootFlowId: "flow_lead",
+              activeFlowId: "flow_lead",
+              callStack: [],
             },
-            isActive: true,
-          } as never;
-        }
+            lead_name: "Amir",
+            lead_email: "amir@example.com",
+            lead_phone: "+8801819062270",
+            lead_need: "Need a TikTok inbox chatbot",
+            lead_budget: "$30/month",
+          },
+          isActive: true,
+        } as never);
+      }
 
-        return null as never;
-      },
-    );
+      return Promise.resolve(null as never);
+    }) as never);
 
     vi.mocked(prisma.flow.findFirst).mockResolvedValue({
       id: "flow_lead",

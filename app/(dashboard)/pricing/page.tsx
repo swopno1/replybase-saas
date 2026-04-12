@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -97,7 +97,7 @@ function parsePlanName(value: string | null): PlanName | null {
   return null;
 }
 
-export default function PricingPage() {
+function PricingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState<string | null>(null);
@@ -196,31 +196,31 @@ export default function PricingPage() {
           <thead className="text-xs uppercase text-muted-foreground">
             <tr>
               <th className="p-4 w-1/5">Feature</th>
-              {PLANS.map((plan) => (
+              {PLANS.map((plan) =>
                 (() => {
                   const isRecommended = plan.name === preferredPlan;
                   return (
-                <th
-                  key={plan.name}
-                  className={`p-4 text-center ${plan.highlight || isRecommended ? "text-primary" : ""}`}
-                >
-                  <div className="font-semibold text-foreground text-sm">
-                    {plan.displayName}
-                  </div>
-                  {plan.highlight && (
-                    <div className="mt-1 text-[11px] font-medium text-primary">
-                      Most Popular
-                    </div>
-                  )}
-                  {!plan.highlight && isRecommended && (
-                    <div className="mt-1 text-[11px] font-medium text-primary">
-                      Recommended for you
-                    </div>
-                  )}
-                </th>
+                    <th
+                      key={plan.name}
+                      className={`p-4 text-center ${plan.highlight || isRecommended ? "text-primary" : ""}`}
+                    >
+                      <div className="font-semibold text-foreground text-sm">
+                        {plan.displayName}
+                      </div>
+                      {plan.highlight && (
+                        <div className="mt-1 text-[11px] font-medium text-primary">
+                          Most Popular
+                        </div>
+                      )}
+                      {!plan.highlight && isRecommended && (
+                        <div className="mt-1 text-[11px] font-medium text-primary">
+                          Recommended for you
+                        </div>
+                      )}
+                    </th>
                   );
-                })()
-              ))}
+                })(),
+              )}
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -358,35 +358,39 @@ export default function PricingPage() {
             </tr>
             <tr>
               <td className="p-4 font-semibold text-foreground">Get Started</td>
-              {PLANS.map((plan) => (
+              {PLANS.map((plan) =>
                 (() => {
                   const isRecommended = plan.name === preferredPlan;
                   return (
-                <td
-                  key={`${plan.name}-cta`}
-                  className="p-4 text-center align-top"
-                >
-                  <Button
-                    className="w-full"
-                    variant={plan.highlight || isRecommended ? "default" : "outline"}
-                    onClick={() => handleSubscribe(plan.name)}
-                    disabled={loading !== null}
-                  >
-                    {loading === plan.name
-                      ? "Processing..."
-                      : isRecommended
-                        ? `${plan.cta} (Recommended)`
-                        : plan.cta}
-                  </Button>
-                  {plan.price > 0 && (
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      14 days free
-                    </p>
-                  )}
-                </td>
+                    <td
+                      key={`${plan.name}-cta`}
+                      className="p-4 text-center align-top"
+                    >
+                      <Button
+                        className="w-full"
+                        variant={
+                          plan.highlight || isRecommended
+                            ? "default"
+                            : "outline"
+                        }
+                        onClick={() => handleSubscribe(plan.name)}
+                        disabled={loading !== null}
+                      >
+                        {loading === plan.name
+                          ? "Processing..."
+                          : isRecommended
+                            ? `${plan.cta} (Recommended)`
+                            : plan.cta}
+                      </Button>
+                      {plan.price > 0 && (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          14 days free
+                        </p>
+                      )}
+                    </td>
                   );
-                })()
-              ))}
+                })(),
+              )}
             </tr>
           </tbody>
         </table>
@@ -398,6 +402,18 @@ export default function PricingPage() {
         Pro £89, and Business £249.
       </div>
     </div>
+  );
+}
+
+export default function PricingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="px-4 py-20 text-center">Loading pricing...</div>
+      }
+    >
+      <PricingContent />
+    </Suspense>
   );
 }
 

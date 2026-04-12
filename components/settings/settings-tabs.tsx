@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import {
   Card,
   CardContent,
@@ -52,8 +52,10 @@ function SettingsTabsInner() {
   };
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
   const [newsletterLoading, setNewsletterLoading] = useState(false);
   const [notificationDestinations, setNotificationDestinations] = useState({
     emailRecipients: "",
@@ -268,17 +270,40 @@ function SettingsTabsInner() {
   };
 
   const handleDeleteAccount = async () => {
-    setIsLoading(true);
+    if (deleteConfirmationText.trim().toUpperCase() !== "DELETE") {
+      toast.error('Please type "DELETE" to confirm');
+      return;
+    }
+
+    setIsDeletingAccount(true);
     try {
       const response = await fetch("/api/users/account", { method: "DELETE" });
-      if (!response.ok) throw new Error("Failed to delete account");
-      const data = await response.json();
-      toast.success("Deletion request submitted");
-      window.location.href = data.statusUrl || "/data-deletion-status";
+      const data = (await response.json().catch(() => null)) as {
+        redirectTo?: string;
+        deletedScope?: "user" | "tenant";
+        error?: string;
+      } | null;
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Failed to delete account");
+      }
+
+      const deletedScope = data?.deletedScope;
+      toast.success(
+        deletedScope === "tenant"
+          ? "Your account and workspace have been deleted"
+          : "Your account has been deleted",
+      );
+
+      await signOut({ redirect: false });
+      window.location.href = data?.redirectTo || "/auth/login?accountDeleted=1";
     } catch (error) {
       console.error("Account deletion error:", error);
-      toast.error("Failed to delete account");
-      setIsLoading(false);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete account",
+      );
+    } finally {
+      setIsDeletingAccount(false);
     }
   };
 
@@ -721,18 +746,38 @@ function SettingsTabsInner() {
                 <p className="text-sm font-medium text-red-900">
                   Are you sure? This cannot be undone.
                 </p>
+                <p className="text-xs text-red-800">
+                  Type <strong>DELETE</strong> to confirm account deletion.
+                </p>
+                <Input
+                  value={deleteConfirmationText}
+                  onChange={(event) =>
+                    setDeleteConfirmationText(event.target.value)
+                  }
+                  placeholder="Type DELETE"
+                  className="bg-white"
+                  disabled={isDeletingAccount}
+                />
                 <div className="flex gap-2">
                   <Button
                     variant="destructive"
                     onClick={handleDeleteAccount}
-                    disabled={isLoading}
+                    disabled={
+                      isDeletingAccount ||
+                      deleteConfirmationText.trim().toUpperCase() !== "DELETE"
+                    }
                   >
-                    {isLoading ? "Deleting..." : "Yes, Delete My Account"}
+                    {isDeletingAccount
+                      ? "Submitting..."
+                      : "Yes, Delete My Account"}
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => setShowDeleteConfirm(false)}
-                    disabled={isLoading}
+                    onClick={() => {
+                      setShowDeleteConfirm(false);
+                      setDeleteConfirmationText("");
+                    }}
+                    disabled={isDeletingAccount}
                   >
                     Cancel
                   </Button>

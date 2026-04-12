@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { getSession, signIn } from "next-auth/react";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import {
@@ -103,7 +103,7 @@ function FeedbackBanner({ feedback }: { feedback: AuthFeedback }) {
   );
 }
 
-export default function RegisterPage() {
+function RegisterContent() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -279,7 +279,9 @@ export default function RegisterPage() {
         </div>
         {signupPlanLabel ? (
           <p className="mb-2 text-xs text-muted-foreground">
-            We&apos;ll preselect <span className="font-semibold">{signupPlanLabel}</span> during onboarding.
+            We&apos;ll preselect{" "}
+            <span className="font-semibold">{signupPlanLabel}</span> during
+            onboarding.
           </p>
         ) : null}
         <CardTitle className="text-xl">Create your free account</CardTitle>
@@ -400,5 +402,19 @@ export default function RegisterPage() {
         </FieldGroup>
       </CardContent>
     </Card>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-md px-4 py-16 text-center">
+          Loading registration...
+        </div>
+      }
+    >
+      <RegisterContent />
+    </Suspense>
   );
 }

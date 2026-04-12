@@ -5,6 +5,7 @@ import { SubscriptionStatus } from "@/components/subscription-status";
 import { authOptions } from "@/lib/auth";
 import { DashboardErrorBoundary } from "@/components/dashboard/error-boundary";
 import { SetupCTA } from "@/components/dashboard/setup-cta";
+import { getAllChannelConfigs } from "@/lib/channel-config";
 import { StatusCards } from "@/components/dashboard/status-cards";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import Link from "next/link";
@@ -14,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, Circle, ArrowRight } from "lucide-react";
 import { DashboardFunnelTracker } from "@/components/analytics/dashboard-funnel-tracker";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 type SignupPlanIntent = "free" | "starter" | "pro" | "business";
 
@@ -195,6 +196,9 @@ export default async function DashboardPage() {
     connectedChannelsCount > 0 && hasLeadNotificationDestinations;
   const needsChannelConnection = connectedChannelsCount === 0;
   const needsLeadNotificationSetup = !hasLeadNotificationDestinations;
+  const availableChannels = getAllChannelConfigs().filter(
+    (ch) => ch.enabled && ch.uiVisible,
+  );
 
   const intentMetadata =
     signupIntentLog?.metadata && typeof signupIntentLog.metadata === "object"
@@ -322,6 +326,7 @@ export default async function DashboardPage() {
         <SetupCTA
           needsChannelConnection={needsChannelConnection}
           needsLeadNotificationSetup={needsLeadNotificationSetup}
+          availableChannels={availableChannels}
         />
       </DashboardErrorBoundary>
 
@@ -330,16 +335,16 @@ export default async function DashboardPage() {
           <Card className="border-primary/40 bg-primary/5">
             <CardHeader>
               <div className="flex items-center justify-between gap-3">
-                <CardTitle>
-                  Recommended plan: {recommendedPlanLabel}
-                </CardTitle>
+                <CardTitle>Recommended plan: {recommendedPlanLabel}</CardTitle>
                 <Badge variant="secondary">No charge during trial</Badge>
               </div>
               <p className="text-sm text-muted-foreground">
                 {isBusinessIntent
                   ? "Based on your signup intent, we prepared a Business onboarding path with specialist support."
                   : "Choose your plan after setup momentum, not before. You can change anytime."}
-                {intentSource ? ` Source: ${intentSource.replaceAll("_", " ")}.` : ""}
+                {intentSource
+                  ? ` Source: ${intentSource.replaceAll("_", " ")}.`
+                  : ""}
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -362,7 +367,8 @@ export default async function DashboardPage() {
                 )}
               </div>
               <p className="text-xs text-muted-foreground">
-                Reassurance: no card charge during trial, and you can switch plans anytime.
+                Reassurance: no card charge during trial, and you can switch
+                plans anytime.
               </p>
             </CardContent>
           </Card>
@@ -387,40 +393,45 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {onboardingMilestones.map((milestone, idx) => {
-              const isNextAction = !milestone.completed && onboardingMilestones.slice(0, idx).every((m) => m.completed);
+              const isNextAction =
+                !milestone.completed &&
+                onboardingMilestones.slice(0, idx).every((m) => m.completed);
               return (
-              <div
-                key={milestone.id}
-                className={`flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center md:justify-between${isNextAction ? " border-primary bg-primary/5" : ""}`}
-              >
-                <div className="flex items-start gap-3">
-                  {milestone.completed ? (
-                    <CheckCircle2 className="mt-0.5 h-5 w-5 text-green-600" />
-                  ) : (
-                    <Circle className="mt-0.5 h-5 w-5 text-muted-foreground" />
-                  )}
-                  <div>
-                    <p className="font-medium">{milestone.title}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {milestone.description}
-                    </p>
-                    {milestone.completedAt && (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Completed on{" "}
-                        {milestone.completedAt.toLocaleDateString("en-US")}
-                      </p>
+                <div
+                  key={milestone.id}
+                  className={`flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center md:justify-between${isNextAction ? " border-primary bg-primary/5" : ""}`}
+                >
+                  <div className="flex items-start gap-3">
+                    {milestone.completed ? (
+                      <CheckCircle2 className="mt-0.5 h-5 w-5 text-green-600" />
+                    ) : (
+                      <Circle className="mt-0.5 h-5 w-5 text-muted-foreground" />
                     )}
+                    <div>
+                      <p className="font-medium">{milestone.title}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {milestone.description}
+                      </p>
+                      {milestone.completedAt && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Completed on{" "}
+                          {milestone.completedAt.toLocaleDateString("en-US")}
+                        </p>
+                      )}
+                    </div>
                   </div>
+                  {!milestone.completed && (
+                    <Link href={milestone.actionHref}>
+                      <Button
+                        size="sm"
+                        variant={isNextAction ? "default" : "outline"}
+                      >
+                        {milestone.actionLabel}
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  )}
                 </div>
-                {!milestone.completed && (
-                  <Link href={milestone.actionHref}>
-                    <Button size="sm" variant={isNextAction ? "default" : "outline"}>
-                      {milestone.actionLabel}
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </Link>
-                )}
-              </div>
               );
             })}
           </CardContent>
