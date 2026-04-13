@@ -1,7 +1,7 @@
 # 📁 Facebook Integration Diagnostic - Complete Documentation Index
 
 **Issue:** GET_STARTED trigger not executing flow  
-**User:** amirhossain.limon@gmail.com  
+**Target User:** use your workspace admin/test account  
 **Page:** Dreamer  
 **Generated:** 16 February 2026
 

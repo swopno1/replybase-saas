@@ -29,7 +29,7 @@ SPAM_TENANT_IDS = [
 ]
 
 DUPLICATE_FLOW_ID = 'cmmxt2b870000z71vlfppxqvf'   # "Welcome & Lead Capture (Copy)"
-STALE_DDR_ID     = 'cmlq3egnp000113ljcy7gi64r'    # amirhossain.limon@gmail.com  PENDING >30d
+STALE_DDR_ID     = 'cmlq3egnp000113ljcy7gi64r'    # target user pending data deletion request >30d
 
 # Plan IDs — free plan ID already known from audit
 FREE_PLAN_ID = 'cmlp5r21m000313t1mw4kd1n8'
@@ -263,7 +263,7 @@ def main():
             "processedAt" = NOW(),
             notes = 'Auto-rejected: request was PENDING for >30 days without processing. User account is still active. Re-submit if deletion is still required.'
         WHERE id = %s AND status = 'PENDING'
-    """, (STALE_DDR_ID,), "Rejected stale data deletion request for amirhossain.limon@gmail.com")
+    """, (STALE_DDR_ID,), "Rejected stale data deletion request for target user")
 
     # ──────────────────────────────────────────────────────────
     # 8. PURGE OLD WEBHOOK_LOGS (>30 days)

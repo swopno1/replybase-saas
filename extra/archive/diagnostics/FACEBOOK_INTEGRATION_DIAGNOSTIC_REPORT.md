@@ -1,7 +1,7 @@
 # 🔬 Facebook Page Integration - Diagnostic Report
 
 **Date:** 16 February 2026  
-**Test User:** amirhossain.limon@gmail.com  
+**Target User:** use your workspace admin/test account  
 **Facebook Page:** Dreamer  
 **Trigger Tested:** GET_STARTED  
 **Status:** ⚠️ INVESTIGATION COMPLETE
@@ -89,7 +89,7 @@ FROM flows f
 LEFT JOIN flow_assignments fa ON f.id = fa."flowId"
 LEFT JOIN facebook_pages fp ON fa."pageId" = fp.id
 WHERE fp.name ILIKE '%Dreamer%'
-  AND f."tenantId" = (SELECT "tenantId" FROM users WHERE email = 'amirhossain.limon@gmail.com');
+  AND f."tenantId" = (SELECT "tenantId" FROM users WHERE email = 'user@example.com');
 ```
 
 **Code Location:** [/lib/flow-execution-engine.ts:56](lib/flow-execution-engine.ts#L56-L88)
@@ -143,7 +143,7 @@ if (!flow.isActive) {
 ```sql
 SELECT id, name, "isActive", "isGlobal"
 FROM flows
-WHERE "tenantId" = (SELECT "tenantId" FROM users WHERE email = 'amirhossain.limon@gmail.com');
+WHERE "tenantId" = (SELECT "tenantId" FROM users WHERE email = 'user@example.com');
 ```
 
 **Fix:**
@@ -201,7 +201,7 @@ If no flow exists at all for the tenant, the system falls back to default bot fl
 ```sql
 SELECT COUNT(*) as flow_count
 FROM flows
-WHERE "tenantId" = (SELECT "tenantId" FROM users WHERE email = 'amirhossain.limon@gmail.com');
+WHERE "tenantId" = (SELECT "tenantId" FROM users WHERE email = 'user@example.com');
 ```
 
 **Fix:**
@@ -255,7 +255,7 @@ npm run diagnose:facebook
 
 ### Option A: Flow Exists but Not Assigned
 
-1. **Login** as `amirhossain.limon@gmail.com`
+1. **Login** as your target admin/test account
 2. **Navigate** to `/flows`
 3. **Select** the desired flow (or create one if none exists)
 4. **Click** "Settings" or navigate to `/flows/[id]/settings`
@@ -509,7 +509,7 @@ After completing setup, verify with:
 WITH user_data AS (
   SELECT id as user_id, "tenantId"
   FROM users
-  WHERE email = 'amirhossain.limon@gmail.com'
+  WHERE email = 'user@example.com'
 )
 SELECT
   'USER' as component,
@@ -559,12 +559,12 @@ WHERE f."tenantId" = u."tenantId";
 
 ## 🚨 Immediate Action Items
 
-### For User `amirhossain.limon@gmail.com`
+### For Your Target Admin/Test Account
 
 1. **Run diagnostic script:**
 
    ```bash
-   npm run diagnose:facebook
+   TEST_EMAIL="user@example.com" npm run diagnose:facebook
    ```
 
 2. **Check output for FAIL statuses**

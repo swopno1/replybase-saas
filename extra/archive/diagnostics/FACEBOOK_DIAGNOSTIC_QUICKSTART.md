@@ -2,7 +2,7 @@
 
 ## 🎯 Problem Statement
 
-**User:** amirhossain.limon@gmail.com  
+**Target User:** use your workspace admin/test account  
 **Page:** Dreamer  
 **Issue:** "Get Started" button click did not trigger the flow
 
@@ -27,7 +27,7 @@ Based on comprehensive code analysis and architecture review, the flow did not e
 ### Option 1: Run Diagnostic Script
 
 ```bash
-npm run diagnose:facebook
+TEST_EMAIL="user@example.com" npm run diagnose:facebook
 ```
 
 This will:
@@ -40,7 +40,7 @@ This will:
 ### Option 2: Run SQL Queries
 
 ```bash
-psql $DATABASE_URL -f scripts/diagnose-facebook-integration.sql
+psql $DATABASE_URL -v TEST_EMAIL="'''user@example.com'''" -f scripts/diagnose-facebook-integration.sql
 ```
 
 This will:
@@ -105,7 +105,7 @@ WHERE name ILIKE '%Dreamer%';
 
 ```mermaid
 graph LR
-    A[Login as amirhossain.limon@gmail.com] --> B[Check /flows page]
+  A[Login as target admin/test user] --> B[Check /flows page]
     B --> C{Flow exists?}
     C -->|No| D[Create New Flow]
     C -->|Yes| E[Check if Active]
@@ -137,7 +137,7 @@ FROM flows f
 JOIN flow_assignments fa ON f.id = fa."flowId"
 JOIN facebook_pages fp ON fa."pageId" = fp.id
 WHERE fp.name ILIKE '%Dreamer%'
-  AND f."tenantId" = (SELECT "tenantId" FROM users WHERE email = 'amirhossain.limon@gmail.com');
+  AND f."tenantId" = (SELECT "tenantId" FROM users WHERE email = 'user@example.com');
 ```
 
 Expected result:

@@ -317,7 +317,7 @@ Enable "Get Started" button in Messenger Settings:
 ### Admin Dashboard Access
 
 URL: `/admin/onboarding`  
-Access: Restricted to `amirhossain.limon@gmail.com`
+Access: Restricted to platform admins
 
 ---
 

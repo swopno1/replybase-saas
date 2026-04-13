@@ -2,7 +2,7 @@
 
 **Date:** 16 February 2026  
 **Issue:** GET_STARTED trigger not executing flow  
-**User:** amirhossain.limon@gmail.com  
+**Target User:** use your workspace admin/test account  
 **Page:** Dreamer  
 **Status:** ✅ ROOT CAUSE IDENTIFIED
 
@@ -27,7 +27,7 @@ The flow did not execute because **at least one** of these critical requirements
 
 ### Step-by-Step
 
-1. **Login** as `amirhossain.limon@gmail.com`
+1. **Login** as your target admin/test account
 
 2. **Check Flow Status:**
    - Navigate to `/flows`
@@ -109,7 +109,7 @@ If ANY check fails → Flow doesn't execute
 ```sql
 -- Check if any flows exist
 SELECT name, "isActive" FROM flows
-WHERE "tenantId" = (SELECT "tenantId" FROM users WHERE email = 'amirhossain.limon@gmail.com');
+WHERE "tenantId" = (SELECT "tenantId" FROM users WHERE email = 'user@example.com');
 
 -- Check if assigned to Dreamer
 SELECT f.name, fa."isActive", fp.name
