@@ -1,19 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { isPlatformAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { Prisma } from "@prisma/client";
 import {
-
   getAvailableTemplates,
   getTemplateByCategory,
 } from "@/lib/flow-templates";
 
-export const dynamic = 'force-dynamic';
-
-
-
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "amirhossain.limon@gmail.com";
+export const dynamic = "force-dynamic";
 
 /**
  * POST /api/flows/from-template
@@ -43,11 +39,7 @@ export async function POST(req: NextRequest) {
     const { templateCategory, flowName, flowDescription, isGlobal } = body;
 
     // Only admins can create global flows
-    if (
-      isGlobal &&
-      !session.user.isAdmin &&
-      session.user.email !== ADMIN_EMAIL
-    ) {
+    if (isGlobal && !isPlatformAdmin(session)) {
       return NextResponse.json(
         { error: "Only admins can create global flows" },
         { status: 403 },

@@ -1,24 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { isPlatformAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 
-export const dynamic = 'force-dynamic';
-
-
-
-
-const ADMIN_EMAIL = "amirhossain.limon@gmail.com";
+export const dynamic = "force-dynamic";
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string }> },
 ) {
   const session = await getServerSession(authOptions);
-  if (
-    !session?.user?.id ||
-    (!session.user.isAdmin && session.user.email !== ADMIN_EMAIL)
-  ) {
+  if (!isPlatformAdmin(session)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

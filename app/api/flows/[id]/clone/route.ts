@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { isPlatformAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { Prisma } from "@prisma/client";
 
-export const dynamic = 'force-dynamic';
-
-
-
+export const dynamic = "force-dynamic";
 
 /**
  * POST /api/flows/[id]/clone
@@ -61,8 +59,7 @@ export async function POST(
     const canClone =
       (sourceFlow.ownerId === session.user.id &&
         sourceFlow.tenantId === user.tenantId) ||
-      session.user.isAdmin ||
-      session.user.email === process.env.ADMIN_EMAIL;
+      isPlatformAdmin(session);
 
     if (!canClone) {
       return NextResponse.json(

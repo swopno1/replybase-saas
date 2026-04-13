@@ -1,14 +1,10 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { isPlatformAdmin } from "@/lib/admin";
 import { authOptions } from "@/lib/auth";
 import { getAdminActivationKpis } from "@/lib/admin-activation-kpis";
 
-export const dynamic = 'force-dynamic';
-
-
-
-
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "amirhossain.limon@gmail.com";
+export const dynamic = "force-dynamic";
 
 /**
  * GET /api/analytics/onboarding-milestones
@@ -19,11 +15,7 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
-    // Check admin access
-    if (
-      !session?.user?.id ||
-      (!session.user.isAdmin && session.user.email !== ADMIN_EMAIL)
-    ) {
+    if (!isPlatformAdmin(session)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

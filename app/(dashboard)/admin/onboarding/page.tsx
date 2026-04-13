@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { isPlatformAdmin } from "@/lib/admin";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
@@ -19,16 +20,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export default async function OnboardingSessionsPage() {
   const session = await getServerSession(authOptions);
 
-  // Restrict access to specific admin email
-  if (
-    !session?.user?.email ||
-    session.user.email !== "amirhossain.limon@gmail.com"
-  ) {
+  if (!isPlatformAdmin(session)) {
     redirect("/");
   }
 

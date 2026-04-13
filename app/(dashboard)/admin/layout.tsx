@@ -1,10 +1,8 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
+import { isPlatformAdmin } from "@/lib/admin";
 import { authOptions } from "@/lib/auth";
 import { AdminNav } from "@/components/admin-nav";
-
-// Hardcoded admin email - kept as bootstrap fallback
-const ADMIN_EMAIL = "amirhossain.limon@gmail.com";
 
 export default async function AdminLayout({
   children,
@@ -13,11 +11,7 @@ export default async function AdminLayout({
 }) {
   const session = await getServerSession(authOptions);
 
-  // Allow access via isAdmin flag (DB-backed) OR the bootstrap owner email
-  if (
-    !session?.user?.id ||
-    (!session.user.isAdmin && session.user.email !== ADMIN_EMAIL)
-  ) {
+  if (!isPlatformAdmin(session)) {
     redirect("/");
   }
 
