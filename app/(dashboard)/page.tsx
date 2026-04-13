@@ -12,7 +12,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Circle, ArrowRight } from "lucide-react";
+import { CheckCircle2, Circle, ArrowRight, AlertCircle } from "lucide-react";
 import { DashboardFunnelTracker } from "@/components/analytics/dashboard-funnel-tracker";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +49,10 @@ export default async function DashboardPage() {
   if (!session?.user?.id) {
     return null;
   }
+
+  // Capture now once so the same instant is used consistently across all
+  // time-based calculations in this render (trial days remaining, etc.).
+  const now = new Date();
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
@@ -127,6 +131,11 @@ export default async function DashboardPage() {
       },
       select: {
         id: true,
+        status: true,
+        stripeCustomerId: true,
+        trialEndsAt: true,
+        currentPeriodEnd: true,
+        cancelAtPeriodEnd: true,
         plan: {
           select: {
             name: true,
@@ -209,7 +218,20 @@ export default async function DashboardPage() {
     typeof intentMetadata?.source === "string" ? intentMetadata.source : null;
   const recommendedPlan: SignupPlanIntent = intentPlan || "pro";
   const recommendedPlanLabel = planDisplayName(recommendedPlan);
-  const hasSelectedPlan = Boolean(activeSubscription?.id);
+  const activePlanName = parseSignupPlanIntent(activeSubscription?.plan?.name);
+  const hasSelectedPlan = Boolean(activePlanName && activePlanName !== "free");
+  const trialEndsAt = activeSubscription?.trialEndsAt || null;
+  const trialDaysRemaining = trialEndsAt
+    ? Math.max(
+        0,
+        Math.ceil(
+          (trialEndsAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+        ),
+      )
+    : null;
+  const inTrialWindow = trialDaysRemaining !== null && trialDaysRemaining > 0;
+  const shouldShowTrialBillingPrompt =
+    inTrialWindow && !hasSelectedPlan && trialDaysRemaining <= 10;
   const isBusinessIntent = recommendedPlan === "business";
 
   const recommendedPlanBenefits =
@@ -271,7 +293,7 @@ export default async function DashboardPage() {
       title: `Confirm your ${recommendedPlanLabel} plan`,
       description: isBusinessIntent
         ? "Business includes concierge onboarding support. We will tailor setup to your team and volume."
-        : "No charge during trial and you can change plans anytime. Pick the best fit once your setup has momentum.",
+        : "No charge during trial. Confirm your paid plan before trial end to keep automations running without interruption.",
       completed: hasSelectedPlan,
       completedAt: null,
       actionLabel: planActionLabel,
@@ -329,6 +351,56 @@ export default async function DashboardPage() {
           availableChannels={availableChannels}
         />
       </DashboardErrorBoundary>
+
+      {shouldShowTrialBillingPrompt && (
+        <DashboardErrorBoundary title="Trial Billing Reminder">
+          <Card className="border-amber-300 bg-amber-50/70">
+            <CardHeader>
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-amber-700" />
+                  Add Billing Before Trial Ends
+                </CardTitle>
+                <Badge variant="secondary">
+                  {trialDaysRemaining} day{trialDaysRemaining === 1 ? "" : "s"}{" "}
+                  left
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Your trial is active. Choose a paid plan now so lead capture and
+                reply automation continue without disruption after trial end.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  href={`/pricing?plan=${recommendedPlan}&source=trial_expiry_billing_prompt`}
+                >
+                  <Button>
+                    Choose {recommendedPlanLabel}
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+                <Link href="/settings?tab=billing">
+                  <Button variant="outline">Open Billing Settings</Button>
+                </Link>
+                {isBusinessIntent && (
+                  <Link href="mailto:sales@replybase.co.uk?subject=Business%20Plan%20Billing%20Setup">
+                    <Button variant="outline">
+                      Talk to Billing Specialist
+                    </Button>
+                  </Link>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Recommended trigger: send reminder emails at 10, 5, and 2 days
+                before trial end, then show this in-app prompt daily in the last
+                5 days.
+              </p>
+            </CardContent>
+          </Card>
+        </DashboardErrorBoundary>
+      )}
 
       {!hasSelectedPlan && (
         <DashboardErrorBoundary title="Plan Recommendation">

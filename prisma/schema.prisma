@@ -1250,12 +1250,13 @@ model OnboardingMilestoneEvent {
 model WebhookLog {
   id        String   @id @default(cuid())
   type      String   // "verification" | "message" | "postback" | "delivery" | "read"
-  source    String   // "facebook" | "stripe" | etc
-  event     String?  // Event name if applicable
+  source    String   // "facebook" | "stripe" | "whatsapp" | "telegram" etc
+  event     String?  // Event name / dedup key when non-null
   data      Json     // Full event payload
   createdAt DateTime @default(now())
 
   @@index([createdAt])
   @@index([source])
+  @@index([source, event])
   @@map("webhook_logs")
 }

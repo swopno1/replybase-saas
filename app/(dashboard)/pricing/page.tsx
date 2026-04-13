@@ -127,7 +127,7 @@ function PricingContent() {
     });
 
     if (planName === "free") {
-      router.push("/dashboard");
+      router.push("/");
       return;
     }
 

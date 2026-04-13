@@ -108,8 +108,15 @@ export async function validateWhatsAppProviderConnection(input: {
 }): Promise<WhatsAppValidationResult> {
   if (input.provider === "meta_cloud") {
     const credentials = input.credentials as MetaCloudCredentials;
-    const url = `${META_GRAPH_BASE}/${encodeURIComponent(credentials.phoneNumberId)}?fields=id,display_phone_number,verified_name&access_token=${encodeURIComponent(credentials.accessToken)}`;
-    const response = await fetch(url, { method: "GET" });
+    // Use Authorization header — never put access_token in the URL
+    // query string to avoid leaking it in server access logs.
+    const url = `${META_GRAPH_BASE}/${encodeURIComponent(credentials.phoneNumberId)}?fields=id,display_phone_number,verified_name`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${credentials.accessToken}`,
+      },
+    });
     const data = await parseJsonSafe(response);
 
     if (!response.ok) {
@@ -163,7 +170,7 @@ export async function validateWhatsAppProviderConnection(input: {
   }
 
   const credentials = input.credentials as Dialog360Credentials;
-  const response = await fetch(`${D360_BASE}/v1/configs/business_profile`, {
+  const response = await fetch(`${D360_BASE}/api/v2/contacts`, {
     method: "GET",
     headers: {
       "D360-API-KEY": credentials.apiKey,

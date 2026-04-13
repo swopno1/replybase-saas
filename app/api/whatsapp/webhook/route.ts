@@ -292,17 +292,33 @@ async function ensureContactAndConversation(params: {
     return;
   }
 
-  await prisma.webhookLog.create({
-    data: {
-      type: "message",
-      source: "whatsapp",
-      event: `meta_message:${params.messageId}`,
+  // Create the dedup sentinel atomically. If a concurrent request already
+  // inserted this event (race between the findFirst above and this create),
+  // Prisma will throw a unique-constraint error (P2002) which we treat as
+  // "already processed" and return early — preventing duplicate AI replies.
+  try {
+    await prisma.webhookLog.create({
       data: {
-        channelId: params.channel.id,
-        conversationId: conversation.id,
-      } as Prisma.InputJsonValue,
-    },
-  });
+        type: "message",
+        source: "whatsapp",
+        event: `meta_message:${params.messageId}`,
+        data: {
+          channelId: params.channel.id,
+          conversationId: conversation.id,
+        } as Prisma.InputJsonValue,
+      },
+    });
+  } catch (err: unknown) {
+    const isPrismaUniqueViolation =
+      err instanceof Error &&
+      "code" in err &&
+      (err as { code?: string }).code === "P2002";
+    if (isPrismaUniqueViolation) {
+      // Another concurrent request already processed this message ID — skip.
+      return;
+    }
+    throw err;
+  }
 
   await prisma.crmMessage.create({
     data: {
@@ -359,6 +375,8 @@ async function ensureContactAndConversation(params: {
   await sendAutoReply({
     channel: params.channel,
     toWaId: normalizedWaId,
+    contactId: contact.id,
+    contactName: contact.name ?? undefined,
     inboundText: params.inboundText,
     conversation,
   });
@@ -367,6 +385,8 @@ async function ensureContactAndConversation(params: {
 async function sendAutoReply(params: {
   channel: WhatsAppChannelWithBot;
   toWaId: string;
+  contactId: string;
+  contactName?: string;
   inboundText: string;
   conversation: { id: string };
 }) {
@@ -388,7 +408,7 @@ async function sendAutoReply(params: {
   try {
     const flowResult = await executeBotEntryFlowFirst({
       tenantId: params.channel.bot.tenantId,
-      contactId: params.conversation.id, // Scoped per conversation
+      contactId: params.contactId,
       scopeKey: `whatsapp:${params.channel.id}`,
       message: params.inboundText,
       channelId: params.channel.id,
@@ -417,7 +437,9 @@ async function sendAutoReply(params: {
         botId: params.channel.bot.id,
         tenantId: params.channel.bot.tenantId,
         contact: {
-          name: params.toWaId,
+          // Use the display name from WhatsApp profile if captured;
+          // fall back to an empty string rather than exposing the phone number.
+          name: params.contactName ?? "",
         },
         message: params.inboundText,
       });
@@ -438,6 +460,30 @@ async function sendAutoReply(params: {
 
   if (!replyText) {
     return;
+  }
+
+  // WhatsApp text messages are capped at 4096 characters.
+  // Truncate gracefully rather than letting the send fail.
+  const WHATSAPP_MAX_TEXT_LENGTH = 4096;
+  if (replyText.length > WHATSAPP_MAX_TEXT_LENGTH) {
+    const originalLength = replyText.length;
+    replyText = replyText.slice(0, WHATSAPP_MAX_TEXT_LENGTH - 3) + "...";
+    await prisma.webhookLog
+      .create({
+        data: {
+          type: "delivery_warning",
+          source: "whatsapp",
+          event: `reply_truncated:${params.channel.id}`,
+          data: {
+            toWaId: params.toWaId,
+            originalLength,
+            maxLength: WHATSAPP_MAX_TEXT_LENGTH,
+          } as Prisma.InputJsonValue,
+        },
+      })
+      .catch(() => {
+        // Best effort only.
+      });
   }
 
   const sendResult = await sendWhatsAppText({
@@ -541,6 +587,16 @@ async function processMetaPayload(params: {
   bodyText: string;
   signature: string | null;
 }) {
+  // Meta sends this field on every webhook to identify the product area.
+  // Reject anything that is not a WhatsApp Business Account notification so
+  // that cross-product webhooks (Instagram, Messenger) never trigger replies.
+  if (params.payload.object !== "whatsapp_business_account") {
+    return NextResponse.json(
+      { received: true, ignored: true },
+      { status: 200 },
+    );
+  }
+
   const channels = await getActiveWhatsAppChannels();
   if (channels.length === 0) {
     return NextResponse.json(
