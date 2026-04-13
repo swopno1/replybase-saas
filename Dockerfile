@@ -48,12 +48,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./
 
-# Reuse Prisma CLI/artifacts from builder to avoid slow npm install in runner.
-# dotenv is required by prisma.config.ts (import "dotenv/config") at migrate-deploy time.
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/dotenv ./node_modules/dotenv
+# Copy entire node_modules from builder. Multi-stage still optimizes by excluding
+# build artifacts, test files, and dev-only code via .dockerignore on the COPY . .
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 USER nextjs
 EXPOSE 3000
@@ -65,7 +62,5 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD wget -qO- http://localhost:3000/api/health || exit 1
 
 # Run migrations then start the server.
-# Use 'node ./node_modules/prisma/build/index.js' directly — .bin/ symlinks are NOT present
-# in the runner stage since only specific node_modules subdirs are copied from builder.
 # sh -c ensures DATABASE_URL (and other runtime env vars) are expanded correctly.
-CMD ["sh", "-c", "node ./node_modules/prisma/build/index.js migrate deploy && node server.js"]
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node server.js"]
