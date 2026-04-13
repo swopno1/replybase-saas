@@ -60,10 +60,12 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Liveness probe — Coolify / Docker Swarm / Kubernetes will restart unhealthy containers
+# Liveness probe using wget (available in node:slim, required by Coolify's healthcheck detector).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
+  CMD wget -qO- http://localhost:3000/api/health || exit 1
 
 # Run migrations then start the server.
+# Use 'node ./node_modules/prisma/build/index.js' directly — .bin/ symlinks are NOT present
+# in the runner stage since only specific node_modules subdirs are copied from builder.
 # sh -c ensures DATABASE_URL (and other runtime env vars) are expanded correctly.
-CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node server.js"]
+CMD ["sh", "-c", "node ./node_modules/prisma/build/index.js migrate deploy && node server.js"]
