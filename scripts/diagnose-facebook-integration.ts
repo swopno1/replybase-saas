@@ -6,15 +6,20 @@
  * This script performs a comprehensive audit of the Facebook integration pipeline
  * to identify why the "Get Started" trigger did not execute the flow.
  *
- * Test User: amirhossain.limon@gmail.com
- * Facebook Page: "Dreamer"
- * Trigger: "Get Started"
+ * Required env:
+ * - TEST_EMAIL
+ * Optional env:
+ * - PAGE_NAME (defaults to "Dreamer")
  */
 
 import { prisma } from "../lib/prisma";
 
-const TEST_EMAIL = "amirhossain.limon@gmail.com";
-const PAGE_NAME = "Dreamer";
+const TEST_EMAIL = process.env.TEST_EMAIL;
+const PAGE_NAME = process.env.PAGE_NAME || "Dreamer";
+
+if (!TEST_EMAIL) {
+  throw new Error("TEST_EMAIL environment variable is required");
+}
 
 interface DiagnosticReport {
   phase: string;

@@ -7,7 +7,7 @@ from pathlib import Path
 import psycopg2
 import psycopg2.extras
 
-KEEP_EMAIL = "amirhossain.limon@gmail.com"
+KEEP_EMAIL = os.getenv("KEEP_EMAIL")
 
 
 def cuid_like() -> str:
@@ -37,6 +37,9 @@ def count(cur, table: str) -> int:
 
 def main() -> None:
     db_url = load_database_url()
+
+    if not KEEP_EMAIL:
+        raise RuntimeError("KEEP_EMAIL environment variable is required")
 
     conn = psycopg2.connect(db_url)
     conn.autocommit = False

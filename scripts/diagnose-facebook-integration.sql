@@ -3,15 +3,25 @@
 -- ═══════════════════════════════════════════════════════════════════════════
 -- 
 -- Purpose: Diagnose why "Get Started" trigger did not execute flow
--- Test User: amirhossain.limon@gmail.com
--- Facebook Page: "Dreamer"
+-- Required psql vars:
+--   TEST_EMAIL
+-- Optional psql vars:
+--   PAGE_NAME (defaults to %Dreamer%)
 -- 
--- Usage: Run these queries in PostgreSQL client or pgAdmin
+-- Usage:
+--   psql "$DATABASE_URL" -v TEST_EMAIL="'''user@example.com'''" -f scripts/diagnose-facebook-integration.sql
 -- ═══════════════════════════════════════════════════════════════════════════
 
--- Set the test email as a variable (PostgreSQL 9.5+)
-\set TEST_EMAIL '''amirhossain.limon@gmail.com'''
+\if :{?TEST_EMAIL}
+\else
+\echo 'TEST_EMAIL psql variable is required, e.g. -v TEST_EMAIL="'''\''user@example.com\'''''"'
+\quit 1
+\endif
+
+\if :{?PAGE_NAME}
+\else
 \set PAGE_NAME '''%Dreamer%'''
+\endif
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- PHASE 1: AUTHENTICATION VERIFICATION
