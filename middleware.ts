@@ -28,6 +28,10 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  if (pathname.startsWith("/api/whatsapp/webhook")) {
+    return NextResponse.next();
+  }
+
   if (pathname === "/api/telegram/health") {
     return NextResponse.next();
   }
