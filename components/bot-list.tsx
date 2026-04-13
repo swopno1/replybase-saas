@@ -66,6 +66,9 @@ export function BotList() {
     if (type === "facebook") {
       return "/integrations/facebook";
     }
+    if (type === "whatsapp") {
+      return "/integrations/whatsapp";
+    }
     return null;
   };
 

@@ -3,6 +3,7 @@ import { ConversationStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { withAuthAndTenant } from "@/lib/route-helpers";
+import { deliverConversationMessage } from "@/lib/conversation-channel-delivery";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,19 @@ export const POST: (
             tenantId: tenantId,
           },
         },
+        include: {
+          contact: {
+            select: {
+              phone: true,
+              identities: {
+                select: {
+                  type: true,
+                  value: true,
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!conversation) {
@@ -36,6 +50,32 @@ export const POST: (
 
       const body = await request.json();
       const validated = createMessageSchema.parse(body);
+
+      const deliveryResult = await deliverConversationMessage({
+        conversation: {
+          id: conversation.id,
+          channel: conversation.channel,
+          botId: conversation.botId,
+          metadata: conversation.metadata,
+          contact: {
+            phone: conversation.contact.phone,
+            identities: conversation.contact.identities,
+          },
+        },
+        content: validated.content,
+      });
+
+      if (!deliveryResult.success) {
+        return NextResponse.json(
+          {
+            error: deliveryResult.message,
+            code: deliveryResult.code,
+          },
+          {
+            status: deliveryResult.code === "outside_window" ? 409 : 422,
+          },
+        );
+      }
 
       const [message] = await prisma.$transaction([
         prisma.crmMessage.create({

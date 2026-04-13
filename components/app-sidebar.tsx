@@ -12,6 +12,7 @@ import {
   Bot,
   Send,
   Globe,
+  MessageCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -77,6 +78,12 @@ const items = [
     url: "/integrations/webchat",
     icon: Globe,
     channelId: "webchat" as ChannelId,
+  },
+  {
+    title: "WhatsApp Business",
+    url: "/integrations/whatsapp",
+    icon: MessageCircle,
+    channelId: "whatsapp" as ChannelId,
   },
   {
     title: "Activity",

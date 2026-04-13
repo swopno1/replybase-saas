@@ -23,7 +23,7 @@ const CHANNEL_ROUTES: Record<ChannelId, string> = {
   webchat: "/integrations/webchat",
   telegram: "/integrations/telegram",
   facebook: "/integrations/facebook",
-  whatsapp: "/settings/channels",
+  whatsapp: "/integrations/whatsapp",
 };
 
 const CHANNEL_ICONS: Record<ChannelId, React.FC<{ className?: string }>> = {

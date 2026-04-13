@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { isChannelVisibleInUi, type ChannelId } from "@/lib/channel-config";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 interface Bot {
   id: string;
@@ -65,6 +65,7 @@ function channelConfigHref(type: string) {
   if (type === "web") return "/integrations/webchat";
   if (type === "telegram") return "/integrations/telegram";
   if (type === "facebook") return "/integrations/facebook";
+  if (type === "whatsapp") return "/integrations/whatsapp";
   return null;
 }
 
