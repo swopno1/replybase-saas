@@ -2,7 +2,7 @@
 FROM node:22.12-slim AS builder
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y openssl libssl-dev && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends openssl libssl-dev && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -10,12 +10,12 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma/
 
-# Install dependencies and explicitly trigger Prisma postinstall
+# Install dependencies (postinstall runs automatically via npm ci lifecycle)
 RUN npm ci
-RUN npm run postinstall || true
 
-# Force Prisma client generation with proper engine download
-RUN npx prisma generate --skip-engine || npx prisma generate
+# Pre-generate Prisma client to maximise layer cache hits
+# (build script runs it again, but this layer is only invalidated on schema changes)
+RUN npx prisma generate
 
 # Copy the rest of the source code
 COPY . .
@@ -23,9 +23,6 @@ COPY . .
 # Build-time environment variables (Check "Build Variable" in Coolify for these)
 ARG NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 ARG NEXT_PUBLIC_APP_URL
-
-# Verify Prisma runtime exists before build
-RUN ls -la node_modules/@prisma/client/runtime/ || (echo "Prisma runtime missing, rebuilding..." && npm install @prisma/client@7.2.0)
 
 # Build the Next.js app
 RUN npm run build
@@ -38,31 +35,35 @@ ENV NODE_ENV=production
 ENV HOME=/app
 
 # Re-install openssl in the final small image
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 --home /app nextjs
 
 # Copy only the necessary files from the builder
-COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder /app/prisma.config.ts ./
+COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./
 
-# Install Prisma CLI in the runner so it is available for migrations
-RUN npm install prisma@7.2.0
-
-# Correct ownership
-RUN chown -R nextjs:nodejs /app
+# Reuse Prisma CLI/artifacts from builder to avoid slow npm install in runner.
+# dotenv is required by prisma.config.ts (import "dotenv/config") at migrate-deploy time.
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/dotenv ./node_modules/dotenv
 
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# FIX: Run migrations and start. 
-# We use 'sh -c' to ensure environment variables like DATABASE_URL are expanded correctly.
+# Liveness probe — Coolify / Docker Swarm / Kubernetes will restart unhealthy containers
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
+
+# Run migrations then start the server.
+# sh -c ensures DATABASE_URL (and other runtime env vars) are expanded correctly.
 CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node server.js"]
-# CMD ["sh", "-c", "./node_modules/.bin/prisma db push --accept-data-loss && node server.js"]
