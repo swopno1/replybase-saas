@@ -1,20 +1,16 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { isPlatformAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 
-export const dynamic = 'force-dynamic';
-
-
-
-
-const ADMIN_EMAIL = "amirhossain.limon@gmail.com";
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user?.email || session.user.email !== ADMIN_EMAIL) {
+    if (!isPlatformAdmin(session)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
