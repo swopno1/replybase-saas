@@ -34,8 +34,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV HOME=/app
 
-# Re-install openssl in the final small image
-RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
+# Install openssl (required by Prisma) and wget (required by HEALTHCHECK / Coolify)
+RUN apt-get update && apt-get install -y --no-install-recommends openssl wget && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user
 RUN addgroup --system --gid 1001 nodejs
