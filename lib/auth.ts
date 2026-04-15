@@ -8,6 +8,12 @@ import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/password";
 import { isChannelEnabled } from "@/lib/channel-config";
 
+type FacebookProfile = {
+  id: string;
+  name?: string;
+  picture?: { data?: { url?: string } };
+};
+
 export const authOptions: NextAuthOptions = {
   adapter: {
     ...PrismaAdapter(prisma),
@@ -44,6 +50,21 @@ export const authOptions: NextAuthOptions = {
                 scope:
                   "public_profile,pages_show_list,pages_manage_metadata,pages_read_engagement,pages_messaging",
               },
+            },
+            // Business app flow should not request `email`; requesting it in
+            // userinfo can cause a 400 OAuth callback error.
+            userinfo: {
+              params: {
+                fields: "id,name,picture{url}",
+              },
+            },
+            profile(profile: FacebookProfile) {
+              return {
+                id: profile.id,
+                name: profile.name ?? null,
+                email: null,
+                image: profile.picture?.data?.url ?? null,
+              };
             },
           }),
         ]
