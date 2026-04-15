@@ -454,6 +454,10 @@ export async function POST(request: NextRequest) {
       });
 
       for (const response of flowResult.responses) {
+        if (response.type !== "text") {
+          continue;
+        }
+
         await prisma.crmMessage.create({
           data: {
             conversationId: session.conversationId,

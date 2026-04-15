@@ -8,10 +8,32 @@ import {
   getRuntimeState,
   interpolateText,
   loadAccessibleFlow,
+  normalizeDurationMs,
   resolveReferencedFlow,
   resumeParentFlow,
   setRuntimeState,
+  waitForFlowDurationMs,
 } from "@/lib/flow-runtime-utils";
+
+const MIN_TYPING_DELAY_MS = 100;
+
+async function applyDelayWithOptionalTyping(
+  content: FlowNodeContent,
+  responses: Array<
+    { type: "text"; text: string } | { type: "typing"; durationMs: number }
+  >,
+  explicitDelayMs?: number,
+) {
+  const delayMs = normalizeDurationMs(explicitDelayMs ?? content.delayMs);
+  if (!content.typingEnabled) {
+    await waitForFlowDurationMs(delayMs);
+    return;
+  }
+
+  const typingDurationMs = delayMs > 0 ? delayMs : MIN_TYPING_DELAY_MS;
+  responses.push({ type: "typing", durationMs: typingDurationMs });
+  await waitForFlowDurationMs(typingDurationMs);
+}
 
 async function resolveFlow(params: {
   tenantId: string;
@@ -169,7 +191,9 @@ export async function executeBotEntryFlowFirst(params: {
     ...(params.variables || {}),
   };
   const runtime = getRuntimeState(mergedVariables, session.flowId);
-  const responses: Array<{ type: "text"; text: string }> = [];
+  const responses: Array<
+    { type: "text"; text: string } | { type: "typing"; durationMs: number }
+  > = [];
   let pendingMessage = resolved.isNewSession ? "" : params.message.trim();
 
   if (pendingMessage) {
@@ -195,6 +219,7 @@ export async function executeBotEntryFlowFirst(params: {
         if (text.trim()) {
           responses.push({ type: "text", text: text.trim() });
         }
+        await applyDelayWithOptionalTyping(content, responses);
         currentNode = getNextNode(
           activeFlow.nodes,
           currentNode.order,
@@ -208,6 +233,7 @@ export async function executeBotEntryFlowFirst(params: {
         if (pendingMessage) {
           mergedVariables[variableName] = pendingMessage;
           pendingMessage = "";
+          await applyDelayWithOptionalTyping(content, responses);
           currentNode = getNextNode(
             activeFlow.nodes,
             currentNode.order,
@@ -249,6 +275,7 @@ export async function executeBotEntryFlowFirst(params: {
             }
           }
         }
+        await applyDelayWithOptionalTyping(content, responses);
         currentNode =
           nextNode ||
           getNextNode(
@@ -294,6 +321,29 @@ export async function executeBotEntryFlowFirst(params: {
           break;
         }
 
+        await applyDelayWithOptionalTyping(content, responses);
+        currentNode = getNextNode(
+          activeFlow.nodes,
+          currentNode.order,
+          content.nextNodeOrder,
+        );
+        break;
+      }
+      case "wait": {
+        const waitMs = normalizeDurationMs(content.waitMs ?? content.delayMs);
+        await applyDelayWithOptionalTyping(content, responses, waitMs);
+        currentNode = getNextNode(
+          activeFlow.nodes,
+          currentNode.order,
+          content.nextNodeOrder,
+        );
+        break;
+      }
+      case "typing": {
+        const typingMs = normalizeDurationMs(content.typingDurationMs, 1200);
+        responses.push({ type: "typing", durationMs: typingMs });
+        await waitForFlowDurationMs(typingMs);
+        await waitForFlowDurationMs(normalizeDurationMs(content.delayMs));
         currentNode = getNextNode(
           activeFlow.nodes,
           currentNode.order,

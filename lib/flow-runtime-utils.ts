@@ -32,8 +32,28 @@ export type FlowNodeContent = {
     | "end_flow";
   targetFlowId?: string;
   targetFlowName?: string;
+  delayMs?: number;
+  waitMs?: number;
+  typingDurationMs?: number;
+  typingEnabled?: boolean;
   nextNodeOrder?: number;
 };
+
+export function normalizeDurationMs(value: unknown, fallback = 0, max = 10000) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return Math.min(Math.max(Math.round(value), 0), max);
+}
+
+export async function waitForFlowDurationMs(durationMs: number) {
+  if (durationMs <= 0) {
+    return;
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, durationMs));
+}
 
 export type FlowRuntimeState = {
   rootFlowId: string;

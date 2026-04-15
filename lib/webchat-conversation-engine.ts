@@ -8,10 +8,32 @@ import {
   getRuntimeState,
   interpolateText,
   loadAccessibleFlow,
+  normalizeDurationMs,
   resolveReferencedFlow,
   resumeParentFlow,
   setRuntimeState,
+  waitForFlowDurationMs,
 } from "@/lib/flow-runtime-utils";
+
+const MIN_TYPING_DELAY_MS = 100;
+
+async function applyDelayWithOptionalTyping(
+  content: FlowNodeContent,
+  responses: Array<
+    { type: "text"; text: string } | { type: "typing"; durationMs: number }
+  >,
+  explicitDelayMs?: number,
+) {
+  const delayMs = normalizeDurationMs(explicitDelayMs ?? content.delayMs);
+  if (!content.typingEnabled) {
+    await waitForFlowDurationMs(delayMs);
+    return;
+  }
+
+  const typingDurationMs = delayMs > 0 ? delayMs : MIN_TYPING_DELAY_MS;
+  responses.push({ type: "typing", durationMs: typingDurationMs });
+  await waitForFlowDurationMs(typingDurationMs);
+}
 
 export type WebchatSourceContext = {
   origin: string | null;
@@ -208,7 +230,8 @@ function getVariableString(
 function mergeTags(existing: unknown, incoming?: string[]) {
   const currentTags = Array.isArray(existing)
     ? existing.filter(
-        (tag): tag is string => typeof tag === "string" && tag.trim().length > 0,
+        (tag): tag is string =>
+          typeof tag === "string" && tag.trim().length > 0,
       )
     : [];
   const nextTags = Array.isArray(incoming)
@@ -465,7 +488,9 @@ export async function executeWebchatFlowFirst(params: {
     ...toFlowVariables(params.sourceContext),
   };
   const runtime = getRuntimeState(variables, session.flowId);
-  const responses: Array<{ type: "text"; text: string }> = [];
+  const responses: Array<
+    { type: "text"; text: string } | { type: "typing"; durationMs: number }
+  > = [];
   let pendingMessage = resolved.isNewSession ? "" : params.message.trim();
 
   if (pendingMessage) {
@@ -492,6 +517,7 @@ export async function executeWebchatFlowFirst(params: {
         if (text.trim()) {
           responses.push({ type: "text", text: text.trim() });
         }
+        await applyDelayWithOptionalTyping(content, responses);
         currentNode = getNextNode(
           activeFlow.nodes,
           currentNode.order,
@@ -505,6 +531,7 @@ export async function executeWebchatFlowFirst(params: {
         if (pendingMessage) {
           variables[variableName] = pendingMessage;
           pendingMessage = "";
+          await applyDelayWithOptionalTyping(content, responses);
           currentNode = getNextNode(
             activeFlow.nodes,
             currentNode.order,
@@ -546,6 +573,7 @@ export async function executeWebchatFlowFirst(params: {
             }
           }
         }
+        await applyDelayWithOptionalTyping(content, responses);
         currentNode =
           nextNode ||
           getNextNode(
@@ -627,6 +655,29 @@ export async function executeWebchatFlowFirst(params: {
           currentNode = null;
           break;
         }
+        await applyDelayWithOptionalTyping(content, responses);
+        currentNode = getNextNode(
+          activeFlow.nodes,
+          currentNode.order,
+          content.nextNodeOrder,
+        );
+        break;
+      }
+      case "wait": {
+        const waitMs = normalizeDurationMs(content.waitMs ?? content.delayMs);
+        await applyDelayWithOptionalTyping(content, responses, waitMs);
+        currentNode = getNextNode(
+          activeFlow.nodes,
+          currentNode.order,
+          content.nextNodeOrder,
+        );
+        break;
+      }
+      case "typing": {
+        const typingMs = normalizeDurationMs(content.typingDurationMs, 1200);
+        responses.push({ type: "typing", durationMs: typingMs });
+        await waitForFlowDurationMs(typingMs);
+        await waitForFlowDurationMs(normalizeDurationMs(content.delayMs));
         currentNode = getNextNode(
           activeFlow.nodes,
           currentNode.order,

@@ -85,6 +85,7 @@
   var agentReplyPollTimer = null;
   var lastHumanReplyCursor = "";
   var seenHumanMessageIds = Object.create(null);
+  var botTypingIndicator = null;
 
   var root = document.createElement("div");
   root.id = "replybase-webchat-root";
@@ -168,6 +169,7 @@
       "; box-shadow: 0 0 0 3px rgba(15,118,110,0.15); }",
     ".rb-send { min-width: 64px; border-radius: 10px; color: #fff; font-weight: 600; }",
     ".rb-note { align-self: center; color: #64748b; font-size: 12px; text-align: center; }",
+    ".rb-typing { align-self: flex-start; color: #64748b; font-size: 12px; font-style: italic; }",
     ".rb-note.is-consent { border: 1px dashed #f59e0b; background: #fffbeb; color: #92400e; padding: 12px; border-radius: 12px; width: 100%; }",
     ".rb-consent-button { align-self: center; border-radius: 10px; padding: 10px 14px; background: #f59e0b; color: #fff; font-weight: 600; }",
     ":host([data-open='true'][data-mobile-fullscreen='true']) .rb-container { height: 100%; }",
@@ -422,18 +424,101 @@
     messages.scrollTop = messages.scrollHeight;
   }
 
-  function normalizeResponseTexts(responseBody) {
+  function showBotTyping() {
+    if (botTypingIndicator) {
+      return;
+    }
+
+    botTypingIndicator = document.createElement("div");
+    botTypingIndicator.className = "rb-typing";
+    botTypingIndicator.textContent = "Agent is typing...";
+    messages.appendChild(botTypingIndicator);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function hideBotTyping() {
+    if (!botTypingIndicator) {
+      return;
+    }
+
+    if (botTypingIndicator.parentNode === messages) {
+      messages.removeChild(botTypingIndicator);
+    }
+
+    botTypingIndicator = null;
+  }
+
+  function delay(ms) {
+    return new Promise(function (resolve) {
+      window.setTimeout(resolve, ms);
+    });
+  }
+
+  function normalizeResponseEntries(responseBody) {
     if (!responseBody || !Array.isArray(responseBody.responses)) {
       return [];
     }
 
     return responseBody.responses
       .filter(function (item) {
-        return item && item.type === "text" && typeof item.text === "string";
+        if (!item || typeof item.type !== "string") {
+          return false;
+        }
+
+        if (item.type === "text" && typeof item.text === "string") {
+          return true;
+        }
+
+        return item.type === "typing" && typeof item.durationMs === "number";
       })
       .map(function (item) {
-        return item.text;
+        if (item.type === "typing") {
+          return {
+            type: "typing",
+            durationMs: Math.max(
+              0,
+              Math.min(10000, Math.round(item.durationMs)),
+            ),
+          };
+        }
+
+        return {
+          type: "text",
+          text: item.text,
+        };
       });
+  }
+
+  function renderResponseEntries(entries) {
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return Promise.resolve();
+    }
+
+    var chain = Promise.resolve();
+
+    entries.forEach(function (entry) {
+      chain = chain.then(function () {
+        if (!entry || typeof entry.type !== "string") {
+          return;
+        }
+
+        if (entry.type === "typing") {
+          showBotTyping();
+          return delay(entry.durationMs || 0).then(function () {
+            hideBotTyping();
+          });
+        }
+
+        hideBotTyping();
+        if (entry.type === "text" && typeof entry.text === "string") {
+          addMessage("bot", entry.text);
+        }
+      });
+    });
+
+    return chain.finally(function () {
+      hideBotTyping();
+    });
   }
 
   function pollAgentReplies() {
@@ -679,8 +764,8 @@
       botSignals: buildBotSignals(),
     })
       .then(function (data) {
-        var texts = normalizeResponseTexts(data);
-        if (!texts.length) {
+        var entries = normalizeResponseEntries(data);
+        if (!entries.length) {
           if (
             data &&
             data.meta &&
@@ -692,11 +777,11 @@
           addSystemNote("No response received");
           return;
         }
-        texts.forEach(function (entry) {
-          addMessage("bot", entry);
-        });
+
+        return renderResponseEntries(entries);
       })
       .catch(function (err) {
+        hideBotTyping();
         trackEvent("ERROR", {
           url: window.location.href,
           stage: "message",
@@ -706,6 +791,7 @@
         addSystemNote(err && err.message ? err.message : "Message failed");
       })
       .finally(function () {
+        hideBotTyping();
         isSending = false;
         sendButton.disabled = false;
       });

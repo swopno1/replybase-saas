@@ -40,7 +40,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 interface FlowButton {
   type: "postback" | "url";
@@ -75,6 +75,10 @@ interface FlowNodeContent {
   nextNodeOrder?: number;
   tags?: string[];
   status?: string;
+  delayMs?: number;
+  waitMs?: number;
+  typingDurationMs?: number;
+  typingEnabled?: boolean;
 }
 
 interface FlowNode {
@@ -260,6 +264,10 @@ export default function FlowEditorPage() {
           return "🔀";
         case "action":
           return "⚡";
+        case "wait":
+          return "⏳";
+        case "typing":
+          return "⌨️";
         case "end":
           return "🏁";
         default:
@@ -277,6 +285,10 @@ export default function FlowEditorPage() {
           return "Condition";
         case "action":
           return "Action";
+        case "wait":
+          return "Wait";
+        case "typing":
+          return "Typing Effect";
         case "end":
           return "End Flow";
         default:
@@ -409,9 +421,45 @@ export default function FlowEditorPage() {
               )}
             </div>
           )}
+          {node.type === "wait" && (
+            <div className="text-sm space-y-1">
+              <p>
+                <strong>Wait Duration:</strong>{" "}
+                {node.content.waitMs ?? node.content.delayMs ?? 0} ms
+              </p>
+              {node.content.nextNodeOrder !== undefined && (
+                <p>
+                  <strong>Next Step:</strong> {node.content.nextNodeOrder + 1}
+                </p>
+              )}
+            </div>
+          )}
+          {node.type === "typing" && (
+            <div className="text-sm space-y-1">
+              <p>
+                <strong>Typing Duration:</strong>{" "}
+                {node.content.typingDurationMs ?? 1200} ms
+              </p>
+              {node.content.nextNodeOrder !== undefined && (
+                <p>
+                  <strong>Next Step:</strong> {node.content.nextNodeOrder + 1}
+                </p>
+              )}
+            </div>
+          )}
           {node.type === "end" && (
             <p className="text-sm text-muted-foreground">
               This will end the conversation flow
+            </p>
+          )}
+          {node.content.typingEnabled && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Typing effect enabled during delay
+            </p>
+          )}
+          {node.content.delayMs !== undefined && node.type !== "wait" && (
+            <p className="text-xs text-muted-foreground mt-3">
+              Delay before next step: {node.content.delayMs} ms
             </p>
           )}
         </CardContent>
@@ -437,6 +485,8 @@ export default function FlowEditorPage() {
               <SelectItem value="input">Collect Input</SelectItem>
               <SelectItem value="condition">Condition</SelectItem>
               <SelectItem value="action">Action</SelectItem>
+              <SelectItem value="wait">Wait</SelectItem>
+              <SelectItem value="typing">Typing Effect</SelectItem>
               <SelectItem value="end">End Flow</SelectItem>
             </SelectContent>
           </Select>
@@ -481,6 +531,41 @@ export default function FlowEditorPage() {
                 rows={3}
               />
             </div>
+            <div className="space-y-2">
+              <Label>Delay Before Next Step (ms)</Label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="0"
+                value={
+                  nodeContent.delayMs !== undefined
+                    ? String(nodeContent.delayMs)
+                    : ""
+                }
+                onChange={(e) =>
+                  setNodeContent({
+                    ...nodeContent,
+                    delayMs:
+                      e.target.value === ""
+                        ? undefined
+                        : Number(e.target.value),
+                  })
+                }
+              />
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={nodeContent.typingEnabled === true}
+                onChange={(e) =>
+                  setNodeContent({
+                    ...nodeContent,
+                    typingEnabled: e.target.checked,
+                  })
+                }
+              />
+              Show typing effect during delay (minimum 100ms if delay is empty)
+            </label>
           </div>
         )}
 
@@ -551,6 +636,41 @@ export default function FlowEditorPage() {
                 }
               />
             </div>
+            <div className="space-y-2">
+              <Label>Delay Before Next Step (ms)</Label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="0"
+                value={
+                  nodeContent.delayMs !== undefined
+                    ? String(nodeContent.delayMs)
+                    : ""
+                }
+                onChange={(e) =>
+                  setNodeContent({
+                    ...nodeContent,
+                    delayMs:
+                      e.target.value === ""
+                        ? undefined
+                        : Number(e.target.value),
+                  })
+                }
+              />
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={nodeContent.typingEnabled === true}
+                onChange={(e) =>
+                  setNodeContent({
+                    ...nodeContent,
+                    typingEnabled: e.target.checked,
+                  })
+                }
+              />
+              Show typing effect during delay (minimum 100ms if delay is empty)
+            </label>
           </div>
         )}
 
@@ -700,6 +820,41 @@ export default function FlowEditorPage() {
                 }
               />
             </div>
+            <div className="space-y-2">
+              <Label>Delay Before Next Step (ms)</Label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="0"
+                value={
+                  nodeContent.delayMs !== undefined
+                    ? String(nodeContent.delayMs)
+                    : ""
+                }
+                onChange={(e) =>
+                  setNodeContent({
+                    ...nodeContent,
+                    delayMs:
+                      e.target.value === ""
+                        ? undefined
+                        : Number(e.target.value),
+                  })
+                }
+              />
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={nodeContent.typingEnabled === true}
+                onChange={(e) =>
+                  setNodeContent({
+                    ...nodeContent,
+                    typingEnabled: e.target.checked,
+                  })
+                }
+              />
+              Show typing effect during delay (minimum 100ms if delay is empty)
+            </label>
           </div>
         )}
 
@@ -815,6 +970,175 @@ export default function FlowEditorPage() {
                   setNodeContent({
                     ...nodeContent,
                     nextNodeOrder:
+                      e.target.value === ""
+                        ? undefined
+                        : Number(e.target.value),
+                  })
+                }
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Delay Before Next Step (ms)</Label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="0"
+                value={
+                  nodeContent.delayMs !== undefined
+                    ? String(nodeContent.delayMs)
+                    : ""
+                }
+                onChange={(e) =>
+                  setNodeContent({
+                    ...nodeContent,
+                    delayMs:
+                      e.target.value === ""
+                        ? undefined
+                        : Number(e.target.value),
+                  })
+                }
+              />
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={nodeContent.typingEnabled === true}
+                onChange={(e) =>
+                  setNodeContent({
+                    ...nodeContent,
+                    typingEnabled: e.target.checked,
+                  })
+                }
+              />
+              Show typing effect during delay (minimum 100ms if delay is empty)
+            </label>
+          </div>
+        )}
+
+        {newNodeType === "wait" && (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Wait Duration (ms)</Label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="1200"
+                value={
+                  nodeContent.waitMs !== undefined
+                    ? String(nodeContent.waitMs)
+                    : ""
+                }
+                onChange={(e) =>
+                  setNodeContent({
+                    ...nodeContent,
+                    waitMs:
+                      e.target.value === ""
+                        ? undefined
+                        : Number(e.target.value),
+                  })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Next Step Order (Optional)</Label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="Leave blank to continue to the next step"
+                value={
+                  nodeContent.nextNodeOrder !== undefined
+                    ? String(nodeContent.nextNodeOrder)
+                    : ""
+                }
+                onChange={(e) =>
+                  setNodeContent({
+                    ...nodeContent,
+                    nextNodeOrder:
+                      e.target.value === ""
+                        ? undefined
+                        : Number(e.target.value),
+                  })
+                }
+              />
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={nodeContent.typingEnabled === true}
+                onChange={(e) =>
+                  setNodeContent({
+                    ...nodeContent,
+                    typingEnabled: e.target.checked,
+                  })
+                }
+              />
+              Show typing effect during wait period (minimum 100ms)
+            </label>
+          </div>
+        )}
+
+        {newNodeType === "typing" && (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Typing Duration (ms)</Label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="1200"
+                value={
+                  nodeContent.typingDurationMs !== undefined
+                    ? String(nodeContent.typingDurationMs)
+                    : ""
+                }
+                onChange={(e) =>
+                  setNodeContent({
+                    ...nodeContent,
+                    typingDurationMs:
+                      e.target.value === ""
+                        ? undefined
+                        : Number(e.target.value),
+                  })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Next Step Order (Optional)</Label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="Leave blank to continue to the next step"
+                value={
+                  nodeContent.nextNodeOrder !== undefined
+                    ? String(nodeContent.nextNodeOrder)
+                    : ""
+                }
+                onChange={(e) =>
+                  setNodeContent({
+                    ...nodeContent,
+                    nextNodeOrder:
+                      e.target.value === ""
+                        ? undefined
+                        : Number(e.target.value),
+                  })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Extra Delay After Typing (ms)</Label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="0"
+                value={
+                  nodeContent.delayMs !== undefined
+                    ? String(nodeContent.delayMs)
+                    : ""
+                }
+                onChange={(e) =>
+                  setNodeContent({
+                    ...nodeContent,
+                    delayMs:
                       e.target.value === ""
                         ? undefined
                         : Number(e.target.value),
