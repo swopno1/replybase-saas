@@ -41,7 +41,8 @@ export const authOptions: NextAuthOptions = {
             allowDangerousEmailAccountLinking: true,
             authorization: {
               params: {
-                scope: "email,public_profile,pages_show_list,pages_messaging",
+                scope:
+                  "public_profile,pages_show_list,pages_manage_metadata,pages_read_engagement,pages_messaging",
               },
             },
           }),
