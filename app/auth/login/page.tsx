@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/field";
 import Link from "next/link";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 type FeedbackTone = "info" | "success" | "error";
 
@@ -175,25 +175,77 @@ export default function LoginPage() {
     <Card>
       <CardHeader className="text-center">
         <CardTitle className="text-xl">Welcome back</CardTitle>
-        <CardDescription>
-          Login with your Apple or Google account
-        </CardDescription>
+        <CardDescription>Sign in to your account to continue.</CardDescription>
       </CardHeader>
 
       <CardContent>
         <FieldGroup>
-          <Field>
-            <Button variant="outline" type="button" disabled>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path
-                  d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"
-                  fill="currentColor"
+          {feedback ? <FeedbackBanner feedback={feedback} /> : null}
+          {!feedback && sessionFeedback ? (
+            <FeedbackBanner feedback={sessionFeedback} />
+          ) : null}
+
+          <form onSubmit={handleCredentialsLogin} className="grid gap-4">
+            <Field>
+              <FieldLabel htmlFor="email">Email</FieldLabel>
+              <Input
+                id="email"
+                type="email"
+                placeholder="m@example.com"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </Field>
+
+            <Field>
+              <div className="flex items-center">
+                <FieldLabel htmlFor="password">Password</FieldLabel>
+                <Link
+                  href="/auth/forgot-password"
+                  className="ml-auto text-sm underline-offset-4 hover:underline"
+                >
+                  Forgot your password?
+                </Link>
+              </div>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pr-10"
                 />
-              </svg>{" "}
-              Coming Soon...
-              {/* TODO: Change the text */}
-              {/* Login with Apple */}
-            </Button>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex w-10 items-center justify-center"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            </Field>
+
+            <Field>
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? "Signing in..." : "Sign in"}
+              </Button>
+            </Field>
+          </form>
+
+          <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
+            Or continue with
+          </FieldSeparator>
+
+          <Field>
             <Button
               variant="outline"
               type="button"
@@ -207,84 +259,14 @@ export default function LoginPage() {
                   fill="currentColor"
                 />
               </svg>
-              Login with Google
+              Continue with Google
             </Button>
           </Field>
 
-          <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
-            Or continue with
-          </FieldSeparator>
-
-          {feedback ? <FeedbackBanner feedback={feedback} /> : null}
-          {!feedback && sessionFeedback ? (
-            <FeedbackBanner feedback={sessionFeedback} />
-          ) : null}
-
-          <div className="grid gap-4">
-            <form onSubmit={handleCredentialsLogin} className="grid gap-4">
-              <div className="grid gap-2">
-                <Field>
-                  <FieldLabel htmlFor="email">Email</FieldLabel>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="m@example.com"
-                    required
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </Field>
-
-                <Field>
-                  <div className="flex items-center">
-                    <FieldLabel htmlFor="password">Password</FieldLabel>
-                    <Link
-                      href="/auth/forgot-password"
-                      className="ml-auto text-sm underline-offset-4 hover:underline"
-                    >
-                      Forgot your password?
-                    </Link>
-                  </div>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      required
-                      autoComplete="current-password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((prev) => !prev)}
-                      className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex w-10 items-center justify-center"
-                      aria-label={
-                        showPassword ? "Hide password" : "Show password"
-                      }
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
-                  </div>
-                </Field>
-
-                <Field>
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading ? "Logging in..." : "Login"}
-                  </Button>
-                  <FieldDescription className="text-center">
-                    Don&apos;t have an account?{" "}
-                    <Link href="/auth/register">Sign up</Link>
-                  </FieldDescription>
-                </Field>
-              </div>
-            </form>
-          </div>
+          <FieldDescription className="text-center">
+            Don&apos;t have an account?{" "}
+            <Link href="/auth/register">Sign up</Link>
+          </FieldDescription>
         </FieldGroup>
       </CardContent>
     </Card>

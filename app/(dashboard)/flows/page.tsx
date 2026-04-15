@@ -311,28 +311,35 @@ export default function FlowsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
+    <div className="min-w-0 space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
           <h1 className="text-3xl font-bold tracking-tight">Flow Builder</h1>
           <p className="text-muted-foreground">
             Create and manage conversational flows for your pages
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={() => setTemplateDialogOpen(true)} variant="outline">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap lg:justify-end">
+          <Button
+            onClick={() => setTemplateDialogOpen(true)}
+            variant="outline"
+            className="w-full sm:w-auto"
+          >
             <Wrench className="h-4 w-4 mr-2" />
             Use Template
           </Button>
-          <Button onClick={() => setCreateDialogOpen(true)}>
+          <Button
+            onClick={() => setCreateDialogOpen(true)}
+            className="w-full sm:w-auto"
+          >
             <Plus className="h-4 w-4 mr-2" />
             Create Flow
           </Button>
         </div>
       </div>
 
-      <Tabs defaultValue="my" className="space-y-4">
-        <TabsList>
+      <Tabs defaultValue="my" className="min-w-0 space-y-4">
+        <TabsList className="grid h-auto w-full grid-cols-1 gap-2 sm:inline-flex sm:w-auto sm:grid-cols-none">
           <TabsTrigger value="my">My Flows ({myFlows.length})</TabsTrigger>
           <TabsTrigger value="global">
             Global Flows ({globalFlows.length})
@@ -347,7 +354,7 @@ export default function FlowsPage() {
                 Manage your custom conversational flows
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="min-w-0">
               {myFlows.length === 0 ? (
                 <div className="text-center py-12">
                   <p className="text-muted-foreground mb-4">
@@ -359,118 +366,122 @@ export default function FlowsPage() {
                   </Button>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Flow Name</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Assigned Pages</TableHead>
-                      <TableHead>Leads</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {myFlows.map((flow) => (
-                      <TableRow key={flow.id}>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{flow.name}</div>
-                            {flow.description && (
-                              <div className="text-sm text-muted-foreground">
-                                {flow.description}
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={flow.isActive ? "default" : "secondary"}
-                          >
-                            {flow.isActive ? "Active" : "Inactive"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {flow.assignments.length > 0 ? (
-                            <div className="space-y-1">
-                              {flow.assignments.map((assignment) => (
-                                <div key={assignment.id} className="text-sm">
-                                  {assignment.page.name}
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">
-                              Not assigned
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>{flow._count.leads}</TableCell>
-                        <TableCell>{formatDate(flow.createdAt)}</TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  router.push(`/flows/${flow.id}/edit`)
-                                }
-                              >
-                                <Edit className="h-4 w-4 mr-2" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  handleToggleActive(flow.id, flow.isActive)
-                                }
-                              >
-                                {flow.isActive ? (
-                                  <>
-                                    <PauseCircle className="h-4 w-4 mr-2" />
-                                    Deactivate
-                                  </>
-                                ) : (
-                                  <>
-                                    <PlayCircle className="h-4 w-4 mr-2" />
-                                    Activate
-                                  </>
-                                )}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleDuplicateFlow(flow.id)}
-                              >
-                                <Copy className="h-4 w-4 mr-2" />
-                                Duplicate
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  router.push(`/flows/${flow.id}/settings`)
-                                }
-                              >
-                                <Settings className="h-4 w-4 mr-2" />
-                                Settings
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setFlowToDelete(flow);
-                                  setDeleteDialogOpen(true);
-                                }}
-                                className="text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
+                <div className="min-w-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Flow Name</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Assigned Pages</TableHead>
+                        <TableHead>Leads</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {myFlows.map((flow) => (
+                        <TableRow key={flow.id}>
+                          <TableCell>
+                            <div className="min-w-0">
+                              <div className="font-medium wrap-break-word">
+                                {flow.name}
+                              </div>
+                              {flow.description && (
+                                <div className="text-sm text-muted-foreground whitespace-normal wrap-break-word">
+                                  {flow.description}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={flow.isActive ? "default" : "secondary"}
+                            >
+                              {flow.isActive ? "Active" : "Inactive"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {flow.assignments.length > 0 ? (
+                              <div className="space-y-1">
+                                {flow.assignments.map((assignment) => (
+                                  <div key={assignment.id} className="text-sm">
+                                    {assignment.page.name}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">
+                                Not assigned
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>{flow._count.leads}</TableCell>
+                          <TableCell>{formatDate(flow.createdAt)}</TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    router.push(`/flows/${flow.id}/edit`)
+                                  }
+                                >
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    handleToggleActive(flow.id, flow.isActive)
+                                  }
+                                >
+                                  {flow.isActive ? (
+                                    <>
+                                      <PauseCircle className="h-4 w-4 mr-2" />
+                                      Deactivate
+                                    </>
+                                  ) : (
+                                    <>
+                                      <PlayCircle className="h-4 w-4 mr-2" />
+                                      Activate
+                                    </>
+                                  )}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleDuplicateFlow(flow.id)}
+                                >
+                                  <Copy className="h-4 w-4 mr-2" />
+                                  Duplicate
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    router.push(`/flows/${flow.id}/settings`)
+                                  }
+                                >
+                                  <Settings className="h-4 w-4 mr-2" />
+                                  Settings
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setFlowToDelete(flow);
+                                    setDeleteDialogOpen(true);
+                                  }}
+                                  className="text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -484,7 +495,7 @@ export default function FlowsPage() {
                 Pre-built flow templates you can duplicate and customize
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="min-w-0">
               {globalFlows.length === 0 ? (
                 <div className="text-center py-12">
                   <p className="text-muted-foreground">
@@ -492,42 +503,44 @@ export default function FlowsPage() {
                   </p>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Flow Name</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Nodes</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {globalFlows.map((flow) => (
-                      <TableRow key={flow.id}>
-                        <TableCell className="font-medium">
-                          {flow.name}
-                        </TableCell>
-                        <TableCell className="max-w-md">
-                          {flow.description || "No description"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {flow.nodes.length} nodes
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            onClick={() => handleDuplicateFlow(flow.id)}
-                          >
-                            <Copy className="h-4 w-4 mr-2" />
-                            Duplicate
-                          </Button>
-                        </TableCell>
+                <div className="min-w-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Flow Name</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Nodes</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {globalFlows.map((flow) => (
+                        <TableRow key={flow.id}>
+                          <TableCell className="font-medium whitespace-normal wrap-break-word">
+                            {flow.name}
+                          </TableCell>
+                          <TableCell className="max-w-md whitespace-normal wrap-break-word">
+                            {flow.description || "No description"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {flow.nodes.length} nodes
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              size="sm"
+                              onClick={() => handleDuplicateFlow(flow.id)}
+                            >
+                              <Copy className="h-4 w-4 mr-2" />
+                              Duplicate
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
