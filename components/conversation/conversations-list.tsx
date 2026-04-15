@@ -29,6 +29,22 @@ type ConversationsListProps = {
   initialConversations: ConversationListItem[];
 };
 
+const activityDateFormatter = new Intl.DateTimeFormat("en-GB", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+function formatActivityDate(value: string): string {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "-";
+  }
+
+  return activityDateFormatter.format(parsed);
+}
+
 export function ConversationsList({
   initialConversations,
 }: ConversationsListProps) {
@@ -114,8 +130,7 @@ export function ConversationsList({
               {conversation.contact.name || "Unknown contact"}
             </p>
             <p className="text-sm text-muted-foreground">
-              Last activity:{" "}
-              {new Date(conversation.updatedAt).toLocaleDateString()}
+              Last activity: {formatActivityDate(conversation.updatedAt)}
             </p>
           </div>
 
