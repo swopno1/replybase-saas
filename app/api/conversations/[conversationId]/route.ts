@@ -165,8 +165,20 @@ export const DELETE: (
         );
       }
 
-      await prisma.crmConversation.delete({
-        where: { id: conversationId as string },
+      const id = conversationId as string;
+
+      await prisma.$transaction(async (tx) => {
+        await tx.crmMessage.deleteMany({
+          where: { conversationId: id },
+        });
+
+        await tx.internalNote.deleteMany({
+          where: { conversationId: id },
+        });
+
+        await tx.crmConversation.delete({
+          where: { id },
+        });
       });
 
       return NextResponse.json({ success: true }, { status: 200 });
