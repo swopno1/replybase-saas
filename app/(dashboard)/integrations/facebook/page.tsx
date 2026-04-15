@@ -111,6 +111,14 @@ export default function FacebookIntegrationPage() {
       ]);
 
       const data = await pagesResponse.json();
+      if (!pagesResponse.ok) {
+        const errMsg =
+          typeof data?.error === "string"
+            ? data.error
+            : "Failed to load Facebook pages";
+        throw new Error(errMsg);
+      }
+
       if (data.connected) {
         setConnected(true);
         setPages(data.pages || []);
@@ -134,7 +142,11 @@ export default function FacebookIntegrationPage() {
       }
     } catch (e) {
       console.error(e);
-      toast.error("Failed to load Facebook pages");
+      setConnected(false);
+      setPages([]);
+      const message =
+        e instanceof Error ? e.message : "Failed to load Facebook pages";
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -760,4 +772,3 @@ export default function FacebookIntegrationPage() {
     </div>
   );
 }
-

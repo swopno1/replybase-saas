@@ -27,9 +27,30 @@ export const GET = withAuthAndTenant(async ({ id: userId, tenantId }) => {
     if (!fbRes.ok) {
       const errorText = await fbRes.text();
       console.error("[Facebook Pages] Graph API Error:", errorText);
+
+      let message = "Failed to fetch pages from Facebook";
+      let code: number | undefined;
+      try {
+        const parsed = JSON.parse(errorText) as {
+          error?: { message?: string; code?: number };
+        };
+        if (parsed.error?.message) {
+          message = parsed.error.message;
+        }
+        if (typeof parsed.error?.code === "number") {
+          code = parsed.error.code;
+        }
+      } catch {
+        // Keep default message when upstream payload is not JSON.
+      }
+
+      const status = code === 190 ? 401 : 502;
       return NextResponse.json(
-        { error: "Failed to fetch pages from Facebook" },
-        { status: 502 },
+        {
+          error: message,
+          code,
+        },
+        { status },
       );
     }
 
