@@ -3,10 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 
-export const dynamic = 'force-dynamic';
-
-
-
+export const dynamic = "force-dynamic";
 
 const updateContactSchema = z.object({
   name: z.string().max(100).optional(),
@@ -23,7 +20,7 @@ async function getContact(contactId: string, tenantId: string) {
 // GET: Retrieve a specific contact
 export const GET: (
   request: NextRequest,
-  context: { params: Promise<Record<string, string | string[]>> }
+  context: { params: Promise<Record<string, string | string[]>> },
 ) => Promise<Response> = withAuthAndTenant(
   async ({ tenantId }, request, context) => {
     const { contactId } = await context.params;
@@ -32,7 +29,7 @@ export const GET: (
       if (!contact) {
         return NextResponse.json(
           { error: "Contact not found" },
-          { status: 404 }
+          { status: 404 },
         );
       }
       return NextResponse.json({ contact });
@@ -40,16 +37,16 @@ export const GET: (
       console.error("[Contacts API] Error fetching contact:", error);
       return NextResponse.json(
         { error: "Failed to fetch contact" },
-        { status: 500 }
+        { status: 500 },
       );
     }
-  }
+  },
 );
 
 // PUT: Update a specific contact
 export const PUT: (
   request: NextRequest,
-  context: { params: Promise<Record<string, string | string[]>> }
+  context: { params: Promise<Record<string, string | string[]>> },
 ) => Promise<Response> = withAuthAndTenant(
   async ({ tenantId }, request, context) => {
     const { contactId } = await context.params;
@@ -58,7 +55,7 @@ export const PUT: (
       if (!contact) {
         return NextResponse.json(
           { error: "Contact not found" },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
@@ -75,22 +72,22 @@ export const PUT: (
       if (error instanceof z.ZodError) {
         return NextResponse.json(
           { error: "Invalid input", details: error.issues },
-          { status: 400 }
+          { status: 400 },
         );
       }
       console.error("[Contacts API] Error updating contact:", error);
       return NextResponse.json(
         { error: "Failed to update contact" },
-        { status: 500 }
+        { status: 500 },
       );
     }
-  }
+  },
 );
 
 // DELETE: Delete a specific contact
 export const DELETE: (
   request: NextRequest,
-  context: { params: Promise<Record<string, string | string[]>> }
+  context: { params: Promise<Record<string, string | string[]>> },
 ) => Promise<Response> = withAuthAndTenant(
   async ({ tenantId }, request, context) => {
     const { contactId } = await context.params;
@@ -99,12 +96,38 @@ export const DELETE: (
       if (!contact) {
         return NextResponse.json(
           { error: "Contact not found" },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
-      await prisma.contact.delete({
-        where: { id: contactId as string },
+      const id = contactId as string;
+
+      await prisma.$transaction(async (tx) => {
+        // Keep lead history but detach it from the deleted contact.
+        await tx.lead.updateMany({
+          where: { contactId: id },
+          data: { contactId: null },
+        });
+
+        await tx.crmMessage.deleteMany({
+          where: { conversation: { contactId: id } },
+        });
+
+        await tx.internalNote.deleteMany({
+          where: { conversation: { contactId: id } },
+        });
+
+        await tx.crmConversation.deleteMany({
+          where: { contactId: id },
+        });
+
+        await tx.contactIdentity.deleteMany({
+          where: { contactId: id },
+        });
+
+        await tx.contact.delete({
+          where: { id },
+        });
       });
 
       return NextResponse.json({ success: true }, { status: 200 });
@@ -112,8 +135,8 @@ export const DELETE: (
       console.error("[Contacts API] Error deleting contact:", error);
       return NextResponse.json(
         { error: "Failed to delete contact" },
-        { status: 500 }
+        { status: 500 },
       );
     }
-  }
+  },
 );
