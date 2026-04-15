@@ -182,11 +182,31 @@ function SettingsTabsInner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: session.user.email, source: "account" }),
       });
-      if (!response.ok) throw new Error("Failed to subscribe to newsletter");
-      toast.success("Subscribed to newsletter");
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(data?.error || "Failed to subscribe to newsletter");
+      }
+      const data = (await response.json().catch(() => null)) as {
+        alreadySubscribed?: boolean;
+        message?: string;
+      } | null;
+
+      if (data?.alreadySubscribed) {
+        toast.info(
+          data.message || "You are already subscribed to the newsletter",
+        );
+      } else {
+        toast.success(data?.message || "Subscribed to newsletter");
+      }
     } catch (error) {
       console.error("Newsletter subscribe error:", error);
-      toast.error("Failed to subscribe to newsletter");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to subscribe to newsletter",
+      );
     } finally {
       setNewsletterLoading(false);
     }
@@ -201,12 +221,31 @@ function SettingsTabsInner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: session.user.email }),
       });
-      if (!response.ok)
-        throw new Error("Failed to unsubscribe from newsletter");
-      toast.success("Unsubscribed from newsletter");
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(data?.error || "Failed to unsubscribe from newsletter");
+      }
+      const data = (await response.json().catch(() => null)) as {
+        alreadyUnsubscribed?: boolean;
+        message?: string;
+      } | null;
+
+      if (data?.alreadyUnsubscribed) {
+        toast.info(
+          data.message || "You are already unsubscribed from the newsletter",
+        );
+      } else {
+        toast.success(data?.message || "Unsubscribed from newsletter");
+      }
     } catch (error) {
       console.error("Newsletter unsubscribe error:", error);
-      toast.error("Failed to unsubscribe from newsletter");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to unsubscribe from newsletter",
+      );
     } finally {
       setNewsletterLoading(false);
     }

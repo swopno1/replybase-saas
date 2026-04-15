@@ -3,11 +3,9 @@ import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { recordMilestoneEvent } from "@/lib/milestone-events";
 
-export const dynamic = 'force-dynamic';
-
-
-
+export const dynamic = "force-dynamic";
 
 const updateSchema = z.object({
   emailRecipients: z.array(z.string().trim().email().max(320)).max(20),
@@ -114,6 +112,13 @@ export async function PATCH(request: NextRequest) {
         telegramChatIds: true,
       },
     });
+
+    if (emailRecipients.length > 0 || telegramChatIds.length > 0) {
+      void recordMilestoneEvent(tenantId, "lead-notifications", {
+        emailRecipientCount: emailRecipients.length,
+        telegramChatIdCount: telegramChatIds.length,
+      });
+    }
 
     return NextResponse.json({
       success: true,

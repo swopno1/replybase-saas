@@ -32,7 +32,7 @@ function getMilestoneEventModel(): MilestoneEventModel | null {
  */
 export async function recordMilestoneEvent(
   tenantId: string,
-  milestoneId: "first-channel" | "first-automated-reply",
+  milestoneId: "first-channel" | "first-automated-reply" | "lead-notifications",
   context?: Prisma.JsonValue | null,
 ) {
   const milestoneModel = getMilestoneEventModel();
@@ -75,7 +75,7 @@ export async function recordMilestoneEvent(
  */
 export async function hasMilestoneCompleted(
   tenantId: string,
-  milestoneId: "first-channel" | "first-automated-reply",
+  milestoneId: "first-channel" | "first-automated-reply" | "lead-notifications",
 ): Promise<boolean> {
   const event = await prisma.onboardingMilestoneEvent.findUnique({
     where: {
@@ -103,7 +103,7 @@ export async function getCompletedMilestones(tenantId: string) {
  * Get milestone completion stats across all tenants
  */
 export async function getMilestoneStats(
-  milestoneId: "first-channel" | "first-automated-reply",
+  milestoneId: "first-channel" | "first-automated-reply" | "lead-notifications",
 ) {
   const completed = await prisma.onboardingMilestoneEvent.count({
     where: { milestoneId },

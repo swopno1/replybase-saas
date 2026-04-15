@@ -17,9 +17,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Mail, Phone } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
+import { Loader2, Mail, MoreHorizontal, Phone, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 interface Lead {
   id: string;
@@ -76,6 +84,7 @@ function getLeadPhone(lead: Lead): string | null {
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingLeadId, setDeletingLeadId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchLeads = async () => {
@@ -122,6 +131,39 @@ export default function LeadsPage() {
     );
   };
 
+  const handleDeleteLead = async (leadId: string) => {
+    const confirmed = window.confirm(
+      "Delete this lead? This action cannot be undone.",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingLeadId(leadId);
+    try {
+      const response = await fetch(`/api/leads/${leadId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(data?.error || "Failed to delete lead");
+      }
+
+      setLeads((prev) => prev.filter((lead) => lead.id !== leadId));
+      toast.success("Lead deleted");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete lead",
+      );
+    } finally {
+      setDeletingLeadId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -163,6 +205,7 @@ export default function LeadsPage() {
                     <TableHead>Status</TableHead>
                     <TableHead>Source</TableHead>
                     <TableHead>Captured At</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -223,6 +266,47 @@ export default function LeadsPage() {
                       <TableCell>{formatLeadSource(lead.source)}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {new Date(lead.createdAt).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Lead options"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {getLeadEmail(lead) ? (
+                              <DropdownMenuItem asChild>
+                                <a href={`mailto:${getLeadEmail(lead)}`}>
+                                  <Mail className="mr-2 h-4 w-4" />
+                                  Email lead
+                                </a>
+                              </DropdownMenuItem>
+                            ) : null}
+                            {getLeadPhone(lead) ? (
+                              <DropdownMenuItem asChild>
+                                <a href={`tel:${getLeadPhone(lead)}`}>
+                                  <Phone className="mr-2 h-4 w-4" />
+                                  Call lead
+                                </a>
+                              </DropdownMenuItem>
+                            ) : null}
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteLead(lead.id)}
+                              disabled={deletingLeadId === lead.id}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              {deletingLeadId === lead.id
+                                ? "Deleting..."
+                                : "Delete"}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}
