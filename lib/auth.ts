@@ -64,6 +64,7 @@ export const authOptions: NextAuthOptions = {
                 name: profile.name ?? null,
                 email: null,
                 image: profile.picture?.data?.url ?? null,
+                tenantId: "",
               };
             },
           }),
