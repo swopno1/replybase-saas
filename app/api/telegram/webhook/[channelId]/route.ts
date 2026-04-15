@@ -11,7 +11,6 @@ import { executeBotEntryFlowFirst } from "@/lib/bot-entry-flow-engine";
 import { decryptTelegramToken } from "@/lib/telegram-crypto";
 import { recordMilestoneEvent } from "@/lib/milestone-events";
 import {
-
   TELEGRAM_MAX_TEXT_LENGTH,
   TelegramUpdate,
   getTelegramChatId,
@@ -22,9 +21,7 @@ import {
   normalizeTelegramText,
 } from "@/lib/telegram-utils";
 
-export const dynamic = 'force-dynamic';
-
-
+export const dynamic = "force-dynamic";
 
 function getCommandReply(commandText: string): string | null {
   const command = commandText.split(" ")[0]?.toLowerCase();
@@ -366,9 +363,13 @@ export async function POST(
           },
         });
 
-        const flowText = flowResult?.responses?.find(
-          (response) => response.type === "text" && Boolean(response.text),
-        )?.text;
+        let flowText: string | null = null;
+        for (const response of flowResult?.responses || []) {
+          if (response.type === "text" && response.text) {
+            flowText = response.text;
+            break;
+          }
+        }
 
         if (flowText) {
           replyText = flowText;

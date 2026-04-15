@@ -419,9 +419,13 @@ async function sendAutoReply(params: {
       },
     });
 
-    const flowText = flowResult?.responses?.find(
-      (r) => r.type === "text" && Boolean(r.text),
-    )?.text;
+    let flowText: string | null = null;
+    for (const response of flowResult?.responses || []) {
+      if (response.type === "text" && response.text) {
+        flowText = response.text;
+        break;
+      }
+    }
 
     if (flowText) {
       replyText = flowText;
