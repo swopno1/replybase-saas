@@ -31,7 +31,7 @@ import { toast } from "sonner";
 import { EditSubscriberDialog } from "@/components/edit-subscriber-dialog";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 interface Subscriber {
   id: string;
