@@ -5,10 +5,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   CheckCircle2,
-  Clock,
   Loader2,
   MessageCircle,
-  RefreshCw,
   ShieldAlert,
   Unplug,
 } from "lucide-react";
@@ -37,6 +35,10 @@ import {
   ChannelGuidanceCard,
   ChannelPageHeader,
 } from "@/components/channels/channel-ui";
+import {
+  ChannelActivityLogCard,
+  ChannelFlowAssignmentCard,
+} from "@/components/channels/channel-sections";
 
 export const dynamic = "force-dynamic";
 
@@ -744,152 +746,43 @@ export default function WhatsAppIntegrationPage() {
             </CardContent>
           </Card>
 
-          {/* Flow Assignment */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                WhatsApp Flow Assignment
-              </CardTitle>
-              <CardDescription>
-                Assign an active flow to this WhatsApp channel. Channel
-                assignment takes priority over bot entry flow.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-2 max-w-lg">
-                <Label htmlFor="whatsappFlowSelect">Assigned Flow</Label>
-                {isFlowsLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading flows...
-                  </div>
-                ) : flows.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">
-                    No active flows available. Activate a flow in Flow Builder
-                    first.
-                  </div>
-                ) : (
-                  <Select
-                    value={selectedFlowId || "none"}
-                    onValueChange={(value) =>
-                      setSelectedFlowId(value === "none" ? "" : value)
-                    }
-                  >
-                    <SelectTrigger id="whatsappFlowSelect">
-                      <SelectValue placeholder="Select a flow" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No flow selected</SelectItem>
-                      {flows.map((flow) => (
-                        <SelectItem key={flow.id} value={flow.id}>
-                          {flow.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-
-              <div className="text-xs text-muted-foreground">
-                {assignedFlow ? (
-                  <span>
-                    Currently assigned: <strong>{assignedFlow.name}</strong>
-                  </span>
-                ) : (
-                  <span>
-                    No channel flow is assigned. Bot entry flow and AI fallback
-                    are used.
-                  </span>
-                )}
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  onClick={handleAssignFlow}
-                  disabled={
-                    !selectedFlowId ||
-                    isAssigningFlow ||
-                    !connected ||
-                    assignedFlow?.id === selectedFlowId
-                  }
-                >
-                  {isAssigningFlow ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : null}
-                  Assign Flow
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleUnassignFlow}
-                  disabled={!assignedFlow || !connected || isUnassigningFlow}
-                >
-                  {isUnassigningFlow ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : null}
-                  Unassign Flow
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <ChannelFlowAssignmentCard
+            title="WhatsApp Flow Assignment"
+            description="Assign an active flow to this WhatsApp channel. Channel assignment takes priority over bot entry flow."
+            selectLabel="Assigned Flow"
+            selectId="whatsappFlowSelect"
+            flows={flows}
+            isFlowsLoading={isFlowsLoading}
+            selectedFlowId={selectedFlowId}
+            onSelectFlow={setSelectedFlowId}
+            assignedFlowName={assignedFlow?.name}
+            unassignedDescription="No channel flow is assigned. Bot entry flow and AI fallback are used."
+            onAssign={handleAssignFlow}
+            onUnassign={handleUnassignFlow}
+            isAssigning={isAssigningFlow}
+            isUnassigning={isUnassigningFlow}
+            assignDisabled={
+              !selectedFlowId ||
+              isAssigningFlow ||
+              !connected ||
+              assignedFlow?.id === selectedFlowId
+            }
+            unassignDisabled={!assignedFlow || !connected || isUnassigningFlow}
+          />
 
           {/* Recent Webhook Activity */}
-          {connected && status?.channel?.id && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      Recent Webhook Activity
-                    </CardTitle>
-                    <CardDescription className="mt-1">
-                      Last 15 events logged for this channel
-                    </CardDescription>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => loadLogs(status.channel!.id)}
-                    disabled={isLogsLoading}
-                  >
-                    <RefreshCw
-                      className={`h-3.5 w-3.5 ${isLogsLoading ? "animate-spin" : ""}`}
-                    />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {isLogsLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading activity...
-                  </div>
-                ) : logs.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No activity recorded yet.
-                  </p>
-                ) : (
-                  <ul className="space-y-1">
-                    {logs.map((log) => (
-                      <li
-                        key={log.id}
-                        className="flex items-center justify-between text-xs"
-                      >
-                        <span className="font-mono text-muted-foreground truncate max-w-xs">
-                          {log.event}
-                        </span>
-                        <span className="text-muted-foreground whitespace-nowrap ml-4">
-                          {new Date(log.createdAt).toLocaleString()}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
-          )}
+          {connected && status?.channel?.id ? (
+            <ChannelActivityLogCard
+              logs={logs}
+              isLoading={isLogsLoading}
+              onRefresh={() => {
+                if (status.channel?.id) {
+                  void loadLogs(status.channel.id);
+                }
+              }}
+              emptyText="No activity recorded yet."
+            />
+          ) : null}
         </>
       )}
     </div>

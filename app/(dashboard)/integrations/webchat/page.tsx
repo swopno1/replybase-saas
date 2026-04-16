@@ -42,6 +42,7 @@ import {
   ChannelGuidanceCard,
   ChannelPageHeader,
 } from "@/components/channels/channel-ui";
+import { ChannelFlowAssignmentCard } from "@/components/channels/channel-sections";
 
 export const dynamic = "force-dynamic";
 
@@ -1146,87 +1147,32 @@ export default function WebchatIntegrationPage() {
         bullets={[`${webchatEffectiveMode.title}: ${webchatEffectiveMode.description}`]}
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Channel Flow Assignment</CardTitle>
-          <CardDescription>
-            Assign an active flow to the selected web channel. Channel
-            assignment takes precedence over bot entry flow.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="space-y-2 max-w-lg">
-            <Label htmlFor="webchatFlowSelect">Assigned Flow</Label>
-            {isFlowsLoading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading flows...
-              </div>
-            ) : flows.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No active flows found. Activate a flow in Flow Builder first.
-              </p>
-            ) : (
-              <Select
-                value={selectedFlowId || "none"}
-                onValueChange={(value) =>
-                  setSelectedFlowId(value === "none" ? "" : value)
-                }
-                disabled={!selectedChannelId}
-              >
-                <SelectTrigger id="webchatFlowSelect" className="max-w-lg">
-                  <SelectValue placeholder="Select a flow" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No flow selected</SelectItem>
-                  {flows.map((flow) => (
-                    <SelectItem key={flow.id} value={flow.id}>
-                      {flow.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-
-          <p className="text-xs text-muted-foreground">
-            {assignedChannelFlow
-              ? `Currently assigned to this channel: ${assignedChannelFlow.name}`
-              : "No channel flow is assigned. Bot entry flow or AI fallback applies."}
-          </p>
-
-          <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              onClick={() => void handleAssignFlowToChannel()}
-              disabled={
-                !selectedChannelId ||
-                !selectedFlowId ||
-                isAssigningFlow ||
-                assignedChannelFlow?.id === selectedFlowId
-              }
-            >
-              {isAssigningFlow ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              Assign Flow
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => void handleUnassignFlowFromChannel()}
-              disabled={
-                !selectedChannelId || !assignedChannelFlow || isUnassigningFlow
-              }
-            >
-              {isUnassigningFlow ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              Unassign Flow
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <ChannelFlowAssignmentCard
+        title="Channel Flow Assignment"
+        description="Assign an active flow to the selected web channel. Channel assignment takes precedence over bot entry flow."
+        selectLabel="Assigned Flow"
+        selectId="webchatFlowSelect"
+        flows={flows}
+        isFlowsLoading={isFlowsLoading}
+        selectedFlowId={selectedFlowId}
+        onSelectFlow={setSelectedFlowId}
+        selectDisabled={!selectedChannelId}
+        assignedFlowName={assignedChannelFlow?.name}
+        unassignedDescription="No channel flow is assigned. Bot entry flow or AI fallback applies."
+        onAssign={() => void handleAssignFlowToChannel()}
+        onUnassign={() => void handleUnassignFlowFromChannel()}
+        isAssigning={isAssigningFlow}
+        isUnassigning={isUnassigningFlow}
+        assignDisabled={
+          !selectedChannelId ||
+          !selectedFlowId ||
+          isAssigningFlow ||
+          assignedChannelFlow?.id === selectedFlowId
+        }
+        unassignDisabled={
+          !selectedChannelId || !assignedChannelFlow || isUnassigningFlow
+        }
+      />
 
       <Card>
         <CardHeader>
