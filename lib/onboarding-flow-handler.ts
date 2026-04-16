@@ -1,6 +1,7 @@
 import { OnboardingService, OnboardingMessage } from "@/lib/onboarding-service";
 import { prisma } from "@/lib/prisma";
 import { OnboardingStage, EmailFrequency } from "@prisma/client";
+import { generateAppSecretProof } from "@/lib/facebook-utils";
 
 const FACEBOOK_API_URL = "https://graph.facebook.com/v19.0";
 
@@ -298,16 +299,23 @@ export class OnboardingFlowHandler {
         messagePayload.message = { text: message.text };
       }
 
-      await fetch(
-        `${FACEBOOK_API_URL}/${pageId}/messages?access_token=${pageAccessToken}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(messagePayload),
+      const url = new URL(`${FACEBOOK_API_URL}/${pageId}/messages`);
+      url.searchParams.set("access_token", pageAccessToken);
+      const appSecret = process.env.FACEBOOK_CLIENT_SECRET;
+      if (appSecret) {
+        url.searchParams.set(
+          "appsecret_proof",
+          generateAppSecretProof(pageAccessToken, appSecret),
+        );
+      }
+
+      await fetch(url.toString(), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      ).catch((error) => {
+        body: JSON.stringify(messagePayload),
+      }).catch((error) => {
         console.error("[Onboarding] Failed to send message:", error);
       });
     } catch (error) {

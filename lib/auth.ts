@@ -7,6 +7,7 @@ import { PrismaAdapter } from "next-auth-prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/password";
 import { isChannelEnabled } from "@/lib/channel-config";
+import { generateAppSecretProof } from "@/lib/facebook-utils";
 
 type FacebookProfile = {
   id: string;
@@ -54,8 +55,49 @@ export const authOptions: NextAuthOptions = {
             // Business app flow should not request `email`; requesting it in
             // userinfo can cause a 400 OAuth callback error.
             userinfo: {
-              params: {
-                fields: "id,name,picture{url}",
+              async request({ tokens }) {
+                const accessToken = tokens.access_token;
+                if (!accessToken) {
+                  throw new Error(
+                    "Facebook OAuth callback missing access token",
+                  );
+                }
+
+                const url = new URL("https://graph.facebook.com/me");
+                url.searchParams.set("fields", "id,name,picture{url}");
+                const appSecret = process.env.FACEBOOK_CLIENT_SECRET;
+                if (appSecret) {
+                  url.searchParams.set(
+                    "appsecret_proof",
+                    generateAppSecretProof(accessToken, appSecret),
+                  );
+                }
+
+                const response = await fetch(url.toString(), {
+                  headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                  },
+                });
+
+                const raw = await response.text();
+                if (!response.ok) {
+                  console.error("[Facebook OAuth] Userinfo request failed", {
+                    status: response.status,
+                    body: raw,
+                  });
+                  throw new Error(
+                    `Facebook userinfo failed with ${response.status}`,
+                  );
+                }
+
+                try {
+                  return JSON.parse(raw) as FacebookProfile;
+                } catch {
+                  console.error("[Facebook OAuth] Userinfo JSON parse failed", {
+                    body: raw,
+                  });
+                  throw new Error("Facebook userinfo returned invalid JSON");
+                }
               },
             },
             profile(profile: FacebookProfile) {

@@ -11,11 +11,9 @@ import { OnboardingFlowHandler } from "@/lib/onboarding-flow-handler";
 import { FlowExecutionEngine } from "@/lib/flow-execution-engine";
 import { recordMilestoneEvent } from "@/lib/milestone-events";
 import { isChannelEnabled } from "@/lib/channel-config";
+import { generateAppSecretProof } from "@/lib/facebook-utils";
 
-export const dynamic = 'force-dynamic';
-
-
-
+export const dynamic = "force-dynamic";
 
 // GET: Webhook Verification
 export async function GET(req: NextRequest) {
@@ -320,8 +318,20 @@ async function handleMessage(
     // 2. Fetch user profile from Facebook to get their name
     let userName: string | undefined;
     try {
-      const userProfileUrl = `https://graph.facebook.com/${senderPsid}?fields=first_name,last_name&access_token=${accessToken}`;
-      const profileResponse = await fetch(userProfileUrl);
+      const userProfileUrl = new URL(
+        `https://graph.facebook.com/${senderPsid}`,
+      );
+      userProfileUrl.searchParams.set("fields", "first_name,last_name");
+      userProfileUrl.searchParams.set("access_token", accessToken);
+      const appSecret = process.env.FACEBOOK_CLIENT_SECRET;
+      if (appSecret) {
+        userProfileUrl.searchParams.set(
+          "appsecret_proof",
+          generateAppSecretProof(accessToken, appSecret),
+        );
+      }
+
+      const profileResponse = await fetch(userProfileUrl.toString());
       if (profileResponse.ok) {
         const profileData = await profileResponse.json();
         userName =

@@ -4,11 +4,9 @@ import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { recordWebhookSetupLog } from "@/lib/webhook-setup-log";
 import { isChannelEnabled } from "@/lib/channel-config";
+import { generateAppSecretProof } from "@/lib/facebook-utils";
 
-export const dynamic = 'force-dynamic';
-
-
-
+export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   // Check if Facebook channel is enabled
@@ -61,9 +59,15 @@ export async function POST(req: Request) {
 
   // Verify the page access token by fetching page info from Facebook Graph API
   try {
-    const verifyResponse = await fetch(
-      `https://graph.facebook.com/v18.0/${pageId}?fields=id,name,access_token&access_token=${accessToken}`,
+    const verifyUrl = new URL(`https://graph.facebook.com/v18.0/${pageId}`);
+    verifyUrl.searchParams.set("fields", "id,name,access_token");
+    verifyUrl.searchParams.set("access_token", accessToken);
+    verifyUrl.searchParams.set(
+      "appsecret_proof",
+      generateAppSecretProof(accessToken, appSecret),
     );
+
+    const verifyResponse = await fetch(verifyUrl.toString());
 
     if (!verifyResponse.ok) {
       const errorText = await verifyResponse.text();

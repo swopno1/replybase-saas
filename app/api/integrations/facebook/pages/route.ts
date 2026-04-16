@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { withAuthAndTenant } from "@/lib/route-helpers";
+import { generateAppSecretProof } from "@/lib/facebook-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,16 @@ export const GET = withAuthAndTenant(async ({ id: userId, tenantId }) => {
 
   // Call FB Graph API to get pages
   try {
-    const fbRes = await fetch("https://graph.facebook.com/v18.0/me/accounts", {
+    const fbUrl = new URL("https://graph.facebook.com/v18.0/me/accounts");
+    const appSecret = process.env.FACEBOOK_CLIENT_SECRET;
+    if (appSecret) {
+      fbUrl.searchParams.set(
+        "appsecret_proof",
+        generateAppSecretProof(account.access_token, appSecret),
+      );
+    }
+
+    const fbRes = await fetch(fbUrl.toString(), {
       headers: {
         Authorization: `Bearer ${account.access_token}`,
       },
