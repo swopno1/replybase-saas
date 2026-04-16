@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface Bot {
   id: string;
@@ -27,6 +28,7 @@ interface Project {
 }
 
 export function BotList() {
+  const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -145,14 +147,17 @@ export function BotList() {
                                 }
 
                                 return (
-                                  <Link
+                                  <button
                                     key={`${bot.id}-${channel.id}-config`}
-                                    href={href}
-                                    onClick={(event) => event.stopPropagation()}
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      router.push(href);
+                                    }}
                                     className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
                                   >
                                     Configure {toLabel(channel.type)}
-                                  </Link>
+                                  </button>
                                 );
                               })}
                           </div>
