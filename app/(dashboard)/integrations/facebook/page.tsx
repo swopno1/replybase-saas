@@ -22,7 +22,6 @@ import {
   MessageSquare,
   CheckCircle2,
   XCircle,
-  ArrowLeft,
   ExternalLink,
   Trash2,
   Zap,
@@ -32,6 +31,10 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { isChannelVisibleInUi } from "@/lib/channel-config";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
+import {
+  ChannelGuidanceCard,
+  ChannelPageHeader,
+} from "@/components/channels/channel-ui";
 
 export const dynamic = "force-dynamic";
 
@@ -98,6 +101,7 @@ export default function FacebookIntegrationPage() {
       return;
     }
     fetchPages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelVisible, router]);
 
   if (!channelVisible) {
@@ -337,41 +341,21 @@ export default function FacebookIntegrationPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <Link href="/">
-          <Button variant="ghost" size="sm" className="mb-4">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Dashboard
-          </Button>
-        </Link>
-        <h1 className="text-3xl font-bold tracking-tight">Facebook Pages</h1>
-        <p className="text-muted-foreground mt-1">
-          Connect your Facebook Pages, assign flows, and enable AI auto-replies
-        </p>
-      </div>
+      <ChannelPageHeader
+        title="Facebook Pages"
+        description="Connect your Facebook Pages, assign flows, and enable AI auto-replies"
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Effective Response Mode</CardTitle>
-          <CardDescription>
-            How ReplyBase decides what responds to incoming Facebook messages.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p>
-            1. If an active flow is assigned to the page, that flow handles the
-            message first.
-          </p>
-          <p>
-            2. If no active flow handles the message and AI is enabled for the
-            page, AI generates the reply.
-          </p>
-          <p>
-            3. If neither flow nor AI is active, no automated reply is sent.
-          </p>
-        </CardContent>
-      </Card>
+      <ChannelGuidanceCard
+        title="Effective Response Mode"
+        description="How ReplyBase decides what responds to incoming Facebook messages."
+        icon={MessageSquare}
+        bullets={[
+          "1. If an active flow is assigned to the page, that flow handles the message first.",
+          "2. If no active flow handles the message and AI is enabled for the page, AI generates the reply.",
+          "3. If neither flow nor AI is active, no automated reply is sent.",
+        ]}
+      />
 
       <Card>
         <CardHeader>

@@ -1,11 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
-  ArrowLeft,
   CheckCircle2,
   Clock,
   Loader2,
@@ -34,6 +32,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { isChannelVisibleInUi } from "@/lib/channel-config";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
+import {
+  ChannelBotSelectorCard,
+  ChannelGuidanceCard,
+  ChannelPageHeader,
+} from "@/components/channels/channel-ui";
 
 export const dynamic = "force-dynamic";
 
@@ -497,69 +500,30 @@ export default function WhatsAppIntegrationPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link href="/">
-          <Button variant="ghost" size="sm" className="mb-4">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Dashboard
-          </Button>
-        </Link>
-        <h1 className="text-3xl font-bold tracking-tight">WhatsApp Business</h1>
-        <p className="text-muted-foreground mt-1">
-          Connect official WhatsApp Business Platform providers only.
-        </p>
-      </div>
+      <ChannelPageHeader
+        title="WhatsApp Business"
+        description="Connect official WhatsApp Business Platform providers only."
+      />
 
-      <Card className="border-amber-500/50 bg-amber-500/5">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ShieldAlert className="h-5 w-5 text-amber-600" />
-            Compliance Requirements
-          </CardTitle>
-          <CardDescription>
-            Personal WhatsApp automation and WhatsApp Web scraping are not
-            supported.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p>1. Use Meta Cloud API or an official BSP provider.</p>
-          <p>
-            2. Respect the 24-hour customer service window for free-form
-            replies.
-          </p>
-          <p>3. Use template messages when the service window has expired.</p>
-        </CardContent>
-      </Card>
+      <ChannelGuidanceCard
+        title="Compliance Requirements"
+        description="Personal WhatsApp automation and WhatsApp Web scraping are not supported."
+        icon={ShieldAlert}
+        bullets={[
+          "1. Use Meta Cloud API or an official BSP provider.",
+          "2. Respect the 24-hour customer service window for free-form replies.",
+          "3. Use template messages when the service window has expired.",
+        ]}
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Select Bot</CardTitle>
-          <CardDescription>
-            Choose which ReplyBase bot this WhatsApp connection belongs to.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loadingBots ? (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading bots...
-            </div>
-          ) : (
-            <Select value={selectedBotId} onValueChange={setSelectedBotId}>
-              <SelectTrigger className="w-full max-w-sm">
-                <SelectValue placeholder="Select a bot" />
-              </SelectTrigger>
-              <SelectContent>
-                {bots.map((bot) => (
-                  <SelectItem key={bot.id} value={bot.id}>
-                    {bot.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </CardContent>
-      </Card>
+      <ChannelBotSelectorCard
+        title="Select Bot"
+        description="Choose which ReplyBase bot this WhatsApp connection belongs to."
+        loading={loadingBots}
+        bots={bots}
+        selectedBotId={selectedBotId}
+        onSelectBot={setSelectedBotId}
+      />
 
       {selectedBotId && (
         <>

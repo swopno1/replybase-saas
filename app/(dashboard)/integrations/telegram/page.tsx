@@ -21,7 +21,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  ArrowLeft,
   CheckCircle2,
   XCircle,
   Loader2,
@@ -32,9 +31,13 @@ import {
   PlugZap,
   Clock,
 } from "lucide-react";
-import Link from "next/link";
 import { toast } from "sonner";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
+import {
+  ChannelBotSelectorCard,
+  ChannelGuidanceCard,
+  ChannelPageHeader,
+} from "@/components/channels/channel-ui";
 
 export const dynamic = "force-dynamic";
 
@@ -481,92 +484,33 @@ export default function TelegramIntegrationPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <Link href="/">
-          <Button variant="ghost" size="sm" className="mb-4">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Dashboard
-          </Button>
-        </Link>
-        <h1 className="text-3xl font-bold tracking-tight">Telegram Bot</h1>
-        <p className="text-muted-foreground mt-1">
-          Connect your Telegram bot to enable AI auto-replies
-        </p>
-      </div>
+      <ChannelPageHeader
+        title="Telegram Bot"
+        description="Connect your Telegram bot to enable AI auto-replies"
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Effective Response Mode</CardTitle>
-          <CardDescription>
-            How ReplyBase responds to Telegram messages for the selected bot.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p>
-            1. Telegram commands such as /start, /help, and /settings use
-            built-in replies.
-          </p>
-          <p>
-            2. For other messages, an active channel-assigned flow runs first.
-          </p>
-          <p>
-            3. If no channel flow is assigned, the bot entry flow is used when
-            configured.
-          </p>
-          <p>4. If no flow handles the message, AI generates the reply.</p>
-          <p>
-            5. If AI is unavailable, users receive a safe fallback message and
-            the error is logged in Webhook Activity.
-          </p>
-        </CardContent>
-      </Card>
+      <ChannelGuidanceCard
+        title="Effective Response Mode"
+        description="How ReplyBase responds to Telegram messages for the selected bot."
+        icon={Send}
+        bullets={[
+          "1. Telegram commands such as /start, /help, and /settings use built-in replies.",
+          "2. For other messages, an active channel-assigned flow runs first.",
+          "3. If no channel flow is assigned, the bot entry flow is used when configured.",
+          "4. If no flow handles the message, AI generates the reply.",
+          "5. If AI is unavailable, users receive a safe fallback message and the error is logged in Webhook Activity.",
+        ]}
+      />
 
-      {/* Bot Selection */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Send className="h-5 w-5" />
-            Select Bot
-          </CardTitle>
-          <CardDescription>
-            Choose which ReplyBase bot will handle Telegram replies. If you do
-            not have one yet, create it in Bots first.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isBotsLoading ? (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading bots...
-            </div>
-          ) : bots.length === 0 ? (
-            <div className="flex flex-col gap-3 items-start">
-              <p className="text-sm text-muted-foreground">
-                No bots found. Create a bot first.
-              </p>
-              <Link href="/bots/new">
-                <Button variant="outline" size="sm">
-                  Create Bot
-                </Button>
-              </Link>
-            </div>
-          ) : (
-            <Select value={selectedBotId} onValueChange={setSelectedBotId}>
-              <SelectTrigger className="w-full max-w-sm">
-                <SelectValue placeholder="Select a bot..." />
-              </SelectTrigger>
-              <SelectContent>
-                {bots.map((bot) => (
-                  <SelectItem key={bot.id} value={bot.id}>
-                    {bot.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </CardContent>
-      </Card>
+      <ChannelBotSelectorCard
+        title="Select Bot"
+        description="Choose which ReplyBase bot will handle Telegram replies."
+        loading={isBotsLoading}
+        bots={bots}
+        selectedBotId={selectedBotId}
+        onSelectBot={setSelectedBotId}
+        createBotHref="/bots/new"
+      />
 
       {/* Status / Connect area */}
       {selectedBotId && (

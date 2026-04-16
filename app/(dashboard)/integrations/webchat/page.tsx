@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
-  ArrowLeft,
   CheckCircle2,
   Copy,
   Eye,
@@ -39,6 +38,10 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
+import {
+  ChannelGuidanceCard,
+  ChannelPageHeader,
+} from "@/components/channels/channel-ui";
 
 export const dynamic = "force-dynamic";
 
@@ -1131,34 +1134,17 @@ export default function WebchatIntegrationPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link href="/">
-          <Button variant="ghost" size="sm" className="mb-4">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Dashboard
-          </Button>
-        </Link>
-        <h1 className="text-3xl font-bold tracking-tight">Webchat Widget</h1>
-        <p className="text-muted-foreground mt-1">
-          Generate your website chat and lead form snippets, then manage webchat
-          channel, public key, and domain config.
-        </p>
-      </div>
+      <ChannelPageHeader
+        title="Webchat Widget"
+        description="Generate your website chat and lead form snippets, then manage webchat channel, public key, and domain config."
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Effective Response Mode</CardTitle>
-          <CardDescription>
-            Active runtime behavior for webchat message handling.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <Badge variant="secondary">{webchatEffectiveMode.title}</Badge>
-          <p className="text-sm text-muted-foreground">
-            {webchatEffectiveMode.description}
-          </p>
-        </CardContent>
-      </Card>
+      <ChannelGuidanceCard
+        title="Effective Response Mode"
+        description="Active runtime behavior for webchat message handling."
+        icon={Globe}
+        bullets={[`${webchatEffectiveMode.title}: ${webchatEffectiveMode.description}`]}
+      />
 
       <Card>
         <CardHeader>
