@@ -244,7 +244,7 @@ export default function FacebookIntegrationPage() {
     const confirmed = await confirm({
       title: "Disconnect Facebook Account",
       description:
-        "Are you sure you want to disconnect your Facebook account? All linked pages will be unlinked. You can reconnect them later.",
+        "This will remove Facebook OAuth access and unlink all connected Facebook pages and related page data for this workspace. You can reconnect later. Continue?",
       confirmText: "Disconnect",
       variant: "destructive",
     });
@@ -253,25 +253,27 @@ export default function FacebookIntegrationPage() {
     }
     try {
       setIsLoading(true);
-      const connectedPageIds = pages
-        .filter((p) => p.connected || p.engineConnected)
-        .map((p) => p.id);
-      for (const pageId of connectedPageIds) {
-        const res = await fetch(`/api/integrations/facebook/pages/${pageId}`, {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-        });
-        if (!res.ok) throw new Error("Failed to unlink one or more pages");
+      const res = await fetch("/api/integrations/facebook", {
+        method: "DELETE",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to disconnect Facebook");
       }
+
       toast.success("Facebook account disconnected successfully");
       setConnected(false);
       setPages([]);
-      setIsLoading(false);
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      setSelectedFlowIdMap({});
       await fetchPages();
     } catch (error) {
       console.error("Error disconnecting Facebook account:", error);
-      toast.error("Failed to disconnect Facebook account");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to disconnect Facebook account",
+      );
+    } finally {
       setIsLoading(false);
     }
   };

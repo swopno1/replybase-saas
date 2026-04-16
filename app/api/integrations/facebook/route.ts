@@ -164,3 +164,101 @@ export async function POST(req: Request) {
     );
   }
 }
+
+export async function DELETE() {
+  // Allow cleanup even if channel gets toggled later.
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const tenantId = session.user.tenantId;
+  if (!tenantId) {
+    return NextResponse.json(
+      { error: "User or Tenant ID missing" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const pages = await tx.facebookPage.findMany({
+        where: { tenantId },
+        select: { id: true },
+      });
+      const pageIds = pages.map((p) => p.id);
+
+      if (pageIds.length > 0) {
+        await tx.flowAssignment.deleteMany({
+          where: {
+            pageId: { in: pageIds },
+          },
+        });
+
+        await tx.crmConversation.deleteMany({
+          where: {
+            facebookPageId: { in: pageIds },
+          },
+        });
+
+        await tx.lead.deleteMany({
+          where: {
+            pageId: { in: pageIds },
+          },
+        });
+
+        await tx.flowSession.deleteMany({
+          where: {
+            pageId: { in: pageIds },
+          },
+        });
+
+        await tx.onboardingSession.deleteMany({
+          where: {
+            facebookPageId: { in: pageIds },
+          },
+        });
+      }
+
+      const deletedPages = await tx.facebookPage.deleteMany({
+        where: { tenantId },
+      });
+
+      const tenantUsers = await tx.user.findMany({
+        where: { tenantId },
+        select: { id: true },
+      });
+      const tenantUserIds = tenantUsers.map((u) => u.id);
+
+      const deletedFacebookAccounts =
+        tenantUserIds.length > 0
+          ? await tx.account.deleteMany({
+              where: {
+                provider: "facebook",
+                userId: { in: tenantUserIds },
+              },
+            })
+          : { count: 0 };
+
+      return {
+        deletedPages: deletedPages.count,
+        deletedFacebookAccounts: deletedFacebookAccounts.count,
+      };
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "Facebook disconnected and related data removed",
+      ...result,
+    });
+  } catch (error) {
+    console.error("[Facebook Integration] Error disconnecting all:", error);
+    return NextResponse.json(
+      {
+        error: "Failed to disconnect Facebook",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
+    );
+  }
+}

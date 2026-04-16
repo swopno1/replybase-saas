@@ -41,6 +41,7 @@ export const GET = withAuthAndTenant(async ({ id: userId, tenantId }) => {
       let message = "Failed to fetch pages from Facebook";
       let code: number | undefined;
       let isInvalidAppSecretProof = false;
+      let isStaleFacebookAuth = false;
       try {
         const parsed = JSON.parse(errorText) as {
           error?: { message?: string; code?: number };
@@ -50,17 +51,25 @@ export const GET = withAuthAndTenant(async ({ id: userId, tenantId }) => {
           isInvalidAppSecretProof = /invalid appsecret_proof/i.test(
             parsed.error.message,
           );
+          isStaleFacebookAuth =
+            /application has been deleted/i.test(parsed.error.message) ||
+            /error validating application/i.test(parsed.error.message) ||
+            /invalid oauth access token/i.test(parsed.error.message);
         }
         if (typeof parsed.error?.code === "number") {
           code = parsed.error.code;
+          if (parsed.error.code === 190) {
+            isStaleFacebookAuth = true;
+          }
         }
       } catch {
         // Keep default message when upstream payload is not JSON.
       }
 
-      if (isInvalidAppSecretProof) {
-        // Token and app secret are out of sync (usually after rotating/replacing
-        // the Meta app). Remove stale OAuth account so user can reconnect.
+      if (isInvalidAppSecretProof || isStaleFacebookAuth) {
+        // Token/app linkage is stale (e.g. app secret changed, app replaced or
+        // deleted, or token invalid). Remove stored Facebook OAuth account so
+        // user can reconnect cleanly.
         await prisma.account.deleteMany({
           where: {
             userId,
@@ -72,7 +81,7 @@ export const GET = withAuthAndTenant(async ({ id: userId, tenantId }) => {
           pages: [],
           connected: false,
           reason:
-            "Facebook connection expired after app/secret change. Please reconnect Facebook.",
+            "Facebook connection expired or became invalid. Please reconnect Facebook.",
         });
       }
 
