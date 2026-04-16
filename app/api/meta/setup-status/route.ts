@@ -41,13 +41,11 @@ export async function GET(req: NextRequest) {
       oauthCallbackUrl: `${appBaseUrl}/api/auth/callback/facebook`,
       webhookCallbackUrl: `${appBaseUrl}/api/facebook/webhook`,
       requiredScopes: [
-        "email",
         "public_profile",
         "pages_show_list",
         "pages_read_engagement",
         "pages_manage_metadata",
         "pages_messaging",
-        "business_management",
       ],
     },
     whatsapp: {

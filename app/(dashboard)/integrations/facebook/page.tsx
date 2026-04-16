@@ -116,6 +116,11 @@ export default function FacebookIntegrationPage() {
         fetch("/api/meta/setup-status"),
       ]);
 
+      if (setupResponse.ok) {
+        const setupData = (await setupResponse.json()) as MetaSetupStatus;
+        setSetupStatus(setupData);
+      }
+
       const data = await pagesResponse.json();
       if (!pagesResponse.ok) {
         const errMsg =
@@ -140,11 +145,6 @@ export default function FacebookIntegrationPage() {
       } else {
         setConnected(false);
         setPages([]);
-      }
-
-      if (setupResponse.ok) {
-        const setupData = (await setupResponse.json()) as MetaSetupStatus;
-        setSetupStatus(setupData);
       }
     } catch (e) {
       console.error(e);
