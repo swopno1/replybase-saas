@@ -40,18 +40,40 @@ export const GET = withAuthAndTenant(async ({ id: userId, tenantId }) => {
 
       let message = "Failed to fetch pages from Facebook";
       let code: number | undefined;
+      let isInvalidAppSecretProof = false;
       try {
         const parsed = JSON.parse(errorText) as {
           error?: { message?: string; code?: number };
         };
         if (parsed.error?.message) {
           message = parsed.error.message;
+          isInvalidAppSecretProof = /invalid appsecret_proof/i.test(
+            parsed.error.message,
+          );
         }
         if (typeof parsed.error?.code === "number") {
           code = parsed.error.code;
         }
       } catch {
         // Keep default message when upstream payload is not JSON.
+      }
+
+      if (isInvalidAppSecretProof) {
+        // Token and app secret are out of sync (usually after rotating/replacing
+        // the Meta app). Remove stale OAuth account so user can reconnect.
+        await prisma.account.deleteMany({
+          where: {
+            userId,
+            provider: "facebook",
+          },
+        });
+
+        return NextResponse.json({
+          pages: [],
+          connected: false,
+          reason:
+            "Facebook connection expired after app/secret change. Please reconnect Facebook.",
+        });
       }
 
       const status = code === 190 ? 401 : 502;
