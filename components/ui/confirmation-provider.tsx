@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 type ConfirmationVariant = "default" | "destructive";
 
@@ -26,6 +27,8 @@ type ConfirmationOptions = {
   confirmText?: string;
   cancelText?: string;
   variant?: ConfirmationVariant;
+  requireText?: string;
+  requireTextPlaceholder?: string;
 };
 
 type ConfirmationDialogState = ConfirmationOptions & {
@@ -59,8 +62,10 @@ function normalizeOptions(
 export function ConfirmationProvider({ children }: { children: ReactNode }) {
   const [dialogState, setDialogState] =
     useState<ConfirmationDialogState | null>(null);
+  const [typedConfirmation, setTypedConfirmation] = useState("");
 
   const closeDialog = useCallback((confirmed: boolean) => {
+    setTypedConfirmation("");
     setDialogState((current) => {
       if (!current) {
         return null;
@@ -75,6 +80,7 @@ export function ConfirmationProvider({ children }: { children: ReactNode }) {
     const normalized = normalizeOptions(options, "confirm");
 
     return new Promise<boolean>((resolve) => {
+      setTypedConfirmation("");
       setDialogState({
         mode: "confirm",
         title: normalized.title || "Please Confirm",
@@ -82,6 +88,8 @@ export function ConfirmationProvider({ children }: { children: ReactNode }) {
         confirmText: normalized.confirmText || "Confirm",
         cancelText: normalized.cancelText || "Cancel",
         variant: normalized.variant || "default",
+        requireText: normalized.requireText,
+        requireTextPlaceholder: normalized.requireTextPlaceholder,
         resolve,
       });
     });
@@ -91,6 +99,7 @@ export function ConfirmationProvider({ children }: { children: ReactNode }) {
     const normalized = normalizeOptions(options, "alert");
 
     return new Promise<void>((resolve) => {
+      setTypedConfirmation("");
       setDialogState({
         mode: "alert",
         title: normalized.title || "Notice",
@@ -110,6 +119,13 @@ export function ConfirmationProvider({ children }: { children: ReactNode }) {
     [alert, confirm],
   );
 
+  const requiresTypedConfirmation =
+    dialogState?.mode === "confirm" && Boolean(dialogState.requireText);
+  const typedConfirmationMatches =
+    !requiresTypedConfirmation ||
+    typedConfirmation.trim().toUpperCase() ===
+      String(dialogState?.requireText).toUpperCase();
+
   return (
     <ConfirmationContext.Provider value={value}>
       {children}
@@ -128,6 +144,21 @@ export function ConfirmationProvider({ children }: { children: ReactNode }) {
               <DialogDescription>{dialogState.description}</DialogDescription>
             ) : null}
           </DialogHeader>
+          {requiresTypedConfirmation ? (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Type <strong>{dialogState?.requireText}</strong> to confirm.
+              </p>
+              <Input
+                value={typedConfirmation}
+                onChange={(event) => setTypedConfirmation(event.target.value)}
+                placeholder={
+                  dialogState?.requireTextPlaceholder || "Type to confirm"
+                }
+                autoFocus
+              />
+            </div>
+          ) : null}
           <DialogFooter>
             {dialogState?.mode === "confirm" ? (
               <Button
@@ -144,6 +175,9 @@ export function ConfirmationProvider({ children }: { children: ReactNode }) {
                 dialogState?.variant === "destructive"
                   ? "destructive"
                   : "default"
+              }
+              disabled={
+                dialogState?.mode === "confirm" && !typedConfirmationMatches
               }
               onClick={() => {
                 closeDialog(true);

@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import BillingTabContent from "@/components/settings/billing-tab";
+import { useConfirmation } from "@/components/ui/confirmation-provider";
 
 const VALID_TABS = [
   "profile",
@@ -41,6 +42,7 @@ function SettingsTabsInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { data: session, update } = useSession();
+  const { confirm } = useConfirmation();
 
   const rawTab = searchParams.get("tab");
   const activeTab: SettingsTab = VALID_TABS.includes(rawTab as SettingsTab)
@@ -54,8 +56,6 @@ function SettingsTabsInner() {
   const [isLoading, setIsLoading] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
   const [newsletterLoading, setNewsletterLoading] = useState(false);
   const [notificationDestinations, setNotificationDestinations] = useState({
     emailRecipients: "",
@@ -309,8 +309,17 @@ function SettingsTabsInner() {
   };
 
   const handleDeleteAccount = async () => {
-    if (deleteConfirmationText.trim().toUpperCase() !== "DELETE") {
-      toast.error('Please type "DELETE" to confirm');
+    const confirmed = await confirm({
+      title: "Delete Account",
+      description:
+        "This action is permanent. Type DELETE to confirm account deletion.",
+      confirmText: "Delete Account",
+      variant: "destructive",
+      requireText: "DELETE",
+      requireTextPlaceholder: "Type DELETE",
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -772,57 +781,14 @@ function SettingsTabsInner() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {!showDeleteConfirm ? (
-              <Button
-                variant="destructive"
-                onClick={() => setShowDeleteConfirm(true)}
-                className="gap-2"
-              >
-                Delete Account
-              </Button>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-sm font-medium text-red-900">
-                  Are you sure? This cannot be undone.
-                </p>
-                <p className="text-xs text-red-800">
-                  Type <strong>DELETE</strong> to confirm account deletion.
-                </p>
-                <Input
-                  value={deleteConfirmationText}
-                  onChange={(event) =>
-                    setDeleteConfirmationText(event.target.value)
-                  }
-                  placeholder="Type DELETE"
-                  className="bg-white"
-                  disabled={isDeletingAccount}
-                />
-                <div className="flex gap-2">
-                  <Button
-                    variant="destructive"
-                    onClick={handleDeleteAccount}
-                    disabled={
-                      isDeletingAccount ||
-                      deleteConfirmationText.trim().toUpperCase() !== "DELETE"
-                    }
-                  >
-                    {isDeletingAccount
-                      ? "Submitting..."
-                      : "Yes, Delete My Account"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowDeleteConfirm(false);
-                      setDeleteConfirmationText("");
-                    }}
-                    disabled={isDeletingAccount}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            )}
+            <Button
+              variant="destructive"
+              onClick={handleDeleteAccount}
+              className="gap-2"
+              disabled={isDeletingAccount}
+            >
+              {isDeletingAccount ? "Submitting..." : "Delete Account"}
+            </Button>
           </CardContent>
         </Card>
       </TabsContent>
