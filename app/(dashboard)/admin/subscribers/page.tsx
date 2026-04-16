@@ -29,6 +29,7 @@ import {
 import { Loader2, Search, Pencil, Trash2, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { EditSubscriberDialog } from "@/components/edit-subscriber-dialog";
+import { useConfirmation } from "@/components/ui/confirmation-provider";
 
 export const dynamic = 'force-dynamic';
 
@@ -59,6 +60,7 @@ interface Subscriber {
 }
 
 export default function SubscribersPage() {
+  const { confirm } = useConfirmation();
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [filteredSubscribers, setFilteredSubscribers] = useState<Subscriber[]>(
     [],
@@ -121,7 +123,14 @@ export default function SubscribersPage() {
   };
 
   const handleDelete = async (subscriberId: string) => {
-    if (!confirm("Are you sure you want to delete this subscription?")) {
+    const confirmed = await confirm({
+      title: "Delete Subscription",
+      description: "Are you sure you want to delete this subscription?",
+      confirmText: "Delete",
+      variant: "destructive",
+    });
+
+    if (!confirmed) {
       return;
     }
 

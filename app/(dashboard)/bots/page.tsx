@@ -4,8 +4,9 @@ import { BotList } from "@/components/bot-list";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useConfirmation } from "@/components/ui/confirmation-provider";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 /**
  * Secure access to the Typebot authoring workspace via SaaS-controlled OIDC.
@@ -16,6 +17,7 @@ export const dynamic = 'force-dynamic';
 export default function BotsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { alert } = useConfirmation();
 
   const handleLaunchBuilder = async () => {
     setIsLoading(true);
@@ -59,7 +61,10 @@ export default function BotsPage() {
       }
     } catch (error: unknown) {
       console.error("[Authoring Workspace] Error:", error);
-      alert("Failed to open authoring workspace. Please try again.");
+      await alert({
+        title: "Could Not Open Authoring Workspace",
+        description: "Failed to open authoring workspace. Please try again.",
+      });
     } finally {
       setIsLoading(false);
     }

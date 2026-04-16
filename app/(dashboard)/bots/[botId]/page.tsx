@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { isChannelVisibleInUi, type ChannelId } from "@/lib/channel-config";
+import { useConfirmation } from "@/components/ui/confirmation-provider";
 
 export const dynamic = "force-dynamic";
 
@@ -88,6 +89,7 @@ function isBotChannelVisible(channelType: string): boolean {
 export default function BotDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { alert, confirm } = useConfirmation();
   const botId = params.botId as string;
   const [bot, setBot] = useState<Bot | null>(null);
   const [loading, setLoading] = useState(true);
@@ -174,11 +176,14 @@ export default function BotDetailPage() {
       await fetchBot();
     } catch (error) {
       console.error("Failed to add channel:", error);
-      alert(
-        error instanceof Error
-          ? error.message
-          : "Failed to add channel. Please try again.",
-      );
+      await alert({
+        title: "Failed to Add Channel",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to add channel. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setAddingChannelType(null);
     }
@@ -223,9 +228,12 @@ export default function BotDetailPage() {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Remove ${channelLabel(channelType)} channel from this bot?`,
-    );
+    const confirmed = await confirm({
+      title: "Remove Channel",
+      description: `Remove ${channelLabel(channelType)} channel from this bot?`,
+      confirmText: "Remove",
+      variant: "destructive",
+    });
     if (!confirmed) {
       return;
     }
@@ -244,11 +252,14 @@ export default function BotDetailPage() {
       await fetchBot();
     } catch (error) {
       console.error("Failed to remove channel:", error);
-      alert(
-        error instanceof Error
-          ? error.message
-          : "Failed to remove channel. Please try again.",
-      );
+      await alert({
+        title: "Failed to Remove Channel",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to remove channel. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setDeletingChannelId(null);
     }
@@ -259,9 +270,12 @@ export default function BotDetailPage() {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Delete bot \"${bot.name}\"? This removes its channels, webchat sites, and execution logs. Existing conversation history will be detached from the bot reference.`,
-    );
+    const confirmed = await confirm({
+      title: "Delete Bot",
+      description: `Delete bot \"${bot.name}\"? This removes its channels, webchat sites, and execution logs. Existing conversation history will be detached from the bot reference.`,
+      confirmText: "Delete Bot",
+      variant: "destructive",
+    });
 
     if (!confirmed) {
       return;
@@ -282,11 +296,14 @@ export default function BotDetailPage() {
       router.refresh();
     } catch (error) {
       console.error("Failed to delete bot:", error);
-      alert(
-        error instanceof Error
-          ? error.message
-          : "Failed to delete bot. Please try again.",
-      );
+      await alert({
+        title: "Failed to Delete Bot",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to delete bot. Please try again.",
+        variant: "destructive",
+      });
       setDeletingBot(false);
     }
   };

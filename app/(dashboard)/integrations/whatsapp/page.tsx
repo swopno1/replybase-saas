@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { isChannelVisibleInUi } from "@/lib/channel-config";
+import { useConfirmation } from "@/components/ui/confirmation-provider";
 
 export const dynamic = "force-dynamic";
 
@@ -102,6 +103,7 @@ const PROVIDER_LABELS: Record<ProviderId, string> = {
 };
 
 export default function WhatsAppIntegrationPage() {
+  const { confirm } = useConfirmation();
   const router = useRouter();
   const channelVisible = isChannelVisibleInUi("whatsapp");
   const [bots, setBots] = useState<Bot[]>([]);
@@ -454,9 +456,13 @@ export default function WhatsAppIntegrationPage() {
       return;
     }
 
-    const confirmed = window.confirm(
-      "Disconnect this WhatsApp integration? Incoming and outgoing messages will stop until reconnected.",
-    );
+    const confirmed = await confirm({
+      title: "Disconnect WhatsApp",
+      description:
+        "Disconnect this WhatsApp integration? Incoming and outgoing messages will stop until reconnected.",
+      confirmText: "Disconnect",
+      variant: "destructive",
+    });
     if (!confirmed) {
       return;
     }

@@ -31,6 +31,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { isChannelVisibleInUi } from "@/lib/channel-config";
+import { useConfirmation } from "@/components/ui/confirmation-provider";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +71,7 @@ interface MetaSetupStatus {
 
 export default function FacebookIntegrationPage() {
   const router = useRouter();
+  const { confirm } = useConfirmation();
   const channelVisible = isChannelVisibleInUi("facebook");
   const [isLoading, setIsLoading] = useState(true);
   const [pages, setPages] = useState<FBPage[]>([]);
@@ -203,11 +205,13 @@ export default function FacebookIntegrationPage() {
   };
 
   const handleUnlinkPage = async (page: FBPage) => {
-    if (
-      !confirm(
-        `Are you sure you want to unlink "${page.name}"? You can reconnect it later.`,
-      )
-    ) {
+    const confirmed = await confirm({
+      title: "Unlink Facebook Page",
+      description: `Are you sure you want to unlink "${page.name}"? You can reconnect it later.`,
+      confirmText: "Unlink",
+      variant: "destructive",
+    });
+    if (!confirmed) {
       return;
     }
     setStatusMap((prev) => ({ ...prev, [page.id]: "unlinking" }));
@@ -233,11 +237,14 @@ export default function FacebookIntegrationPage() {
   };
 
   const handleUnlinkAllPages = async () => {
-    if (
-      !confirm(
+    const confirmed = await confirm({
+      title: "Disconnect Facebook Account",
+      description:
         "Are you sure you want to disconnect your Facebook account? All linked pages will be unlinked. You can reconnect them later.",
-      )
-    ) {
+      confirmText: "Disconnect",
+      variant: "destructive",
+    });
+    if (!confirmed) {
       return;
     }
     try {

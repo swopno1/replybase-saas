@@ -26,6 +26,7 @@ import {
 import { toast } from "sonner";
 import { Loader2, Mail, MoreHorizontal, Phone, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useConfirmation } from "@/components/ui/confirmation-provider";
 
 export const dynamic = "force-dynamic";
 
@@ -82,6 +83,7 @@ function getLeadPhone(lead: Lead): string | null {
 }
 
 export default function LeadsPage() {
+  const { confirm } = useConfirmation();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingLeadId, setDeletingLeadId] = useState<string | null>(null);
@@ -132,9 +134,12 @@ export default function LeadsPage() {
   };
 
   const handleDeleteLead = async (leadId: string) => {
-    const confirmed = window.confirm(
-      "Delete this lead? This action cannot be undone.",
-    );
+    const confirmed = await confirm({
+      title: "Delete Lead",
+      description: "Delete this lead? This action cannot be undone.",
+      confirmText: "Delete",
+      variant: "destructive",
+    });
 
     if (!confirmed) {
       return;

@@ -14,6 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useConfirmation } from "@/components/ui/confirmation-provider";
 
 type ConversationListItem = {
   id: string;
@@ -49,6 +50,7 @@ export function ConversationsList({
   initialConversations,
 }: ConversationsListProps) {
   const router = useRouter();
+  const { confirm } = useConfirmation();
   const [conversations, setConversations] = useState(initialConversations);
   const [deletingConversationId, setDeletingConversationId] = useState<
     string | null
@@ -69,9 +71,12 @@ export function ConversationsList({
   };
 
   const handleDeleteConversation = async (conversationId: string) => {
-    const confirmed = window.confirm(
-      "Delete this conversation? This cannot be undone.",
-    );
+    const confirmed = await confirm({
+      title: "Delete Conversation",
+      description: "Delete this conversation? This cannot be undone.",
+      confirmText: "Delete",
+      variant: "destructive",
+    });
 
     if (!confirmed) {
       return;

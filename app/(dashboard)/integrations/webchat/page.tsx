@@ -38,8 +38,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useConfirmation } from "@/components/ui/confirmation-provider";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 type Bot = {
   id: string;
@@ -172,6 +173,7 @@ function normalizeAllowedDomains(values: string[]) {
 }
 
 export default function WebchatIntegrationPage() {
+  const { confirm } = useConfirmation();
   const [bots, setBots] = useState<Bot[]>([]);
   const [isBotsLoading, setIsBotsLoading] = useState(true);
   const [selectedBotId, setSelectedBotId] = useState("");
@@ -947,7 +949,14 @@ export default function WebchatIntegrationPage() {
       ? "Rotate the public key? Existing embed snippets will stop working until they are updated."
       : "Rotate the secret key? Use the new value anywhere this site secret is stored.";
 
-    if (!window.confirm(confirmMessage)) {
+    const confirmed = await confirm({
+      title: rotatePublicKey ? "Rotate Public Key" : "Rotate Secret Key",
+      description: confirmMessage,
+      confirmText: "Rotate",
+      variant: "destructive",
+    });
+
+    if (!confirmed) {
       return;
     }
 

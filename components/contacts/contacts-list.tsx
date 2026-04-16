@@ -14,6 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useConfirmation } from "@/components/ui/confirmation-provider";
 
 type ContactIdentity = { type: string; value: string };
 type ContactConversation = { id: string; channel: string; updatedAt: string };
@@ -60,15 +61,20 @@ function getVisitorDisplayName(contact: ContactListItem) {
 
 export function ContactsList({ initialContacts }: ContactsListProps) {
   const router = useRouter();
+  const { confirm } = useConfirmation();
   const [contacts, setContacts] = useState(initialContacts);
   const [deletingContactId, setDeletingContactId] = useState<string | null>(
     null,
   );
 
   const handleDeleteContact = async (contactId: string) => {
-    const confirmed = window.confirm(
-      "Delete this contact? Related conversation links may be removed.",
-    );
+    const confirmed = await confirm({
+      title: "Delete Contact",
+      description:
+        "Delete this contact? Related conversation links may be removed.",
+      confirmText: "Delete",
+      variant: "destructive",
+    });
 
     if (!confirmed) {
       return;

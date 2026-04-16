@@ -15,8 +15,9 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { isChannelVisibleInUi, type ChannelId } from "@/lib/channel-config";
+import { useConfirmation } from "@/components/ui/confirmation-provider";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 type BotChannelType = "web" | "telegram" | "facebook" | "whatsapp";
 
@@ -30,6 +31,7 @@ function isBotChannelVisible(channel: BotChannelType): boolean {
 
 function CreateBotContent() {
   const router = useRouter();
+  const { alert } = useConfirmation();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -42,7 +44,10 @@ function CreateBotContent() {
 
     try {
       if (!formData.name.trim()) {
-        alert("Bot name is required");
+        await alert({
+          title: "Bot Name Required",
+          description: "Please enter a bot name before creating the bot.",
+        });
         setLoading(false);
         return;
       }
@@ -58,15 +63,26 @@ function CreateBotContent() {
 
       if (response.ok) {
         await response.json();
-        alert("Bot created successfully!");
+        await alert({
+          title: "Bot Created",
+          description: "Your bot was created successfully.",
+        });
         router.push("/bots");
       } else {
         const error = await response.json();
-        alert(`Failed to create bot: ${error.error || "Unknown error"}`);
+        await alert({
+          title: "Failed to Create Bot",
+          description: `Failed to create bot: ${error.error || "Unknown error"}`,
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("An error occurred while creating the bot");
+      await alert({
+        title: "Unexpected Error",
+        description: "An error occurred while creating the bot.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

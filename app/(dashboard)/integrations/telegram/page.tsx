@@ -34,8 +34,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { useConfirmation } from "@/components/ui/confirmation-provider";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 interface Bot {
   id: string;
@@ -107,6 +108,7 @@ interface WebhookLogEntry {
 }
 
 export default function TelegramIntegrationPage() {
+  const { confirm } = useConfirmation();
   const [bots, setBots] = useState<Bot[]>([]);
   const [selectedBotId, setSelectedBotId] = useState("");
   const [botToken, setBotToken] = useState("");
@@ -409,12 +411,14 @@ export default function TelegramIntegrationPage() {
 
   const handleDisconnect = async () => {
     if (!status?.channel?.id) return;
-    if (
-      !confirm(
+    const confirmed = await confirm({
+      title: "Disconnect Telegram Bot",
+      description:
         "Are you sure you want to disconnect this Telegram bot? The webhook will be removed.",
-      )
-    )
-      return;
+      confirmText: "Disconnect",
+      variant: "destructive",
+    });
+    if (!confirmed) return;
 
     setIsDisconnecting(true);
     try {

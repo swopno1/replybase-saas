@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useConfirmation } from "@/components/ui/confirmation-provider";
 
 interface CreateBotFormProps {
   projectId: string;
@@ -11,6 +12,7 @@ interface CreateBotFormProps {
 
 export function CreateBotForm({ projectId }: CreateBotFormProps) {
   const router = useRouter();
+  const { alert } = useConfirmation();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -35,11 +37,17 @@ export function CreateBotForm({ projectId }: CreateBotFormProps) {
       if (res.ok) {
         router.push("/bots");
       } else {
-        alert("Failed to create bot");
+        await alert({
+          title: "Failed to Create Bot",
+          description: "Please check your input and try again.",
+        });
       }
     } catch (error) {
       console.error("Error creating bot:", error);
-      alert("An error occurred");
+      await alert({
+        title: "Unexpected Error",
+        description: "An error occurred while creating the bot.",
+      });
     } finally {
       setLoading(false);
     }
