@@ -309,7 +309,7 @@ export default async function DashboardPage() {
         ? leadNotificationSettings?.updatedAt || null
         : null,
       actionLabel: "Configure destinations",
-      actionHref: "/settings",
+      actionHref: "/settings?tab=notifications",
     },
   ];
 

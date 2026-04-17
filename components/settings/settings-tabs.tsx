@@ -365,27 +365,55 @@ function SettingsTabsInner() {
       const data = (await response.json().catch(() => null)) as {
         error?: string;
         results?: {
-          telegram?: { delivered: number; failed: number; attempted: boolean };
-          email?: { delivered: number; failed: number; attempted: boolean };
+          telegram?: {
+            delivered: number;
+            failed: number;
+            attempted: boolean;
+            errors?: string[];
+          };
+          email?: {
+            delivered: number;
+            failed: number;
+            attempted: boolean;
+            errors?: string[];
+          };
         };
       } | null;
 
       if (!response.ok)
         throw new Error(data?.error || "Failed to send test notification");
 
-      const telegramDelivered = data?.results?.telegram?.delivered || 0;
-      const telegramFailed = data?.results?.telegram?.failed || 0;
-      const emailDelivered = data?.results?.email?.delivered || 0;
-      const emailFailed = data?.results?.email?.failed || 0;
+      const tg = data?.results?.telegram;
+      const em = data?.results?.email;
+      const telegramDelivered = tg?.delivered ?? 0;
+      const emailDelivered = em?.delivered ?? 0;
+      const telegramAttempted = tg?.attempted ?? false;
+      const emailAttempted = em?.attempted ?? false;
 
-      if (telegramDelivered + emailDelivered === 0) {
-        toast.message(
-          "Test sent, but no destination succeeded. Check your configured recipients and Telegram channel connection.",
+      const allErrors = [...(tg?.errors ?? []), ...(em?.errors ?? [])];
+
+      if (!telegramAttempted && !emailAttempted) {
+        // Nothing is configured at all
+        toast.warning(
+          "No notification destinations configured. Add your email or Telegram chat ID in Notification Settings.",
         );
+      } else if (telegramDelivered + emailDelivered === 0) {
+        // Attempted but everything failed — show the actual reason
+        const reason = allErrors.length
+          ? allErrors.join(" | ")
+          : "Check your configured recipients and Telegram channel connection.";
+        toast.error(`Test delivery failed: ${reason}`);
       } else {
-        toast.success(
-          `Test sent. Telegram delivered: ${telegramDelivered}, failed: ${telegramFailed}. Email delivered: ${emailDelivered}, failed: ${emailFailed}.`,
-        );
+        const parts: string[] = [];
+        if (emailAttempted)
+          parts.push(
+            `Email: ${emailDelivered} delivered${em?.failed ? `, ${em.failed} failed` : ""}`,
+          );
+        if (telegramAttempted)
+          parts.push(
+            `Telegram: ${telegramDelivered} delivered${tg?.failed ? `, ${tg.failed} failed` : ""}`,
+          );
+        toast.success(`Test notification sent — ${parts.join(" · ")}`);
       }
     } catch (error) {
       console.error("Lead notification test error:", error);

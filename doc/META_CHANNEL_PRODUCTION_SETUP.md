@@ -36,10 +36,8 @@ Meta App Dashboard settings:
    - Value from `FACEBOOK_WEBHOOK_VERIFY_TOKEN`
 6. Ensure app has these permissions approved:
    - `pages_show_list`
-   - `pages_read_engagement`
    - `pages_manage_metadata`
    - `pages_messaging`
-   - `business_management`
 
 ## 3. WhatsApp Cloud API Configuration (Meta)
 
