@@ -112,10 +112,25 @@ export default function FlowsPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<
     | "welcome"
     | "lead-generation"
+    | "lead-capture"
     | "real-estate"
     | "services"
     | "agencies"
     | "booking"
+    | "boutique-gym"
+    | "personal-training"
+    | "crossfit-gym"
+    | "boot-camp"
+    | "yoga-studio"
+    | "hair-salon"
+    | "barbershop"
+    | "day-spa"
+    | "nail-salon"
+    | "cleaning-services"
+    | "landscaping"
+    | "handyman"
+    | "pet-care"
+    | "care-services"
     | null
   >(null);
 
@@ -581,13 +596,48 @@ export default function FlowsPage() {
                   ? "Welcome Flow: Triage & Routing"
                   : selectedTemplate === "lead-generation"
                     ? "Lead Generation: Qualification Funnel"
-                    : selectedTemplate === "real-estate"
-                      ? "Real Estate: Buyer & Seller Leads"
-                      : selectedTemplate === "services"
-                        ? "Services: Qualification & Booking"
-                        : selectedTemplate === "agencies"
-                          ? "Agencies: Project Discovery"
-                          : "Booking: Appointments & Reservations"}
+                    : selectedTemplate === "lead-capture"
+                      ? "Lead Capture: Quick Contact Micro-Flow"
+                      : selectedTemplate === "real-estate"
+                        ? "Real Estate: Buyer & Seller Leads"
+                        : selectedTemplate === "services"
+                          ? "Services: Qualification & Booking"
+                          : selectedTemplate === "agencies"
+                            ? "Agencies: Project Discovery"
+                            : selectedTemplate === "booking"
+                              ? "Booking: Appointments & Reservations"
+                              : selectedTemplate === "boutique-gym"
+                                ? "Boutique Gym: Membership Enquiry"
+                                : selectedTemplate === "personal-training"
+                                  ? "Personal Training: Client Intake"
+                                  : selectedTemplate === "crossfit-gym"
+                                    ? "CrossFit Gym: Trial & Membership"
+                                    : selectedTemplate === "boot-camp"
+                                      ? "Boot Camp: Programme Enquiry"
+                                      : selectedTemplate === "yoga-studio"
+                                        ? "Yoga Studio: Class Booking & Membership"
+                                        : selectedTemplate === "hair-salon"
+                                          ? "Hair Salon: Booking & Service Enquiry"
+                                          : selectedTemplate === "barbershop"
+                                            ? "Barbershop: Appointment Booking"
+                                            : selectedTemplate === "day-spa"
+                                              ? "Day Spa: Treatment Booking"
+                                              : selectedTemplate ===
+                                                  "nail-salon"
+                                                ? "Nail Salon: Appointment Booking"
+                                                : selectedTemplate ===
+                                                    "cleaning-services"
+                                                  ? "Cleaning Services: Quote & Booking"
+                                                  : selectedTemplate ===
+                                                      "landscaping"
+                                                    ? "Landscaping & Gardening: Quote Request"
+                                                    : selectedTemplate ===
+                                                        "handyman"
+                                                      ? "Handyman & Repair: Job Booking"
+                                                      : selectedTemplate ===
+                                                          "pet-care"
+                                                        ? "Pet Care: Booking & Service Enquiry"
+                                                        : "Child & Elder Care: Service Enquiry"}
               </div>
             </div>
           )}
@@ -685,161 +735,341 @@ export default function FlowsPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto px-6 py-4">
-            <div className="grid grid-cols-1 gap-4">
-              <div
-                className={`cursor-pointer rounded-lg border-2 p-4 transition-all ${
-                  selectedTemplate === "welcome"
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-200 hover:border-gray-300"
-                }`}
-                onClick={() => setSelectedTemplate("welcome")}
-              >
-                <div className="flex items-start gap-3">
-                  <Globe className="mt-1 h-5 w-5 text-blue-600" />
-                  <div>
-                    <div className="font-medium">
-                      Welcome Flow: Triage & Routing
+            <div className="space-y-6">
+              {/* ── Universal ─────────────────────────────────────── */}
+              <div>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Universal
+                </p>
+                <div className="grid grid-cols-1 gap-3">
+                  {[
+                    {
+                      id: "welcome" as const,
+                      icon: <Globe className="mt-1 h-5 w-5 text-blue-600" />,
+                      title: "Welcome Flow: Triage & Routing",
+                      desc: "A fast starting point for greeting visitors, capturing intent, and routing them to pricing, booking, or support.",
+                      meta: "6 nodes • Branching ready",
+                    },
+                    {
+                      id: "lead-generation" as const,
+                      icon: <Users className="mt-1 h-5 w-5 text-blue-600" />,
+                      title: "Lead Generation: Qualification Funnel",
+                      desc: "Captures contact details, intent, budget, and timeline for inbound campaigns. Tags qualified leads automatically.",
+                      meta: "9 nodes • Sales-ready",
+                    },
+                    {
+                      id: "lead-capture" as const,
+                      icon: <Users className="mt-1 h-5 w-5 text-green-600" />,
+                      title: "Lead Capture: Quick Contact Micro-Flow",
+                      desc: "Minimal 5-step micro-flow for fast lead capture. Collect name, email, phone, and one qualifying question. Ideal for any business.",
+                      meta: "7 nodes • Micro-flow",
+                    },
+                  ].map((t) => (
+                    <div
+                      key={t.id}
+                      className={`cursor-pointer rounded-lg border-2 p-4 transition-all ${
+                        selectedTemplate === t.id
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                      onClick={() => setSelectedTemplate(t.id)}
+                    >
+                      <div className="flex items-start gap-3">
+                        {t.icon}
+                        <div>
+                          <div className="font-medium">{t.title}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {t.desc}
+                          </div>
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            {t.meta}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      A fast starting point for greeting visitors, understanding
-                      intent, and routing them to pricing, booking, or support
-                      paths.
-                    </div>
-                    <div className="mt-2 text-xs text-muted-foreground">
-                      6 conversation nodes • Branching ready
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
 
-              <div
-                className={`cursor-pointer rounded-lg border-2 p-4 transition-all ${
-                  selectedTemplate === "lead-generation"
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-200 hover:border-gray-300"
-                }`}
-                onClick={() => setSelectedTemplate("lead-generation")}
-              >
-                <div className="flex items-start gap-3">
-                  <Users className="mt-1 h-5 w-5 text-blue-600" />
-                  <div>
-                    <div className="font-medium">
-                      Lead Generation: Qualification Funnel
+              {/* ── Professional / B2B ────────────────────────────── */}
+              <div>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Professional &amp; B2B
+                </p>
+                <div className="grid grid-cols-1 gap-3">
+                  {[
+                    {
+                      id: "real-estate" as const,
+                      icon: <Calendar className="mt-1 h-5 w-5 text-blue-600" />,
+                      title: "Real Estate: Buyer & Seller Leads",
+                      desc: "Qualifies buyer, seller, rental, or viewing enquiries and routes each request into the right follow-up path.",
+                      meta: "7 nodes • Multi-branch ready",
+                    },
+                    {
+                      id: "services" as const,
+                      icon: <Wrench className="mt-1 h-5 w-5 text-blue-600" />,
+                      title: "Services: Qualification & Booking",
+                      desc: "Perfect for consultants, plumbers, IT support, and other service providers. Qualifies leads and captures booking requests.",
+                      meta: "7 nodes • Multi-channel ready",
+                    },
+                    {
+                      id: "agencies" as const,
+                      icon: <Users className="mt-1 h-5 w-5 text-blue-600" />,
+                      title: "Agencies: Project Discovery",
+                      desc: "Built for marketing, digital, and design agencies. Discovers project scope, budget, and timeline before human handoff.",
+                      meta: "7 nodes • Multi-channel ready",
+                    },
+                    {
+                      id: "booking" as const,
+                      icon: <Calendar className="mt-1 h-5 w-5 text-blue-600" />,
+                      title: "Booking: Appointments & Reservations",
+                      desc: "Ideal for any booking-heavy business. Confirms service, collects contact info, and captures preferred time.",
+                      meta: "7 nodes • Multi-channel ready",
+                    },
+                  ].map((t) => (
+                    <div
+                      key={t.id}
+                      className={`cursor-pointer rounded-lg border-2 p-4 transition-all ${
+                        selectedTemplate === t.id
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                      onClick={() => setSelectedTemplate(t.id)}
+                    >
+                      <div className="flex items-start gap-3">
+                        {t.icon}
+                        <div>
+                          <div className="font-medium">{t.title}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {t.desc}
+                          </div>
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            {t.meta}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      Built for campaigns and inbound enquiries. Captures
-                      contact details, intent, budget, and follow-up context.
-                    </div>
-                    <div className="mt-2 text-xs text-muted-foreground">
-                      8 conversation nodes • Sales-ready
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
 
-              <div
-                className={`cursor-pointer rounded-lg border-2 p-4 transition-all ${
-                  selectedTemplate === "real-estate"
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-200 hover:border-gray-300"
-                }`}
-                onClick={() => setSelectedTemplate("real-estate")}
-              >
-                <div className="flex items-start gap-3">
-                  <Calendar className="mt-1 h-5 w-5 text-blue-600" />
-                  <div>
-                    <div className="font-medium">
-                      Real Estate: Buyer & Seller Leads
+              {/* ── Fitness ───────────────────────────────────────── */}
+              <div>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Fitness
+                </p>
+                <div className="grid grid-cols-1 gap-3">
+                  {[
+                    {
+                      id: "boutique-gym" as const,
+                      title: "Boutique Gym: Membership Enquiry",
+                      desc: "Qualifies new membership, class, or tour enquiries. Captures fitness goal, schedule preference, and contact details.",
+                      meta: "8 nodes • Membership-ready",
+                    },
+                    {
+                      id: "personal-training" as const,
+                      title: "Personal Training: Client Intake",
+                      desc: "Captures fitness goals, experience, health notes, and availability before the first session.",
+                      meta: "9 nodes • Client intake",
+                    },
+                    {
+                      id: "crossfit-gym" as const,
+                      title: "CrossFit Gym: Trial & Membership",
+                      desc: "Warms up new visitors, assesses experience, and drives them toward a free intro session or membership.",
+                      meta: "8 nodes • Intro session ready",
+                    },
+                    {
+                      id: "boot-camp" as const,
+                      title: "Boot Camp: Programme Enquiry",
+                      desc: "Captures programme interest, fitness level, and contact info for outdoor or indoor boot camp programmes.",
+                      meta: "7 nodes • Programme-ready",
+                    },
+                    {
+                      id: "yoga-studio" as const,
+                      title: "Yoga Studio: Class Booking & Membership",
+                      desc: "Captures class preferences, yoga experience level, and schedule to confirm bookings or memberships.",
+                      meta: "8 nodes • Booking-ready",
+                    },
+                  ].map((t) => (
+                    <div
+                      key={t.id}
+                      className={`cursor-pointer rounded-lg border-2 p-4 transition-all ${
+                        selectedTemplate === t.id
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                      onClick={() => setSelectedTemplate(t.id)}
+                    >
+                      <div className="flex items-start gap-3">
+                        <Wrench className="mt-1 h-5 w-5 text-orange-500" />
+                        <div>
+                          <div className="font-medium">{t.title}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {t.desc}
+                          </div>
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            {t.meta}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      Qualifies buyer, seller, rental, or viewing enquiries and
-                      routes each request into the right follow-up path.
-                    </div>
-                    <div className="mt-2 text-xs text-muted-foreground">
-                      7 conversation nodes • Multi-branch ready
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Services Template */}
-              <div
-                className={`cursor-pointer rounded-lg border-2 p-4 transition-all ${
-                  selectedTemplate === "services"
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-200 hover:border-gray-300"
-                }`}
-                onClick={() => setSelectedTemplate("services")}
-              >
-                <div className="flex items-start gap-3">
-                  <Wrench className="mt-1 h-5 w-5 text-blue-600" />
-                  <div>
-                    <div className="font-medium">
-                      Services: Qualification & Booking
+              {/* ── Beauty & Wellness ─────────────────────────────── */}
+              <div>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Beauty &amp; Wellness
+                </p>
+                <div className="grid grid-cols-1 gap-3">
+                  {[
+                    {
+                      id: "hair-salon" as const,
+                      title: "Hair Salon: Booking & Service Enquiry",
+                      desc: "Captures service type, stylist preference, and booking time to confirm hair appointments.",
+                      meta: "8 nodes • Booking-ready",
+                    },
+                    {
+                      id: "barbershop" as const,
+                      title: "Barbershop: Appointment Booking",
+                      desc: "Quick booking flow for cuts, beard trims, and shaves. Captures service, barber preference, and time.",
+                      meta: "8 nodes • Booking-ready",
+                    },
+                    {
+                      id: "day-spa" as const,
+                      title: "Day Spa: Treatment Booking",
+                      desc: "Captures treatment type, booking purpose (self/gift/group), date preference, and special requests.",
+                      meta: "9 nodes • Booking-ready",
+                    },
+                    {
+                      id: "nail-salon" as const,
+                      title: "Nail Salon: Appointment Booking",
+                      desc: "Fast appointment booking for gel, acrylic, pedicures, and nail art. Captures service, name, and time.",
+                      meta: "7 nodes • Booking-ready",
+                    },
+                  ].map((t) => (
+                    <div
+                      key={t.id}
+                      className={`cursor-pointer rounded-lg border-2 p-4 transition-all ${
+                        selectedTemplate === t.id
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                      onClick={() => setSelectedTemplate(t.id)}
+                    >
+                      <div className="flex items-start gap-3">
+                        <Calendar className="mt-1 h-5 w-5 text-pink-500" />
+                        <div>
+                          <div className="font-medium">{t.title}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {t.desc}
+                          </div>
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            {t.meta}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      Perfect for consultants, plumbers, IT support, and other
-                      service providers. Qualifies leads and captures booking
-                      requests.
-                    </div>
-                    <div className="mt-2 text-xs text-muted-foreground">
-                      6 conversation nodes • Multi-channel ready
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Agencies Template */}
-              <div
-                className={`cursor-pointer rounded-lg border-2 p-4 transition-all ${
-                  selectedTemplate === "agencies"
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-200 hover:border-gray-300"
-                }`}
-                onClick={() => setSelectedTemplate("agencies")}
-              >
-                <div className="flex items-start gap-3">
-                  <Users className="mt-1 h-5 w-5 text-blue-600" />
-                  <div>
-                    <div className="font-medium">
-                      Agencies: Project Discovery
+              {/* ── Home Services ─────────────────────────────────── */}
+              <div>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Home Services
+                </p>
+                <div className="grid grid-cols-1 gap-3">
+                  {[
+                    {
+                      id: "cleaning-services" as const,
+                      title: "Cleaning Services: Quote & Booking",
+                      desc: "Qualifies property type, clean type, and size. Captures location and contact details for a fast quote.",
+                      meta: "10 nodes • Quote-ready",
+                    },
+                    {
+                      id: "landscaping" as const,
+                      title: "Landscaping & Gardening: Quote Request",
+                      desc: "Captures service needed, garden size, postcode, and preferred visit date to prepare a no-obligation quote.",
+                      meta: "9 nodes • Quote-ready",
+                    },
+                    {
+                      id: "handyman" as const,
+                      title: "Handyman & Repair: Job Booking",
+                      desc: "Quickly captures job description, urgency, address, and contact info for fast dispatch or scheduling.",
+                      meta: "8 nodes • Job-ready",
+                    },
+                  ].map((t) => (
+                    <div
+                      key={t.id}
+                      className={`cursor-pointer rounded-lg border-2 p-4 transition-all ${
+                        selectedTemplate === t.id
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                      onClick={() => setSelectedTemplate(t.id)}
+                    >
+                      <div className="flex items-start gap-3">
+                        <Wrench className="mt-1 h-5 w-5 text-emerald-600" />
+                        <div>
+                          <div className="font-medium">{t.title}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {t.desc}
+                          </div>
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            {t.meta}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      Built for marketing, digital, and design agencies.
-                      Discovers project scope, budget, and timeline before human
-                      handoff.
-                    </div>
-                    <div className="mt-2 text-xs text-muted-foreground">
-                      8 conversation nodes • Multi-channel ready
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Booking Template */}
-              <div
-                className={`cursor-pointer rounded-lg border-2 p-4 transition-all ${
-                  selectedTemplate === "booking"
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-200 hover:border-gray-300"
-                }`}
-                onClick={() => setSelectedTemplate("booking")}
-              >
-                <div className="flex items-start gap-3">
-                  <Calendar className="mt-1 h-5 w-5 text-blue-600" />
-                  <div>
-                    <div className="font-medium">
-                      Booking: Appointments & Reservations
+              {/* ── Personal Services ─────────────────────────────── */}
+              <div>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Personal Services
+                </p>
+                <div className="grid grid-cols-1 gap-3">
+                  {[
+                    {
+                      id: "pet-care" as const,
+                      title: "Pet Care: Booking & Service Enquiry",
+                      desc: "For dog walkers, groomers, boarders, and pet sitters. Captures pet details, service dates, and owner contact.",
+                      meta: "8 nodes • Booking-ready",
+                    },
+                    {
+                      id: "care-services" as const,
+                      title: "Child & Elder Care: Service Enquiry",
+                      desc: "Sensitively captures care type, recipient details, schedule needs, and contact info for childcare or eldercare.",
+                      meta: "8 nodes • Enquiry-ready",
+                    },
+                  ].map((t) => (
+                    <div
+                      key={t.id}
+                      className={`cursor-pointer rounded-lg border-2 p-4 transition-all ${
+                        selectedTemplate === t.id
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                      onClick={() => setSelectedTemplate(t.id)}
+                    >
+                      <div className="flex items-start gap-3">
+                        <Users className="mt-1 h-5 w-5 text-violet-600" />
+                        <div>
+                          <div className="font-medium">{t.title}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {t.desc}
+                          </div>
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            {t.meta}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      Ideal for salons, gyms, restaurants, and clinics. Confirms
-                      service, collects contact info, and suggests available
-                      times.
-                    </div>
-                    <div className="mt-2 text-xs text-muted-foreground">
-                      7 conversation nodes • Multi-channel ready
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>
