@@ -5,8 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { converse } from "@/lib/ai-engine";
 import {
   answerTelegramCallbackQuery,
+  sendTelegramChatAction,
   sendTelegramTextMessage,
 } from "@/lib/telegram-api";
+import { waitForFlowDurationMs } from "@/lib/flow-runtime-utils";
 import { executeBotEntryFlowFirst } from "@/lib/bot-entry-flow-engine";
 import { decryptTelegramToken } from "@/lib/telegram-crypto";
 import { recordMilestoneEvent } from "@/lib/milestone-events";
@@ -363,17 +365,58 @@ export async function POST(
           },
         });
 
-        let flowText: string | null = null;
-        for (const response of flowResult?.responses || []) {
-          if (response.type === "text" && response.text) {
-            flowText = response.text;
-            break;
-          }
-        }
+        const flowResponses = flowResult?.responses ?? [];
+        const hasFlowText = flowResponses.some(
+          (r) => r.type === "text" && r.text,
+        );
 
-        if (flowText) {
-          replyText = flowText;
-          replySource = "flow";
+        if (hasFlowText) {
+          // Dispatch all flow responses in sequence: typing indicators + messages
+          for (const resp of flowResponses) {
+            if (resp.type === "typing" && resp.durationMs > 0) {
+              await sendTelegramChatAction(token, chatId, "typing");
+              await waitForFlowDurationMs(Math.min(resp.durationMs, 3000));
+            } else if (resp.type === "text" && resp.text) {
+              const normalized = normalizeTelegramText(resp.text);
+              const sendResult = await sendTelegramTextMessage(
+                token,
+                chatId,
+                normalized,
+              );
+              if (sendResult.success) {
+                await prisma.crmMessage
+                  .create({
+                    data: {
+                      conversationId: conversation.id,
+                      direction: "outbound",
+                      content: normalized,
+                      source: "flow",
+                    },
+                  })
+                  .catch(() => {});
+              }
+            }
+          }
+
+          await updateTelegramChannelConfig(channel.id, config, {
+            lastDeliverySuccessAt: new Date().toISOString(),
+            lastDeliveryError: null,
+            lastDeliveryErrorAt: null,
+          }).catch(() => {});
+
+          await Promise.allSettled([
+            recordMilestoneEvent(channel.bot.tenantId, "first-channel", {
+              channelType: "telegram",
+              channelId: channel.id,
+            }),
+            recordMilestoneEvent(
+              channel.bot.tenantId,
+              "first-automated-reply",
+              { channelType: "telegram", source: "flow" },
+            ),
+          ]);
+
+          return NextResponse.json({ success: true }, { status: 200 });
         }
 
         if (!replyText) {

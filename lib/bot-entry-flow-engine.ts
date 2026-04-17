@@ -12,10 +12,9 @@ import {
   resolveReferencedFlow,
   resumeParentFlow,
   setRuntimeState,
-  waitForFlowDurationMs,
 } from "@/lib/flow-runtime-utils";
 
-const MIN_TYPING_DELAY_MS = 100;
+const MIN_TYPING_DELAY_MS = 300;
 
 async function applyDelayWithOptionalTyping(
   content: FlowNodeContent,
@@ -26,13 +25,14 @@ async function applyDelayWithOptionalTyping(
 ) {
   const delayMs = normalizeDurationMs(explicitDelayMs ?? content.delayMs);
   if (!content.typingEnabled) {
-    await waitForFlowDurationMs(delayMs);
+    // No server-side wait — delays are handled during per-channel dispatch
+    void delayMs;
     return;
   }
 
   const typingDurationMs = delayMs > 0 ? delayMs : MIN_TYPING_DELAY_MS;
   responses.push({ type: "typing", durationMs: typingDurationMs });
-  await waitForFlowDurationMs(typingDurationMs);
+  // No server-side wait — dispatch loop handles timing from durationMs
 }
 
 async function resolveFlow(params: {
@@ -340,10 +340,9 @@ export async function executeBotEntryFlowFirst(params: {
         break;
       }
       case "typing": {
-        const typingMs = normalizeDurationMs(content.typingDurationMs, 1200);
+        const typingMs = normalizeDurationMs(content.typingDurationMs, 1000);
         responses.push({ type: "typing", durationMs: typingMs });
-        await waitForFlowDurationMs(typingMs);
-        await waitForFlowDurationMs(normalizeDurationMs(content.delayMs));
+        // No server-side wait — dispatch loop handles timing from durationMs
         currentNode = getNextNode(
           activeFlow.nodes,
           currentNode.order,

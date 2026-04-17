@@ -210,6 +210,18 @@ export async function sendTelegramTextMessage(
   };
 }
 
+export async function sendTelegramChatAction(
+  token: string,
+  chatId: string,
+  action: "typing" | "upload_document" | "record_voice" = "typing",
+): Promise<boolean> {
+  const data = await callTelegram<true>(token, "sendChatAction", {
+    chat_id: chatId,
+    action,
+  });
+  return Boolean(data?.ok);
+}
+
 export async function answerTelegramCallbackQuery(
   token: string,
   callbackQueryId: string,

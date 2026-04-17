@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { converse } from "@/lib/ai-engine";
-import { sendTextMessage } from "@/lib/facebook-sender";
+import {
+  sendFacebookSenderAction,
+  sendTextMessage,
+} from "@/lib/facebook-sender";
 import { verifyWebhookSignature } from "@/lib/facebook-utils";
 import {
   processDefaultBotFlow,
   shouldUseDefaultFlow,
 } from "@/lib/default-bot-flow";
 import { OnboardingFlowHandler } from "@/lib/onboarding-flow-handler";
-import { FlowExecutionEngine } from "@/lib/flow-execution-engine";
+import { executeBotEntryFlowFirst } from "@/lib/bot-entry-flow-engine";
 import { recordMilestoneEvent } from "@/lib/milestone-events";
 import { isChannelEnabled } from "@/lib/channel-config";
+import { waitForFlowDurationMs } from "@/lib/flow-runtime-utils";
 
 // GET: Webhook Verification
 export async function GET(req: NextRequest) {
@@ -238,69 +242,42 @@ async function handleMessage(
       return;
     }
 
-    // 1. Find the page and tenant
+    // 1. Find the page
     const facebookPage = await prisma.facebookPage.findUnique({
       where: { facebookId: pageId },
     });
 
-    if (!facebookPage) {
-      console.warn(`[Facebook Webhook] Page ${pageId} not found`);
-      return;
-    }
-
-    // 1.5. Check for active Flow Builder flow assignment FIRST
-    // (Flow Builder doesn't require AI engine or bot to be configured)
-    try {
-      const flowResult = await FlowExecutionEngine.executeFlow({
-        userId: senderPsid,
-        pageId: facebookPage.id,
-        message: messageText,
-      });
-
-      if (flowResult.success) {
-        console.log("[Facebook Webhook] Flow executed successfully");
-        return; // Flow engine handles all messaging
-      } else if (flowResult.reason !== "no_active_flow") {
-        console.error("[Facebook Webhook] Flow execution error:", flowResult);
-        // Fall through to regular bot flow
-      }
-    } catch (error) {
-      console.error("[Facebook Webhook] Flow Engine Error:", error);
-      // Fall through to regular bot flow
-    }
-
-    // 2. Check if AI engine is configured (only needed for AI responses)
-    if (
-      !facebookPage.engineConnected ||
-      !facebookPage.botId ||
-      !facebookPage.tenantId
-    ) {
+    if (!facebookPage || !facebookPage.tenantId) {
       console.warn(
-        `[Facebook Webhook] Page ${pageId} is not configured for AI.`,
+        `[Facebook Webhook] Page ${pageId} not found or missing tenantId`,
       );
       return;
     }
 
-    const { tenantId, botId, accessToken } = facebookPage;
+    const { tenantId, accessToken } = facebookPage;
 
-    // 2. Fetch user profile from Facebook to get their name
+    // 2. Fetch user profile (optional — for contact display name)
     let userName: string | undefined;
     try {
-      const userProfileUrl = `https://graph.facebook.com/${senderPsid}?fields=first_name,last_name&access_token=${accessToken}`;
-      const profileResponse = await fetch(userProfileUrl);
+      const profileResponse = await fetch(
+        `https://graph.facebook.com/${senderPsid}?fields=first_name,last_name&access_token=${accessToken}`,
+      );
       if (profileResponse.ok) {
         const profileData = await profileResponse.json();
-        userName =
+        const fullName =
           `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim();
+        if (fullName) {
+          userName = fullName;
+        }
       }
-    } catch (error) {
-      console.warn("[Facebook Webhook] Could not fetch user profile:", error);
+    } catch {
+      // Non-critical — contact name falls back to PSID
     }
 
-    // 3. Find or create Contact and Conversation
+    // 3. Find or create Contact
     let contact = await prisma.contact.findFirst({
       where: {
-        tenantId: tenantId,
+        tenantId,
         identities: { some: { type: "facebook_psid", value: senderPsid } },
       },
     });
@@ -308,47 +285,131 @@ async function handleMessage(
     if (!contact) {
       contact = await prisma.contact.create({
         data: {
-          tenantId: tenantId,
-          name: userName || senderPsid, // Fallback to PSID if name fetch fails
-          identities: {
-            create: { type: "facebook_psid", value: senderPsid },
-          },
+          tenantId,
+          name: userName || senderPsid,
+          identities: { create: { type: "facebook_psid", value: senderPsid } },
         },
       });
     } else if (userName && contact.name !== userName) {
-      // Update contact name if it has changed
       await prisma.contact.update({
         where: { id: contact.id },
         data: { name: userName },
       });
     }
 
-    let conversation = await prisma.crmConversation.findFirst({
-      where: { contactId: contact.id, facebookPageId: facebookPage.id },
-    });
+    // 4. Find or create Conversation (requires botId for CRM linkage)
+    let conversation: {
+      id: string;
+      botId: string | null;
+      metadata: unknown;
+    } | null = null;
+    if (facebookPage.botId) {
+      conversation = await prisma.crmConversation.findFirst({
+        where: { contactId: contact.id, facebookPageId: facebookPage.id },
+      });
+      if (!conversation) {
+        conversation = await prisma.crmConversation.create({
+          data: {
+            contactId: contact.id,
+            channel: "facebook",
+            botId: facebookPage.botId,
+            facebookPageId: facebookPage.id,
+          },
+        });
+      }
+    }
 
-    if (!conversation) {
-      conversation = await prisma.crmConversation.create({
+    // 5. Log inbound message
+    if (conversation) {
+      await prisma.crmMessage.create({
         data: {
-          contactId: contact.id,
-          channel: "facebook",
-          botId: botId,
-          facebookPageId: facebookPage.id, // Correctly link the conversation to the page
+          conversationId: conversation.id,
+          direction: "inbound",
+          content: messageText,
+          source: "human",
         },
       });
     }
 
-    // 4. Log inbound message to CRM
-    await prisma.crmMessage.create({
-      data: {
-        conversationId: conversation.id,
-        direction: "inbound",
-        content: messageText,
-        source: "human",
-      },
-    });
+    // 6. Try Flow Builder first (works without AI/bot engine configured)
+    try {
+      const flowAssignment = await prisma.flowAssignment.findFirst({
+        where: { pageId: facebookPage.id, isActive: true },
+        select: { flowId: true },
+      });
 
-    // 5. Check if this is an onboarding conversation (new user without tenant)
+      const flowResult = await executeBotEntryFlowFirst({
+        tenantId,
+        contactId: contact.id,
+        scopeKey: `facebook:${facebookPage.id}`,
+        message: messageText,
+        entryFlow: flowAssignment?.flowId ?? null,
+        variables: { channel: "facebook", psid: senderPsid },
+      });
+
+      const flowResponses = flowResult?.responses ?? [];
+      const hasFlowText = flowResponses.some(
+        (r) => r.type === "text" && r.text,
+      );
+
+      if (hasFlowText) {
+        // Dispatch all responses in sequence: typing indicators + messages
+        for (const resp of flowResponses) {
+          if (resp.type === "typing" && resp.durationMs > 0) {
+            await sendFacebookSenderAction(
+              accessToken,
+              senderPsid,
+              "typing_on",
+            );
+            await waitForFlowDurationMs(Math.min(resp.durationMs, 3000));
+            await sendFacebookSenderAction(
+              accessToken,
+              senderPsid,
+              "typing_off",
+            );
+          } else if (resp.type === "text" && resp.text) {
+            await sendTextMessage(accessToken, senderPsid, resp.text);
+            if (conversation) {
+              await prisma.crmMessage
+                .create({
+                  data: {
+                    conversationId: conversation.id,
+                    direction: "outbound",
+                    content: resp.text,
+                    source: "flow",
+                  },
+                })
+                .catch(() => {});
+            }
+          }
+        }
+
+        await recordMilestoneEvent(tenantId, "first-channel", {
+          channelType: "facebook",
+          pageId: facebookPage.id,
+        });
+        await recordMilestoneEvent(tenantId, "first-automated-reply", {
+          channelType: "facebook",
+          source: "flow",
+        });
+        return;
+      }
+    } catch (error) {
+      console.error("[Facebook Webhook] Flow Engine Error:", error);
+      // Fall through to AI
+    }
+
+    // 7. AI / default-flow fallback (requires engineConnected + botId)
+    if (!facebookPage.engineConnected || !facebookPage.botId || !conversation) {
+      console.warn(
+        `[Facebook Webhook] Page ${pageId} not configured for AI — no reply sent.`,
+      );
+      return;
+    }
+
+    const { botId } = facebookPage;
+
+    // Onboarding check
     const isNewUser = !contact.tenantId || contact.tenantId === tenantId;
     const hasActiveOnboarding = await prisma.onboardingSession.findFirst({
       where: {
@@ -358,7 +419,6 @@ async function handleMessage(
       },
     });
 
-    // If this is a "Get Started" message or user has active onboarding, use onboarding flow
     const isGetStarted =
       messageText.toLowerCase().includes("get started") ||
       messageText.toLowerCase().includes("hi") ||
@@ -374,21 +434,17 @@ async function handleMessage(
           contact.id,
           accessToken,
         );
-        return; // Onboarding flow handles messaging
+        return;
       } catch (error) {
         console.error("[Facebook Webhook] Onboarding Flow Error:", error);
-        // Fall through to regular bot flow
       }
     }
 
-    // 6. Determine bot flow and generate response for existing users
+    // AI / default flow
     let replyText: string;
-
-    // Check if we should use default bot flow or AI engine
     const useDefaultFlow = shouldUseDefaultFlow(conversation);
 
     if (useDefaultFlow) {
-      // Use default lead generation flow
       try {
         replyText = await processDefaultBotFlow(
           conversation.id,
@@ -402,14 +458,11 @@ async function handleMessage(
           "I'm having trouble processing your request. Our team will get back to you soon!";
       }
     } else {
-      // Use AI Engine for custom bot
       try {
         const engineResponse = await converse({
           botId,
           tenantId,
-          contact: {
-            name: userName || senderPsid,
-          },
+          contact: { name: userName || senderPsid },
           message: messageText,
         });
 
@@ -418,20 +471,15 @@ async function handleMessage(
           (r: TextResponse) => r.type === "text",
         );
         replyText = textResponse?.text ?? "";
-
-        if (!replyText) {
-          throw new Error("No text response from engine");
-        }
+        if (!replyText) throw new Error("No text response from engine");
       } catch (error) {
         console.error("[Facebook Webhook] AI Engine Error:", error);
         replyText = "Sorry, I'm having trouble responding right now.";
       }
     }
 
-    // 6. Send reply to Facebook
     await sendTextMessage(accessToken, senderPsid, replyText);
 
-    // 7. Log outbound message to CRM
     await prisma.crmMessage.create({
       data: {
         conversationId: conversation.id,
@@ -441,14 +489,13 @@ async function handleMessage(
       },
     });
 
-    // 8. Record milestone events for onboarding tracking
     await recordMilestoneEvent(tenantId, "first-channel", {
       channelType: "facebook",
       pageId: facebookPage.id,
     });
     await recordMilestoneEvent(tenantId, "first-automated-reply", {
       channelType: "facebook",
-      source: "flow",
+      source: "ai",
     });
   } catch (error) {
     console.error("[Facebook Webhook] Error in handleMessage:", error);

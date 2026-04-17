@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { converse } from "@/lib/ai-engine";
 import { executeBotEntryFlowFirst } from "@/lib/bot-entry-flow-engine";
 import { recordMilestoneEvent } from "@/lib/milestone-events";
+import { waitForFlowDurationMs } from "@/lib/flow-runtime-utils";
 import {
   decryptWhatsAppCredentialEnvelope,
   getStringFromJsonConfig,
@@ -419,17 +420,54 @@ async function sendAutoReply(params: {
       },
     });
 
-    let flowText: string | null = null;
-    for (const response of flowResult?.responses || []) {
-      if (response.type === "text" && response.text) {
-        flowText = response.text;
-        break;
-      }
-    }
+    const flowResponses = flowResult?.responses ?? [];
+    const hasFlowText = flowResponses.some((r) => r.type === "text" && r.text);
 
-    if (flowText) {
-      replyText = flowText;
-      replySource = "flow";
+    if (hasFlowText) {
+      const WA_MAX = 4096;
+      for (const resp of flowResponses) {
+        if (resp.type === "typing" && resp.durationMs > 0) {
+          // WhatsApp has no typing indicator API — pause between messages
+          await waitForFlowDurationMs(Math.min(resp.durationMs, 2000));
+        } else if (resp.type === "text" && resp.text) {
+          let text = resp.text;
+          if (text.length > WA_MAX) {
+            text = text.slice(0, WA_MAX - 3) + "...";
+          }
+          const sendResult = await sendWhatsAppText({
+            provider: envelope.provider,
+            credentials: envelope.credentials as WhatsAppProviderCredentials,
+            to: params.toWaId,
+            text,
+          });
+          if (sendResult.success) {
+            await prisma.crmMessage
+              .create({
+                data: {
+                  conversationId: params.conversation.id,
+                  direction: "outbound",
+                  content: text,
+                  source: "flow",
+                },
+              })
+              .catch(() => {});
+          }
+        }
+      }
+
+      await Promise.allSettled([
+        recordMilestoneEvent(params.channel.bot.tenantId, "first-channel", {
+          channelType: "whatsapp",
+          channelId: params.channel.id,
+        }),
+        recordMilestoneEvent(
+          params.channel.bot.tenantId,
+          "first-automated-reply",
+          { channelType: "whatsapp", source: "flow" },
+        ),
+      ]);
+
+      return;
     }
   } catch (error) {
     console.error("[WhatsApp Webhook] Flow engine error:", error);

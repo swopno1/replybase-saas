@@ -15,6 +15,41 @@ interface SendMessageResult {
 }
 
 /**
+ * Sends a sender action (typing indicator or read receipt) to a Facebook Messenger user
+ */
+export async function sendFacebookSenderAction(
+  pageAccessToken: string,
+  recipientPsid: string,
+  action: "typing_on" | "typing_off" | "mark_seen",
+): Promise<boolean> {
+  try {
+    const url = new URL(`${FACEBOOK_GRAPH_URL}/me/messages`);
+    url.searchParams.set("access_token", pageAccessToken);
+
+    const appSecret = process.env.FACEBOOK_CLIENT_SECRET;
+    if (appSecret) {
+      url.searchParams.set(
+        "appsecret_proof",
+        generateAppSecretProof(pageAccessToken, appSecret),
+      );
+    }
+
+    const response = await fetch(url.toString(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient: { id: recipientPsid },
+        sender_action: action,
+      }),
+    });
+
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Sends a text message to a Facebook Messenger user
  * @param pageAccessToken - Page Access Token for the Facebook Page
  * @param recipientPsid - Facebook User PSID (Page-Scoped ID)

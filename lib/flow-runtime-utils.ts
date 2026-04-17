@@ -39,7 +39,7 @@ export type FlowNodeContent = {
   nextNodeOrder?: number;
 };
 
-export function normalizeDurationMs(value: unknown, fallback = 0, max = 10000) {
+export function normalizeDurationMs(value: unknown, fallback = 0, max = 5000) {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return fallback;
   }
