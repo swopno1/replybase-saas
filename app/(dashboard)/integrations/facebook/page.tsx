@@ -22,6 +22,7 @@ import {
   MessageSquare,
   CheckCircle2,
   XCircle,
+  ArrowLeft,
   ExternalLink,
   Trash2,
   Zap,
@@ -31,10 +32,6 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { isChannelVisibleInUi } from "@/lib/channel-config";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
-import {
-  ChannelGuidanceCard,
-  ChannelPageHeader,
-} from "@/components/channels/channel-ui";
 
 export const dynamic = "force-dynamic";
 
@@ -101,7 +98,6 @@ export default function FacebookIntegrationPage() {
       return;
     }
     fetchPages();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelVisible, router]);
 
   if (!channelVisible) {
@@ -115,11 +111,6 @@ export default function FacebookIntegrationPage() {
         fetch("/api/integrations/facebook/pages"),
         fetch("/api/meta/setup-status"),
       ]);
-
-      if (setupResponse.ok) {
-        const setupData = (await setupResponse.json()) as MetaSetupStatus;
-        setSetupStatus(setupData);
-      }
 
       const data = await pagesResponse.json();
       if (!pagesResponse.ok) {
@@ -145,6 +136,11 @@ export default function FacebookIntegrationPage() {
       } else {
         setConnected(false);
         setPages([]);
+      }
+
+      if (setupResponse.ok) {
+        const setupData = (await setupResponse.json()) as MetaSetupStatus;
+        setSetupStatus(setupData);
       }
     } catch (e) {
       console.error(e);
@@ -210,14 +206,12 @@ export default function FacebookIntegrationPage() {
 
   const handleUnlinkPage = async (page: FBPage) => {
     const confirmed = await confirm({
-      title: "Unlink Facebook Page",
+      title: "Unlink Page",
       description: `Are you sure you want to unlink "${page.name}"? You can reconnect it later.`,
       confirmText: "Unlink",
       variant: "destructive",
     });
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
     setStatusMap((prev) => ({ ...prev, [page.id]: "unlinking" }));
     try {
       const res = await fetch(`/api/integrations/facebook/pages/${page.id}`, {
@@ -244,27 +238,25 @@ export default function FacebookIntegrationPage() {
     const confirmed = await confirm({
       title: "Disconnect Facebook Account",
       description:
-        "This will remove Facebook OAuth access and unlink all connected Facebook pages and related page data for this workspace. You can reconnect later. Continue?",
-      confirmText: "Disconnect",
+        "This will remove all connected pages, their flow assignments, and revoke ReplyBase's access from your Meta account. You can reconnect at any time.",
+      confirmText: "Disconnect All",
       variant: "destructive",
     });
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
+
     try {
       setIsLoading(true);
       const res = await fetch("/api/integrations/facebook", {
         method: "DELETE",
       });
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data.error || "Failed to disconnect Facebook");
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to disconnect Facebook account");
       }
-
-      toast.success("Facebook account disconnected successfully");
       setConnected(false);
       setPages([]);
       setSelectedFlowIdMap({});
+      toast.success("Facebook account disconnected successfully");
       await fetchPages();
     } catch (error) {
       console.error("Error disconnecting Facebook account:", error);
@@ -343,21 +335,41 @@ export default function FacebookIntegrationPage() {
 
   return (
     <div className="space-y-6">
-      <ChannelPageHeader
-        title="Facebook Pages"
-        description="Connect your Facebook Pages, assign flows, and enable AI auto-replies"
-      />
+      {/* Header */}
+      <div>
+        <Link href="/">
+          <Button variant="ghost" size="sm" className="mb-4">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Dashboard
+          </Button>
+        </Link>
+        <h1 className="text-3xl font-bold tracking-tight">Facebook Pages</h1>
+        <p className="text-muted-foreground mt-1">
+          Connect your Facebook Pages, assign flows, and enable AI auto-replies
+        </p>
+      </div>
 
-      <ChannelGuidanceCard
-        title="Effective Response Mode"
-        description="How ReplyBase decides what responds to incoming Facebook messages."
-        icon={MessageSquare}
-        bullets={[
-          "1. If an active flow is assigned to the page, that flow handles the message first.",
-          "2. If no active flow handles the message and AI is enabled for the page, AI generates the reply.",
-          "3. If neither flow nor AI is active, no automated reply is sent.",
-        ]}
-      />
+      <Card>
+        <CardHeader>
+          <CardTitle>Effective Response Mode</CardTitle>
+          <CardDescription>
+            How ReplyBase decides what responds to incoming Facebook messages.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm text-muted-foreground">
+          <p>
+            1. If an active flow is assigned to the page, that flow handles the
+            message first.
+          </p>
+          <p>
+            2. If no active flow handles the message and AI is enabled for the
+            page, AI generates the reply.
+          </p>
+          <p>
+            3. If neither flow nor AI is active, no automated reply is sent.
+          </p>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -708,14 +720,16 @@ export default function FacebookIntegrationPage() {
                             )}
                             {flows.length === 0 && !isFlowsLoading && (
                               <p className="text-xs text-muted-foreground">
-                                No active flows found.{" "}
+                                No active flows found. Flows must be set to{" "}
+                                <strong>Active</strong> before they can be
+                                assigned.{" "}
                                 <Link
                                   href="/flows"
                                   className="underline hover:text-foreground"
                                 >
-                                  Create one in Flows
-                                </Link>
-                                .
+                                  Go to Flows
+                                </Link>{" "}
+                                and activate or create one.
                               </p>
                             )}
                           </div>

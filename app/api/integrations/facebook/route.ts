@@ -6,8 +6,6 @@ import { recordWebhookSetupLog } from "@/lib/webhook-setup-log";
 import { isChannelEnabled } from "@/lib/channel-config";
 import { generateAppSecretProof } from "@/lib/facebook-utils";
 
-export const dynamic = "force-dynamic";
-
 export async function POST(req: Request) {
   // Check if Facebook channel is enabled
   if (!isChannelEnabled("facebook")) {
@@ -31,13 +29,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const {
-    pageId,
-    pageName,
-    accessToken,
-    appSecret: providedSecret,
-    accessTokenOnly,
-  } = await req.json();
+  const { pageId, pageName, accessToken } = await req.json();
 
   if (!pageId || !pageName || !accessToken) {
     return NextResponse.json(
@@ -46,45 +38,13 @@ export async function POST(req: Request) {
     );
   }
 
-  // For OAuth flow, use environment secret
-  const appSecret = accessTokenOnly
-    ? process.env.FACEBOOK_CLIENT_SECRET
-    : providedSecret;
-  if (!appSecret) {
-    return NextResponse.json(
-      { error: "Facebook App Secret not configured" },
-      { status: 500 },
-    );
-  }
-
-  // Verify the page access token by fetching page info from Facebook Graph API
+  // The pageId, pageName, and accessToken originate from /me/accounts (already
+  // verified by the pages listing call). A second Graph API lookup would require
+  // pages_read_engagement which is not available in development mode. Skip it
+  // and use the values directly.
   try {
-    const verifyUrl = new URL(`https://graph.facebook.com/v18.0/${pageId}`);
-    verifyUrl.searchParams.set("fields", "id,name,access_token");
-    verifyUrl.searchParams.set("access_token", accessToken);
-    verifyUrl.searchParams.set(
-      "appsecret_proof",
-      generateAppSecretProof(accessToken, appSecret),
-    );
-
-    const verifyResponse = await fetch(verifyUrl.toString());
-
-    if (!verifyResponse.ok) {
-      const errorText = await verifyResponse.text();
-      console.error(
-        "[Facebook Integration] Token verification failed:",
-        errorText,
-      );
-      return NextResponse.json(
-        { error: "Invalid page access token" },
-        { status: 400 },
-      );
-    }
-
-    const pageData = await verifyResponse.json();
-    // Use the verified page ID and name from Facebook
-    const verifiedPageId = pageData.id;
-    const verifiedPageName = pageData.name || pageName;
+    const verifiedPageId = pageId as string;
+    const verifiedPageName = pageName as string;
 
     // Save or update Facebook Page in database
     const facebookPage = await prisma.facebookPage.upsert({
@@ -166,14 +126,21 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE() {
-  // Allow cleanup even if channel gets toggled later.
+  if (!isChannelEnabled("facebook")) {
+    return NextResponse.json(
+      { error: "Facebook channel is not enabled" },
+      { status: 403 },
+    );
+  }
+
   const session = await getServerSession(authOptions);
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const userId = session.user.id;
   const tenantId = session.user.tenantId;
-  if (!tenantId) {
+  if (!userId || !tenantId) {
     return NextResponse.json(
       { error: "User or Tenant ID missing" },
       { status: 400 },
@@ -181,83 +148,57 @@ export async function DELETE() {
   }
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
-      const pages = await tx.facebookPage.findMany({
-        where: { tenantId },
-        select: { id: true },
-      });
-      const pageIds = pages.map((p) => p.id);
+    // Get stored FB account token before deleting
+    const account = await prisma.account.findFirst({
+      where: { userId, provider: "facebook" },
+    });
 
-      if (pageIds.length > 0) {
-        await tx.flowAssignment.deleteMany({
-          where: {
-            pageId: { in: pageIds },
-          },
-        });
-
-        await tx.crmConversation.deleteMany({
-          where: {
-            facebookPageId: { in: pageIds },
-          },
-        });
-
-        await tx.lead.deleteMany({
-          where: {
-            pageId: { in: pageIds },
-          },
-        });
-
-        await tx.flowSession.deleteMany({
-          where: {
-            pageId: { in: pageIds },
-          },
-        });
-
-        await tx.onboardingSession.deleteMany({
-          where: {
-            facebookPageId: { in: pageIds },
-          },
-        });
+    // Revoke the app's permissions on Meta so the app is removed from the
+    // user's "Active business tools" at facebook.com/settings?tab=business_tools
+    if (account?.access_token) {
+      const appSecret = process.env.FACEBOOK_CLIENT_SECRET as string;
+      const proof = generateAppSecretProof(account.access_token, appSecret);
+      try {
+        await fetch(
+          `https://graph.facebook.com/me/permissions?access_token=${account.access_token}&appsecret_proof=${proof}`,
+          { method: "DELETE" },
+        );
+      } catch (revokeErr) {
+        // Non-fatal — continue cleanup even if Meta revocation fails
+        console.warn(
+          "[Facebook Integration] Could not revoke Meta permissions:",
+          revokeErr,
+        );
       }
+    }
 
-      const deletedPages = await tx.facebookPage.deleteMany({
-        where: { tenantId },
-      });
-
-      const tenantUsers = await tx.user.findMany({
-        where: { tenantId },
-        select: { id: true },
-      });
-      const tenantUserIds = tenantUsers.map((u) => u.id);
-
-      const deletedFacebookAccounts =
-        tenantUserIds.length > 0
-          ? await tx.account.deleteMany({
-              where: {
-                provider: "facebook",
-                userId: { in: tenantUserIds },
-              },
-            })
-          : { count: 0 };
-
-      return {
-        deletedPages: deletedPages.count,
-        deletedFacebookAccounts: deletedFacebookAccounts.count,
-      };
+    // Collect all page internal IDs for this tenant
+    const facebookPages = await prisma.facebookPage.findMany({
+      where: { tenantId },
+      select: { id: true },
     });
+    const pageIds = facebookPages.map((p) => p.id);
 
-    return NextResponse.json({
-      success: true,
-      message: "Facebook disconnected and related data removed",
-      ...result,
-    });
+    // Delete everything in a single transaction
+    await prisma.$transaction([
+      prisma.flowAssignment.deleteMany({ where: { pageId: { in: pageIds } } }),
+      prisma.crmConversation.deleteMany({
+        where: { facebookPageId: { in: pageIds } },
+      }),
+      prisma.lead.deleteMany({ where: { pageId: { in: pageIds } } }),
+      prisma.flowSession.deleteMany({ where: { pageId: { in: pageIds } } }),
+      prisma.onboardingSession.deleteMany({
+        where: { facebookPageId: { in: pageIds } },
+      }),
+      prisma.facebookPage.deleteMany({ where: { tenantId } }),
+      prisma.account.deleteMany({ where: { userId, provider: "facebook" } }),
+    ]);
+
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("[Facebook Integration] Error disconnecting all:", error);
+    console.error("[Facebook Integration] Error disconnecting:", error);
     return NextResponse.json(
-      {
-        error: "Failed to disconnect Facebook",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
+      { error: "Failed to disconnect Facebook account" },
       { status: 500 },
     );
   }

@@ -52,52 +52,29 @@ export const authOptions: NextAuthOptions = {
                   "public_profile,pages_show_list,pages_manage_metadata,pages_messaging",
               },
             },
-            // Business app flow should not request `email`; requesting it in
-            // userinfo can cause a 400 OAuth callback error.
+            // Business app flow must not request `email` and must use a
+            // custom request fn so the token is passed as Authorization: Bearer
+            // (not via the OIDC client). appsecret_proof is required when
+            // "Require App Secret" is enabled in Meta app settings.
             userinfo: {
-              async request({ tokens }) {
-                const accessToken = tokens.access_token;
-                if (!accessToken) {
-                  throw new Error(
-                    "Facebook OAuth callback missing access token",
-                  );
-                }
-
-                const url = new URL("https://graph.facebook.com/me");
-                url.searchParams.set("fields", "id,name,picture{url}");
-                const appSecret = process.env.FACEBOOK_CLIENT_SECRET;
-                if (appSecret) {
-                  url.searchParams.set(
-                    "appsecret_proof",
-                    generateAppSecretProof(accessToken, appSecret),
-                  );
-                }
-
-                const response = await fetch(url.toString(), {
+              async request({ tokens }: { tokens: { access_token?: string } }) {
+                const appSecret = process.env.FACEBOOK_CLIENT_SECRET as string;
+                const proof = generateAppSecretProof(
+                  tokens.access_token!,
+                  appSecret,
+                );
+                const url = `https://graph.facebook.com/me?fields=id,name,picture{url}&appsecret_proof=${proof}`;
+                const res = await fetch(url, {
                   headers: {
-                    Authorization: `Bearer ${accessToken}`,
+                    Authorization: `Bearer ${tokens.access_token}`,
                   },
                 });
-
-                const raw = await response.text();
-                if (!response.ok) {
-                  console.error("[Facebook OAuth] Userinfo request failed", {
-                    status: response.status,
-                    body: raw,
-                  });
+                if (!res.ok) {
                   throw new Error(
-                    `Facebook userinfo failed with ${response.status}`,
+                    `Facebook userinfo error: ${res.status} ${await res.text()}`,
                   );
                 }
-
-                try {
-                  return JSON.parse(raw) as FacebookProfile;
-                } catch {
-                  console.error("[Facebook OAuth] Userinfo JSON parse failed", {
-                    body: raw,
-                  });
-                  throw new Error("Facebook userinfo returned invalid JSON");
-                }
+                return res.json();
               },
             },
             profile(profile: FacebookProfile) {

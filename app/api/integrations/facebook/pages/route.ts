@@ -20,68 +20,53 @@ export const GET = withAuthAndTenant(async ({ id: userId, tenantId }) => {
 
   // Call FB Graph API to get pages
   try {
-    const fbUrl = new URL("https://graph.facebook.com/v18.0/me/accounts");
-    const appSecret = process.env.FACEBOOK_CLIENT_SECRET;
-    if (appSecret) {
-      fbUrl.searchParams.set(
-        "appsecret_proof",
-        generateAppSecretProof(account.access_token, appSecret),
-      );
-    }
-
-    const fbRes = await fetch(fbUrl.toString(), {
-      headers: {
-        Authorization: `Bearer ${account.access_token}`,
+    const appSecret = process.env.FACEBOOK_CLIENT_SECRET as string;
+    const proof = generateAppSecretProof(account.access_token, appSecret);
+    const fbRes = await fetch(
+      `https://graph.facebook.com/v18.0/me/accounts?appsecret_proof=${proof}`,
+      {
+        headers: {
+          Authorization: `Bearer ${account.access_token}`,
+        },
       },
-    });
+    );
     if (!fbRes.ok) {
       const errorText = await fbRes.text();
       console.error("[Facebook Pages] Graph API Error:", errorText);
 
       let message = "Failed to fetch pages from Facebook";
       let code: number | undefined;
-      let isInvalidAppSecretProof = false;
-      let isStaleFacebookAuth = false;
       try {
         const parsed = JSON.parse(errorText) as {
           error?: { message?: string; code?: number };
         };
         if (parsed.error?.message) {
           message = parsed.error.message;
-          isInvalidAppSecretProof = /invalid appsecret_proof/i.test(
-            parsed.error.message,
-          );
-          isStaleFacebookAuth =
-            /application has been deleted/i.test(parsed.error.message) ||
-            /error validating application/i.test(parsed.error.message) ||
-            /invalid oauth access token/i.test(parsed.error.message);
         }
         if (typeof parsed.error?.code === "number") {
           code = parsed.error.code;
-          if (parsed.error.code === 190) {
-            isStaleFacebookAuth = true;
-          }
         }
       } catch {
         // Keep default message when upstream payload is not JSON.
       }
 
-      if (isInvalidAppSecretProof || isStaleFacebookAuth) {
-        // Token/app linkage is stale (e.g. app secret changed, app replaced or
-        // deleted, or token invalid). Remove stored Facebook OAuth account so
-        // user can reconnect cleanly.
-        await prisma.account.deleteMany({
-          where: {
-            userId,
-            provider: "facebook",
-          },
-        });
+      // Stale / revoked token patterns — auto-purge and tell the UI to re-auth
+      const isStaleAuth =
+        code === 190 ||
+        /application has been deleted/i.test(message) ||
+        /error validating application/i.test(message) ||
+        /invalid oauth access token/i.test(message) ||
+        /has not authorized application/i.test(message) ||
+        /invalid appsecret_proof/i.test(message);
 
+      if (isStaleAuth) {
+        await prisma.account.deleteMany({
+          where: { userId, provider: "facebook" },
+        });
         return NextResponse.json({
           pages: [],
           connected: false,
-          reason:
-            "Facebook connection expired or became invalid. Please reconnect Facebook.",
+          reason: "stale_token",
         });
       }
 

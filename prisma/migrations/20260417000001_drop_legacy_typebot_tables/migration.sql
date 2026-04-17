@@ -1,0 +1,39 @@
+-- Drop all legacy Typebot tables that are no longer part of the ReplyBase schema.
+-- Using CASCADE so FK dependencies are handled automatically regardless of order.
+
+DROP TABLE IF EXISTS "Answer" CASCADE;
+DROP TABLE IF EXISTS "AnswerV2" CASCADE;
+DROP TABLE IF EXISTS "Log" CASCADE;
+DROP TABLE IF EXISTS "SetVariableHistoryItem" CASCADE;
+DROP TABLE IF EXISTS "VisitedEdge" CASCADE;
+DROP TABLE IF EXISTS "RuntimeMediaIdCache" CASCADE;
+DROP TABLE IF EXISTS "PublicTypebot" CASCADE;
+DROP TABLE IF EXISTS "BannedIp" CASCADE;
+DROP TABLE IF EXISTS "CollaboratorsOnTypebots" CASCADE;
+DROP TABLE IF EXISTS "Invitation" CASCADE;
+DROP TABLE IF EXISTS "Webhook" CASCADE;
+DROP TABLE IF EXISTS "Result" CASCADE;
+DROP TABLE IF EXISTS "Typebot" CASCADE;
+DROP TABLE IF EXISTS "DashboardFolder" CASCADE;
+DROP TABLE IF EXISTS "ChatSession" CASCADE;
+DROP TABLE IF EXISTS "ClaimableCustomPlan" CASCADE;
+DROP TABLE IF EXISTS "Credentials" CASCADE;
+DROP TABLE IF EXISTS "CustomDomain" CASCADE;
+DROP TABLE IF EXISTS "ThemeTemplate" CASCADE;
+DROP TABLE IF EXISTS "WorkspaceInvitation" CASCADE;
+DROP TABLE IF EXISTS "UserCredentials" CASCADE;
+DROP TABLE IF EXISTS "ApiToken" CASCADE;
+DROP TABLE IF EXISTS "MemberInWorkspace" CASCADE;
+DROP TABLE IF EXISTS "Session" CASCADE;
+DROP TABLE IF EXISTS "Account" CASCADE;
+DROP TABLE IF EXISTS "VerificationToken" CASCADE;
+DROP TABLE IF EXISTS "Coupon" CASCADE;
+DROP TABLE IF EXISTS "Workspace" CASCADE;
+DROP TABLE IF EXISTS "User" CASCADE;
+
+-- Drop legacy enums that were only used by the above tables
+DROP TYPE IF EXISTS "CollaborationType";
+DROP TYPE IF EXISTS "GraphNavigation";
+DROP TYPE IF EXISTS "Plan";
+DROP TYPE IF EXISTS "WorkspaceRole";
+DROP TYPE IF EXISTS "ChatProvider";

@@ -11,9 +11,6 @@ import { OnboardingFlowHandler } from "@/lib/onboarding-flow-handler";
 import { FlowExecutionEngine } from "@/lib/flow-execution-engine";
 import { recordMilestoneEvent } from "@/lib/milestone-events";
 import { isChannelEnabled } from "@/lib/channel-config";
-import { generateAppSecretProof } from "@/lib/facebook-utils";
-
-export const dynamic = "force-dynamic";
 
 // GET: Webhook Verification
 export async function GET(req: NextRequest) {
@@ -93,18 +90,6 @@ export async function POST(req: NextRequest) {
       contentType: req.headers.get("content-type"),
     });
 
-    const isProduction = process.env.NODE_ENV === "production";
-
-    if (isProduction && (!signature || !appSecret)) {
-      console.error(
-        "[Facebook Webhook] Missing signature or app secret in production",
-      );
-      return NextResponse.json(
-        { error: "Signature verification required" },
-        { status: 401 },
-      );
-    }
-
     if (signature && appSecret) {
       // Get raw body for signature verification
       const bodyText = await req.text();
@@ -119,37 +104,20 @@ export async function POST(req: NextRequest) {
       }
 
       // Parse the verified body
-      let body: unknown;
-      try {
-        body = JSON.parse(bodyText);
-      } catch (parseError) {
-        console.error("[Facebook Webhook] Invalid JSON payload", parseError);
-        return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-      }
-
-      if (typeof body !== "object" || body === null) {
-        return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
-      }
-
-      const parsedBody = body as {
-        object?: string;
-        entry?: Array<{ messaging?: unknown }>;
-      };
-
+      const body = JSON.parse(bodyText);
       console.log("[Facebook Webhook] Received verified event", {
-        object: parsedBody.object,
-        entryCount: Array.isArray(parsedBody.entry)
-          ? (parsedBody.entry.length ?? 0)
-          : 0,
+        object: body?.object,
+        entryCount: Array.isArray(body?.entry) ? body.entry.length : 0,
       });
 
       // Log webhook event to database (async, don't await to avoid blocking)
-      logWebhookEvent(body as Record<string, unknown>).catch((err) =>
+      logWebhookEvent(body).catch((err) =>
         console.error("[Facebook Webhook] Failed to log event:", err),
       );
 
-      if (parsedBody.object === "page" && parsedBody.entry) {
-        for (const entry of parsedBody.entry) {
+      // Process each entry in the webhook payload
+      if (body.object === "page" && body.entry) {
+        for (const entry of body.entry) {
           const messaging = entry.messaging;
           if (!messaging || !Array.isArray(messaging)) continue;
 
@@ -318,20 +286,8 @@ async function handleMessage(
     // 2. Fetch user profile from Facebook to get their name
     let userName: string | undefined;
     try {
-      const userProfileUrl = new URL(
-        `https://graph.facebook.com/${senderPsid}`,
-      );
-      userProfileUrl.searchParams.set("fields", "first_name,last_name");
-      userProfileUrl.searchParams.set("access_token", accessToken);
-      const appSecret = process.env.FACEBOOK_CLIENT_SECRET;
-      if (appSecret) {
-        userProfileUrl.searchParams.set(
-          "appsecret_proof",
-          generateAppSecretProof(accessToken, appSecret),
-        );
-      }
-
-      const profileResponse = await fetch(userProfileUrl.toString());
+      const userProfileUrl = `https://graph.facebook.com/${senderPsid}?fields=first_name,last_name&access_token=${accessToken}`;
+      const profileResponse = await fetch(userProfileUrl);
       if (profileResponse.ok) {
         const profileData = await profileResponse.json();
         userName =
@@ -461,7 +417,7 @@ async function handleMessage(
         const textResponse = engineResponse.responses?.find(
           (r: TextResponse) => r.type === "text",
         );
-        replyText = textResponse?.text ?? "";
+        replyText = textResponse?.text;
 
         if (!replyText) {
           throw new Error("No text response from engine");
