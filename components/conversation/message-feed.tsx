@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import {
   CrmConversation,
   CrmMessage,
@@ -23,6 +24,8 @@ export function MessageFeed({
 }: {
   conversation: ConversationViewData;
 }) {
+  const bottomRef = useRef<HTMLDivElement>(null);
+
   const combinedFeed = [
     ...conversation.messages,
     ...conversation.internalNotes,
@@ -30,8 +33,12 @@ export function MessageFeed({
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
 
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [combinedFeed.length]);
+
   return (
-    <div className="flex-1 p-4 space-y-4 overflow-y-auto">
+    <div className="min-h-0 flex-1 overflow-y-auto p-4 space-y-4">
       {combinedFeed.map((item) =>
         "direction" in item ? (
           <Message
@@ -43,6 +50,7 @@ export function MessageFeed({
           <Note key={item.id} note={item} />
         )
       )}
+      <div ref={bottomRef} />
     </div>
   );
 }

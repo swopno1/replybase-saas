@@ -54,6 +54,15 @@ export function ReplyComposer({
   const handleNote = () =>
     submitTo(`/api/conversations/${conversation.id}/notes`);
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (!isSubmitting && content.trim()) {
+        handleReply();
+      }
+    }
+  };
+
   return (
     <div className="p-4 border-t">
       {conversation.channel === "web" ? (
@@ -65,7 +74,8 @@ export function ReplyComposer({
       <Textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        placeholder="Type your reply or note..."
+        onKeyDown={handleKeyDown}
+        placeholder="Type your reply or note… (Enter to send, Shift+Enter for new line)"
         className="mb-2"
       />
       {errorMessage ? (

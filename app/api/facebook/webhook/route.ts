@@ -302,6 +302,7 @@ async function handleMessage(
       id: string;
       botId: string | null;
       metadata: unknown;
+      botPaused: boolean;
     } | null = null;
     if (facebookPage.botId) {
       conversation = await prisma.crmConversation.findFirst({
@@ -329,6 +330,14 @@ async function handleMessage(
           source: "human",
         },
       });
+    }
+
+    // 5b. Honour Bot Pause — if an agent has taken over, do not send automated replies
+    if (conversation?.botPaused) {
+      console.log(
+        `[Facebook Webhook] Bot paused for conversation ${conversation.id} — skipping automated reply`,
+      );
+      return;
     }
 
     // 6. Try Flow Builder first (works without AI/bot engine configured)

@@ -5,6 +5,7 @@ import {
   normalizeWhatsAppAddress,
   sendWhatsAppText,
 } from "@/lib/whatsapp-provider";
+import { sendTextMessage as sendFacebookTextMessage } from "@/lib/facebook-sender";
 
 export type ConversationDeliveryResult =
   | {
@@ -78,6 +79,10 @@ export async function deliverConversationMessage(params: {
   };
   content: string;
 }): Promise<ConversationDeliveryResult> {
+  if (params.conversation.channel === "facebook") {
+    return deliverFacebookMessage(params);
+  }
+
   if (params.conversation.channel !== "whatsapp") {
     return { success: true };
   }
@@ -162,4 +167,71 @@ export async function deliverConversationMessage(params: {
     success: true,
     providerMessageId: sendResult.providerMessageId,
   };
+}
+
+async function deliverFacebookMessage(params: {
+  conversation: {
+    id: string;
+    botId: string | null;
+    contact: {
+      identities: Array<{ type: string; value: string }>;
+    };
+  };
+  content: string;
+}): Promise<ConversationDeliveryResult> {
+  const psidIdentity = params.conversation.contact.identities.find(
+    (i) => i.type === "facebook_psid",
+  );
+
+  if (!psidIdentity?.value) {
+    return {
+      success: false,
+      code: "not_configured",
+      message:
+        "This contact does not have a Facebook PSID. Wait for the first inbound Facebook message.",
+    };
+  }
+
+  // Look up the CRM conversation to find the facebookPage
+  const crmConversation = await prisma.crmConversation.findUnique({
+    where: { id: params.conversation.id },
+    select: { facebookPageId: true },
+  });
+
+  if (!crmConversation?.facebookPageId) {
+    return {
+      success: false,
+      code: "not_configured",
+      message: "This conversation is not linked to a Facebook Page.",
+    };
+  }
+
+  const facebookPage = await prisma.facebookPage.findUnique({
+    where: { id: crmConversation.facebookPageId },
+    select: { accessToken: true },
+  });
+
+  if (!facebookPage?.accessToken) {
+    return {
+      success: false,
+      code: "not_configured",
+      message: "Facebook Page access token is missing. Reconnect in Integrations > Facebook.",
+    };
+  }
+
+  const result = await sendFacebookTextMessage(
+    facebookPage.accessToken,
+    psidIdentity.value,
+    params.content,
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      code: "send_failed",
+      message: result.error || "Failed to send Facebook message.",
+    };
+  }
+
+  return { success: true, providerMessageId: result.messageId };
 }

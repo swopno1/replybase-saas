@@ -90,7 +90,9 @@ export const POST: (
           where: { id: conversationId as string },
           data: {
             botPaused:
-              conversation.channel === "web" ? true : conversation.botPaused,
+              conversation.channel === "web" || conversation.channel === "facebook"
+                ? true
+                : conversation.botPaused,
             assigneeId: conversation.assigneeId ?? userId,
             status:
               conversation.status === ConversationStatus.CLOSED

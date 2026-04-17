@@ -65,6 +65,27 @@ async function resolveFlow(params: {
     }
   }
 
+  // Check if the flow was completed recently — enforce a 12-hour cooldown before
+  // restarting so a satisfied lead is not sent through the flow again on every message.
+  const FLOW_REPEAT_COOLDOWN_MS = 12 * 60 * 60 * 1000; // 12 hours
+  const recentlyCompleted = await prisma.flowSession.findFirst({
+    where: {
+      userId: params.contactId,
+      pageId: params.scopeKey,
+      isActive: false,
+      completedAt: {
+        gte: new Date(Date.now() - FLOW_REPEAT_COOLDOWN_MS),
+      },
+    },
+    orderBy: { completedAt: "desc" },
+  });
+
+  if (recentlyCompleted) {
+    // The lead has already gone through the flow within the last 12 hours — do
+    // not restart it.  Return null so the webhook falls through to the AI/fallback.
+    return null;
+  }
+
   async function startFlowSession(
     flow: Awaited<ReturnType<typeof loadAccessibleFlow>> extends infer T
       ? NonNullable<T>

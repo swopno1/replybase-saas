@@ -80,7 +80,7 @@ export default function ConversationPage() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full overflow-hidden bg-white">
       <ConversationHeader
         conversation={conversation}
         onRefresh={refreshConversation}
