@@ -417,7 +417,7 @@ async function handleMessage(
         const textResponse = engineResponse.responses?.find(
           (r: TextResponse) => r.type === "text",
         );
-        replyText = textResponse?.text;
+        replyText = textResponse?.text ?? "";
 
         if (!replyText) {
           throw new Error("No text response from engine");
