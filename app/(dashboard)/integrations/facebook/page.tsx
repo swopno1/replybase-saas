@@ -55,6 +55,7 @@ interface FBPage {
   category: string;
   connected?: boolean;
   engineConnected?: boolean;
+  webhookSubscribed?: boolean;
   internalId?: string | null;
   assignedFlow?: AssignedFlow | null;
 }
@@ -521,6 +522,7 @@ export default function FacebookIntegrationPage() {
                   {pages.map((page) => {
                     const isConnected = page.connected || page.engineConnected;
                     const isEngineConnected = page.engineConnected;
+                    const isWebhookSubscribed = page.webhookSubscribed ?? false;
                     const isPageLoading = statusMap[page.id] === "loading";
                     const isError = statusMap[page.id] === "error";
                     const isAssigning = assigningMap[page.id] ?? false;
@@ -565,6 +567,27 @@ export default function FacebookIntegrationPage() {
                                   <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
                                     <Zap className="h-3 w-3" />
                                     Flow: {page.assignedFlow.name}
+                                  </span>
+                                )}
+                                {isConnected && (
+                                  <span
+                                    className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full ${
+                                      isWebhookSubscribed
+                                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300"
+                                        : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
+                                    }`}
+                                  >
+                                    {isWebhookSubscribed ? (
+                                      <>
+                                        <CheckCircle2 className="h-3 w-3" />
+                                        Receiving messages
+                                      </>
+                                    ) : (
+                                      <>
+                                        <XCircle className="h-3 w-3" />
+                                        Not receiving messages
+                                      </>
+                                    )}
                                   </span>
                                 )}
                                 {isError && (

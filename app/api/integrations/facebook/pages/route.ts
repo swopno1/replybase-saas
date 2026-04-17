@@ -90,6 +90,7 @@ export const GET = withAuthAndTenant(async ({ id: userId, tenantId }) => {
         id: true,
         facebookId: true,
         engineConnected: true,
+        webhookSubscribed: true,
         flowAssignments: {
           where: { isActive: true },
           select: {
@@ -107,6 +108,7 @@ export const GET = withAuthAndTenant(async ({ id: userId, tenantId }) => {
         p.facebookId,
         {
           engineConnected: p.engineConnected,
+          webhookSubscribed: p.webhookSubscribed,
           internalId: p.id,
           assignedFlow: p.flowAssignments[0]?.flow
             ? {
@@ -127,6 +129,7 @@ export const GET = withAuthAndTenant(async ({ id: userId, tenantId }) => {
         ...page,
         connected: connectedMap.has(page.id),
         engineConnected: info?.engineConnected || false,
+        webhookSubscribed: info?.webhookSubscribed || false,
         internalId: info?.internalId || null,
         assignedFlow: info?.assignedFlow || null,
       };

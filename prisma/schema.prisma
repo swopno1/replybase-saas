@@ -130,6 +130,7 @@ model FacebookPage {
   tenantId            String
   botId               String?
   engineConnected     Boolean               @default(false)
+  webhookSubscribed   Boolean               @default(false)
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
   crmConversations    CrmConversation[]

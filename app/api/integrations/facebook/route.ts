@@ -94,10 +94,51 @@ export async function POST(req: Request) {
       });
     }
 
+    // Subscribe the page to webhook events so Meta delivers messages to our webhook
+    let webhookSubscribed = false;
+    try {
+      const appSecret = process.env.FACEBOOK_CLIENT_SECRET as string;
+      const proof = generateAppSecretProof(accessToken, appSecret);
+      const subUrl = new URL(
+        `https://graph.facebook.com/v18.0/${verifiedPageId}/subscribed_apps`,
+      );
+      subUrl.searchParams.set("access_token", accessToken);
+      subUrl.searchParams.set("appsecret_proof", proof);
+      subUrl.searchParams.set(
+        "subscribed_fields",
+        "messages,messaging_postbacks,messaging_optins,messaging_referrals",
+      );
+      const subRes = await fetch(subUrl.toString(), { method: "POST" });
+      const subData = await subRes.json();
+      if (subRes.ok && subData.success) {
+        webhookSubscribed = true;
+        await prisma.facebookPage.update({
+          where: { id: facebookPage.id },
+          data: { webhookSubscribed: true },
+        });
+        console.log(
+          `[Facebook Integration] Page ${verifiedPageId} subscribed to webhook events`,
+        );
+      } else {
+        console.error(
+          "[Facebook Integration] Failed to subscribe page to webhook:",
+          subData,
+        );
+      }
+    } catch (subError) {
+      console.error(
+        "[Facebook Integration] Error subscribing page to webhook:",
+        subError,
+      );
+    }
+
     return NextResponse.json({
       success: true,
       pageId: verifiedPageId,
-      message: "Page connected successfully",
+      webhookSubscribed,
+      message: webhookSubscribed
+        ? "Page connected and subscribed to webhook events"
+        : "Page connected but webhook subscription failed — messages may not be received",
     });
   } catch (error) {
     console.error("[Facebook Integration] Error:", error);

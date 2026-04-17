@@ -2,11 +2,9 @@ import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
+import { generateAppSecretProof } from "@/lib/facebook-utils";
 
-export const dynamic = 'force-dynamic';
-
-
-
+export const dynamic = "force-dynamic";
 
 export async function DELETE(
   req: Request,
@@ -41,6 +39,31 @@ export async function DELETE(
         { error: "Facebook page not found" },
         { status: 404 },
       );
+    }
+
+    // Unsubscribe page from webhook events before deleting
+    if (facebookPage.webhookSubscribed && facebookPage.accessToken) {
+      try {
+        const appSecret = process.env.FACEBOOK_CLIENT_SECRET as string;
+        const proof = generateAppSecretProof(
+          facebookPage.accessToken,
+          appSecret,
+        );
+        const unsubUrl = new URL(
+          `https://graph.facebook.com/v18.0/${pageId}/subscribed_apps`,
+        );
+        unsubUrl.searchParams.set("access_token", facebookPage.accessToken);
+        unsubUrl.searchParams.set("appsecret_proof", proof);
+        await fetch(unsubUrl.toString(), { method: "DELETE" });
+        console.log(
+          `[Facebook Integration] Page ${pageId} unsubscribed from webhook`,
+        );
+      } catch (unsubError) {
+        console.error(
+          "[Facebook Integration] Failed to unsubscribe page:",
+          unsubError,
+        );
+      }
     }
 
     // Delete in correct order to respect foreign key constraints
