@@ -54,8 +54,6 @@ export class FlowExecutionEngine {
    */
   static async executeFlow(context: FlowExecutionContext) {
     try {
-      console.log("[FlowEngine] Executing flow for context:", context);
-
       // Get active flow assignment for the page
       const assignment = await prisma.flowAssignment.findFirst({
         where: {
@@ -77,10 +75,6 @@ export class FlowExecutionEngine {
       });
 
       if (!assignment || !assignment.flow.isActive) {
-        console.log(
-          "[FlowEngine] No active flow found for page:",
-          context.pageId,
-        );
         return { success: false, reason: "no_active_flow" };
       }
 
@@ -109,8 +103,6 @@ export class FlowExecutionEngine {
           },
         });
 
-        console.log("[FlowEngine] Created new session:", session.id);
-
         // Execute first node
         return await this.executeNode(
           flow.nodes[0],
@@ -122,7 +114,6 @@ export class FlowExecutionEngine {
         // Continue existing session - session is guaranteed to exist here
         // since we've already handled the case where it doesn't
         const existingSession = session as FlowSession;
-        console.log("[FlowEngine] Continuing session:", existingSession.id);
 
         // Find current node
         const currentNodeId = existingSession.currentNodeId;
@@ -199,8 +190,6 @@ export class FlowExecutionEngine {
     context: FlowExecutionContext,
   ): Promise<Record<string, unknown>> {
     const content: FlowNodeContent = node.content as FlowNodeContent;
-
-    console.log(`[FlowEngine] Executing node ${node.id} of type ${node.type}`);
 
     // Update session with current node
     await prisma.flowSession.update({

@@ -3,10 +3,7 @@ import getOidcProvider from "@/lib/oidc-provider";
 import { IncomingMessage, ServerResponse } from "http";
 import { headers } from "next/headers";
 
-export const dynamic = 'force-dynamic';
-
-
-
+export const dynamic = "force-dynamic";
 
 export const runtime = "nodejs";
 
@@ -57,11 +54,8 @@ async function handler(
   try {
     const { oidc } = await params;
     const pathname = "/" + (oidc?.join("/") || "");
-    console.log("[OIDC] Incoming request:", pathname);
-
     // Handle discovery endpoint directly
     if (pathname === "/.well-known/openid-configuration") {
-      console.log("[OIDC] Returning discovery document");
       const ISSUER =
         process.env.NEXT_PUBLIC_APP_URL || "https://app.replybase.co.uk";
       const discoveryDoc = {
@@ -97,7 +91,6 @@ async function handler(
 
     // For all other OIDC endpoints, use the provider callback
     const provider = getOidcProvider();
-    console.log("[OIDC] Provider initialized");
 
     const reqShim = await createIncomingMessage(req);
     reqShim.url = pathname + req.nextUrl.search;

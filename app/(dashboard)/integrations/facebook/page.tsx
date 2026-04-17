@@ -60,16 +60,6 @@ interface FBPage {
   assignedFlow?: AssignedFlow | null;
 }
 
-interface MetaSetupStatus {
-  facebook?: {
-    oauthConfigured: boolean;
-    webhookVerifyTokenConfigured: boolean;
-    oauthCallbackUrl: string;
-    webhookCallbackUrl: string;
-    requiredScopes: string[];
-  };
-}
-
 export default function FacebookIntegrationPage() {
   const router = useRouter();
   const { confirm } = useConfirmation();
@@ -77,7 +67,6 @@ export default function FacebookIntegrationPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [pages, setPages] = useState<FBPage[]>([]);
   const [connected, setConnected] = useState(false);
-  const [setupStatus, setSetupStatus] = useState<MetaSetupStatus | null>(null);
   const [statusMap, setStatusMap] = useState<
     Record<string, string | undefined>
   >({});
@@ -108,10 +97,7 @@ export default function FacebookIntegrationPage() {
   const fetchPages = async () => {
     try {
       setIsLoading(true);
-      const [pagesResponse, setupResponse] = await Promise.all([
-        fetch("/api/integrations/facebook/pages"),
-        fetch("/api/meta/setup-status"),
-      ]);
+      const pagesResponse = await fetch("/api/integrations/facebook/pages");
 
       const data = await pagesResponse.json();
       if (!pagesResponse.ok) {
@@ -137,11 +123,6 @@ export default function FacebookIntegrationPage() {
       } else {
         setConnected(false);
         setPages([]);
-      }
-
-      if (setupResponse.ok) {
-        const setupData = (await setupResponse.json()) as MetaSetupStatus;
-        setSetupStatus(setupData);
       }
     } catch (e) {
       console.error(e);
@@ -369,53 +350,6 @@ export default function FacebookIntegrationPage() {
           <p>
             3. If neither flow nor AI is active, no automated reply is sent.
           </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Meta Setup Checklist</CardTitle>
-          <CardDescription>
-            Verify your Facebook app setup before connecting pages.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm text-muted-foreground">
-          <p>
-            OAuth callback URL:
-            <span className="ml-2 rounded bg-muted px-2 py-1 font-mono text-xs text-foreground">
-              {setupStatus?.facebook?.oauthCallbackUrl || "Loading..."}
-            </span>
-          </p>
-          <p>
-            Webhook callback URL:
-            <span className="ml-2 rounded bg-muted px-2 py-1 font-mono text-xs text-foreground">
-              {setupStatus?.facebook?.webhookCallbackUrl || "Loading..."}
-            </span>
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <span
-              className={`rounded px-2 py-1 text-xs ${
-                setupStatus?.facebook?.oauthConfigured
-                  ? "bg-green-100 text-green-700"
-                  : "bg-yellow-100 text-yellow-700"
-              }`}
-            >
-              OAuth credentials{" "}
-              {setupStatus?.facebook?.oauthConfigured ? "ready" : "missing"}
-            </span>
-            <span
-              className={`rounded px-2 py-1 text-xs ${
-                setupStatus?.facebook?.webhookVerifyTokenConfigured
-                  ? "bg-green-100 text-green-700"
-                  : "bg-yellow-100 text-yellow-700"
-              }`}
-            >
-              Webhook verify token{" "}
-              {setupStatus?.facebook?.webhookVerifyTokenConfigured
-                ? "ready"
-                : "missing"}
-            </span>
-          </div>
         </CardContent>
       </Card>
 

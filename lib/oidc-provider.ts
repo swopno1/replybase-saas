@@ -125,10 +125,6 @@ export default function getOidcProvider() {
     );
     // Trust proxy for secure cookies behind reverse proxy
     oidcProvider.proxy = true;
-    console.log(
-      "[OIDC] Provider initialized successfully at",
-      ISSUER + "/api/oidc",
-    );
   } catch (error) {
     console.error("[OIDC] Failed to initialize provider:", error);
     throw error;

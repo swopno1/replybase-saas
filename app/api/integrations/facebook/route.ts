@@ -62,10 +62,6 @@ export async function POST(req: Request) {
       },
     });
 
-    console.log(
-      `[Facebook Integration] Page ${verifiedPageId} saved/updated for user ${userId}`,
-    );
-
     // Log Facebook page connection for KPI tracking
     await recordWebhookSetupLog({
       source: "facebook",
@@ -116,9 +112,6 @@ export async function POST(req: Request) {
           where: { id: facebookPage.id },
           data: { webhookSubscribed: true },
         });
-        console.log(
-          `[Facebook Integration] Page ${verifiedPageId} subscribed to webhook events`,
-        );
       } else {
         console.error(
           "[Facebook Integration] Failed to subscribe page to webhook:",

@@ -32,12 +32,6 @@ export async function GET(req: NextRequest) {
   const token = searchParams.get("hub.verify_token");
   const challenge = searchParams.get("hub.challenge");
 
-  console.log("[Facebook Webhook] Verification request", {
-    mode,
-    hasToken: Boolean(token),
-    hasChallenge: Boolean(challenge),
-  });
-
   const verifyToken = process.env.FACEBOOK_WEBHOOK_VERIFY_TOKEN;
 
   if (!verifyToken) {
@@ -49,8 +43,6 @@ export async function GET(req: NextRequest) {
   }
 
   if (mode === "subscribe" && token === verifyToken) {
-    console.log("[Facebook Webhook] Verification successful");
-
     // Log verification success
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -89,11 +81,6 @@ export async function POST(req: NextRequest) {
     const signature = req.headers.get("x-hub-signature-256");
     const appSecret = process.env.FACEBOOK_CLIENT_SECRET;
 
-    console.log("[Facebook Webhook] Incoming webhook", {
-      hasSignature: Boolean(signature),
-      contentType: req.headers.get("content-type"),
-    });
-
     if (signature && appSecret) {
       // Get raw body for signature verification
       const bodyText = await req.text();
@@ -109,10 +96,6 @@ export async function POST(req: NextRequest) {
 
       // Parse the verified body
       const body = JSON.parse(bodyText);
-      console.log("[Facebook Webhook] Received verified event", {
-        object: body?.object,
-        entryCount: Array.isArray(body?.entry) ? body.entry.length : 0,
-      });
 
       // Log webhook event to database (async, don't await to avoid blocking)
       logWebhookEvent(body).catch((err) =>
@@ -140,10 +123,6 @@ export async function POST(req: NextRequest) {
         "[Facebook Webhook] Signature verification skipped (signature or secret not available)",
       );
       const body = await req.json();
-      console.log("[Facebook Webhook] Received event summary:", {
-        object: body?.object,
-        entryCount: Array.isArray(body?.entry) ? body.entry.length : 0,
-      });
 
       // Process each entry in the webhook payload
       if (body.object === "page" && body.entry) {
@@ -334,9 +313,6 @@ async function handleMessage(
 
     // 5b. Honour Bot Pause — if an agent has taken over, do not send automated replies
     if (conversation?.botPaused) {
-      console.log(
-        `[Facebook Webhook] Bot paused for conversation ${conversation.id} — skipping automated reply`,
-      );
       return;
     }
 

@@ -3,10 +3,7 @@ import { parseSignedRequest } from "@/lib/facebook-utils";
 import { prisma } from "@/lib/prisma";
 import { isChannelEnabled } from "@/lib/channel-config";
 
-export const dynamic = 'force-dynamic';
-
-
-
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   // Check if Facebook channel is enabled
@@ -47,10 +44,6 @@ export async function POST(req: NextRequest) {
     }
 
     const facebookUserId = payload.user_id;
-    console.log(
-      `[Facebook Deauthorization] received for FB User ID: ${facebookUserId}`,
-    );
-
     // Find the user associated with this Facebook ID
     const account = await prisma.account.findFirst({
       where: {
@@ -62,10 +55,6 @@ export async function POST(req: NextRequest) {
 
     if (account && account.user) {
       const tenantId = account.user.tenantId;
-      console.log(
-        `[Facebook Deauthorization] Disabling engine for Tenant ID: ${tenantId}`,
-      );
-
       // Find all Facebook pages connected to this tenant
       const pages = await prisma.facebookPage.findMany({
         where: { tenantId: tenantId },
@@ -79,9 +68,6 @@ export async function POST(req: NextRequest) {
           where: { id: { in: pageIds } },
           data: { engineConnected: false },
         });
-        console.log(
-          `[Facebook Deauthorization] Disabled engine for ${pages.length} pages in tenant ${tenantId}`,
-        );
       }
     } else {
       console.warn(

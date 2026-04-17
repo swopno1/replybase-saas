@@ -55,9 +55,6 @@ export async function DELETE(
         unsubUrl.searchParams.set("access_token", facebookPage.accessToken);
         unsubUrl.searchParams.set("appsecret_proof", proof);
         await fetch(unsubUrl.toString(), { method: "DELETE" });
-        console.log(
-          `[Facebook Integration] Page ${pageId} unsubscribed from webhook`,
-        );
       } catch (unsubError) {
         console.error(
           "[Facebook Integration] Failed to unsubscribe page:",
@@ -108,10 +105,6 @@ export async function DELETE(
         id: facebookPage.id,
       },
     });
-
-    console.log(
-      `[Facebook Integration] Page ${pageId} and all related data successfully deleted for tenant ${tenantId}`,
-    );
 
     return NextResponse.json({
       success: true,
