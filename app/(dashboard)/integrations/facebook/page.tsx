@@ -123,6 +123,11 @@ export default function FacebookIntegrationPage() {
       } else {
         setConnected(false);
         setPages([]);
+        if (data.reason === "stale_token") {
+          toast.error(
+            "Your Facebook session has expired. Please reconnect your account.",
+          );
+        }
       }
     } catch (e) {
       console.error(e);

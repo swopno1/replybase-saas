@@ -71,35 +71,52 @@ export async function DELETE(
       },
     });
 
-    // 2. Delete conversations for this page
+    // 2. Collect conversation IDs so child records can be deleted first
+    const conversations = await prisma.crmConversation.findMany({
+      where: { facebookPageId: facebookPage.id },
+      select: { id: true },
+    });
+    const conversationIds = conversations.map((c) => c.id);
+
+    // 3. Delete messages (no cascade in schema)
+    await prisma.crmMessage.deleteMany({
+      where: { conversationId: { in: conversationIds } },
+    });
+
+    // 4. Delete internal notes (no cascade in schema)
+    await prisma.internalNote.deleteMany({
+      where: { conversationId: { in: conversationIds } },
+    });
+
+    // 5. Delete conversations (WebChatSession cascades automatically)
     await prisma.crmConversation.deleteMany({
       where: {
         facebookPageId: facebookPage.id,
       },
     });
 
-    // 3. Delete leads for this page
+    // 6. Delete leads for this page
     await prisma.lead.deleteMany({
       where: {
         pageId: facebookPage.id,
       },
     });
 
-    // 4. Delete flow sessions related to this page
+    // 7. Delete flow sessions related to this page
     await prisma.flowSession.deleteMany({
       where: {
         pageId: facebookPage.id,
       },
     });
 
-    // 5. Delete onboarding sessions for this page
+    // 8. Delete onboarding sessions for this page
     await prisma.onboardingSession.deleteMany({
       where: {
         facebookPageId: facebookPage.id,
       },
     });
 
-    // 6. Finally delete the Facebook page
+    // 9. Finally delete the Facebook page
     await prisma.facebookPage.delete({
       where: {
         id: facebookPage.id,
