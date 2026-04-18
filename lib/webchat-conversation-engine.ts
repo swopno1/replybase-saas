@@ -340,6 +340,11 @@ async function persistLeadCapture(params: {
   });
 }
 
+// Sessions older than this without activity are considered abandoned and reset.
+const STALE_SESSION_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+// Completed sessions cannot restart within this window.
+const FLOW_REPEAT_COOLDOWN_MS = 12 * 60 * 60 * 1000; // 12 hours
+
 async function resolveFlow(params: {
   tenantId: string;
   botId: string;
@@ -359,37 +364,50 @@ async function resolveFlow(params: {
   });
 
   if (activeSession) {
-    const variables =
-      (activeSession.variables as Record<string, unknown>) || {};
-    const runtime = getRuntimeState(variables, activeSession.flowId);
-    const flow = await loadAccessibleFlow({
-      tenantId: params.tenantId,
-      flowId: runtime.activeFlowId,
-    });
+    const sessionAge = Date.now() - activeSession.updatedAt.getTime();
+    if (sessionAge < STALE_SESSION_AGE_MS) {
+      // Recent session — resume from where the visitor left off.
+      const variables =
+        (activeSession.variables as Record<string, unknown>) || {};
+      const runtime = getRuntimeState(variables, activeSession.flowId);
+      const flow = await loadAccessibleFlow({
+        tenantId: params.tenantId,
+        flowId: runtime.activeFlowId,
+      });
 
-    if (flow) {
-      return { flow, session: activeSession, pageId, isNewSession: false };
+      if (flow) {
+        return { flow, session: activeSession, pageId, isNewSession: false };
+      }
+    } else {
+      // Stale session (> 24 h inactive) — expire it so the visitor gets a
+      // fresh start.  Contact variables (name, email) will be injected by the
+      // caller so the lead-gen gate skips re-interrogating known contacts.
+      await prisma.flowSession.update({
+        where: { id: activeSession.id },
+        data: { isActive: false },
+      });
     }
+  }
+
+  // Enforce a 12-hour cooldown before allowing the flow to restart after a
+  // successful completion.  This mirrors the behaviour in bot-entry-flow-engine.
+  const recentlyCompleted = await prisma.flowSession.findFirst({
+    where: {
+      userId: params.contactId,
+      pageId,
+      isActive: false,
+      completedAt: { gte: new Date(Date.now() - FLOW_REPEAT_COOLDOWN_MS) },
+    },
+    orderBy: { completedAt: "desc" },
+  });
+
+  if (recentlyCompleted) {
+    return null;
   }
 
   async function startFlowSession(
     flow: NonNullable<Awaited<ReturnType<typeof loadAccessibleFlow>>>,
   ) {
-    const completedSession = await prisma.flowSession.findFirst({
-      where: {
-        userId: params.contactId,
-        pageId,
-        flowId: flow.id,
-        isActive: false,
-        completedAt: { not: null },
-      },
-      orderBy: { updatedAt: "desc" },
-    });
-
-    if (completedSession) {
-      return null;
-    }
-
     const session = await prisma.flowSession.create({
       data: {
         userId: params.contactId,
@@ -487,6 +505,22 @@ export async function executeWebchatFlowFirst(params: {
     ...((session.variables as Record<string, unknown> | null) || {}),
     ...toFlowVariables(params.sourceContext),
   };
+
+  // Inject contact identity so flow nodes can gate on contact_is_qualified
+  // without hitting the DB again.  "true"/"false" strings are used because
+  // the condition evaluator compares values as strings.
+  const contactRecord = await prisma.contact.findUnique({
+    where: { id: params.contactId },
+    select: { name: true, email: true, phone: true },
+  });
+  variables.contact_name = contactRecord?.name ?? "";
+  variables.contact_name_prefix = contactRecord?.name
+    ? `, ${contactRecord.name}`
+    : "";
+  variables.contact_email = contactRecord?.email ?? "";
+  variables.contact_phone = contactRecord?.phone ?? "";
+  variables.contact_is_qualified = contactRecord?.email ? "true" : "false";
+
   const runtime = getRuntimeState(variables, session.flowId);
   const responses: Array<
     { type: "text"; text: string } | { type: "typing"; durationMs: number }

@@ -35,6 +35,9 @@ async function applyDelayWithOptionalTyping(
   // No server-side wait — dispatch loop handles timing from durationMs
 }
 
+// Sessions older than this without activity are considered abandoned and reset.
+const STALE_SESSION_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 async function resolveFlow(params: {
   tenantId: string;
   contactId: string;
@@ -52,16 +55,27 @@ async function resolveFlow(params: {
   });
 
   if (activeSession) {
-    const variables =
-      (activeSession.variables as Record<string, unknown>) || {};
-    const runtime = getRuntimeState(variables, activeSession.flowId);
-    const flow = await loadAccessibleFlow({
-      tenantId: params.tenantId,
-      flowId: runtime.activeFlowId,
-    });
+    const sessionAge = Date.now() - activeSession.updatedAt.getTime();
+    if (sessionAge < STALE_SESSION_AGE_MS) {
+      // Recent session — resume from where the visitor left off.
+      const variables =
+        (activeSession.variables as Record<string, unknown>) || {};
+      const runtime = getRuntimeState(variables, activeSession.flowId);
+      const flow = await loadAccessibleFlow({
+        tenantId: params.tenantId,
+        flowId: runtime.activeFlowId,
+      });
 
-    if (flow) {
-      return { flow, session: activeSession, isNewSession: false };
+      if (flow) {
+        return { flow, session: activeSession, isNewSession: false };
+      }
+    } else {
+      // Stale session (> 24 h inactive) — expire it so the user gets a fresh
+      // start.  Contact variables will be injected by the caller.
+      await prisma.flowSession.update({
+        where: { id: activeSession.id },
+        data: { isActive: false },
+      });
     }
   }
 
@@ -211,6 +225,24 @@ export async function executeBotEntryFlowFirst(params: {
     ...((session.variables as Record<string, unknown> | null) || {}),
     ...(params.variables || {}),
   };
+
+  // Inject contact identity so flow nodes can gate on contact_is_qualified
+  // without hitting the DB again.  "true"/"false" strings are used because
+  // the condition evaluator compares values as strings.
+  const contactRecord = await prisma.contact.findUnique({
+    where: { id: params.contactId },
+    select: { name: true, email: true, phone: true },
+  });
+  mergedVariables.contact_name = contactRecord?.name ?? "";
+  mergedVariables.contact_name_prefix = contactRecord?.name
+    ? `, ${contactRecord.name}`
+    : "";
+  mergedVariables.contact_email = contactRecord?.email ?? "";
+  mergedVariables.contact_phone = contactRecord?.phone ?? "";
+  mergedVariables.contact_is_qualified = contactRecord?.email
+    ? "true"
+    : "false";
+
   const runtime = getRuntimeState(mergedVariables, session.flowId);
   const responses: Array<
     { type: "text"; text: string } | { type: "typing"; durationMs: number }
