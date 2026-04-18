@@ -79,9 +79,10 @@ async function resolveFlow(params: {
     }
   }
 
-  // Check if the flow was completed recently — enforce a 12-hour cooldown before
-  // restarting so a satisfied lead is not sent through the flow again on every message.
-  const FLOW_REPEAT_COOLDOWN_MS = 12 * 60 * 60 * 1000; // 12 hours
+  // No cooldown — flow_Initial's order:-1 returning-user gate handles qualified
+  // contacts gracefully (skips greeting + lead-gen, goes straight to explore topic).
+  // Setting this to 0 prevents post-flow messages from falling through to AI/fallback.
+  const FLOW_REPEAT_COOLDOWN_MS = 0;
   const recentlyCompleted = await prisma.flowSession.findFirst({
     where: {
       userId: params.contactId,

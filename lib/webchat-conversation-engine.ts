@@ -342,8 +342,10 @@ async function persistLeadCapture(params: {
 
 // Sessions older than this without activity are considered abandoned and reset.
 const STALE_SESSION_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
-// Completed sessions cannot restart within this window.
-const FLOW_REPEAT_COOLDOWN_MS = 12 * 60 * 60 * 1000; // 12 hours
+// No cooldown — flow_Initial's order:-1 returning-user gate handles qualified
+// contacts gracefully (skips greeting + lead-gen, goes straight to explore topic).
+// Setting this to 0 prevents post-flow messages from falling through to AI/fallback.
+const FLOW_REPEAT_COOLDOWN_MS = 0;
 
 async function resolveFlow(params: {
   tenantId: string;
