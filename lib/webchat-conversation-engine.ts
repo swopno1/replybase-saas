@@ -304,6 +304,39 @@ async function persistLeadCapture(params: {
       ? (existingLead.metadata as Record<string, unknown>)
       : {};
 
+  // Collect every user-visible flow variable into flowInputs so the leads
+  // table can show one column per captured input.  Internal engine keys are
+  // excluded; everything else (including variables already stored as dedicated
+  // columns) is preserved here for a complete snapshot.
+  const INTERNAL_VARIABLE_KEYS = new Set([
+    "__runtime",
+    "contact_name",
+    "contact_name_prefix",
+    "contact_email",
+    "contact_phone",
+    "contact_is_qualified",
+    "last_user_message",
+    "last_user_message_normalized",
+  ]);
+  const previousFlowInputs =
+    existingMetadata.flowInputs &&
+    typeof existingMetadata.flowInputs === "object" &&
+    !Array.isArray(existingMetadata.flowInputs)
+      ? (existingMetadata.flowInputs as Record<string, string>)
+      : {};
+  const newFlowInputs: Record<string, string> = {};
+  for (const [k, v] of Object.entries(params.variables)) {
+    if (
+      !INTERNAL_VARIABLE_KEYS.has(k) &&
+      v !== null &&
+      v !== undefined &&
+      v !== "" &&
+      typeof v !== "object"
+    ) {
+      newFlowInputs[k] = String(v);
+    }
+  }
+
   const leadData = {
     tenantId: params.tenantId,
     contactId: params.contactId,
@@ -324,6 +357,7 @@ async function persistLeadCapture(params: {
       need,
       budget,
       lastUserMessage: getVariableString(params.variables, "last_user_message"),
+      flowInputs: { ...previousFlowInputs, ...newFlowInputs },
     } as Prisma.InputJsonValue,
   };
 

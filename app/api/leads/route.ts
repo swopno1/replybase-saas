@@ -13,26 +13,38 @@ export const GET: (
     const status = searchParams.get("status");
     const limit = parseInt(searchParams.get("limit") || "50");
 
-    const leads = await prisma.lead.findMany({
-      where: {
-        tenantId,
-        ...(status && { status }),
-      },
-      include: {
-        contact: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
+    const [leads, subscription] = await Promise.all([
+      prisma.lead.findMany({
+        where: {
+          tenantId,
+          ...(status && { status }),
+        },
+        include: {
+          contact: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
-      take: limit,
-    });
+        orderBy: { createdAt: "desc" },
+        take: limit,
+      }),
+      prisma.subscription.findFirst({
+        where: { tenantId, status: { in: ["active", "trialing"] } },
+        include: { plan: { select: { price: true } } },
+      }),
+    ]);
 
-    return NextResponse.json({ leads });
+    // CSV export is available for trial users and paid subscribers (plan.price > 0).
+    const canExport =
+      subscription?.status === "trialing" ||
+      (subscription?.status === "active" &&
+        (subscription.plan.price ?? 0) > 0);
+
+    return NextResponse.json({ leads, canExport: canExport ?? false });
   } catch (error) {
     console.error("[Leads API] Error:", error);
     return NextResponse.json(
