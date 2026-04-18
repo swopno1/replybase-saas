@@ -545,7 +545,10 @@ export async function POST(request: NextRequest) {
       if (webChatSession) {
         await prisma.webChatSession.update({
           where: { id: webChatSession.id },
-          data: { conversationId: session.conversationId, lastSeenAt: new Date() },
+          data: {
+            conversationId: session.conversationId,
+            lastSeenAt: new Date(),
+          },
         });
         await prisma.webChatEvent.create({
           data: {
