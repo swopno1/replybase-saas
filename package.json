@@ -21,7 +21,8 @@
     "test:telegram": "dotenv -- tsx scripts/test-telegram.ts",
     "diagnose:facebook": "dotenv -- tsx scripts/diagnose-facebook-integration.ts",
     "normalize:web-channel-type": "tsx scripts/normalize-web-channel-type.ts",
-    "backfill:facebook-flow-assignments": "dotenv -- tsx scripts/backfill-facebook-flow-assignments.ts"
+    "backfill:facebook-flow-assignments": "dotenv -- tsx scripts/backfill-facebook-flow-assignments.ts",
+    "seed:orchestra-flows": "dotenv -- tsx scripts/seed-orchestra-flows.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
