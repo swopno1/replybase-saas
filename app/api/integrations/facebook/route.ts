@@ -213,8 +213,18 @@ export async function DELETE() {
     });
     const pageIds = facebookPages.map((p) => p.id);
 
-    // Delete everything in a single transaction
+    // Collect conversation IDs so we can delete child messages first
+    const conversations = await prisma.crmConversation.findMany({
+      where: { facebookPageId: { in: pageIds } },
+      select: { id: true },
+    });
+    const conversationIds = conversations.map((c) => c.id);
+
+    // Delete everything in a single transaction — child rows before parents
     await prisma.$transaction([
+      prisma.crmMessage.deleteMany({
+        where: { conversationId: { in: conversationIds } },
+      }),
       prisma.flowAssignment.deleteMany({ where: { pageId: { in: pageIds } } }),
       prisma.crmConversation.deleteMany({
         where: { facebookPageId: { in: pageIds } },
