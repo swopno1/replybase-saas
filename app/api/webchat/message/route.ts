@@ -112,7 +112,11 @@ export async function POST(request: NextRequest) {
       session.siteId
         ? prisma.webChatSite.findUnique({ where: { id: session.siteId } })
         : prisma.webChatSite.findFirst({
-            where: { channelId: session.channelId, botId: session.botId, isActive: true },
+            where: {
+              channelId: session.channelId,
+              botId: session.botId,
+              isActive: true,
+            },
           }),
       prisma.tenant.findUnique({
         where: { id: session.tenantId },
