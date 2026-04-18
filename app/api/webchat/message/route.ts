@@ -266,6 +266,7 @@ export async function POST(request: NextRequest) {
             name: true,
             entryFlow: true,
             welcomeMessage: true,
+            aiEnabled: true,
           },
         },
       },
@@ -521,6 +522,57 @@ export async function POST(request: NextRequest) {
             completed: flowResult.completed,
             sourceContext,
           },
+        },
+        { headers: createWebchatCorsHeaders(request) },
+      );
+    }
+
+    // Only call the AI engine when the operator has explicitly enabled it for
+    // this bot.  Without this guard every message falls through to Typebot and
+    // produces a noisy "flow not found" error for tenants that have not set up
+    // a Typebot flow.
+    if (!conversation.bot?.aiEnabled) {
+      // AI is off — return the safe fallback quietly (no error log).
+      await prisma.crmMessage.create({
+        data: {
+          conversationId: session.conversationId,
+          direction: "outbound",
+          content: SAFE_WEBCHAT_FALLBACK_MESSAGE,
+          source: "system",
+        },
+      });
+
+      if (webChatSession) {
+        await prisma.webChatSession.update({
+          where: { id: webChatSession.id },
+          data: { conversationId: session.conversationId, lastSeenAt: new Date() },
+        });
+        await prisma.webChatEvent.create({
+          data: {
+            siteId: webChatSession.siteId,
+            sessionId: webChatSession.id,
+            type: "MESSAGE",
+            payload: {
+              messageLength: parsed.data.message.length,
+              responseCount: 1,
+              responseSource: "safe_fallback",
+              reason: "ai_disabled",
+            },
+          },
+        });
+      }
+
+      recordWebchatMetric("webchat.message.processed", {
+        siteId: site.id,
+        responseSource: "safe_fallback",
+        responseCount: 1,
+      });
+      return NextResponse.json(
+        {
+          conversationId: session.conversationId,
+          sessionId: webChatSession?.externalSessionId || null,
+          responses: [{ type: "text", text: SAFE_WEBCHAT_FALLBACK_MESSAGE }],
+          meta: { mode: "safe_fallback", sourceContext },
         },
         { headers: createWebchatCorsHeaders(request) },
       );

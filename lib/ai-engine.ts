@@ -485,10 +485,22 @@ export async function converse(input: ConverseInput) {
       sessionId: externalSessionId,
     };
   } catch (error) {
-    console.error("[AI Engine] Converse request failed:", error);
-    await updateHealthStatus(false, {
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
+    // "Typebot flow not found" means this bot has no published Typebot flow —
+    // it is a per-bot configuration gap, NOT an engine outage.  Log at warn
+    // level and do NOT mark the engine as unhealthy so the health dashboard
+    // stays accurate for other bots.
+    const isFlowNotFound =
+      error instanceof AiEngineError &&
+      error.message.includes("Typebot flow not found");
+
+    if (isFlowNotFound) {
+      console.warn("[AI Engine] No Typebot flow published for bot:", botId);
+    } else {
+      console.error("[AI Engine] Converse request failed:", error);
+      await updateHealthStatus(false, {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
 
     if (error instanceof AiEngineError) {
       throw error;
