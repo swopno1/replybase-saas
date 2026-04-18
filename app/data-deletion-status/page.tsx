@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export default async function DataDeletionStatusPage({
   searchParams,
@@ -76,7 +76,23 @@ export default async function DataDeletionStatusPage({
         </p>
 
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          If you have any questions, please contact our support team.
+          If you have any questions, please contact our support team at{" "}
+          <a
+            href="mailto:admin@replybase.co.uk"
+            className="text-indigo-400 hover:text-indigo-300"
+          >
+            admin@replybase.co.uk
+          </a>{" "}
+          or WhatsApp us at{" "}
+          <a
+            href="https://wa.me/447822033580"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-green-400 hover:text-green-300"
+          >
+            +44 7822 033580
+          </a>
+          .
         </p>
       </div>
     </div>

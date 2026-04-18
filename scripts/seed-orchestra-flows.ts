@@ -1,18 +1,17 @@
 /**
  * Seed ReplyBase Orchestra Flows for replybase1@gmail.com
  *
- * Creates the full Orchestra System flow set — a 4-layer psychological framework
- * for lead-gen conversations across all channels:
+ * Wipes all existing flows for the tenant and creates a fresh set:
  *
- *   flow_Initial             — Orchestrator entry flow ("Aria" bot)
- *   flow_lead-generation     — Primary lead capture (highest priority)
- *   flow_pricing-discussion  — Pricing overview + plan comparison
- *   flow_features-discussion — Feature exploration
- *   flow_contact             — Contact details + callback capture
- *   flow_tutorial            — Quick-start guide
+ *   flow_Initial             — Orchestrator entry ("Aria") — captures lead FIRST, then routes
+ *   flow_lead-generation     — Primary lead capture (HIGHEST PRIORITY)
+ *   flow_pricing-discussion  — Pricing overview + plan details + sign-up CTA
+ *   flow_features-discussion — Feature deep-dive by category
+ *   flow_contact             — Contact details + optional callback capture
+ *   flow_tutorial            — 4-step getting-started guide
  *
  * Usage:
- *   cd replybase-saas && dotenv -- tsx scripts/seed-orchestra-flows.ts
+ *   cd replybase-saas && pnpm seed:orchestra-flows
  */
 
 import "dotenv/config";
@@ -78,20 +77,51 @@ async function upsertFlow(tenantId: string, ownerId: string, spec: FlowSpec) {
   });
 }
 
+
+// ─── Helper: delete all flows for a tenant (leaves channels assigned but removes flows) ──
+async function deleteAllTenantFlows(tenantId: string) {
+  // Fetch all flow IDs for this tenant
+  const flows = await prisma.flow.findMany({
+    where: { tenantId },
+    select: { id: true, name: true },
+  });
+  if (!flows.length) return;
+  console.log(`\n🗑️  Removing ${flows.length} existing flow(s)...`);
+  for (const f of flows) {
+    await prisma.flow.delete({ where: { id: f.id } });
+    console.log(`    Deleted: ${f.name}`);
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// FLOW 1: flow_lead-generation
-// Priority: HIGHEST — must work perfectly on every channel.
-// Collects: name, email, phone, business type, volume, budget.
-// Tags the lead and updates status to "qualified".
+// FLOW 1 — flow_lead-generation
+//
+// PRIORITY: HIGHEST. Called as a sub-flow from flow_Initial right after greeting.
+// Captures: name, email, phone, business type, weekly volume, budget.
+// On completion: tags lead as "qualified" and updates CRM status.
+//
+// Node order layout (flat sequential, no gaps):
+//   0  — warm-up message ("just a few quick things")
+//   1  — input: lead_name
+//   2  — message: "Nice to meet you, {{lead_name}}"
+//   3  — input: lead_email
+//   4  — input: lead_phone
+//   5  — input: lead_business_type
+//   6  — input: lead_volume
+//   7  — input: lead_budget
+//   8  — message: confirmation + promise
+//   9  — action: tag_user (lead, qualified, new-lead)
+//  10  — action: update_status (qualified)
+//  11  — action: end_flow  ← returns to flow_Initial
 // ─────────────────────────────────────────────────────────────────────────────
 
 const LEAD_GEN_NODES: NodeInput[] = [
   {
     type: "message",
     content: {
-      text: "To make sure I'm pointing you in the right direction, I'd love to learn a bit about you and your setup. It'll only take a minute! 😊",
+      text: "So I can make sure I'm actually useful to you — mind if I grab a few quick details? Won't take long at all. 😊",
       typingEnabled: true,
-      typingDurationMs: 1400,
+      typingDurationMs: 1300,
       delayMs: 300,
     },
     order: 0,
@@ -99,53 +129,53 @@ const LEAD_GEN_NODES: NodeInput[] = [
   {
     type: "input",
     content: {
-      text: "First things first — what's your name?",
+      text: "What's your name?",
       variableName: "lead_name",
       inputType: "text",
       typingEnabled: true,
-      typingDurationMs: 800,
-      delayMs: 500,
+      typingDurationMs: 700,
+      delayMs: 400,
     },
     order: 1,
   },
   {
     type: "message",
     content: {
-      text: "Nice to meet you, {{lead_name}}! 👋",
+      text: "Good to meet you, {{lead_name}}! 👋",
       typingEnabled: true,
-      typingDurationMs: 700,
-      delayMs: 300,
+      typingDurationMs: 600,
+      delayMs: 200,
     },
     order: 2,
   },
   {
     type: "input",
     content: {
-      text: "What's the best email address to reach you on?",
+      text: "What's a good email address for you?",
       variableName: "lead_email",
       inputType: "email",
       typingEnabled: true,
-      typingDurationMs: 800,
-      delayMs: 400,
+      typingDurationMs: 700,
+      delayMs: 300,
     },
     order: 3,
   },
   {
     type: "input",
     content: {
-      text: "And a phone number? (Totally optional — only if you're happy for us to call.)",
+      text: "And a phone number — only if you're happy to share. No worries if not!",
       variableName: "lead_phone",
       inputType: "phone",
       typingEnabled: true,
       typingDurationMs: 900,
-      delayMs: 400,
+      delayMs: 300,
     },
     order: 4,
   },
   {
     type: "input",
     content: {
-      text: "What kind of business are you running? (e.g. e-commerce, SaaS, agency, professional services...)",
+      text: "What kind of business do you run? (e.g. e-commerce, agency, SaaS, professional services — anything really)",
       variableName: "lead_business_type",
       inputType: "text",
       typingEnabled: true,
@@ -157,7 +187,7 @@ const LEAD_GEN_NODES: NodeInput[] = [
   {
     type: "input",
     content: {
-      text: "How many customer conversations does your team handle roughly per week?",
+      text: "Roughly how many customer conversations does your team handle per week?",
       variableName: "lead_volume",
       inputType: "text",
       typingEnabled: true,
@@ -169,27 +199,26 @@ const LEAD_GEN_NODES: NodeInput[] = [
   {
     type: "input",
     content: {
-      text: "And finally — what's your rough monthly budget for tools like this? (e.g. under £50, £50–£100, £100–£250, or no limit)",
+      text: "Last one — what's your rough monthly budget for tools like this? (e.g. under £50, £50–£100, £100–£250, or flexible)",
       variableName: "lead_budget",
       inputType: "text",
       typingEnabled: true,
       typingDurationMs: 1100,
-      delayMs: 500,
+      delayMs: 400,
     },
     order: 7,
   },
   {
     type: "message",
     content: {
-      text: "That's super helpful, {{lead_name}}! 🎉 Based on what you've shared, we'll put together a personalised recommendation. Our team will reach out to {{lead_email}} within 1 business day.",
+      text: "That's really helpful, {{lead_name}} — thank you! 🙌\n\nWe'll look at what you've shared and someone from the team will be in touch at {{lead_email}} within 1 business day. In the meantime, feel free to ask me anything.",
       typingEnabled: true,
       typingDurationMs: 1500,
-      delayMs: 600,
+      delayMs: 500,
     },
     order: 8,
   },
   {
-    // Tag the lead for CRM segmentation
     type: "action",
     content: {
       action: "tag_user",
@@ -198,7 +227,6 @@ const LEAD_GEN_NODES: NodeInput[] = [
     order: 9,
   },
   {
-    // Update status — also triggers lead persistence in webchat engine
     type: "action",
     content: {
       action: "update_status",
@@ -207,7 +235,6 @@ const LEAD_GEN_NODES: NodeInput[] = [
     order: 10,
   },
   {
-    // End sub-flow and resume parent (if called from flow_Initial)
     type: "action",
     content: {
       action: "end_flow",
@@ -217,18 +244,32 @@ const LEAD_GEN_NODES: NodeInput[] = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FLOW 2: flow_pricing-discussion
-// Covers all four plans with individual detail nodes.
-// Converges at order 20 for the sign-up CTA.
+// FLOW 2 — flow_pricing-discussion
+//
+// Gives a concise overview then branches per plan. All branches merge at order 20
+// for the sign-up CTA. Friendly, conversational, not a sales pitch.
+//
+//  0  — intro message
+//  1  — plan overview (Free / Starter / Pro / Business)
+//  2  — input: pricing_interest
+//  3  — condition → 10 (Free) | 11 (Starter) | 12 (Pro) | 13 (Business) | 14 (default)
+// 10  — Free detail       → nextNodeOrder: 20
+// 11  — Starter detail    → nextNodeOrder: 20
+// 12  — Pro detail        → nextNodeOrder: 20
+// 13  — Business detail   → nextNodeOrder: 20
+// 14  — generic link      → nextNodeOrder: 20
+// 20  — CTA message
+// 21  — action: tag_user (pricing-interest)
+// 22  — action: end_flow
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PRICING_NODES: NodeInput[] = [
   {
     type: "message",
     content: {
-      text: "Great question on pricing! ReplyBase is designed to scale with you — there's a plan whether you're testing the waters or running a high-volume operation. 💸",
+      text: "Sure — let me walk you through the pricing. We've kept it pretty straightforward, and there's a free plan too so you can try things out before committing. 😊",
       typingEnabled: true,
-      typingDurationMs: 1400,
+      typingDurationMs: 1300,
       delayMs: 0,
     },
     order: 0,
@@ -236,22 +277,22 @@ const PRICING_NODES: NodeInput[] = [
   {
     type: "message",
     content: {
-      text: "Here's a quick overview of our plans:\n\n🆓 Free — £0/month\n• 150 AI responses/month\n• 250 automations\n• 1 bot, Webchat only\n• Great for testing!\n\n🚀 Starter — £29/month\n• 1,000 AI responses\n• 1,500 automations\n• 3 bots, all channels\n• Email + chat support\n\n⚡ Pro — £89/month\n• 7,500 AI responses\n• 10,000 automations\n• 10 bots + advanced analytics\n• Priority support\n\n🏢 Business — £249/month\n• Unlimited everything\n• Custom integrations\n• Dedicated account manager\n• SLA + phone support",
+      text: "Here's the quick summary:\n\n🆓 Free — £0/month\n• 150 AI responses, 250 automations\n• 1 bot on Webchat\n• Great for testing\n\n🚀 Starter — £29/month\n• 1,000 AI responses, 1,500 automations\n• 3 bots across all channels\n• Email + chat support\n\n⚡ Pro — £89/month\n• 7,500 AI responses, 10,000 automations\n• 10 bots, advanced analytics, API access\n• Priority support\n\n🏢 Business — £249/month\n• Unlimited everything\n• Custom integrations, dedicated account manager\n• SLA + phone support",
       typingEnabled: true,
-      typingDurationMs: 2000,
-      delayMs: 800,
+      typingDurationMs: 1800,
+      delayMs: 700,
     },
     order: 1,
   },
   {
     type: "input",
     content: {
-      text: "Which plan sounds closest to what you need? Type Free, Starter, Pro, or Business — or just tell me what you're looking for! 😊",
+      text: "Which one catches your eye — or is there something specific you're trying to figure out about the plans?",
       variableName: "pricing_interest",
       inputType: "text",
       typingEnabled: true,
-      typingDurationMs: 1100,
-      delayMs: 600,
+      typingDurationMs: 1000,
+      delayMs: 500,
     },
     order: 2,
   },
@@ -259,133 +300,92 @@ const PRICING_NODES: NodeInput[] = [
     type: "condition",
     content: {
       conditions: [
-        {
-          variableName: "pricing_interest",
-          operator: "contains",
-          value: "free",
-          nextNodeOrder: 10,
-        },
-        {
-          variableName: "pricing_interest",
-          operator: "contains",
-          value: "starter",
-          nextNodeOrder: 11,
-        },
-        {
-          variableName: "pricing_interest",
-          operator: "contains",
-          value: "pro",
-          nextNodeOrder: 12,
-        },
-        {
-          variableName: "pricing_interest",
-          operator: "contains",
-          value: "business",
-          nextNodeOrder: 13,
-        },
-        {
-          variableName: "pricing_interest",
-          operator: "contains",
-          value: "enterprise",
-          nextNodeOrder: 13,
-        },
-        {
-          variableName: "pricing_interest",
-          operator: "contains",
-          value: "custom",
-          nextNodeOrder: 13,
-        },
-        {
-          variableName: "pricing_interest",
-          operator: "contains",
-          value: "249",
-          nextNodeOrder: 13,
-        },
-        {
-          variableName: "pricing_interest",
-          operator: "contains",
-          value: "89",
-          nextNodeOrder: 12,
-        },
-        {
-          variableName: "pricing_interest",
-          operator: "contains",
-          value: "29",
-          nextNodeOrder: 11,
-        },
+        { variableName: "pricing_interest", operator: "contains", value: "free", nextNodeOrder: 10 },
+        { variableName: "pricing_interest", operator: "contains", value: "trial", nextNodeOrder: 10 },
+        { variableName: "pricing_interest", operator: "contains", value: "starter", nextNodeOrder: 11 },
+        { variableName: "pricing_interest", operator: "contains", value: "basic", nextNodeOrder: 11 },
+        { variableName: "pricing_interest", operator: "contains", value: "29", nextNodeOrder: 11 },
+        { variableName: "pricing_interest", operator: "contains", value: "pro", nextNodeOrder: 12 },
+        { variableName: "pricing_interest", operator: "contains", value: "89", nextNodeOrder: 12 },
+        { variableName: "pricing_interest", operator: "contains", value: "growth", nextNodeOrder: 12 },
+        { variableName: "pricing_interest", operator: "contains", value: "business", nextNodeOrder: 13 },
+        { variableName: "pricing_interest", operator: "contains", value: "enterprise", nextNodeOrder: 13 },
+        { variableName: "pricing_interest", operator: "contains", value: "custom", nextNodeOrder: 13 },
+        { variableName: "pricing_interest", operator: "contains", value: "249", nextNodeOrder: 13 },
+        { variableName: "pricing_interest", operator: "contains", value: "unlimited", nextNodeOrder: 13 },
       ],
       nextNodeOrder: 14,
     },
     order: 3,
   },
-  // ── Free plan detail (→ 20)
+  // ── Free plan detail
   {
     type: "message",
     content: {
-      text: "The Free plan is the perfect low-risk starting point! You get:\n✅ 150 AI-powered responses/month\n✅ 250 flow automations\n✅ 1 active bot on Webchat\n✅ Full access to the Flow Builder\n✅ CRM & lead management\n\nNo credit card needed — sign up and you're live in minutes. 🎉",
+      text: "The Free plan is a solid way to see how everything works without any risk.\n\nYou get:\n✔ 150 AI responses/month\n✔ 250 automation runs\n✔ 1 active bot on Webchat\n✔ Full Flow Builder access\n✔ CRM and lead tracking\n\nNo card needed — sign up and you're live in minutes.",
       typingEnabled: true,
       typingDurationMs: 1500,
-      delayMs: 500,
+      delayMs: 400,
       nextNodeOrder: 20,
     },
     order: 10,
   },
-  // ── Starter detail (→ 20)
+  // ── Starter plan detail
   {
     type: "message",
     content: {
-      text: "The Starter plan is a fan favourite for growing businesses! 🚀\n✅ 1,000 AI responses/month\n✅ 1,500 automations/month\n✅ 3 active bots\n✅ All channels: Webchat, WhatsApp, Facebook & Telegram\n✅ CRM + lead management\n✅ Email & chat support\n\nJust £29/month — less than a coffee a day!",
+      text: "Starter is the most popular choice for businesses that are ready to get going properly.\n\nYou get:\n✔ 1,000 AI responses/month\n✔ 1,500 automation runs\n✔ 3 bots across Webchat, WhatsApp, Facebook & Telegram\n✔ CRM + lead management\n✔ Email and chat support\n\nAt £29/month it's very manageable, and you can upgrade anytime.",
       typingEnabled: true,
       typingDurationMs: 1500,
-      delayMs: 500,
+      delayMs: 400,
       nextNodeOrder: 20,
     },
     order: 11,
   },
-  // ── Pro detail (→ 20)
+  // ── Pro plan detail
   {
     type: "message",
     content: {
-      text: "The Pro plan is built for teams that mean business! ⚡\n✅ 7,500 AI responses/month\n✅ 10,000 automations/month\n✅ 10 active bots\n✅ Advanced analytics & custom reporting\n✅ API access for integrations\n✅ Priority support with 4-hour response time\n\nAt £89/month, it's the best value for scaling operations.",
+      text: "Pro is for teams that are scaling and need more headroom.\n\nYou get:\n✔ 7,500 AI responses/month\n✔ 10,000 automation runs\n✔ 10 bots\n✔ Advanced analytics and custom reporting\n✔ API access for integrations\n✔ Priority support (4-hour response)\n\nAt £89/month it covers most growing businesses comfortably.",
       typingEnabled: true,
       typingDurationMs: 1600,
-      delayMs: 500,
+      delayMs: 400,
       nextNodeOrder: 20,
     },
     order: 12,
   },
-  // ── Business/Enterprise detail (→ 20)
+  // ── Business plan detail
   {
     type: "message",
     content: {
-      text: "The Business plan is for organisations that need it all! 🏢\n✅ Unlimited AI responses\n✅ Unlimited automations & bots\n✅ Custom channel integrations\n✅ Dedicated account manager\n✅ Onboarding & training sessions\n✅ SLA guarantee + phone support\n✅ White-label options available\n\nAt £249/month — and we also offer custom enterprise pricing for large teams.",
+      text: "Business is the full package — ideal if you're running things at scale or need dedicated support.\n\nYou get:\n✔ Unlimited AI responses and automations\n✔ Unlimited bots\n✔ Custom integrations\n✔ Dedicated account manager\n✔ SLA guarantee and phone support\n✔ Onboarding and training sessions\n\nAt £249/month. We also do custom pricing for larger teams — just ask.",
       typingEnabled: true,
       typingDurationMs: 1600,
-      delayMs: 500,
+      delayMs: 400,
       nextNodeOrder: 20,
     },
     order: 13,
   },
-  // ── Default: browse all (→ 20)
+  // ── Generic / compare all
   {
     type: "message",
     content: {
-      text: "No worries! You can compare all plans side by side at:\n👉 https://replybase.co.uk/pricing\n\nThe page has a full feature matrix so you can see exactly what each tier includes.",
+      text: "You can compare all plans side by side on our pricing page:\n👉 https://replybase.co.uk/pricing\n\nIt has a full feature breakdown so you can see exactly what's included at each level.",
       typingEnabled: true,
-      typingDurationMs: 1400,
-      delayMs: 500,
+      typingDurationMs: 1300,
+      delayMs: 400,
       nextNodeOrder: 20,
     },
     order: 14,
   },
-  // ── CTA (converge point from all branches above)
+  // ── CTA (all branches land here)
   {
     type: "message",
     content: {
-      text: "Ready to get started? You can sign up for free — no card required:\n👉 https://app.replybase.co.uk\n\nOr if you'd like to talk through options with our team, just ask and I'll get you connected! 😊",
+      text: "You can get started for free — no card required:\n👉 https://app.replybase.co.uk\n\nIf you'd like to talk through which plan fits your situation, just say the word and I'll get someone from the team on it.",
       typingEnabled: true,
       typingDurationMs: 1400,
-      delayMs: 700,
+      delayMs: 600,
     },
     order: 20,
   },
@@ -407,18 +407,33 @@ const PRICING_NODES: NodeInput[] = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FLOW 3: flow_features-discussion
-// Covers: multi-channel, flow builder, AI, CRM, analytics, integrations.
-// Branches by keyword, all converge at order 20 for CTA.
+// FLOW 3 — flow_features-discussion
+//
+// Branches by interest keyword. All converge at order 20 for CTA.
+//
+//  0  — intro
+//  1  — feature summary
+//  2  — input: feature_interest
+//  3  — condition → 10–16
+// 10  — multi-channel detail  → 20
+// 11  — flow builder detail   → 20
+// 12  — AI engine detail      → 20
+// 13  — CRM detail            → 20
+// 14  — analytics detail      → 20
+// 15  — integrations detail   → 20
+// 16  — general / all         → 20
+// 20  — CTA
+// 21  — action: tag_user
+// 22  — action: end_flow
 // ─────────────────────────────────────────────────────────────────────────────
 
 const FEATURES_NODES: NodeInput[] = [
   {
     type: "message",
     content: {
-      text: "Absolutely — let me walk you through what makes ReplyBase different from the crowd! 🔍",
+      text: "Happy to go through the features — there's quite a bit to ReplyBase but I'll keep it practical rather than overwhelming you with everything at once. 😊",
       typingEnabled: true,
-      typingDurationMs: 1200,
+      typingDurationMs: 1300,
       delayMs: 0,
     },
     order: 0,
@@ -426,22 +441,22 @@ const FEATURES_NODES: NodeInput[] = [
   {
     type: "message",
     content: {
-      text: "Here's a quick overview of what's under the hood:\n\n📡 Multi-Channel — Webchat, WhatsApp, Facebook, Telegram in one inbox\n🔧 Flow Builder — No-code visual conversation designer\n🧠 AI Intent Engine — Understands what customers really mean\n👥 CRM & Lead Management — Auto-capture, tag, and qualify leads\n📊 Analytics & Reporting — See what's working and what isn't\n🔗 Integrations — Connect with your existing tools via API\n🤖 Custom Bots — Personalise persona, tone, and branding",
+      text: "Here's what ReplyBase covers:\n\n📡 Multi-Channel — Webchat, WhatsApp, Facebook, Telegram in one place\n🔧 Flow Builder — No-code conversation designer\n🧠 AI Intent Engine — Understands what customers actually mean\n👥 CRM & Lead Management — Captures and qualifies leads automatically\n📊 Analytics — See what's working, spot where people drop off\n🔗 Integrations — API, Zapier, Webhooks to connect your existing tools",
       typingEnabled: true,
-      typingDurationMs: 1800,
-      delayMs: 700,
+      typingDurationMs: 1700,
+      delayMs: 600,
     },
     order: 1,
   },
   {
     type: "input",
     content: {
-      text: "Which of those sounds most relevant to you? (e.g. channels, automation, AI, CRM, analytics, integrations)",
+      text: "Which of those is most relevant to what you're trying to do?",
       variableName: "feature_interest",
       inputType: "text",
       typingEnabled: true,
-      typingDurationMs: 1000,
-      delayMs: 600,
+      typingDurationMs: 900,
+      delayMs: 500,
     },
     order: 2,
   },
@@ -449,247 +464,162 @@ const FEATURES_NODES: NodeInput[] = [
     type: "condition",
     content: {
       conditions: [
-        {
-          variableName: "feature_interest",
-          operator: "contains",
-          value: "channel",
-          nextNodeOrder: 10,
-        },
-        {
-          variableName: "feature_interest",
-          operator: "contains",
-          value: "whatsapp",
-          nextNodeOrder: 10,
-        },
-        {
-          variableName: "feature_interest",
-          operator: "contains",
-          value: "facebook",
-          nextNodeOrder: 10,
-        },
-        {
-          variableName: "feature_interest",
-          operator: "contains",
-          value: "telegram",
-          nextNodeOrder: 10,
-        },
-        {
-          variableName: "feature_interest",
-          operator: "contains",
-          value: "multi",
-          nextNodeOrder: 10,
-        },
-        {
-          variableName: "feature_interest",
-          operator: "contains",
-          value: "flow",
-          nextNodeOrder: 11,
-        },
-        {
-          variableName: "feature_interest",
-          operator: "contains",
-          value: "automat",
-          nextNodeOrder: 11,
-        },
-        {
-          variableName: "feature_interest",
-          operator: "contains",
-          value: "bot",
-          nextNodeOrder: 11,
-        },
-        {
-          variableName: "feature_interest",
-          operator: "contains",
-          value: "builder",
-          nextNodeOrder: 11,
-        },
-        {
-          variableName: "feature_interest",
-          operator: "contains",
-          value: "no-code",
-          nextNodeOrder: 11,
-        },
-        {
-          variableName: "feature_interest",
-          operator: "contains",
-          value: "ai",
-          nextNodeOrder: 12,
-        },
-        {
-          variableName: "feature_interest",
-          operator: "contains",
-          value: "smart",
-          nextNodeOrder: 12,
-        },
-        {
-          variableName: "feature_interest",
-          operator: "contains",
-          value: "intent",
-          nextNodeOrder: 12,
-        },
-        {
-          variableName: "feature_interest",
-          operator: "contains",
-          value: "intellig",
-          nextNodeOrder: 12,
-        },
-        {
-          variableName: "feature_interest",
-          operator: "contains",
-          value: "crm",
-          nextNodeOrder: 13,
-        },
-        {
-          variableName: "feature_interest",
-          operator: "contains",
-          value: "lead",
-          nextNodeOrder: 13,
-        },
-        {
-          variableName: "feature_interest",
-          operator: "contains",
-          value: "contact",
-          nextNodeOrder: 13,
-        },
-        {
-          variableName: "feature_interest",
-          operator: "contains",
-          value: "analytic",
-          nextNodeOrder: 14,
-        },
-        {
-          variableName: "feature_interest",
-          operator: "contains",
-          value: "report",
-          nextNodeOrder: 14,
-        },
-        {
-          variableName: "feature_interest",
-          operator: "contains",
-          value: "insight",
-          nextNodeOrder: 14,
-        },
-        {
-          variableName: "feature_interest",
-          operator: "contains",
-          value: "integrat",
-          nextNodeOrder: 15,
-        },
-        {
-          variableName: "feature_interest",
-          operator: "contains",
-          value: "api",
-          nextNodeOrder: 15,
-        },
-        {
-          variableName: "feature_interest",
-          operator: "contains",
-          value: "webhook",
-          nextNodeOrder: 15,
-        },
-        {
-          variableName: "feature_interest",
-          operator: "contains",
-          value: "zapier",
-          nextNodeOrder: 15,
-        },
+        // Multi-channel
+        { variableName: "feature_interest", operator: "contains", value: "channel", nextNodeOrder: 10 },
+        { variableName: "feature_interest", operator: "contains", value: "whatsapp", nextNodeOrder: 10 },
+        { variableName: "feature_interest", operator: "contains", value: "facebook", nextNodeOrder: 10 },
+        { variableName: "feature_interest", operator: "contains", value: "messenger", nextNodeOrder: 10 },
+        { variableName: "feature_interest", operator: "contains", value: "telegram", nextNodeOrder: 10 },
+        { variableName: "feature_interest", operator: "contains", value: "multi", nextNodeOrder: 10 },
+        { variableName: "feature_interest", operator: "contains", value: "inbox", nextNodeOrder: 10 },
+        { variableName: "feature_interest", operator: "contains", value: "platform", nextNodeOrder: 10 },
+        { variableName: "feature_interest", operator: "contains", value: "webchat", nextNodeOrder: 10 },
+        { variableName: "feature_interest", operator: "contains", value: "chat widget", nextNodeOrder: 10 },
+        // Flow builder / automation
+        { variableName: "feature_interest", operator: "contains", value: "flow", nextNodeOrder: 11 },
+        { variableName: "feature_interest", operator: "contains", value: "automat", nextNodeOrder: 11 },
+        { variableName: "feature_interest", operator: "contains", value: "builder", nextNodeOrder: 11 },
+        { variableName: "feature_interest", operator: "contains", value: "no-code", nextNodeOrder: 11 },
+        { variableName: "feature_interest", operator: "contains", value: "no code", nextNodeOrder: 11 },
+        { variableName: "feature_interest", operator: "contains", value: "bot", nextNodeOrder: 11 },
+        { variableName: "feature_interest", operator: "contains", value: "chatbot", nextNodeOrder: 11 },
+        { variableName: "feature_interest", operator: "contains", value: "conversation", nextNodeOrder: 11 },
+        { variableName: "feature_interest", operator: "contains", value: "workflow", nextNodeOrder: 11 },
+        { variableName: "feature_interest", operator: "contains", value: "sequence", nextNodeOrder: 11 },
+        // AI
+        { variableName: "feature_interest", operator: "contains", value: "ai", nextNodeOrder: 12 },
+        { variableName: "feature_interest", operator: "contains", value: "artificial intel", nextNodeOrder: 12 },
+        { variableName: "feature_interest", operator: "contains", value: "machine learn", nextNodeOrder: 12 },
+        { variableName: "feature_interest", operator: "contains", value: "intent", nextNodeOrder: 12 },
+        { variableName: "feature_interest", operator: "contains", value: "smart", nextNodeOrder: 12 },
+        { variableName: "feature_interest", operator: "contains", value: "natural language", nextNodeOrder: 12 },
+        { variableName: "feature_interest", operator: "contains", value: "nlp", nextNodeOrder: 12 },
+        { variableName: "feature_interest", operator: "contains", value: "understand", nextNodeOrder: 12 },
+        // CRM / leads
+        { variableName: "feature_interest", operator: "contains", value: "crm", nextNodeOrder: 13 },
+        { variableName: "feature_interest", operator: "contains", value: "lead", nextNodeOrder: 13 },
+        { variableName: "feature_interest", operator: "contains", value: "contact", nextNodeOrder: 13 },
+        { variableName: "feature_interest", operator: "contains", value: "customer", nextNodeOrder: 13 },
+        { variableName: "feature_interest", operator: "contains", value: "database", nextNodeOrder: 13 },
+        { variableName: "feature_interest", operator: "contains", value: "record", nextNodeOrder: 13 },
+        { variableName: "feature_interest", operator: "contains", value: "segment", nextNodeOrder: 13 },
+        { variableName: "feature_interest", operator: "contains", value: "tag", nextNodeOrder: 13 },
+        // Analytics
+        { variableName: "feature_interest", operator: "contains", value: "analytic", nextNodeOrder: 14 },
+        { variableName: "feature_interest", operator: "contains", value: "report", nextNodeOrder: 14 },
+        { variableName: "feature_interest", operator: "contains", value: "insight", nextNodeOrder: 14 },
+        { variableName: "feature_interest", operator: "contains", value: "dashboard", nextNodeOrder: 14 },
+        { variableName: "feature_interest", operator: "contains", value: "statistic", nextNodeOrder: 14 },
+        { variableName: "feature_interest", operator: "contains", value: "metric", nextNodeOrder: 14 },
+        { variableName: "feature_interest", operator: "contains", value: "performance", nextNodeOrder: 14 },
+        { variableName: "feature_interest", operator: "contains", value: "conversion", nextNodeOrder: 14 },
+        // Integrations / API
+        { variableName: "feature_interest", operator: "contains", value: "integrat", nextNodeOrder: 15 },
+        { variableName: "feature_interest", operator: "contains", value: "api", nextNodeOrder: 15 },
+        { variableName: "feature_interest", operator: "contains", value: "webhook", nextNodeOrder: 15 },
+        { variableName: "feature_interest", operator: "contains", value: "zapier", nextNodeOrder: 15 },
+        { variableName: "feature_interest", operator: "contains", value: "connect", nextNodeOrder: 15 },
+        { variableName: "feature_interest", operator: "contains", value: "sync", nextNodeOrder: 15 },
+        { variableName: "feature_interest", operator: "contains", value: "hubspot", nextNodeOrder: 15 },
+        { variableName: "feature_interest", operator: "contains", value: "slack", nextNodeOrder: 15 },
+        { variableName: "feature_interest", operator: "contains", value: "third party", nextNodeOrder: 15 },
       ],
       nextNodeOrder: 16,
     },
     order: 3,
   },
-  // ── Multi-channel (→ 20)
+  // ── Multi-channel
   {
     type: "message",
     content: {
-      text: "Our multi-channel support is one of our biggest differentiators! 📡\n\nWith ReplyBase, you manage ALL your conversations from one unified inbox:\n• 💬 Webchat (embed on any website with one line of code)\n• 📱 WhatsApp Business\n• 📘 Facebook Messenger\n• ✈️ Telegram\n\nSame flows, same CRM, same analytics — just different entry points. Set it up once and you're everywhere your customers are.",
+      text: "Multi-channel is one of the things people find most useful about ReplyBase.\n\nYou manage everything from one inbox:\n• Webchat (one line of code on any site)\n• WhatsApp Business\n• Facebook Messenger\n• Telegram\n\nThe same flows and CRM work across all of them. Set it up once and your bot is live on every channel straight away.",
       typingEnabled: true,
-      typingDurationMs: 1700,
-      delayMs: 500,
+      typingDurationMs: 1600,
+      delayMs: 400,
       nextNodeOrder: 20,
     },
     order: 10,
   },
-  // ── Flow Builder (→ 20)
+  // ── Flow Builder
   {
     type: "message",
     content: {
-      text: "The Flow Builder is where the magic happens! 🔧\n\nIt's a no-code, visual editor where you design conversation paths:\n• Message nodes — send text with typing effects\n• Input nodes — capture any information you need\n• Condition nodes — branch based on responses\n• Action nodes — tag leads, update CRM, call sub-flows\n• Delay & typing indicators — make every response feel truly human\n\nMost customers have their first working bot live within 30 minutes.",
+      text: "The Flow Builder is the core of ReplyBase — it's a visual, no-code editor for designing conversation paths.\n\nYou can add:\n• Message nodes — text responses with typing effects\n• Input nodes — collect names, emails, numbers, anything\n• Condition nodes — branch based on what the customer says\n• Action nodes — tag leads, update status, call sub-flows\n\nMost people have their first bot working within half an hour.",
       typingEnabled: true,
-      typingDurationMs: 1700,
-      delayMs: 500,
+      typingDurationMs: 1600,
+      delayMs: 400,
       nextNodeOrder: 20,
     },
     order: 11,
   },
-  // ── AI (→ 20)
+  // ── AI
   {
     type: "message",
     content: {
-      text: "The AI Intent Engine is what sets ReplyBase apart from simple rule-based chatbots! 🧠\n\nInstead of requiring exact keyword matches, our AI understands the *intent* behind what your customer says — even when they phrase it differently every time.\n\nThis means:\n• Higher flow completion rates\n• Less frustration for your customers\n• Smarter routing to the right conversation path\n• Continuous improvement with every interaction",
+      text: "The AI side of ReplyBase handles intent recognition — so your bot understands what someone means, not just what they literally typed.\n\nIn practice this means:\n• Customers don't have to phrase things perfectly\n• The bot routes them correctly even with typos or variations\n• You get higher completion rates without constantly tweaking your flows\n\nIt works alongside your flow logic, not instead of it.",
       typingEnabled: true,
       typingDurationMs: 1600,
-      delayMs: 500,
+      delayMs: 400,
       nextNodeOrder: 20,
     },
     order: 12,
   },
-  // ── CRM (→ 20)
+  // ── CRM
   {
     type: "message",
     content: {
-      text: "Our built-in CRM means you don't need a separate tool for lead management! 👥\n\nEvery conversation automatically creates a contact record with:\n• Name, email, phone — captured from your flows\n• Full conversation history\n• Custom tags (e.g. 'hot-lead', 'pricing-interest')\n• Lead status tracking: new → qualified → converted\n• Source attribution (which channel, which flow)\n\nYou can also sync to your existing CRM via API.",
+      text: "The built-in CRM keeps everything in one place — no separate tool needed for basic lead management.\n\nEvery conversation creates a contact record with:\n• Name, email, phone from your flows\n• Full conversation history\n• Custom tags (e.g. 'hot-lead', 'pricing-interest')\n• Status tracking from new → qualified → converted\n• Which channel and flow they came from\n\nYou can also push data to your existing CRM via API if you need to.",
       typingEnabled: true,
       typingDurationMs: 1700,
-      delayMs: 500,
+      delayMs: 400,
       nextNodeOrder: 20,
     },
     order: 13,
   },
-  // ── Analytics (→ 20)
+  // ── Analytics
   {
     type: "message",
     content: {
-      text: "Analytics & reporting give you full visibility into what's working! 📊\n\nYou'll see:\n• Flow completion rates (spot exactly where people drop off)\n• Lead conversion metrics by channel\n• Response time tracking\n• Top-performing conversation paths\n• Channel performance comparison\n\nOn Pro and Business plans, you get advanced dashboards with custom date ranges and export options.",
+      text: "The analytics dashboard shows you what's actually happening in your conversations.\n\nYou can see:\n• Flow completion rates and where people drop off\n• Lead conversion by channel\n• Response times\n• Top-performing paths\n\nPro and Business plans get more detailed dashboards with date filters and export options.",
       typingEnabled: true,
-      typingDurationMs: 1700,
-      delayMs: 500,
+      typingDurationMs: 1600,
+      delayMs: 400,
       nextNodeOrder: 20,
     },
     order: 14,
   },
-  // ── Integrations/API (→ 20)
+  // ── Integrations / API
   {
     type: "message",
     content: {
-      text: "Our API & integrations layer connects ReplyBase to your existing stack! 🔗\n\nSupported integrations:\n• Zapier (1,000+ apps with no code)\n• Webhooks (real-time data push)\n• REST API (full programmatic access)\n• CSV/JSON lead exports\n\nCommon use cases: syncing leads to HubSpot, triggering Slack notifications, updating your e-commerce platform, or firing off email campaigns automatically.",
+      text: "Integrations are available on Pro and Business plans.\n\nWhat's supported:\n• REST API — full programmatic access\n• Webhooks — real-time event pushes\n• Zapier — connect to 1,000+ apps without writing code\n• CSV/JSON lead exports\n\nCommon setups: pushing leads to HubSpot, firing Slack notifications, syncing with your e-commerce platform.",
       typingEnabled: true,
       typingDurationMs: 1600,
-      delayMs: 500,
+      delayMs: 400,
       nextNodeOrder: 20,
     },
     order: 15,
   },
-  // ── Default: all features summary (→ 20)
+  // ── General / all features
   {
     type: "message",
     content: {
-      text: "Our full feature breakdown is available at:\n👉 https://replybase.co.uk\n\nOr if you'd like a live demo where I walk you through everything — just say 'demo' and I'll arrange it with our team!",
+      text: "You can get a full breakdown of everything at:\n👉 https://replybase.co.uk\n\nIf you'd like a live walkthrough of any specific part, just let me know and I'll arrange a demo with the team.",
       typingEnabled: true,
-      typingDurationMs: 1400,
-      delayMs: 500,
+      typingDurationMs: 1300,
+      delayMs: 400,
       nextNodeOrder: 20,
     },
     order: 16,
   },
-  // ── CTA (converge point)
+  // ── CTA (all branches land here)
   {
     type: "message",
     content: {
-      text: "Want to see it all in action? Start free — no card required:\n👉 https://app.replybase.co.uk\n\nOr ask me for a personalised demo and I'll sort it for you! 🎯",
+      text: "Want to try it yourself? The free plan is the easiest way to get a feel for things:\n👉 https://app.replybase.co.uk\n\nOr I can set you up with a demo — just say the word. 🎯",
       typingEnabled: true,
       typingDurationMs: 1300,
-      delayMs: 600,
+      delayMs: 500,
     },
     order: 20,
   },
@@ -711,19 +641,27 @@ const FEATURES_NODES: NodeInput[] = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FLOW 4: flow_contact
-// Shows contact details, offers callback capture.
-// "Yes" path: captures email → tags → end.
-// "No" path: links to contact page → end.
+// FLOW 4 — flow_contact
+//
+//  0  — intro
+//  1  — contact details
+//  2  — input: contact_callback (yes/no)
+//  3  — condition → 10 (yes) | 15 (no)
+// 10  — input: callback_email
+// 11  — confirmation message
+// 12  — action: tag_user
+// 13  — action: end_flow
+// 15  — message: no worries + link
+// 16  — action: end_flow
 // ─────────────────────────────────────────────────────────────────────────────
 
 const CONTACT_NODES: NodeInput[] = [
   {
     type: "message",
     content: {
-      text: "Happy to connect you with the right person! 📞",
+      text: "Of course — happy to get you the right contact info.",
       typingEnabled: true,
-      typingDurationMs: 900,
+      typingDurationMs: 800,
       delayMs: 0,
     },
     order: 0,
@@ -731,22 +669,22 @@ const CONTACT_NODES: NodeInput[] = [
   {
     type: "message",
     content: {
-      text: "Here's how to reach us:\n\n📧 Email: admin@replybase.co.uk\n🌐 Contact form: https://replybase.co.uk/contact\n💬 Live chat: Available on our website (9am–5pm GMT, Mon–Fri)\n\nWe typically respond within a few hours on business days.",
+      text: "Here's how to reach us:\n\n📧 Email: admin@replybase.co.uk\n🌐 Contact form: https://replybase.co.uk/contact\n💬 Live chat on the website — available Mon–Fri, 9am–5pm GMT\n\nWe usually reply within a few hours on business days.",
       typingEnabled: true,
-      typingDurationMs: 1400,
-      delayMs: 600,
+      typingDurationMs: 1300,
+      delayMs: 500,
     },
     order: 1,
   },
   {
     type: "input",
     content: {
-      text: "Would you like us to reach out to you directly? (yes / no)",
+      text: "Would you like someone from the team to reach out to you directly? Just say yes or no.",
       variableName: "contact_callback",
       inputType: "text",
       typingEnabled: true,
       typingDurationMs: 900,
-      delayMs: 500,
+      delayMs: 400,
     },
     order: 2,
   },
@@ -754,61 +692,41 @@ const CONTACT_NODES: NodeInput[] = [
     type: "condition",
     content: {
       conditions: [
-        {
-          variableName: "contact_callback",
-          operator: "contains",
-          value: "yes",
-          nextNodeOrder: 10,
-        },
-        {
-          variableName: "contact_callback",
-          operator: "contains",
-          value: "yeah",
-          nextNodeOrder: 10,
-        },
-        {
-          variableName: "contact_callback",
-          operator: "contains",
-          value: "sure",
-          nextNodeOrder: 10,
-        },
-        {
-          variableName: "contact_callback",
-          operator: "contains",
-          value: "please",
-          nextNodeOrder: 10,
-        },
-        {
-          variableName: "contact_callback",
-          operator: "contains",
-          value: "ok",
-          nextNodeOrder: 10,
-        },
+        { variableName: "contact_callback", operator: "contains", value: "yes", nextNodeOrder: 10 },
+        { variableName: "contact_callback", operator: "contains", value: "yeah", nextNodeOrder: 10 },
+        { variableName: "contact_callback", operator: "contains", value: "sure", nextNodeOrder: 10 },
+        { variableName: "contact_callback", operator: "contains", value: "please", nextNodeOrder: 10 },
+        { variableName: "contact_callback", operator: "contains", value: "ok", nextNodeOrder: 10 },
+        { variableName: "contact_callback", operator: "contains", value: "yep", nextNodeOrder: 10 },
+        { variableName: "contact_callback", operator: "contains", value: "go ahead", nextNodeOrder: 10 },
+        { variableName: "contact_callback", operator: "contains", value: "that would", nextNodeOrder: 10 },
+        { variableName: "contact_callback", operator: "contains", value: "love that", nextNodeOrder: 10 },
+        { variableName: "contact_callback", operator: "contains", value: "sounds good", nextNodeOrder: 10 },
       ],
       nextNodeOrder: 15,
     },
     order: 3,
   },
-  // ── Callback requested (10 → 11 → 12 → 13)
+  // ── Yes: capture callback email
   {
     type: "input",
     content: {
-      text: "Great! What's the best email address for us to reach you on?",
+      text: "Great! What email address should we use?",
       variableName: "callback_email",
       inputType: "email",
       typingEnabled: true,
-      typingDurationMs: 900,
-      delayMs: 400,
+      typingDurationMs: 800,
+      delayMs: 300,
     },
     order: 10,
   },
   {
     type: "message",
     content: {
-      text: "Perfect! We'll be in touch at {{callback_email}} within 1 business day. Looking forward to chatting with you! 🤝",
+      text: "Perfect — we'll be in touch at {{callback_email}} within 1 business day. Looking forward to it! 🤝",
       typingEnabled: true,
-      typingDurationMs: 1200,
-      delayMs: 400,
+      typingDurationMs: 1100,
+      delayMs: 300,
     },
     order: 11,
   },
@@ -827,14 +745,14 @@ const CONTACT_NODES: NodeInput[] = [
     },
     order: 13,
   },
-  // ── No callback (15 → 16)
+  // ── No: direct to contact page
   {
     type: "message",
     content: {
-      text: "No problem at all! Our contact page is always open:\n👉 https://replybase.co.uk/contact\n\nDon't hesitate to reach out whenever you're ready. 😊",
+      text: "No problem at all. Whenever you're ready, our contact page is always there:\n👉 https://replybase.co.uk/contact",
       typingEnabled: true,
-      typingDurationMs: 1200,
-      delayMs: 400,
+      typingDurationMs: 1100,
+      delayMs: 300,
     },
     order: 15,
   },
@@ -848,17 +766,23 @@ const CONTACT_NODES: NodeInput[] = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FLOW 5: flow_tutorial
-// Four-step quick-start guide.
+// FLOW 5 — flow_tutorial
+//
+// Four clear steps. Friendly but not patronising.
+//  0  — intro
+//  1–4 — Step 1–4 messages
+//  5  — docs link
+//  6  — action: tag_user
+//  7  — action: end_flow
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TUTORIAL_NODES: NodeInput[] = [
   {
     type: "message",
     content: {
-      text: "Let me walk you through how to get started with ReplyBase — it's simpler than you might think! 🚀",
+      text: "Sure — getting started is actually pretty quick. Let me walk you through it.",
       typingEnabled: true,
-      typingDurationMs: 1200,
+      typingDurationMs: 1000,
       delayMs: 0,
     },
     order: 0,
@@ -866,50 +790,50 @@ const TUTORIAL_NODES: NodeInput[] = [
   {
     type: "message",
     content: {
-      text: "✅ Step 1: Create your account\n\nHead to https://app.replybase.co.uk and sign up for free. No credit card needed — your account is ready in under 60 seconds.",
+      text: "Step 1 — Create your account\n\nGo to https://app.replybase.co.uk and sign up. No credit card needed. Takes about 60 seconds and you're in.",
       typingEnabled: true,
-      typingDurationMs: 1300,
-      delayMs: 800,
+      typingDurationMs: 1200,
+      delayMs: 700,
     },
     order: 1,
   },
   {
     type: "message",
     content: {
-      text: "✅ Step 2: Connect your channels\n\nIn the dashboard, go to Settings → Channels and connect whichever you need: Webchat, WhatsApp, Facebook, or Telegram. The Webchat embed is just a one-line script — done in seconds.",
+      text: "Step 2 — Connect your channels\n\nFrom the dashboard, go to Settings → Channels. Add whichever you need — Webchat, WhatsApp, Facebook, or Telegram.\n\nThe Webchat embed is just a single script tag on your site — done in under a minute.",
       typingEnabled: true,
-      typingDurationMs: 1500,
-      delayMs: 900,
+      typingDurationMs: 1400,
+      delayMs: 800,
     },
     order: 2,
   },
   {
     type: "message",
     content: {
-      text: "✅ Step 3: Build your first flow\n\nGo to Flows → Create New, pick a template (or start from scratch), and use the visual editor to design your conversation. Add message nodes, input nodes, conditions, and actions — all drag and drop.",
+      text: "Step 3 — Build your first flow\n\nHead to Flows → Create New. You can start from a template or blank canvas. The visual editor lets you drag and drop message, input, condition, and action nodes.\n\nMost people have something working in 20–30 minutes.",
       typingEnabled: true,
-      typingDurationMs: 1500,
-      delayMs: 900,
+      typingDurationMs: 1400,
+      delayMs: 800,
     },
     order: 3,
   },
   {
     type: "message",
     content: {
-      text: "✅ Step 4: Activate and go live!\n\nOnce you're happy with your flow, hit Activate. Your bot instantly starts responding to visitors on your connected channels. That's it — you're live! 🎉",
+      text: "Step 4 — Activate and go live\n\nHit Activate on your flow. Your bot starts responding straight away on all the channels you've connected. That's it — you're live. 🎉",
       typingEnabled: true,
-      typingDurationMs: 1400,
-      delayMs: 900,
+      typingDurationMs: 1300,
+      delayMs: 800,
     },
     order: 4,
   },
   {
     type: "message",
     content: {
-      text: "📚 For deeper guides and walkthroughs, check out our documentation:\n👉 https://replybase.co.uk/docs\n\nAnd if you ever get stuck, our support team is always here to help — just ask! 💪",
+      text: "If you want to go deeper, our docs are here:\n👉 https://replybase.co.uk/docs\n\nAnd if you get stuck on anything, just ask — that's what I'm here for.",
       typingEnabled: true,
-      typingDurationMs: 1300,
-      delayMs: 700,
+      typingDurationMs: 1200,
+      delayMs: 600,
     },
     order: 5,
   },
@@ -931,268 +855,228 @@ const TUTORIAL_NODES: NodeInput[] = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FLOW 6: flow_Initial (The Orchestra Orchestrator — "Aria")
+// FLOW 6 — flow_Initial  (The Orchestrator — "Aria")
 //
-// Entry flow for all channels. Routes based on intent:
-//   price/cost/plan       → flow_pricing-discussion   (order 10–11)
-//   feature/how/demo      → flow_features-discussion  (order 20–21)
-//   contact/help/support  → flow_contact              (order 30–31)
-//   guide/tutorial/start  → flow_tutorial             (order 40–41)
-//   default               → flow_lead-generation      (order 50–51)
+// DESIGN:
+//   1. Greet the visitor warmly as Aria.
+//   2. Ask one warm question to gauge interest — captures their response.
+//   3. IMMEDIATELY call flow_lead-generation (sub-flow) regardless of answer.
+//      → This ensures lead data is always captured early.
+//   4. After lead-gen returns, ask what they'd like to explore.
+//   5. Route to the appropriate sub-flow based on intent keywords.
+//   6. After sub-flow completes, offer a follow-up or close gracefully.
 //
-// All paths converge at order 60 for the follow-up question.
-// Follow-up routes to sub-flows or closes gracefully at order 80+.
+// Node layout:
+//
+//  0   — greeting (Aria introduces herself)
+//  1   — interest question + input: visitor_interest
+//  2   — bridging message before lead-gen
+//  3   — action: call_flow → flow_lead-generation  (nextNodeOrder: 10)
+//
+//  10  — message: now let's talk about what they need (post lead-gen)
+//  11  — input: explore_topic
+//  12  — condition → 20 (pricing) | 30 (features) | 40 (contact) | 50 (tutorial) | 60 (default bridge)
+//
+//  20  — bridge message → action: call_flow → flow_pricing-discussion (→ 70)
+//  21  — action: call_flow pricing  (nextNodeOrder: 70)
+//
+//  30  — bridge message → action: call_flow → flow_features-discussion (→ 70)
+//  31  — action: call_flow features  (nextNodeOrder: 70)
+//
+//  40  — bridge message → action: call_flow → flow_contact (→ 70)
+//  41  — action: call_flow contact  (nextNodeOrder: 70)
+//
+//  50  — bridge message → action: call_flow → flow_tutorial (→ 70)
+//  51  — action: call_flow tutorial  (nextNodeOrder: 70)
+//
+//  60  — default bridge (no clear match) → re-use pricing as gentle nudge
+//  61  — action: call_flow pricing  (nextNodeOrder: 70)
+//
+//  70  — follow-up question: anything else?
+//  71  — input: followup_need
+//  72  — condition → 73 (pricing) | 74 (features) | 75 (contact) | 76 (tutorial) | 80 (close)
+//  73  — action: call_flow pricing  (→ 80)
+//  74  — action: call_flow features  (→ 80)
+//  75  — action: call_flow contact   (→ 80)
+//  76  — action: call_flow tutorial  (→ 80)
+//
+//  80  — goodbye message
+//  81  — goodbye message 2
+//  82  — action: tag_user initial-flow-completed
+//  83  — action: end_flow
 // ─────────────────────────────────────────────────────────────────────────────
 
-function buildInitialNodes(flowIdsByName: Record<string, string>): NodeInput[] {
+function buildInitialNodes(ids: Record<string, string>): NodeInput[] {
+  const pricing = ids["flow_pricing-discussion"] ?? "";
+  const features = ids["flow_features-discussion"] ?? "";
+  const contact = ids["flow_contact"] ?? "";
+  const tutorial = ids["flow_tutorial"] ?? "";
+  const leadgen = ids["flow_lead-generation"] ?? "";
+
   return [
-    // ── Entry & introduction
+    // ── Greeting
     {
       type: "message",
       content: {
-        text: "Hey there! 👋 I'm Aria — your ReplyBase assistant. I'm here to help you discover how ReplyBase can transform your customer conversations.",
+        text: "Hi there! 👋 I'm Aria from ReplyBase. Good to have you here.",
         typingEnabled: true,
-        typingDurationMs: 1600,
+        typingDurationMs: 1100,
         delayMs: 0,
       },
       order: 0,
     },
-    {
-      type: "message",
-      content: {
-        text: "Whether you're curious about features, pricing, getting started, or just want to say hi — I've got you covered! 😊",
-        typingEnabled: true,
-        typingDurationMs: 1300,
-        delayMs: 800,
-      },
-      order: 1,
-    },
-    // ── Intent capture
+    // ── Warm interest question
     {
       type: "input",
       content: {
-        text: "What brings you here today?",
-        variableName: "initial_intent",
+        text: "What caught your attention about ReplyBase — or is there something specific you're looking to sort out?",
+        variableName: "visitor_interest",
         inputType: "text",
         typingEnabled: true,
-        typingDurationMs: 800,
-        delayMs: 500,
+        typingDurationMs: 1000,
+        delayMs: 600,
       },
-      order: 2,
+      order: 1,
     },
-    // ── Intent routing condition
-    {
-      type: "condition",
-      content: {
-        conditions: [
-          // Pricing intent
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "price",
-            nextNodeOrder: 10,
-          },
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "cost",
-            nextNodeOrder: 10,
-          },
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "plan",
-            nextNodeOrder: 10,
-          },
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "much",
-            nextNodeOrder: 10,
-          },
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "paid",
-            nextNodeOrder: 10,
-          },
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "subscript",
-            nextNodeOrder: 10,
-          },
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "tier",
-            nextNodeOrder: 10,
-          },
-          // Features intent
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "feature",
-            nextNodeOrder: 20,
-          },
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "how",
-            nextNodeOrder: 20,
-          },
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "demo",
-            nextNodeOrder: 20,
-          },
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "work",
-            nextNodeOrder: 20,
-          },
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "capabilit",
-            nextNodeOrder: 20,
-          },
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "do you",
-            nextNodeOrder: 20,
-          },
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "what can",
-            nextNodeOrder: 20,
-          },
-          // Contact / human intent
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "contact",
-            nextNodeOrder: 30,
-          },
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "help",
-            nextNodeOrder: 30,
-          },
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "support",
-            nextNodeOrder: 30,
-          },
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "talk",
-            nextNodeOrder: 30,
-          },
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "human",
-            nextNodeOrder: 30,
-          },
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "person",
-            nextNodeOrder: 30,
-          },
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "team",
-            nextNodeOrder: 30,
-          },
-          // Tutorial / getting started intent
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "guide",
-            nextNodeOrder: 40,
-          },
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "tutorial",
-            nextNodeOrder: 40,
-          },
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "start",
-            nextNodeOrder: 40,
-          },
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "setup",
-            nextNodeOrder: 40,
-          },
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "begin",
-            nextNodeOrder: 40,
-          },
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "onboard",
-            nextNodeOrder: 40,
-          },
-          {
-            variableName: "initial_intent",
-            operator: "contains",
-            value: "get started",
-            nextNodeOrder: 40,
-          },
-        ],
-        nextNodeOrder: 50, // Default → lead gen
-      },
-      order: 3,
-    },
-
-    // ── Branch A: Pricing (10 → 11)
+    // ── Bridge into lead-gen
     {
       type: "message",
       content: {
-        text: "Love it — let me pull up our pricing for you! 💰",
+        text: "That's helpful, thanks. Before I get into the details — let me just grab a couple of quick things so I can make sure whatever I share is actually relevant to your situation.",
         typingEnabled: true,
-        typingDurationMs: 900,
-        delayMs: 300,
+        typingDurationMs: 1400,
+        delayMs: 400,
       },
-      order: 10,
+      order: 2,
     },
+    // ── ALWAYS call lead-gen first
     {
       type: "action",
       content: {
         action: "call_flow",
-        targetFlowName: "flow_pricing-discussion",
-        targetFlowId: flowIdsByName["flow_pricing-discussion"] ?? "",
-        nextNodeOrder: 60,
+        targetFlowName: "flow_lead-generation",
+        targetFlowId: leadgen,
+        nextNodeOrder: 10,
       },
-      order: 11,
+      order: 3,
     },
 
-    // ── Branch B: Features (20 → 21)
+    // ── Post lead-gen: offer to explore
     {
       type: "message",
       content: {
-        text: "Great question! Let me walk you through what makes ReplyBase tick. 🔍",
+        text: "Right — so what would be most useful to go through next?",
         typingEnabled: true,
-        typingDurationMs: 1000,
+        typingDurationMs: 900,
+        delayMs: 500,
+      },
+      order: 10,
+    },
+    {
+      type: "input",
+      content: {
+        text: "I can cover pricing, features, how to get started, or answer any specific questions. What's on your mind?",
+        variableName: "explore_topic",
+        inputType: "text",
+        typingEnabled: true,
+        typingDurationMs: 1100,
         delayMs: 300,
+      },
+      order: 11,
+    },
+    // ── Intent routing
+    {
+      type: "condition",
+      content: {
+        conditions: [
+          // Pricing intent — broad net
+          { variableName: "explore_topic", operator: "contains", value: "price", nextNodeOrder: 20 },
+          { variableName: "explore_topic", operator: "contains", value: "pricing", nextNodeOrder: 20 },
+          { variableName: "explore_topic", operator: "contains", value: "cost", nextNodeOrder: 20 },
+          { variableName: "explore_topic", operator: "contains", value: "costs", nextNodeOrder: 20 },
+          { variableName: "explore_topic", operator: "contains", value: "plan", nextNodeOrder: 20 },
+          { variableName: "explore_topic", operator: "contains", value: "plans", nextNodeOrder: 20 },
+          { variableName: "explore_topic", operator: "contains", value: "how much", nextNodeOrder: 20 },
+          { variableName: "explore_topic", operator: "contains", value: "how expensive", nextNodeOrder: 20 },
+          { variableName: "explore_topic", operator: "contains", value: "afford", nextNodeOrder: 20 },
+          { variableName: "explore_topic", operator: "contains", value: "paid", nextNodeOrder: 20 },
+          { variableName: "explore_topic", operator: "contains", value: "cheap", nextNodeOrder: 20 },
+          { variableName: "explore_topic", operator: "contains", value: "expensive", nextNodeOrder: 20 },
+          { variableName: "explore_topic", operator: "contains", value: "subscript", nextNodeOrder: 20 },
+          { variableName: "explore_topic", operator: "contains", value: "tier", nextNodeOrder: 20 },
+          { variableName: "explore_topic", operator: "contains", value: "budget", nextNodeOrder: 20 },
+          { variableName: "explore_topic", operator: "contains", value: "£", nextNodeOrder: 20 },
+          { variableName: "explore_topic", operator: "contains", value: "$", nextNodeOrder: 20 },
+          // Features intent — broad net
+          { variableName: "explore_topic", operator: "contains", value: "feature", nextNodeOrder: 30 },
+          { variableName: "explore_topic", operator: "contains", value: "features", nextNodeOrder: 30 },
+          { variableName: "explore_topic", operator: "contains", value: "what does", nextNodeOrder: 30 },
+          { variableName: "explore_topic", operator: "contains", value: "what can", nextNodeOrder: 30 },
+          { variableName: "explore_topic", operator: "contains", value: "how does", nextNodeOrder: 30 },
+          { variableName: "explore_topic", operator: "contains", value: "how do", nextNodeOrder: 30 },
+          { variableName: "explore_topic", operator: "contains", value: "does it", nextNodeOrder: 30 },
+          { variableName: "explore_topic", operator: "contains", value: "can it", nextNodeOrder: 30 },
+          { variableName: "explore_topic", operator: "contains", value: "demo", nextNodeOrder: 30 },
+          { variableName: "explore_topic", operator: "contains", value: "show me", nextNodeOrder: 30 },
+          { variableName: "explore_topic", operator: "contains", value: "capabilit", nextNodeOrder: 30 },
+          { variableName: "explore_topic", operator: "contains", value: "function", nextNodeOrder: 30 },
+          { variableName: "explore_topic", operator: "contains", value: "automat", nextNodeOrder: 30 },
+          { variableName: "explore_topic", operator: "contains", value: "chatbot", nextNodeOrder: 30 },
+          { variableName: "explore_topic", operator: "contains", value: "bot", nextNodeOrder: 30 },
+          { variableName: "explore_topic", operator: "contains", value: "channel", nextNodeOrder: 30 },
+          { variableName: "explore_topic", operator: "contains", value: "whatsapp", nextNodeOrder: 30 },
+          { variableName: "explore_topic", operator: "contains", value: "facebook", nextNodeOrder: 30 },
+          { variableName: "explore_topic", operator: "contains", value: "telegram", nextNodeOrder: 30 },
+          { variableName: "explore_topic", operator: "contains", value: "ai", nextNodeOrder: 30 },
+          { variableName: "explore_topic", operator: "contains", value: "crm", nextNodeOrder: 30 },
+          { variableName: "explore_topic", operator: "contains", value: "analytic", nextNodeOrder: 30 },
+          { variableName: "explore_topic", operator: "contains", value: "integrat", nextNodeOrder: 30 },
+          { variableName: "explore_topic", operator: "contains", value: "api", nextNodeOrder: 30 },
+          // Contact / human intent
+          { variableName: "explore_topic", operator: "contains", value: "contact", nextNodeOrder: 40 },
+          { variableName: "explore_topic", operator: "contains", value: "speak to", nextNodeOrder: 40 },
+          { variableName: "explore_topic", operator: "contains", value: "talk to", nextNodeOrder: 40 },
+          { variableName: "explore_topic", operator: "contains", value: "talk with", nextNodeOrder: 40 },
+          { variableName: "explore_topic", operator: "contains", value: "chat with", nextNodeOrder: 40 },
+          { variableName: "explore_topic", operator: "contains", value: "human", nextNodeOrder: 40 },
+          { variableName: "explore_topic", operator: "contains", value: "person", nextNodeOrder: 40 },
+          { variableName: "explore_topic", operator: "contains", value: "someone", nextNodeOrder: 40 },
+          { variableName: "explore_topic", operator: "contains", value: "real person", nextNodeOrder: 40 },
+          { variableName: "explore_topic", operator: "contains", value: "call me", nextNodeOrder: 40 },
+          { variableName: "explore_topic", operator: "contains", value: "email me", nextNodeOrder: 40 },
+          { variableName: "explore_topic", operator: "contains", value: "reach out", nextNodeOrder: 40 },
+          { variableName: "explore_topic", operator: "contains", value: "get in touch", nextNodeOrder: 40 },
+          { variableName: "explore_topic", operator: "contains", value: "support", nextNodeOrder: 40 },
+          { variableName: "explore_topic", operator: "contains", value: "help", nextNodeOrder: 40 },
+          // Tutorial / getting started intent
+          { variableName: "explore_topic", operator: "contains", value: "get started", nextNodeOrder: 50 },
+          { variableName: "explore_topic", operator: "contains", value: "getting started", nextNodeOrder: 50 },
+          { variableName: "explore_topic", operator: "contains", value: "how to start", nextNodeOrder: 50 },
+          { variableName: "explore_topic", operator: "contains", value: "how do i start", nextNodeOrder: 50 },
+          { variableName: "explore_topic", operator: "contains", value: "set up", nextNodeOrder: 50 },
+          { variableName: "explore_topic", operator: "contains", value: "setup", nextNodeOrder: 50 },
+          { variableName: "explore_topic", operator: "contains", value: "onboard", nextNodeOrder: 50 },
+          { variableName: "explore_topic", operator: "contains", value: "tutorial", nextNodeOrder: 50 },
+          { variableName: "explore_topic", operator: "contains", value: "guide", nextNodeOrder: 50 },
+          { variableName: "explore_topic", operator: "contains", value: "walkthrough", nextNodeOrder: 50 },
+          { variableName: "explore_topic", operator: "contains", value: "step by step", nextNodeOrder: 50 },
+          { variableName: "explore_topic", operator: "contains", value: "begin", nextNodeOrder: 50 },
+          { variableName: "explore_topic", operator: "contains", value: "first time", nextNodeOrder: 50 },
+          { variableName: "explore_topic", operator: "contains", value: "new to", nextNodeOrder: 50 },
+        ],
+        nextNodeOrder: 60, // Default: gentle pricing nudge
+      },
+      order: 12,
+    },
+
+    // ── Branch: Pricing (20 → 21)
+    {
+      type: "message",
+      content: {
+        text: "Sure — let me go through the plans with you.",
+        typingEnabled: true,
+        typingDurationMs: 700,
+        delayMs: 200,
       },
       order: 20,
     },
@@ -1200,21 +1084,21 @@ function buildInitialNodes(flowIdsByName: Record<string, string>): NodeInput[] {
       type: "action",
       content: {
         action: "call_flow",
-        targetFlowName: "flow_features-discussion",
-        targetFlowId: flowIdsByName["flow_features-discussion"] ?? "",
-        nextNodeOrder: 60,
+        targetFlowName: "flow_pricing-discussion",
+        targetFlowId: pricing,
+        nextNodeOrder: 70,
       },
       order: 21,
     },
 
-    // ── Branch C: Contact (30 → 31)
+    // ── Branch: Features (30 → 31)
     {
       type: "message",
       content: {
-        text: "Of course! Let me get you our contact details right away. 📞",
+        text: "Good question — let me walk you through what's available.",
         typingEnabled: true,
-        typingDurationMs: 900,
-        delayMs: 300,
+        typingDurationMs: 800,
+        delayMs: 200,
       },
       order: 30,
     },
@@ -1222,21 +1106,21 @@ function buildInitialNodes(flowIdsByName: Record<string, string>): NodeInput[] {
       type: "action",
       content: {
         action: "call_flow",
-        targetFlowName: "flow_contact",
-        targetFlowId: flowIdsByName["flow_contact"] ?? "",
-        nextNodeOrder: 60,
+        targetFlowName: "flow_features-discussion",
+        targetFlowId: features,
+        nextNodeOrder: 70,
       },
       order: 31,
     },
 
-    // ── Branch D: Tutorial (40 → 41)
+    // ── Branch: Contact (40 → 41)
     {
       type: "message",
       content: {
-        text: "Happy to guide you through getting started — it's easier than you think! 🚀",
+        text: "Of course — let me get you the contact details.",
         typingEnabled: true,
-        typingDurationMs: 1000,
-        delayMs: 300,
+        typingDurationMs: 700,
+        delayMs: 200,
       },
       order: 40,
     },
@@ -1244,21 +1128,21 @@ function buildInitialNodes(flowIdsByName: Record<string, string>): NodeInput[] {
       type: "action",
       content: {
         action: "call_flow",
-        targetFlowName: "flow_tutorial",
-        targetFlowId: flowIdsByName["flow_tutorial"] ?? "",
-        nextNodeOrder: 60,
+        targetFlowName: "flow_contact",
+        targetFlowId: contact,
+        nextNodeOrder: 70,
       },
       order: 41,
     },
 
-    // ── Default / Lead-gen path (50 → 51)
+    // ── Branch: Tutorial (50 → 51)
     {
       type: "message",
       content: {
-        text: "To point you in the right direction, I'd love to understand your situation a bit better first. Mind if I ask a few quick questions? 😊",
+        text: "Happy to walk you through it — it's straightforward, I promise.",
         typingEnabled: true,
-        typingDurationMs: 1300,
-        delayMs: 400,
+        typingDurationMs: 900,
+        delayMs: 200,
       },
       order: 50,
     },
@@ -1266,202 +1150,165 @@ function buildInitialNodes(flowIdsByName: Record<string, string>): NodeInput[] {
       type: "action",
       content: {
         action: "call_flow",
-        targetFlowName: "flow_lead-generation",
-        targetFlowId: flowIdsByName["flow_lead-generation"] ?? "",
-        nextNodeOrder: 60,
+        targetFlowName: "flow_tutorial",
+        targetFlowId: tutorial,
+        nextNodeOrder: 70,
       },
       order: 51,
     },
 
-    // ── Wrap-up & follow-up (60 → 61 → 62 → 63/64/65/80)
+    // ── Default: gentle nudge to pricing
     {
       type: "message",
       content: {
-        text: "Is there anything else I can help you with today? 😊",
+        text: "I'll start with a quick overview of what ReplyBase offers and how the pricing works — that usually gives people a clear picture.",
         typingEnabled: true,
-        typingDurationMs: 900,
-        delayMs: 600,
-      },
-      order: 60,
-    },
-    {
-      type: "input",
-      content: {
-        text: "Feel free to ask, or just say 'no thanks' to wrap up!",
-        variableName: "followup_need",
-        inputType: "text",
-        typingEnabled: true,
-        typingDurationMs: 700,
+        typingDurationMs: 1200,
         delayMs: 300,
       },
-      order: 61,
-    },
-    {
-      type: "condition",
-      content: {
-        conditions: [
-          // Pricing follow-up
-          {
-            variableName: "followup_need",
-            operator: "contains",
-            value: "price",
-            nextNodeOrder: 63,
-          },
-          {
-            variableName: "followup_need",
-            operator: "contains",
-            value: "cost",
-            nextNodeOrder: 63,
-          },
-          {
-            variableName: "followup_need",
-            operator: "contains",
-            value: "plan",
-            nextNodeOrder: 63,
-          },
-          {
-            variableName: "followup_need",
-            operator: "contains",
-            value: "subscript",
-            nextNodeOrder: 63,
-          },
-          // Features follow-up
-          {
-            variableName: "followup_need",
-            operator: "contains",
-            value: "feature",
-            nextNodeOrder: 64,
-          },
-          {
-            variableName: "followup_need",
-            operator: "contains",
-            value: "how",
-            nextNodeOrder: 64,
-          },
-          {
-            variableName: "followup_need",
-            operator: "contains",
-            value: "demo",
-            nextNodeOrder: 64,
-          },
-          // Contact follow-up
-          {
-            variableName: "followup_need",
-            operator: "contains",
-            value: "contact",
-            nextNodeOrder: 65,
-          },
-          {
-            variableName: "followup_need",
-            operator: "contains",
-            value: "help",
-            nextNodeOrder: 65,
-          },
-          {
-            variableName: "followup_need",
-            operator: "contains",
-            value: "support",
-            nextNodeOrder: 65,
-          },
-          // Graceful close
-          {
-            variableName: "followup_need",
-            operator: "contains",
-            value: "no",
-            nextNodeOrder: 80,
-          },
-          {
-            variableName: "followup_need",
-            operator: "contains",
-            value: "done",
-            nextNodeOrder: 80,
-          },
-          {
-            variableName: "followup_need",
-            operator: "contains",
-            value: "thanks",
-            nextNodeOrder: 80,
-          },
-          {
-            variableName: "followup_need",
-            operator: "contains",
-            value: "thank",
-            nextNodeOrder: 80,
-          },
-          {
-            variableName: "followup_need",
-            operator: "contains",
-            value: "bye",
-            nextNodeOrder: 80,
-          },
-          {
-            variableName: "followup_need",
-            operator: "contains",
-            value: "nothing",
-            nextNodeOrder: 80,
-          },
-          {
-            variableName: "followup_need",
-            operator: "contains",
-            value: "all good",
-            nextNodeOrder: 80,
-          },
-        ],
-        nextNodeOrder: 80,
-      },
-      order: 62,
+      order: 60,
     },
     {
       type: "action",
       content: {
         action: "call_flow",
         targetFlowName: "flow_pricing-discussion",
-        targetFlowId: flowIdsByName["flow_pricing-discussion"] ?? "",
+        targetFlowId: pricing,
+        nextNodeOrder: 70,
+      },
+      order: 61,
+    },
+
+    // ── Follow-up (70 → 71 → 72)
+    {
+      type: "message",
+      content: {
+        text: "Is there anything else you'd like to go through?",
+        typingEnabled: true,
+        typingDurationMs: 800,
+        delayMs: 500,
+      },
+      order: 70,
+    },
+    {
+      type: "input",
+      content: {
+        text: "Ask away, or just say 'no' if we're done here.",
+        variableName: "followup_need",
+        inputType: "text",
+        typingEnabled: true,
+        typingDurationMs: 600,
+        delayMs: 200,
+      },
+      order: 71,
+    },
+    {
+      type: "condition",
+      content: {
+        conditions: [
+          // Pricing follow-up
+          { variableName: "followup_need", operator: "contains", value: "price", nextNodeOrder: 73 },
+          { variableName: "followup_need", operator: "contains", value: "pricing", nextNodeOrder: 73 },
+          { variableName: "followup_need", operator: "contains", value: "cost", nextNodeOrder: 73 },
+          { variableName: "followup_need", operator: "contains", value: "plan", nextNodeOrder: 73 },
+          { variableName: "followup_need", operator: "contains", value: "how much", nextNodeOrder: 73 },
+          { variableName: "followup_need", operator: "contains", value: "subscript", nextNodeOrder: 73 },
+          // Features follow-up
+          { variableName: "followup_need", operator: "contains", value: "feature", nextNodeOrder: 74 },
+          { variableName: "followup_need", operator: "contains", value: "what does", nextNodeOrder: 74 },
+          { variableName: "followup_need", operator: "contains", value: "how does", nextNodeOrder: 74 },
+          { variableName: "followup_need", operator: "contains", value: "does it", nextNodeOrder: 74 },
+          { variableName: "followup_need", operator: "contains", value: "can it", nextNodeOrder: 74 },
+          { variableName: "followup_need", operator: "contains", value: "demo", nextNodeOrder: 74 },
+          { variableName: "followup_need", operator: "contains", value: "automat", nextNodeOrder: 74 },
+          { variableName: "followup_need", operator: "contains", value: "channel", nextNodeOrder: 74 },
+          { variableName: "followup_need", operator: "contains", value: "ai", nextNodeOrder: 74 },
+          { variableName: "followup_need", operator: "contains", value: "crm", nextNodeOrder: 74 },
+          { variableName: "followup_need", operator: "contains", value: "integrat", nextNodeOrder: 74 },
+          // Contact follow-up
+          { variableName: "followup_need", operator: "contains", value: "contact", nextNodeOrder: 75 },
+          { variableName: "followup_need", operator: "contains", value: "speak to", nextNodeOrder: 75 },
+          { variableName: "followup_need", operator: "contains", value: "talk to", nextNodeOrder: 75 },
+          { variableName: "followup_need", operator: "contains", value: "human", nextNodeOrder: 75 },
+          { variableName: "followup_need", operator: "contains", value: "someone", nextNodeOrder: 75 },
+          { variableName: "followup_need", operator: "contains", value: "support", nextNodeOrder: 75 },
+          { variableName: "followup_need", operator: "contains", value: "help", nextNodeOrder: 75 },
+          { variableName: "followup_need", operator: "contains", value: "email", nextNodeOrder: 75 },
+          // Tutorial follow-up
+          { variableName: "followup_need", operator: "contains", value: "get started", nextNodeOrder: 76 },
+          { variableName: "followup_need", operator: "contains", value: "tutorial", nextNodeOrder: 76 },
+          { variableName: "followup_need", operator: "contains", value: "guide", nextNodeOrder: 76 },
+          { variableName: "followup_need", operator: "contains", value: "setup", nextNodeOrder: 76 },
+          { variableName: "followup_need", operator: "contains", value: "set up", nextNodeOrder: 76 },
+          // Graceful close
+          { variableName: "followup_need", operator: "contains", value: "no", nextNodeOrder: 80 },
+          { variableName: "followup_need", operator: "contains", value: "nope", nextNodeOrder: 80 },
+          { variableName: "followup_need", operator: "contains", value: "done", nextNodeOrder: 80 },
+          { variableName: "followup_need", operator: "contains", value: "thanks", nextNodeOrder: 80 },
+          { variableName: "followup_need", operator: "contains", value: "thank you", nextNodeOrder: 80 },
+          { variableName: "followup_need", operator: "contains", value: "bye", nextNodeOrder: 80 },
+          { variableName: "followup_need", operator: "contains", value: "goodbye", nextNodeOrder: 80 },
+          { variableName: "followup_need", operator: "contains", value: "nothing", nextNodeOrder: 80 },
+          { variableName: "followup_need", operator: "contains", value: "all good", nextNodeOrder: 80 },
+          { variableName: "followup_need", operator: "contains", value: "that's all", nextNodeOrder: 80 },
+          { variableName: "followup_need", operator: "contains", value: "that's it", nextNodeOrder: 80 },
+        ],
         nextNodeOrder: 80,
       },
-      order: 63,
+      order: 72,
+    },
+    // ── Follow-up routing sub-flow calls
+    {
+      type: "action",
+      content: {
+        action: "call_flow",
+        targetFlowName: "flow_pricing-discussion",
+        targetFlowId: pricing,
+        nextNodeOrder: 80,
+      },
+      order: 73,
     },
     {
       type: "action",
       content: {
         action: "call_flow",
         targetFlowName: "flow_features-discussion",
-        targetFlowId: flowIdsByName["flow_features-discussion"] ?? "",
+        targetFlowId: features,
         nextNodeOrder: 80,
       },
-      order: 64,
+      order: 74,
     },
     {
       type: "action",
       content: {
         action: "call_flow",
         targetFlowName: "flow_contact",
-        targetFlowId: flowIdsByName["flow_contact"] ?? "",
+        targetFlowId: contact,
         nextNodeOrder: 80,
       },
-      order: 65,
+      order: 75,
+    },
+    {
+      type: "action",
+      content: {
+        action: "call_flow",
+        targetFlowName: "flow_tutorial",
+        targetFlowId: tutorial,
+        nextNodeOrder: 80,
+      },
+      order: 76,
     },
 
-    // ── Goodbye (80 → 81 → 82 → 83)
+    // ── Goodbye
     {
       type: "message",
       content: {
-        text: "It was a pleasure chatting with you! 🌟 We hope to have you on board soon. If you ever want to continue this conversation, just say hello and I'll be right here.",
+        text: "Thanks for stopping by — it was good chatting with you. 😊\n\nWe'll be in touch soon. And if anything else comes up, just start a chat and I'll be here.",
         typingEnabled: true,
-        typingDurationMs: 1500,
-        delayMs: 500,
+        typingDurationMs: 1400,
+        delayMs: 400,
       },
       order: 80,
-    },
-    {
-      type: "message",
-      content: {
-        text: "Have a wonderful day — from Aria and the ReplyBase team! 👋",
-        typingEnabled: true,
-        typingDurationMs: 1000,
-        delayMs: 700,
-      },
-      order: 81,
     },
     {
       type: "action",
@@ -1469,14 +1316,14 @@ function buildInitialNodes(flowIdsByName: Record<string, string>): NodeInput[] {
         action: "tag_user",
         tags: ["initial-flow-completed"],
       },
-      order: 82,
+      order: 81,
     },
     {
       type: "action",
       content: {
         action: "end_flow",
       },
-      order: 83,
+      order: 82,
     },
   ];
 }
@@ -1487,9 +1334,9 @@ function buildInitialNodes(flowIdsByName: Record<string, string>): NodeInput[] {
 
 async function seed() {
   try {
-    console.log("🎭 Starting Orchestra Flows seeding...\n");
+    console.log("🎭  ReplyBase Orchestra Flows — seed starting...\n");
 
-    // 1. Locate the target user
+    // 1. Find the target user
     const user = await prisma.user.findFirst({
       where: { email: "replybase1@gmail.com" },
       select: { id: true, tenantId: true, email: true },
@@ -1504,82 +1351,83 @@ async function seed() {
     }
 
     const { id: ownerId, tenantId } = user;
-    console.log(`✅  Found user:  ${user.email}`);
+    console.log(`✅  User:       ${user.email}`);
     console.log(`    Tenant ID:  ${tenantId}`);
-    console.log(`    User ID:    ${ownerId}\n`);
+    console.log(`    User ID:    ${ownerId}`);
 
-    // 2. Create / update sub-flows first so we have their IDs
-    console.log("📋  Creating sub-flows...");
+    // 2. Wipe all existing flows for this tenant
+    await deleteAllTenantFlows(tenantId);
+
+    // 3. Create sub-flows first (needed for their IDs)
+    console.log("\n📋  Creating sub-flows...");
 
     const leadGenFlow = await upsertFlow(tenantId, ownerId, {
       name: "flow_lead-generation",
       description:
-        "Primary lead capture — collects name, email, phone, business type, volume, and budget. Tags and qualifies the lead.",
-      fallbackMessage: "I didn't quite catch that. Could you try again?",
+        "Primary lead capture — name, email, phone, business type, volume, budget. Tags + qualifies the lead in CRM.",
+      fallbackMessage: "I didn't quite catch that. Could you give it another go?",
       nodes: LEAD_GEN_NODES,
     });
-    console.log(`    ✅  flow_lead-generation      (${leadGenFlow.id})`);
+    console.log(`    ✅  flow_lead-generation       (${leadGenFlow.id})`);
 
     const pricingFlow = await upsertFlow(tenantId, ownerId, {
       name: "flow_pricing-discussion",
       description:
-        "Pricing overview with plan comparison (Free, Starter, Pro, Business) and sign-up CTA.",
-      fallbackMessage: "Let me know if you have any questions about our plans!",
+        "Pricing overview: Free, Starter, Pro, Business — plan detail branches + sign-up CTA.",
+      fallbackMessage: "Got a question about pricing? Just ask.",
       nodes: PRICING_NODES,
     });
-    console.log(`    ✅  flow_pricing-discussion   (${pricingFlow.id})`);
+    console.log(`    ✅  flow_pricing-discussion    (${pricingFlow.id})`);
 
     const featuresFlow = await upsertFlow(tenantId, ownerId, {
       name: "flow_features-discussion",
       description:
-        "Feature exploration covering multi-channel, flow builder, AI, CRM, analytics, and integrations.",
-      fallbackMessage: "Feel free to ask about any specific feature!",
+        "Feature deep-dive: multi-channel, flow builder, AI, CRM, analytics, integrations.",
+      fallbackMessage: "Happy to answer any questions about features.",
       nodes: FEATURES_NODES,
     });
-    console.log(`    ✅  flow_features-discussion  (${featuresFlow.id})`);
+    console.log(`    ✅  flow_features-discussion   (${featuresFlow.id})`);
 
     const contactFlow = await upsertFlow(tenantId, ownerId, {
       name: "flow_contact",
-      description:
-        "Shares contact details and captures callback email if requested.",
-      fallbackMessage: "You can always reach us at admin@replybase.co.uk",
+      description: "Contact details + optional callback email capture.",
+      fallbackMessage: "You can always reach us at admin@replybase.co.uk.",
       nodes: CONTACT_NODES,
     });
-    console.log(`    ✅  flow_contact              (${contactFlow.id})`);
+    console.log(`    ✅  flow_contact               (${contactFlow.id})`);
 
     const tutorialFlow = await upsertFlow(tenantId, ownerId, {
       name: "flow_tutorial",
       description:
-        "4-step quick-start guide: create account → connect channels → build flow → go live.",
-      fallbackMessage: "Check our docs at replybase.co.uk/docs for more help!",
+        "4-step getting-started guide: create account → connect channels → build flow → go live.",
+      fallbackMessage: "More details at replybase.co.uk/docs.",
       nodes: TUTORIAL_NODES,
     });
-    console.log(`    ✅  flow_tutorial             (${tutorialFlow.id})\n`);
+    console.log(`    ✅  flow_tutorial              (${tutorialFlow.id})\n`);
 
-    // 3. Build flow_Initial with fully-resolved flow IDs
+    // 4. Build flow_Initial with real sub-flow IDs resolved
     console.log("🎭  Creating flow_Initial (orchestrator)...");
-
-    const flowIdsByName: Record<string, string> = {
-      "flow_lead-generation": leadGenFlow.id,
-      "flow_pricing-discussion": pricingFlow.id,
-      "flow_features-discussion": featuresFlow.id,
-      flow_contact: contactFlow.id,
-      flow_tutorial: tutorialFlow.id,
-    };
 
     const initialFlow = await upsertFlow(tenantId, ownerId, {
       name: "flow_Initial",
       description:
-        "Orchestrator entry flow for all channels. Routes visitors to pricing, features, contact, tutorial, or lead-gen based on intent. Bot persona: Aria.",
-      fallbackMessage:
-        "Hey! I'm Aria — feel free to ask me anything about ReplyBase. 😊",
-      nodes: buildInitialNodes(flowIdsByName),
+        "Orchestrator for all channels. Greets visitor, captures lead immediately (flow_lead-generation), then routes to the right sub-flow based on intent. Bot: Aria.",
+      fallbackMessage: "Hi! I'm Aria from ReplyBase — ask me anything. 😊",
+      nodes: buildInitialNodes({
+        "flow_lead-generation": leadGenFlow.id,
+        "flow_pricing-discussion": pricingFlow.id,
+        "flow_features-discussion": featuresFlow.id,
+        "flow_contact": contactFlow.id,
+        "flow_tutorial": tutorialFlow.id,
+      }),
     });
-    console.log(`    ✅  flow_Initial              (${initialFlow.id})\n`);
+    console.log(`    ✅  flow_Initial               (${initialFlow.id})\n`);
 
-    // 4. Summary
-    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    console.log("🎉  All Orchestra flows seeded successfully!\n");
+    // 5. Summary
+    console.log(
+      "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    );
+    console.log("🎉  Done! All Orchestra flows are live.\n");
     console.log("    Flow IDs:");
     console.log(`      flow_Initial              → ${initialFlow.id}`);
     console.log(`      flow_lead-generation      → ${leadGenFlow.id}`);
@@ -1587,11 +1435,12 @@ async function seed() {
     console.log(`      flow_features-discussion  → ${featuresFlow.id}`);
     console.log(`      flow_contact              → ${contactFlow.id}`);
     console.log(`      flow_tutorial             → ${tutorialFlow.id}`);
-    console.log("\n    All flows are set to isActive: true.");
     console.log(
-      "    Next step: assign flow_Initial to your channels in the dashboard.",
+      "\n    All flows: isActive = true. Assign flow_Initial to your channels in the dashboard.",
     );
-    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    console.log(
+      "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    );
   } catch (error) {
     console.error("❌  Seeding failed:", error);
     process.exit(1);

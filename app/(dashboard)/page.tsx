@@ -260,7 +260,7 @@ export default async function DashboardPage() {
             ];
 
   const planActionHref = isBusinessIntent
-    ? "mailto:sales@replybase.co.uk?subject=Business%20Plan%20Onboarding"
+    ? "https://wa.me/447822033580?text=Hi%2C%20I%27m%20interested%20in%20the%20Business%20Plan"
     : `/pricing?plan=${recommendedPlan}&source=onboarding_plan_step`;
   const planActionLabel = isBusinessIntent
     ? "Talk to Business Specialist"
@@ -385,7 +385,7 @@ export default async function DashboardPage() {
                   <Button variant="outline">Open Billing Settings</Button>
                 </Link>
                 {isBusinessIntent && (
-                  <Link href="mailto:sales@replybase.co.uk?subject=Business%20Plan%20Billing%20Setup">
+                  <Link href="https://wa.me/447822033580?text=Hi%2C%20I%27d%20like%20to%20discuss%20Business%20Plan%20billing">
                     <Button variant="outline">
                       Talk to Billing Specialist
                     </Button>
