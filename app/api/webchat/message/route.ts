@@ -108,17 +108,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const site = session.siteId
-      ? await prisma.webChatSite.findUnique({
-          where: { id: session.siteId },
-        })
-      : await prisma.webChatSite.findFirst({
-          where: {
-            channelId: session.channelId,
-            botId: session.botId,
-            isActive: true,
-          },
-        });
+    const [site, tenantSettings] = await Promise.all([
+      session.siteId
+        ? prisma.webChatSite.findUnique({ where: { id: session.siteId } })
+        : prisma.webChatSite.findFirst({
+            where: { channelId: session.channelId, botId: session.botId, isActive: true },
+          }),
+      prisma.tenant.findUnique({
+        where: { id: session.tenantId },
+        select: { aiEnabled: true },
+      }),
+    ]);
+    const tenantAiEnabled = tenantSettings?.aiEnabled ?? false;
 
     if (!site) {
       return NextResponse.json(
@@ -266,7 +267,6 @@ export async function POST(request: NextRequest) {
             name: true,
             entryFlow: true,
             welcomeMessage: true,
-            aiEnabled: true,
           },
         },
       },
@@ -531,7 +531,7 @@ export async function POST(request: NextRequest) {
     // this bot.  Without this guard every message falls through to Typebot and
     // produces a noisy "flow not found" error for tenants that have not set up
     // a Typebot flow.
-    if (!conversation.bot?.aiEnabled) {
+    if (!tenantAiEnabled) {
       // AI is off — return the safe fallback quietly (no error log).
       await prisma.crmMessage.create({
         data: {
