@@ -988,16 +988,6 @@ const CONTACT_NODES: NodeInput[] = [
   {
     type: "message",
     content: {
-      text: "Of course — happy to get you the right contact info.",
-      typingEnabled: true,
-      typingDurationMs: 800,
-      delayMs: 0,
-    },
-    order: 0,
-  },
-  {
-    type: "message",
-    content: {
       text: "Here's how to reach us:\n\n📧 Email: admin@replybase.co.uk\n🌐 Contact form: https://replybase.co.uk/contact\n💬 Live chat on the website — available Mon–Fri, 9am–5pm GMT\n\nWe usually reply within a few hours on business days.",
       typingEnabled: true,
       typingDurationMs: 1300,
@@ -1156,16 +1146,6 @@ const CONTACT_NODES: NodeInput[] = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TUTORIAL_NODES: NodeInput[] = [
-  {
-    type: "message",
-    content: {
-      text: "Sure — getting started is actually pretty quick. Let me walk you through it.",
-      typingEnabled: true,
-      typingDurationMs: 1000,
-      delayMs: 0,
-    },
-    order: 0,
-  },
   {
     type: "message",
     content: {
@@ -1355,22 +1335,12 @@ function buildInitialNodes(ids: Record<string, string>): NodeInput[] {
         action: "call_flow",
         targetFlowName: "flow_lead-generation",
         targetFlowId: leadgen,
-        nextNodeOrder: 10,
+        nextNodeOrder: 11,
       },
       order: 3,
     },
 
-    // ── Post lead-gen: offer to explore
-    {
-      type: "message",
-      content: {
-        text: "Right — so what would be most useful to go through next?",
-        typingEnabled: true,
-        typingDurationMs: 900,
-        delayMs: 500,
-      },
-      order: 10,
-    },
+    // ── Post lead-gen: explore topic input
     {
       type: "input",
       content: {
@@ -1818,17 +1788,7 @@ function buildInitialNodes(ids: Record<string, string>): NodeInput[] {
       order: 12,
     },
 
-    // ── Branch: Pricing (20 → 21)
-    {
-      type: "message",
-      content: {
-        text: "Sure — let me go through the plans with you.",
-        typingEnabled: true,
-        typingDurationMs: 700,
-        delayMs: 200,
-      },
-      order: 20,
-    },
+    // ── Branch: Pricing (→ 20)
     {
       type: "action",
       content: {
@@ -1837,7 +1797,7 @@ function buildInitialNodes(ids: Record<string, string>): NodeInput[] {
         targetFlowId: pricing,
         nextNodeOrder: 70,
       },
-      order: 21,
+      order: 20,
     },
 
     // ── Branch: Features (30 → 31)
