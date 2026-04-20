@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LoginForm } from "../login-form";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Sign In — ReplyBase",
@@ -19,6 +20,16 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export function LoginPage() {
-  return <LoginForm />;
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-md px-4 py-16 text-center">
+          Loading registration...
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
+  );
 }
