@@ -15,112 +15,67 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import {
   Field,
+  FieldLabel,
   FieldDescription,
   FieldGroup,
-  FieldLabel,
   FieldSeparator,
 } from "@/components/ui/field";
 import Link from "next/link";
 import { setClarityTags, trackEvent } from "@/lib/client-analytics";
 
+// --- Shared Feedback Types & Helpers ---
 type FeedbackTone = "info" | "success" | "error";
-
 type AuthFeedback = {
   tone: FeedbackTone;
   title: string;
   message: string;
   instruction?: string;
 };
-
 type SignupPlanIntent = "free" | "starter" | "pro" | "business";
-
 function parseSignupPlanIntent(value?: string | null): SignupPlanIntent | null {
-  if (!value) {
-    return null;
-  }
-
+  if (!value) return null;
   const normalized = value.trim().toLowerCase();
-  if (
-    normalized === "free" ||
-    normalized === "starter" ||
-    normalized === "pro" ||
-    normalized === "business"
-  ) {
-    return normalized;
-  }
-
-  return null;
+  return ["free", "starter", "pro", "business"].includes(normalized)
+    ? (normalized as SignupPlanIntent)
+    : null;
 }
-
 function parseSignupSourceIntent(value?: string | null): string | null {
-  if (!value) {
-    return null;
-  }
-
+  if (!value) return null;
   const normalized = value.trim().toLowerCase();
-  if (!/^[a-z0-9_-]{2,48}$/.test(normalized)) {
-    return null;
-  }
-
-  return normalized;
+  return /^[a-z0-9_-]{2,48}$/.test(normalized) ? normalized : null;
 }
-
-function mapSignInError(error?: string | null): AuthFeedback {
-  if (error === "CredentialsSignin") {
-    return {
-      tone: "error",
-      title: "Auto sign-in failed",
-      message: "Your account was created but credentials sign-in failed.",
-      instruction: "Please go to login and sign in manually.",
-    };
-  }
-
-  return {
-    tone: "error",
-    title: "Auto sign-in failed",
-    message: error
-      ? `Provider returned: ${error}`
-      : "Your account was created but we could not sign you in.",
-    instruction: "Go to login and sign in manually.",
-  };
-}
-
-function FeedbackBanner({ feedback }: { feedback: AuthFeedback }) {
-  const styles = {
-    info: "border-blue-200 bg-blue-50 text-blue-900",
-    success: "border-emerald-200 bg-emerald-50 text-emerald-900",
-    error: "border-red-200 bg-red-50 text-red-900",
-  };
-
-  return (
-    <div className={`rounded-md border p-3 text-sm ${styles[feedback.tone]}`}>
-      <p className="font-medium">{feedback.title}</p>
-      <p>{feedback.message}</p>
-      {feedback.instruction ? <p>{feedback.instruction}</p> : null}
-    </div>
-  );
-}
-
-function mapNextAuthError(error?: string | null): AuthFeedback {
+function mapNextAuthError(
+  error?: string | null,
+  context?: "register",
+): AuthFeedback {
   if (!error) {
     return {
       tone: "error",
-      title: "Sign in failed",
-      message: "We could not complete your sign in.",
+      title: context === "register" ? "Registration failed" : "Sign in failed",
+      message:
+        context === "register"
+          ? "Unable to create your account right now."
+          : "We could not complete your sign in.",
       instruction: "Please try again in a moment.",
     };
   }
-
   if (error === "CredentialsSignin") {
     return {
       tone: "error",
-      title: "Invalid email or password",
-      message: "The credentials you entered do not match an account.",
+      title:
+        context === "register"
+          ? "Auto sign-in failed"
+          : "Invalid email or password",
+      message:
+        context === "register"
+          ? "Your account was created but credentials sign-in failed."
+          : "The credentials you entered do not match an account.",
       instruction:
-        "Check your email/password and try again, or use 'Forgot your password?'.",
+        context === "register"
+          ? "Please go to login and sign in manually."
+          : "Check your email/password and try again, or use 'Forgot your password?'.",
     };
   }
-
   if (error === "AccessDenied") {
     return {
       tone: "error",
@@ -129,14 +84,31 @@ function mapNextAuthError(error?: string | null): AuthFeedback {
       instruction: "Contact support if you believe this is a mistake.",
     };
   }
-
   return {
     tone: "error",
-    title: "Authentication error",
+    title:
+      context === "register" ? "Auto sign-in failed" : "Authentication error",
     message: `Provider returned: ${error}`,
-    instruction: "Try again. If this keeps happening, contact support.",
+    instruction:
+      context === "register"
+        ? "Go to login and sign in manually."
+        : "Try again. If this keeps happening, contact support.",
   };
 }
+const FeedbackBanner = ({ feedback }: { feedback: AuthFeedback }) => {
+  const styles = {
+    info: "border-blue-200 bg-blue-50 text-blue-900",
+    success: "border-emerald-200 bg-emerald-50 text-emerald-900",
+    error: "border-red-200 bg-red-50 text-red-900",
+  };
+  return (
+    <div className={`rounded-md border p-3 text-sm ${styles[feedback.tone]}`}>
+      <p className="font-medium">{feedback.title}</p>
+      <p>{feedback.message}</p>
+      {feedback.instruction ? <p>{feedback.instruction}</p> : null}
+    </div>
+  );
+};
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
@@ -266,7 +238,8 @@ export function LoginForm() {
                   id="password"
                   type={showPassword ? "text" : "password"}
                   required
-                  autoComplete="current-password"
+                  minLength={8}
+                  autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="pr-10"
@@ -426,7 +399,7 @@ export function RegisterForm() {
       });
 
       if (res?.error) {
-        setFeedback(mapSignInError(res.error));
+        setFeedback(mapNextAuthError(res.error, "register"));
         router.push("/auth/login");
         return;
       }
