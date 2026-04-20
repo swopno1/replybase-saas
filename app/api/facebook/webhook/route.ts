@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { converse } from "@/lib/ai-engine";
+// AI fallback removed April 2026
 import {
   sendFacebookSenderAction,
   sendTextMessage,
@@ -384,96 +384,22 @@ async function handleMessage(
       // Fall through to AI
     }
 
-    // 7. AI / default-flow fallback (requires engineConnected + botId)
-    if (!facebookPage.engineConnected || !facebookPage.botId || !conversation) {
-      console.warn(
-        `[Facebook Webhook] Page ${pageId} not configured for AI — no reply sent.`,
-      );
-      return;
+    // 7. AI / default-flow fallback removed. Static message only.
+    await sendTextMessage(
+      accessToken,
+      senderPsid,
+      "Our AI Agent is under development! We'll be up again soon.",
+    );
+    if (conversation) {
+      await prisma.crmMessage.create({
+        data: {
+          conversationId: conversation.id,
+          direction: "outbound",
+          content: "Our AI Agent is under development! We'll be up again soon.",
+          source: "ai",
+        },
+      });
     }
-
-    const { botId } = facebookPage;
-
-    // Onboarding check
-    const isNewUser = !contact.tenantId || contact.tenantId === tenantId;
-    const hasActiveOnboarding = await prisma.onboardingSession.findFirst({
-      where: {
-        contactId: contact.id,
-        facebookPageId: facebookPage.id,
-        status: "IN_PROGRESS",
-      },
-    });
-
-    const isGetStarted =
-      messageText.toLowerCase().includes("get started") ||
-      messageText.toLowerCase().includes("hi") ||
-      messageText.toLowerCase().includes("hello");
-
-    if ((isNewUser && isGetStarted) || hasActiveOnboarding) {
-      try {
-        await OnboardingFlowHandler.handleMessage(
-          facebookPage.id,
-          senderPsid,
-          messageText,
-          conversation.id,
-          contact.id,
-          accessToken,
-        );
-        return;
-      } catch (error) {
-        console.error("[Facebook Webhook] Onboarding Flow Error:", error);
-      }
-    }
-
-    // AI / default flow
-    let replyText: string;
-    const useDefaultFlow = shouldUseDefaultFlow(conversation);
-
-    if (useDefaultFlow) {
-      try {
-        replyText = await processDefaultBotFlow(
-          conversation.id,
-          contact.id,
-          tenantId,
-          messageText,
-        );
-      } catch (error) {
-        console.error("[Facebook Webhook] Default Flow Error:", error);
-        replyText =
-          "I'm having trouble processing your request. Our team will get back to you soon!";
-      }
-    } else {
-      try {
-        const engineResponse = await converse({
-          botId,
-          tenantId,
-          contact: { name: userName || senderPsid },
-          message: messageText,
-        });
-
-        type TextResponse = { type: "text"; text: string };
-        const textResponse = engineResponse.responses?.find(
-          (r: TextResponse) => r.type === "text",
-        );
-        replyText = textResponse?.text ?? "";
-        if (!replyText) throw new Error("No text response from engine");
-      } catch (error) {
-        console.error("[Facebook Webhook] AI Engine Error:", error);
-        replyText = "Sorry, I'm having trouble responding right now.";
-      }
-    }
-
-    await sendTextMessage(accessToken, senderPsid, replyText);
-
-    await prisma.crmMessage.create({
-      data: {
-        conversationId: conversation.id,
-        direction: "outbound",
-        content: replyText,
-        source: "ai",
-      },
-    });
-
     await recordMilestoneEvent(tenantId, "first-channel", {
       channelType: "facebook",
       pageId: facebookPage.id,

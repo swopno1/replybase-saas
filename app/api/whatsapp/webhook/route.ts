@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { verifyWebhookSignature } from "@/lib/facebook-utils";
 import { prisma } from "@/lib/prisma";
-import { converse } from "@/lib/ai-engine";
+// AI fallback removed April 2026
 import { executeBotEntryFlowFirst } from "@/lib/bot-entry-flow-engine";
 import { recordMilestoneEvent } from "@/lib/milestone-events";
 import { waitForFlowDurationMs } from "@/lib/flow-runtime-utils";
@@ -11,9 +11,7 @@ import {
   getStringFromJsonConfig,
 } from "@/lib/whatsapp-channel-credentials";
 import {
-  MetaCloudCredentials,
-  TwilioCredentials,
-  Dialog360Credentials,
+  // ...existing code...
   WhatsAppProviderCredentials,
   normalizeWhatsAppAddress,
   normalizeWhatsAppE164,
@@ -474,34 +472,8 @@ async function sendAutoReply(params: {
   }
 
   if (!replyText) {
-    try {
-      const aiResponse = await converse({
-        botId: params.channel.bot.id,
-        tenantId: params.channel.bot.tenantId,
-        contact: {
-          // Use the display name from WhatsApp profile if captured;
-          // fall back to an empty string rather than exposing the phone number.
-          name: params.contactName ?? "",
-        },
-        message: params.inboundText,
-      });
-
-      type TextResponse = { type: "text"; text?: string };
-      const textResponse = aiResponse.responses?.find(
-        (r: TextResponse) => r.type === "text" && Boolean(r.text),
-      );
-
-      if (textResponse?.text) {
-        replyText = textResponse.text;
-        replySource = "ai";
-      }
-    } catch (error) {
-      console.error("[WhatsApp Webhook] AI converse error:", error);
-    }
-  }
-
-  if (!replyText) {
-    return;
+    replyText = "Our AI Agent is under development! We'll be up again soon.";
+    replySource = "ai";
   }
 
   // WhatsApp text messages are capped at 4096 characters.
