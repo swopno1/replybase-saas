@@ -57,6 +57,7 @@ model User {
   tenant                Tenant            @relation(fields: [tenantId], references: [id])
   newsletterSubscriptions NewsletterSubscriber[]
   dataDeletionRequests   DataDeletionRequest[]
+  passwordResetTokens    PasswordResetToken[]
 
   @@index([tenantId])
   @@map("users")
@@ -120,6 +121,17 @@ model VerificationToken {
 
   @@unique([identifier, token])
   @@map("verificationtokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 model FacebookPage {
