@@ -14,7 +14,6 @@ interface StatusCardsProps {
   isAutomationReady: boolean;
   connectedChannelsCount: number;
   connectedLeadDestinationsCount: number;
-  isEngineUp: boolean;
   lastMessageTimestamp: Date | null;
 }
 
@@ -37,7 +36,6 @@ export function StatusCards({
   isAutomationReady,
   connectedChannelsCount,
   connectedLeadDestinationsCount,
-  isEngineUp,
   lastMessageTimestamp,
 }: StatusCardsProps) {
   return (
@@ -82,25 +80,7 @@ export function StatusCards({
         </CardContent>
       </Card>
 
-      {/* Engine Status */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Engine Status</CardTitle>
-          {isEngineUp ? (
-            <Activity className="h-4 w-4 text-green-500" />
-          ) : (
-            <AlertCircle className="h-4 w-4 text-red-500" />
-          )}
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
-            {isEngineUp ? "Online" : "Offline"}
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {isEngineUp ? "System operational" : "Connection failed"}
-          </p>
-        </CardContent>
-      </Card>
+      {/* Engine Status removed: AI/engine is deprecated */}
 
       {/* Lead Destinations */}
       <Card>

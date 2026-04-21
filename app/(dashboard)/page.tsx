@@ -1,5 +1,4 @@
 import { getServerSession } from "next-auth";
-import { checkHealth } from "@/lib/ai-engine";
 import { prisma } from "@/lib/prisma";
 import { SubscriptionStatus } from "@/components/subscription-status";
 import { authOptions } from "@/lib/auth";
@@ -62,10 +61,6 @@ export default async function DashboardPage() {
   if (!user?.tenantId) {
     return null; // No tenant found
   }
-
-  // Get engine health
-  const health = await checkHealth();
-  const isEngineUp = health.engine === "ok";
 
   const [
     telegramChannelsCount,
@@ -523,7 +518,6 @@ export default async function DashboardPage() {
           isAutomationReady={isAutomationReady}
           connectedChannelsCount={connectedChannelsCount}
           connectedLeadDestinationsCount={connectedLeadDestinationsCount}
-          isEngineUp={isEngineUp}
           lastMessageTimestamp={lastMessageTimestamp}
         />
       </DashboardErrorBoundary>

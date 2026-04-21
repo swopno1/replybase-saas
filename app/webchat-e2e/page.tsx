@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 function WebchatE2EHarnessContent() {
   const searchParams = useSearchParams();
@@ -11,6 +11,7 @@ function WebchatE2EHarnessContent() {
     "loading",
   );
 
+  // Move all searchParams-derived variables above useEffect
   const title = searchParams.get("title") || "E2E Assistant";
   const primaryColor = searchParams.get("primaryColor") || "#0f766e";
   const position = searchParams.get("position") || "right";
@@ -19,7 +20,14 @@ function WebchatE2EHarnessContent() {
   const cookieConsentCheck = searchParams.get("cookieConsentCheck") || "";
   const mobileMode = searchParams.get("mobileMode") || "auto";
 
+  // Move the environment check after all hooks, so hooks are always called
+  const isNotAvailable =
+    typeof window !== "undefined" && process.env.NODE_ENV !== "development";
+
   useEffect(() => {
+    if (isNotAvailable) {
+      return;
+    }
     const existing = document.getElementById("replybase-webchat-e2e-script");
     if (existing) {
       existing.remove();
