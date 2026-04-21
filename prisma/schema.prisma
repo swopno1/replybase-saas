@@ -189,7 +189,9 @@ model DataDeletionRequest {
   confirmationCode String             @unique
   source           String?
   requestedAt      DateTime           @default(now())
+  scheduledDeletionAt DateTime?
   processedAt      DateTime?
+  cancelToken      String?            @unique
   notes            String?
   userId           String?
   tenantId         String?
@@ -766,6 +768,7 @@ enum DataDeletionStatus {
   IN_PROGRESS
   COMPLETED
   REJECTED
+  CANCELLED
 }
 
 enum WebChatEventType {

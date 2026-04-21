@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 function normalizeOrigin(value: string) {
   try {
@@ -26,9 +26,12 @@ function normalizeOrigin(value: string) {
 function WebchatTestHarnessContent() {
   const searchParams = useSearchParams();
   const [reloadKey, setReloadKey] = useState(0);
-  const [currentOrigin] = useState(
-    typeof window !== "undefined" ? window.location.origin : "",
-  );
+  const [currentOrigin, setCurrentOrigin] = useState<string>("");
+  useEffect(() => {
+    setCurrentOrigin(window.location.origin);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">(
     "idle",
   );
@@ -182,7 +185,7 @@ function WebchatTestHarnessContent() {
               <div className="rounded-lg border bg-slate-50 p-4">
                 <p className="text-sm text-muted-foreground">Current Origin</p>
                 <p className="mt-2 text-sm font-medium text-slate-900">
-                  {currentOrigin || "Loading..."}
+                  {currentOrigin ?? "Loading..."}
                 </p>
               </div>
               <div className="rounded-lg border bg-slate-50 p-4">

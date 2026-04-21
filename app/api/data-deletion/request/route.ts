@@ -5,10 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { validateApiKey } from "@/lib/api-auth";
 import crypto from "node:crypto";
 
-export const dynamic = 'force-dynamic';
-
-
-
+export const dynamic = "force-dynamic";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -35,7 +32,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Set a 7-day grace period for deletion
+    const now = new Date();
+    const scheduledDeletionAt = new Date(
+      now.getTime() + 7 * 24 * 60 * 60 * 1000,
+    );
     const confirmationCode = `del_${crypto.randomBytes(12).toString("hex")}`;
+    const cancelToken = `cancel_${crypto.randomBytes(16).toString("hex")}`;
 
     const request = await prisma.dataDeletionRequest.create({
       data: {
@@ -44,6 +47,16 @@ export async function POST(req: NextRequest) {
         source: source || "web",
         userId: session?.user?.id || undefined,
         tenantId: session?.user?.tenantId || undefined,
+        scheduledDeletionAt,
+        cancelToken,
+        // status defaults to PENDING
+      },
+      select: {
+        email: true,
+        confirmationCode: true,
+        cancelToken: true,
+        scheduledDeletionAt: true,
+        status: true,
       },
     });
 
@@ -55,6 +68,8 @@ export async function POST(req: NextRequest) {
       email: request.email,
       confirmationCode: request.confirmationCode,
       statusUrl: `${appUrl}/data-deletion-status?code=${request.confirmationCode}`,
+      cancelUrl: `${appUrl}/api/data-deletion/cancel?token=${request.cancelToken}`,
+      scheduledDeletionAt: request.scheduledDeletionAt,
       source: apiAuth.authenticated ? "api-key" : "session",
     });
   } catch (error: unknown) {
