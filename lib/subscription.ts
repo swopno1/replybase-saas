@@ -1,3 +1,19 @@
+// Count unique conversations created in the current month for Automations / Month
+export async function getMonthlyConversationCount(
+  tenantId: string,
+): Promise<number> {
+  const monthStart = startOfUtcMonth();
+  const monthEnd = startOfNextUtcMonth(monthStart);
+  return prisma.crmConversation.count({
+    where: {
+      contact: { tenantId },
+      createdAt: {
+        gte: monthStart,
+        lt: monthEnd,
+      },
+    },
+  });
+}
 import { prisma } from "@/lib/prisma";
 
 const AGGREGATE_BOT_ID = "__aggregate_bot__";
