@@ -18,11 +18,18 @@ export const metadata: Metadata = {
 };
 
 async function getConversations(tenantId: string) {
+  // Step 1: Get all contact IDs for this tenant
+  const contacts = await prisma.contact.findMany({
+    where: { tenantId },
+    select: { id: true },
+  });
+  const contactIds = contacts.map((c) => c.id);
+  if (contactIds.length === 0) return [];
+
+  // Step 2: Get all conversations for those contacts
   return prisma.crmConversation.findMany({
     where: {
-      contact: {
-        tenantId,
-      },
+      contactId: { in: contactIds },
     },
     include: {
       contact: {
