@@ -24,7 +24,9 @@ async function getConversations(tenantId: string) {
     select: { id: true },
   });
   const contactIds = contacts.map((c) => c.id);
-  if (contactIds.length === 0) return [];
+  if (!contactIds || contactIds.length === 0) {
+    return [];
+  }
 
   // Step 2: Get all conversations for those contacts
   return prisma.crmConversation.findMany({
