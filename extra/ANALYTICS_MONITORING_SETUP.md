@@ -21,6 +21,7 @@ Scripts are loaded globally in the root layout via Next Script strategies:
 - PostHog: lazyOnload (optional)
 
 Files:
+
 - app/layout.tsx
 - components/analytics/analytics-scripts.tsx
 
@@ -32,16 +33,19 @@ A reusable TypeScript utility sends events to all enabled providers and supports
 - setClarityTags(tags)
 
 Dedup scopes:
+
 - memory (avoid duplicate fire in a render cycle)
 - session (once per tab session)
 - local (once across browser sessions)
 
 File:
+
 - lib/client-analytics.ts
 
 ### Funnel events wired
 
 Implemented events:
+
 - get_started_click
 - signup_started
 - signup_completed
@@ -50,6 +54,7 @@ Implemented events:
 - pricing_viewed
 
 Files:
+
 - app/(dashboard)/pricing/page.tsx
 - app/auth/register/page.tsx
 - app/(dashboard)/page.tsx
@@ -58,6 +63,7 @@ Files:
 ### Clarity page tagging
 
 Clarity custom tags set for key pages/funnel steps:
+
 - pricing page: page_type=pricing, funnel_step=landing
 - signup page: page_type=signup, funnel_step=signup
 - dashboard page: page_type=dashboard, funnel_step=dashboard
@@ -70,16 +76,17 @@ A compose template is included:
 
 Create a .env.plausible file next to the compose with:
 
-- BASE_URL=https://analytics.replybase.co.uk
+- BASE_URL=https://engine.replybase.co.uk
 - SECRET_KEY_BASE=<64+ char random>
 - POSTGRES_PASSWORD=<strong password>
 - CLICKHOUSE_PASSWORD=<strong password>
 
 Coolify setup notes:
+
 1. Create a new Docker Compose resource and point to the compose file.
-2. Attach analytics.yourdomain.com to the plausible service.
+2. Attach engine.yourdomain.com to the plausible service.
 3. Enable HTTPS at the Coolify proxy level.
-4. Ensure DNS A/AAAA records point analytics.yourdomain.com to your server.
+4. Ensure DNS A/AAAA records point engine.yourdomain.com to your server.
 5. In Plausible UI, add app.replybase.co.uk as a site domain.
 
 ## 4. Plausible goals mapping
@@ -91,6 +98,7 @@ The tracker maps these events to Plausible custom goals automatically:
 - pricing_viewed -> Pricing Viewed
 
 Create these goals in Plausible UI:
+
 - Goal name: Get Started Click
 - Goal name: Signup Completed
 - Goal name: Pricing Viewed
@@ -107,6 +115,7 @@ UTM/referrer/pageview are collected by Plausible script automatically.
 4. Monitor Coverage and Core Web Vitals.
 
 SEO files to verify:
+
 - app/layout.tsx
 - app/sitemap.ts
 - app/robots.ts
@@ -114,15 +123,18 @@ SEO files to verify:
 ## 6. Performance workflow
 
 Scripts added:
+
 - npm run perf:lighthouse
 - npm run perf:webpagetest
 
 Recommended runbook:
+
 1. Run lighthouse on production URL after each release.
 2. Run WebPageTest mobile + desktop before major homepage/pricing/auth changes.
 3. Keep analytics scripts async/deferred only.
 
 Target gates:
+
 - Lighthouse Performance > 90
 - Lighthouse SEO > 90
 
