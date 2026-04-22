@@ -23,8 +23,8 @@ async function getConversations(tenantId: string) {
     where: { tenantId },
     select: { id: true },
   });
-  const contactIds = contacts.map((c) => c.id);
-  if (!contactIds || contactIds.length === 0) {
+  const contactIds = contacts.map((c) => c.id).filter(Boolean);
+  if (!Array.isArray(contactIds) || contactIds.length === 0) {
     return [];
   }
 
