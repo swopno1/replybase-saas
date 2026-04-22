@@ -471,7 +471,41 @@ async function sendAutoReply(params: {
     console.error("[WhatsApp Webhook] Flow engine error:", error);
   }
 
-  if (!replyText) {
+  // AI fallback if flow did not return text
+  try {
+    const { aiFallback } = await import("@/lib/ai-fallback");
+    // Fetch last messages for context
+    const lastMessages = await prisma.crmMessage.findMany({
+      where: { conversationId: params.conversation.id },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: { content: true, source: true },
+    });
+    const aiMessages = lastMessages.reverse().map((msg) => ({
+      role: msg.source === "human" ? "user" : "assistant",
+      content: msg.content,
+    }));
+    aiMessages.push({ role: "user", content: params.inboundText });
+
+    // Use planName from bot or default to "free"
+    const bot = await prisma.bot.findUnique({
+      where: { id: params.channel.botId },
+      select: { id: true, planName: true },
+    });
+    const planName = bot?.planName || "free";
+
+    const aiStream = await aiFallback({
+      botId: params.channel.botId,
+      conversationId: params.conversation.id,
+      messages: aiMessages,
+      planName,
+    });
+    replyText =
+      aiStream && "text" in aiStream
+        ? await aiStream.text
+        : String(aiStream ?? "");
+    replySource = "ai";
+  } catch (aiError) {
     replyText = "Our AI Agent is under development! We'll be up again soon.";
     replySource = "ai";
   }

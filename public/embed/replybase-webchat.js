@@ -87,122 +87,186 @@
   var seenHumanMessageIds = Object.create(null);
   var botTypingIndicator = null;
 
-  var root = document.createElement("div");
-  root.id = "replybase-webchat-root";
-  var shadow = root.attachShadow({ mode: "open" });
+  // Only render the widget after config and session are ready
+  function renderWidget() {
+    var root = document.createElement("div");
+    root.id = "replybase-webchat-root";
+    var shadow = root.attachShadow({ mode: "open" });
 
-  var container = document.createElement("div");
-  container.className = "rb-container";
+    var container = document.createElement("div");
+    container.className = "rb-container";
 
-  var button = document.createElement("button");
-  button.type = "button";
-  button.setAttribute("aria-label", "Open chat");
-  button.className = "rb-button";
+    var button = document.createElement("button");
+    button.type = "button";
+    button.setAttribute("aria-label", "Open chat");
+    button.className = "rb-button";
 
-  var buttonLabel = document.createElement("span");
-  buttonLabel.className = "rb-button-label";
-  buttonLabel.textContent = "Chat";
+    var buttonLabel = document.createElement("span");
+    buttonLabel.className = "rb-button-label";
+    buttonLabel.textContent = "Chat";
 
-  var unreadBadge = document.createElement("span");
-  unreadBadge.className = "rb-unread-badge";
-  unreadBadge.hidden = true;
+    var unreadBadge = document.createElement("span");
+    unreadBadge.className = "rb-unread-badge";
+    unreadBadge.hidden = true;
 
-  var panel = document.createElement("div");
-  panel.setAttribute("role", "dialog");
-  panel.setAttribute("aria-label", title);
-  panel.className = "rb-panel";
+    var panel = document.createElement("div");
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("aria-label", title);
+    panel.className = "rb-panel";
 
-  var panelHeader = document.createElement("div");
-  panelHeader.className = "rb-header";
+    var panelHeader = document.createElement("div");
+    panelHeader.className = "rb-header";
 
-  var panelTitle = document.createElement("span");
-  panelTitle.className = "rb-title";
-  panelTitle.textContent = title;
+    var panelTitle = document.createElement("span");
+    panelTitle.className = "rb-title";
+    panelTitle.textContent = title;
 
-  var closeButton = document.createElement("button");
-  closeButton.type = "button";
-  closeButton.setAttribute("aria-label", "Close chat");
-  closeButton.textContent = "x";
-  closeButton.className = "rb-close";
+    var closeButton = document.createElement("button");
+    closeButton.type = "button";
+    closeButton.setAttribute("aria-label", "Close chat");
+    closeButton.textContent = "x";
+    closeButton.className = "rb-close";
 
-  var messages = document.createElement("div");
-  messages.className = "rb-messages";
+    var messages = document.createElement("div");
+    messages.className = "rb-messages";
 
-  var composer = document.createElement("div");
-  composer.className = "rb-composer";
-  var input = document.createElement("input");
-  input.type = "text";
-  input.placeholder = "Type your message...";
-  input.autocomplete = "off";
-  input.className = "rb-input";
+    var composer = document.createElement("div");
+    composer.className = "rb-composer";
+    var input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = "Type your message...";
+    input.autocomplete = "off";
+    input.className = "rb-input";
 
-  var sendButton = document.createElement("button");
-  sendButton.type = "button";
-  sendButton.textContent = "Send";
-  sendButton.className = "rb-send";
+    var sendButton = document.createElement("button");
+    sendButton.type = "button";
+    sendButton.textContent = "Send";
+    sendButton.className = "rb-send";
 
-  var style = document.createElement("style");
-  style.textContent = [
-    ":host { position: fixed; bottom: 20px; z-index: 2147483647; font-family: 'Segoe UI', Tahoma, sans-serif; }",
-    ":host([data-position='right']) { right: 20px; }",
-    ":host([data-position='left']) { left: 20px; }",
-    ":host([data-open='true'][data-mobile-fullscreen='true']) { inset: 0; right: 0; left: 0; bottom: 0; top: 0; }",
-    ".rb-container, .rb-container * { box-sizing: border-box; }",
-    ".rb-container { display: flex; flex-direction: column; align-items: stretch; }",
-    ".rb-container button { border: none; cursor: pointer; }",
-    ".rb-button { position: relative; width: 60px; height: 60px; border-radius: 999px; color: #fff; font-weight: 600; box-shadow: 0 12px 25px rgba(0,0,0,0.2); display: inline-flex; align-items: center; justify-content: center; align-self: flex-end; }",
-    ".rb-unread-badge { position: absolute; top: -4px; right: -4px; min-width: 22px; height: 22px; border-radius: 999px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; background: #ef4444; color: #fff; font-size: 11px; font-weight: 700; box-shadow: 0 8px 18px rgba(239,68,68,0.32); }",
-    ".rb-panel { width: min(92vw, 360px); height: min(72vh, 520px); margin-bottom: 12px; border-radius: 14px; background: #fff; box-shadow: 0 18px 40px rgba(0,0,0,0.2); border: 1px solid rgba(0,0,0,0.08); display: none; flex-direction: column; overflow: hidden; }",
-    ".rb-panel.open { display: flex; }",
-    ".rb-header { display: flex; align-items: center; justify-content: space-between; color: #fff; font-size: 14px; font-weight: 600; padding: 12px 14px; }",
-    ".rb-title { display: inline-flex; align-items: center; gap: 8px; }",
-    ".rb-close { background: transparent; color: #fff; font-size: 16px; padding: 0 6px; }",
-    ".rb-messages { flex: 1; background: #f8fafc; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }",
-    ".rb-message { max-width: 82%; padding: 9px 12px; border-radius: 12px; font-size: 14px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }",
-    ".rb-message.user { align-self: flex-end; background: #0f172a; color: #fff; }",
-    ".rb-message.bot { align-self: flex-start; background: #fff; color: #0f172a; border: 1px solid #e2e8f0; }",
-    ".rb-message.agent { align-self: flex-start; background: #e0f2fe; color: #0c4a6e; border: 1px solid #bae6fd; }",
-    ".rb-composer { display: flex; gap: 8px; padding: 10px; border-top: 1px solid #e2e8f0; background: #fff; }",
-    ".rb-input { flex: 1; border: 1px solid #cbd5e1; border-radius: 10px; padding: 9px 10px; font-size: 14px; outline: none; }",
-    ".rb-input:focus { border-color: " +
-      primaryColor +
-      "; box-shadow: 0 0 0 3px rgba(15,118,110,0.15); }",
-    ".rb-send { min-width: 64px; border-radius: 10px; color: #fff; font-weight: 600; }",
-    ".rb-note { align-self: center; color: #64748b; font-size: 12px; text-align: center; }",
-    ".rb-typing { align-self: flex-start; color: #64748b; font-size: 12px; font-style: italic; }",
-    ".rb-note.is-consent { border: 1px dashed #f59e0b; background: #fffbeb; color: #92400e; padding: 12px; border-radius: 12px; width: 100%; }",
-    ".rb-consent-button { align-self: center; border-radius: 10px; padding: 10px 14px; background: #f59e0b; color: #fff; font-weight: 600; }",
-    ":host([data-open='true'][data-mobile-fullscreen='true']) .rb-container { height: 100%; }",
-    ":host([data-open='true'][data-mobile-fullscreen='true']) .rb-panel { display: flex; width: 100%; height: 100%; margin-bottom: 0; border-radius: 0; border: none; box-shadow: none; }",
-    ":host([data-open='true'][data-mobile-fullscreen='true']) .rb-button { display: none; }",
-  ].join("\n");
+    var style = document.createElement("style");
+    style.textContent = [
+      ":host { position: fixed; bottom: 20px; z-index: 2147483647; font-family: 'Segoe UI', Tahoma, sans-serif; }",
+      ":host([data-position='right']) { right: 20px; }",
+      ":host([data-position='left']) { left: 20px; }",
+      ":host([data-open='true'][data-mobile-fullscreen='true']) { inset: 0; right: 0; left: 0; bottom: 0; top: 0; }",
+      ".rb-container, .rb-container * { box-sizing: border-box; }",
+      ".rb-container { display: flex; flex-direction: column; align-items: stretch; }",
+      ".rb-container button { border: none; cursor: pointer; }",
+      ".rb-button { position: relative; width: 60px; height: 60px; border-radius: 999px; color: #fff; font-weight: 600; box-shadow: 0 12px 25px rgba(0,0,0,0.2); display: inline-flex; align-items: center; justify-content: center; align-self: flex-end; }",
+      ".rb-unread-badge { position: absolute; top: -4px; right: -4px; min-width: 22px; height: 22px; border-radius: 999px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; background: #ef4444; color: #fff; font-size: 11px; font-weight: 700; box-shadow: 0 8px 18px rgba(239,68,68,0.32); }",
+      ".rb-panel { width: min(92vw, 360px); height: min(72vh, 520px); margin-bottom: 12px; border-radius: 14px; background: #fff; box-shadow: 0 18px 40px rgba(0,0,0,0.2); border: 1px solid rgba(0,0,0,0.08); display: none; flex-direction: column; overflow: hidden; }",
+      ".rb-panel.open { display: flex; }",
+      ".rb-header { display: flex; align-items: center; justify-content: space-between; color: #fff; font-size: 14px; font-weight: 600; padding: 12px 14px; }",
+      ".rb-title { display: inline-flex; align-items: center; gap: 8px; }",
+      ".rb-close { background: transparent; color: #fff; font-size: 16px; padding: 0 6px; }",
+      ".rb-messages { flex: 1; background: #f8fafc; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }",
+      ".rb-message { max-width: 82%; padding: 9px 12px; border-radius: 12px; font-size: 14px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }",
+      ".rb-message.user { align-self: flex-end; background: #0f172a; color: #fff; }",
+      ".rb-message.bot { align-self: flex-start; background: #fff; color: #0f172a; border: 1px solid #e2e8f0; }",
+      ".rb-message.agent { align-self: flex-start; background: #e0f2fe; color: #0c4a6e; border: 1px solid #bae6fd; }",
+      ".rb-composer { display: flex; gap: 8px; padding: 10px; border-top: 1px solid #e2e8f0; background: #fff; }",
+      ".rb-input { flex: 1; border: 1px solid #cbd5e1; border-radius: 10px; padding: 9px 10px; font-size: 14px; outline: none; }",
+      ".rb-input:focus { border-color: " +
+        primaryColor +
+        "; box-shadow: 0 0 0 3px rgba(15,118,110,0.15); }",
+      ".rb-send { min-width: 64px; border-radius: 10px; color: #fff; font-weight: 600; }",
+      ".rb-note { align-self: center; color: #64748b; font-size: 12px; text-align: center; }",
+      ".rb-typing { align-self: flex-start; color: #64748b; font-size: 12px; font-style: italic; }",
+      ".rb-note.is-consent { border: 1px dashed #f59e0b; background: #fffbeb; color: #92400e; padding: 12px; border-radius: 12px; width: 100%; }",
+      ".rb-consent-button { align-self: center; border-radius: 10px; padding: 10px 14px; background: #f59e0b; color: #fff; font-weight: 600; }",
+      ":host([data-open='true'][data-mobile-fullscreen='true']) .rb-container { height: 100%; }",
+      ":host([data-open='true'][data-mobile-fullscreen='true']) .rb-panel { display: flex; width: 100%; height: 100%; margin-bottom: 0; border-radius: 0; border: none; box-shadow: none; }",
+      ":host([data-open='true'][data-mobile-fullscreen='true']) .rb-button { display: none; }",
+    ].join("\n");
 
-  root.setAttribute("data-position", position === "left" ? "left" : "right");
-  root.setAttribute("data-open", "false");
-  root.setAttribute("data-mobile-fullscreen", "false");
+    root.setAttribute("data-position", position === "left" ? "left" : "right");
+    root.setAttribute("data-open", "false");
+    root.setAttribute("data-mobile-fullscreen", "false");
 
-  button.style.background = primaryColor;
-  panelHeader.style.background = primaryColor;
-  sendButton.style.background = primaryColor;
+    button.style.background = primaryColor;
+    panelHeader.style.background = primaryColor;
+    sendButton.style.background = primaryColor;
 
-  button.appendChild(buttonLabel);
-  button.appendChild(unreadBadge);
-  panelHeader.appendChild(panelTitle);
-  panelHeader.appendChild(closeButton);
-  composer.appendChild(input);
-  composer.appendChild(sendButton);
-  panel.appendChild(panelHeader);
-  panel.appendChild(messages);
-  panel.appendChild(composer);
-  container.appendChild(panel);
-  container.appendChild(button);
+    button.appendChild(buttonLabel);
+    button.appendChild(unreadBadge);
+    panelHeader.appendChild(panelTitle);
+    panelHeader.appendChild(closeButton);
+    composer.appendChild(input);
+    composer.appendChild(sendButton);
+    panel.appendChild(panelHeader);
+    panel.appendChild(messages);
+    panel.appendChild(composer);
+    container.appendChild(panel);
+    container.appendChild(button);
 
-  shadow.appendChild(style);
-  shadow.appendChild(container);
+    shadow.appendChild(style);
+    shadow.appendChild(container);
 
-  document.body.appendChild(root);
+    document.body.appendChild(root);
 
-  function syncMobileMode() {
+    // Attach event listeners after DOM is ready
+    button.addEventListener("click", function () {
+      if (isOpen) {
+        closePanel("launcher");
+      } else {
+        openPanel();
+      }
+    });
+
+    closeButton.addEventListener("click", function () {
+      closePanel("header_close");
+    });
+    sendButton.addEventListener("click", sendMessage);
+    input.addEventListener("keydown", function (event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        sendMessage();
+        return;
+      }
+
+      var now = Date.now();
+      if (now - lastTypingAt > 3000) {
+        lastTypingAt = now;
+        trackEvent("TYPING", {
+          url: window.location.href,
+          inputLength: input.value.trim().length,
+        });
+      }
+    });
+  }
+
+  // Initialization: load config and session, then render widget
+  (function initWidget() {
+    loadConfig()
+      .then(function () {
+        return initializeSession();
+      })
+      .then(function () {
+        renderWidget();
+      })
+      .catch(function (err) {
+        // Show a clear error if widget cannot load
+        var errorDiv = document.createElement("div");
+        errorDiv.id = "replybase-webchat-error";
+        errorDiv.style.position = "fixed";
+        errorDiv.style.bottom = "20px";
+        errorDiv.style.right = "20px";
+        errorDiv.style.background = "#fff0f0";
+        errorDiv.style.color = "#b91c1c";
+        errorDiv.style.padding = "16px 24px";
+        errorDiv.style.border = "1px solid #fca5a5";
+        errorDiv.style.borderRadius = "12px";
+        errorDiv.style.zIndex = "2147483647";
+        errorDiv.style.fontFamily = "'Segoe UI', Tahoma, sans-serif";
+        errorDiv.textContent =
+          "Chat unavailable: " +
+          (err && err.message ? err.message : "Unable to load chat widget.");
+        document.body.appendChild(errorDiv);
+      });
+  })();
+
+  // syncMobileMode now only used after root is defined
+  function syncMobileMode(root) {
     if (mobileMode === "windowed") {
       shouldUseMobileFullscreen = false;
     } else if (mobileMode === "fullscreen") {
@@ -211,15 +275,15 @@
       shouldUseMobileFullscreen =
         window.matchMedia("(max-width: 640px)").matches;
     }
-
     root.setAttribute(
       "data-mobile-fullscreen",
       shouldUseMobileFullscreen ? "true" : "false",
     );
   }
-
-  syncMobileMode();
-  window.addEventListener("resize", syncMobileMode);
+  syncMobileMode(root);
+  window.addEventListener("resize", function () {
+    syncMobileMode(root);
+  });
 
   function resolveCookieConsent() {
     if (cookieConsentMode === "off") {
@@ -746,6 +810,18 @@
       return;
     }
 
+    // Defensive: block sending if required fields are missing
+    if (!conversationId || !botId || !token) {
+      console.warn(
+        "[ReplyBase Webchat] Blocked send: missing required fields",
+        { conversationId, botId, token },
+      );
+      addSystemNote(
+        "Please wait for chat to fully load before sending a message.",
+      );
+      return;
+    }
+
     input.value = "";
     addMessage("user", text);
     isSending = true;
@@ -759,7 +835,10 @@
 
     request("/api/webchat/message", "POST", {
       token: token,
+      conversationId: conversationId,
+      botId: botId,
       message: text,
+      planName: window.ReplyBaseWebchatPlanName || "pro", // TODO: set dynamically if available
       metadata: buildRuntimeMetadata(),
       botSignals: buildBotSignals(),
     })
@@ -809,7 +888,7 @@
     }
 
     clearConsentNotice();
-    setComposerDisabled(false);
+    setComposerDisabled(true); // Disable input until session is ready
     panel.classList.add("open");
     button.style.display = "none";
     root.setAttribute("data-open", "true");
@@ -821,6 +900,7 @@
           return initializeSession();
         })
         .then(function () {
+          setComposerDisabled(false); // Enable input after session is ready
           return trackEvent("OPEN", {
             url: window.location.href,
             trigger: "launcher",
@@ -832,6 +912,7 @@
           );
         });
     } else {
+      setComposerDisabled(false);
       startAgentReplyPolling();
       trackEvent("OPEN", {
         url: window.location.href,
