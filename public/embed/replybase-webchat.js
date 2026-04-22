@@ -85,10 +85,22 @@
   var agentReplyPollTimer = null;
   var lastHumanReplyCursor = "";
   var seenHumanMessageIds = Object.create(null);
-  var botTypingIndicator = null;
+  var pendingMessages = [];
+
+  var addMessage = function (kind, text) {
+    pendingMessages.push({ kind: kind, text: text });
+    if ((kind === "bot" || kind === "agent") && !isOpen) {
+      unreadCount += 1;
+    }
+  };
+
+  var addSystemNote = function (text) {
+    pendingMessages.push({ kind: "system", text: text });
+  };
 
   // Only render the widget after config and session are ready
   function renderWidget() {
+    var botTypingIndicator = null;
     var root = document.createElement("div");
     root.id = "replybase-webchat-root";
     var shadow = root.attachShadow({ mode: "open" });
@@ -204,7 +216,260 @@
 
     document.body.appendChild(root);
 
-    // Attach event listeners after DOM is ready
+    // --- Inner functions that need DOM access ---
+
+    function syncMobileMode() {
+      if (mobileMode === "windowed") {
+        shouldUseMobileFullscreen = false;
+      } else if (mobileMode === "fullscreen") {
+        shouldUseMobileFullscreen = true;
+      } else {
+        shouldUseMobileFullscreen =
+          window.matchMedia("(max-width: 640px)").matches;
+      }
+      root.setAttribute(
+        "data-mobile-fullscreen",
+        shouldUseMobileFullscreen ? "true" : "false",
+      );
+    }
+
+    function updateUnreadBadge() {
+      unreadBadge.hidden = unreadCount <= 0;
+      unreadBadge.textContent = unreadCount > 99 ? "99+" : String(unreadCount);
+    }
+
+    function resetUnreadCount() {
+      unreadCount = 0;
+      updateUnreadBadge();
+    }
+
+    function setComposerDisabled(disabled) {
+      input.disabled = disabled;
+      sendButton.disabled = disabled || isSending;
+    }
+
+    function renderConsentNotice() {
+      if (consentNoticeRendered) {
+        return;
+      }
+
+      messages.innerHTML = "";
+      var note = document.createElement("div");
+      note.className = "rb-note is-consent";
+      note.textContent =
+        "Cookie consent is required before webchat can store session data or connect to the ReplyBase runtime.";
+      messages.appendChild(note);
+
+      var action = document.createElement("button");
+      action.type = "button";
+      action.className = "rb-consent-button";
+      action.textContent = "Retry After Consent";
+      action.addEventListener("click", function () {
+        consentNoticeRendered = false;
+        messages.innerHTML = "";
+        openPanel();
+      });
+      messages.appendChild(action);
+      consentNoticeRendered = true;
+    }
+
+    function clearConsentNotice() {
+      if (!consentNoticeRendered) {
+        return;
+      }
+
+      messages.innerHTML = "";
+      consentNoticeRendered = false;
+    }
+
+    // Re-define addMessage and addSystemNote to use the DOM
+    addMessage = function (kind, text) {
+      var bubble = document.createElement("div");
+      bubble.className = "rb-message " + kind;
+      bubble.textContent = text;
+      messages.appendChild(bubble);
+      messages.scrollTop = messages.scrollHeight;
+
+      if ((kind === "bot" || kind === "agent") && !isOpen) {
+        unreadCount += 1;
+        updateUnreadBadge();
+      }
+    };
+
+    addSystemNote = function (text) {
+      var note = document.createElement("div");
+      note.className = "rb-note";
+      note.textContent = text;
+      messages.appendChild(note);
+      messages.scrollTop = messages.scrollHeight;
+    };
+
+    function showBotTyping() {
+      if (botTypingIndicator) {
+        return;
+      }
+
+      botTypingIndicator = document.createElement("div");
+      botTypingIndicator.className = "rb-typing";
+      botTypingIndicator.textContent = "Agent is typing...";
+      messages.appendChild(botTypingIndicator);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function hideBotTyping() {
+      if (!botTypingIndicator) {
+        return;
+      }
+
+      if (botTypingIndicator.parentNode === messages) {
+        messages.removeChild(botTypingIndicator);
+      }
+
+      botTypingIndicator = null;
+    }
+
+    function renderResponseEntries(entries) {
+      if (!Array.isArray(entries) || entries.length === 0) {
+        return Promise.resolve();
+      }
+
+      var chain = Promise.resolve();
+
+      entries.forEach(function (entry) {
+        chain = chain.then(function () {
+          if (!entry || typeof entry.type !== "string") {
+            return;
+          }
+
+          if (entry.type === "typing") {
+            showBotTyping();
+            return delay(entry.durationMs || 0).then(function () {
+              hideBotTyping();
+            });
+          }
+
+          hideBotTyping();
+          if (entry.type === "text" && typeof entry.text === "string") {
+            addMessage("bot", entry.text);
+          }
+        });
+      });
+
+      return chain.finally(function () {
+        hideBotTyping();
+      });
+    }
+
+    function sendMessage() {
+      if (isSending) {
+        return;
+      }
+
+      var text = input.value.trim();
+      if (!text) {
+        return;
+      }
+
+      if (!conversationId || !botId || !token) {
+        addSystemNote(
+          "Please wait for chat to fully load before sending a message.",
+        );
+        return;
+      }
+
+      input.value = "";
+      addMessage("user", text);
+      isSending = true;
+      sendButton.disabled = true;
+
+      trackEvent("MESSAGE", {
+        url: window.location.href,
+        direction: "outbound",
+        messageLength: text.length,
+      });
+
+      request("/api/webchat/message", "POST", {
+        token: token,
+        conversationId: conversationId,
+        botId: botId,
+        message: text,
+        planName: window.ReplyBaseWebchatPlanName || "pro",
+        metadata: buildRuntimeMetadata(),
+        botSignals: buildBotSignals(),
+      })
+        .then(function (data) {
+          var entries = normalizeResponseEntries(data);
+          if (!entries.length) {
+            if (
+              data &&
+              data.meta &&
+              typeof data.meta.mode === "string" &&
+              data.meta.mode.indexOf("human_handoff") === 0
+            ) {
+              return;
+            }
+            addSystemNote("No response received");
+            return;
+          }
+
+          return renderResponseEntries(entries);
+        })
+        .catch(function (err) {
+          hideBotTyping();
+          trackEvent("ERROR", {
+            url: window.location.href,
+            stage: "message",
+            reason: "request_failed",
+            message: err && err.message ? err.message : "Message failed",
+          });
+          addSystemNote(err && err.message ? err.message : "Message failed");
+        })
+        .finally(function () {
+          hideBotTyping();
+          isSending = false;
+          sendButton.disabled = false;
+        });
+    }
+
+    function openPanel() {
+      if (cookieConsentMode === "required" && !resolveCookieConsent()) {
+        panel.classList.add("open");
+        button.style.display = "none";
+        root.setAttribute("data-open", "true");
+        isOpen = true;
+        setComposerDisabled(true);
+        renderConsentNotice();
+        return;
+      }
+
+      clearConsentNotice();
+      setComposerDisabled(false);
+      panel.classList.add("open");
+      button.style.display = "none";
+      root.setAttribute("data-open", "true");
+      isOpen = true;
+      resetUnreadCount();
+
+      trackEvent("OPEN", {
+        url: window.location.href,
+        trigger: "launcher",
+      });
+    }
+
+    function closePanel(trigger) {
+      panel.classList.remove("open");
+      button.style.display = "inline-flex";
+      button.style.alignItems = "center";
+      button.style.justifyContent = "center";
+      root.setAttribute("data-open", "false");
+      isOpen = false;
+      trackEvent("CLOSE", {
+        url: window.location.href,
+        trigger: trigger || "launcher",
+      });
+    }
+
+    // Attach event listeners
     button.addEventListener("click", function () {
       if (isOpen) {
         closePanel("launcher");
@@ -216,7 +481,9 @@
     closeButton.addEventListener("click", function () {
       closePanel("header_close");
     });
+
     sendButton.addEventListener("click", sendMessage);
+
     input.addEventListener("keydown", function (event) {
       if (event.key === "Enter") {
         event.preventDefault();
@@ -233,6 +500,101 @@
         });
       }
     });
+
+    window.addEventListener(cookieConsentEvent, function () {
+      if (resolveCookieConsent()) {
+        clearConsentNotice();
+        setComposerDisabled(false);
+      }
+    });
+
+    window.addEventListener("resize", syncMobileMode);
+
+    // Initial setup
+    syncMobileMode();
+    updateUnreadBadge();
+
+    // Process pending messages
+    var toProcess = pendingMessages.slice();
+    pendingMessages = [];
+    toProcess.forEach(function (m) {
+      if (m.kind === "system") {
+        addSystemNote(m.text);
+      } else {
+        addMessage(m.kind, m.text);
+      }
+    });
+
+    function trackEvent(type, payload) {
+      if (!token || !isTelemetryEnabled(type)) {
+        return Promise.resolve();
+      }
+
+      return request("/api/webchat/events", "POST", {
+        token: token,
+        type: type,
+        payload: payload || {},
+      }).catch(function () {
+        return null;
+      });
+    }
+
+    function pollAgentReplies() {
+      if (!token) {
+        return Promise.resolve(null);
+      }
+
+      var query = "token=" + encodeURIComponent(token);
+      if (lastHumanReplyCursor) {
+        query += "&after=" + encodeURIComponent(lastHumanReplyCursor);
+      }
+
+      return request("/api/webchat/messages?" + query, "GET")
+        .then(function (data) {
+          if (!data || !Array.isArray(data.messages)) {
+            return null;
+          }
+
+          data.messages.forEach(function (entry) {
+            if (!entry || !entry.id || seenHumanMessageIds[entry.id]) {
+              return;
+            }
+
+            seenHumanMessageIds[entry.id] = true;
+
+            if (typeof entry.text === "string" && entry.text.trim()) {
+              addMessage("agent", entry.text.trim());
+            }
+
+            if (typeof entry.createdAt === "string" && entry.createdAt) {
+              lastHumanReplyCursor = entry.createdAt;
+            }
+          });
+
+          if (typeof data.cursor === "string" && data.cursor) {
+            lastHumanReplyCursor = data.cursor;
+          }
+
+          persistSession();
+          return data;
+        })
+        .catch(function () {
+          return null;
+        });
+    }
+
+    function startAgentReplyPolling() {
+      if (agentReplyPollTimer !== null || !token) {
+        return;
+      }
+
+      pollAgentReplies();
+      agentReplyPollTimer = window.setInterval(function () {
+        pollAgentReplies();
+      }, 4000);
+    }
+
+    startAgentReplyPolling();
   }
 
   // Initialization: load config and session, then render widget
@@ -265,25 +627,6 @@
       });
   })();
 
-  // syncMobileMode now only used after root is defined
-  function syncMobileMode(root) {
-    if (mobileMode === "windowed") {
-      shouldUseMobileFullscreen = false;
-    } else if (mobileMode === "fullscreen") {
-      shouldUseMobileFullscreen = true;
-    } else {
-      shouldUseMobileFullscreen =
-        window.matchMedia("(max-width: 640px)").matches;
-    }
-    root.setAttribute(
-      "data-mobile-fullscreen",
-      shouldUseMobileFullscreen ? "true" : "false",
-    );
-  }
-  syncMobileMode(root);
-  window.addEventListener("resize", function () {
-    syncMobileMode(root);
-  });
 
   function resolveCookieConsent() {
     if (cookieConsentMode === "off") {
@@ -344,7 +687,6 @@
 
     if (typeof config.mobileMode === "string" && mobileMode === "auto") {
       mobileMode = config.mobileMode;
-      syncMobileMode();
     }
   }
 
@@ -369,64 +711,6 @@
     return true;
   }
 
-  function updateUnreadBadge() {
-    unreadBadge.hidden = unreadCount <= 0;
-    unreadBadge.textContent = unreadCount > 99 ? "99+" : String(unreadCount);
-  }
-
-  function resetUnreadCount() {
-    unreadCount = 0;
-    updateUnreadBadge();
-  }
-
-  function setComposerDisabled(disabled) {
-    input.disabled = disabled;
-    sendButton.disabled = disabled || isSending;
-  }
-
-  function renderConsentNotice() {
-    if (consentNoticeRendered) {
-      return;
-    }
-
-    messages.innerHTML = "";
-    var note = document.createElement("div");
-    note.className = "rb-note is-consent";
-    note.textContent =
-      "Cookie consent is required before webchat can store session data or connect to the ReplyBase runtime.";
-    messages.appendChild(note);
-
-    var action = document.createElement("button");
-    action.type = "button";
-    action.className = "rb-consent-button";
-    action.textContent = "Retry After Consent";
-    action.addEventListener("click", function () {
-      consentNoticeRendered = false;
-      messages.innerHTML = "";
-      openPanel();
-    });
-    messages.appendChild(action);
-    consentNoticeRendered = true;
-  }
-
-  function clearConsentNotice() {
-    if (!consentNoticeRendered) {
-      return;
-    }
-
-    messages.innerHTML = "";
-    consentNoticeRendered = false;
-  }
-
-  window.addEventListener(cookieConsentEvent, function () {
-    if (resolveCookieConsent()) {
-      clearConsentNotice();
-      setComposerDisabled(false);
-      if (isOpen && !initialized) {
-        openPanel();
-      }
-    }
-  });
 
   function getStoredSession() {
     if (!canUsePersistentStorage()) {
@@ -467,50 +751,6 @@
     });
   }
 
-  function addMessage(kind, text) {
-    var bubble = document.createElement("div");
-    bubble.className = "rb-message " + kind;
-    bubble.textContent = text;
-    messages.appendChild(bubble);
-    messages.scrollTop = messages.scrollHeight;
-
-    if ((kind === "bot" || kind === "agent") && !isOpen) {
-      unreadCount += 1;
-      updateUnreadBadge();
-    }
-  }
-
-  function addSystemNote(text) {
-    var note = document.createElement("div");
-    note.className = "rb-note";
-    note.textContent = text;
-    messages.appendChild(note);
-    messages.scrollTop = messages.scrollHeight;
-  }
-
-  function showBotTyping() {
-    if (botTypingIndicator) {
-      return;
-    }
-
-    botTypingIndicator = document.createElement("div");
-    botTypingIndicator.className = "rb-typing";
-    botTypingIndicator.textContent = "Agent is typing...";
-    messages.appendChild(botTypingIndicator);
-    messages.scrollTop = messages.scrollHeight;
-  }
-
-  function hideBotTyping() {
-    if (!botTypingIndicator) {
-      return;
-    }
-
-    if (botTypingIndicator.parentNode === messages) {
-      messages.removeChild(botTypingIndicator);
-    }
-
-    botTypingIndicator = null;
-  }
 
   function delay(ms) {
     return new Promise(function (resolve) {
@@ -553,92 +793,7 @@
       });
   }
 
-  function renderResponseEntries(entries) {
-    if (!Array.isArray(entries) || entries.length === 0) {
-      return Promise.resolve();
-    }
 
-    var chain = Promise.resolve();
-
-    entries.forEach(function (entry) {
-      chain = chain.then(function () {
-        if (!entry || typeof entry.type !== "string") {
-          return;
-        }
-
-        if (entry.type === "typing") {
-          showBotTyping();
-          return delay(entry.durationMs || 0).then(function () {
-            hideBotTyping();
-          });
-        }
-
-        hideBotTyping();
-        if (entry.type === "text" && typeof entry.text === "string") {
-          addMessage("bot", entry.text);
-        }
-      });
-    });
-
-    return chain.finally(function () {
-      hideBotTyping();
-    });
-  }
-
-  function pollAgentReplies() {
-    if (!token) {
-      return Promise.resolve(null);
-    }
-
-    var query = "token=" + encodeURIComponent(token);
-    if (lastHumanReplyCursor) {
-      query += "&after=" + encodeURIComponent(lastHumanReplyCursor);
-    }
-
-    return request("/api/webchat/messages?" + query, "GET")
-      .then(function (data) {
-        if (!data || !Array.isArray(data.messages)) {
-          return null;
-        }
-
-        data.messages.forEach(function (entry) {
-          if (!entry || !entry.id || seenHumanMessageIds[entry.id]) {
-            return;
-          }
-
-          seenHumanMessageIds[entry.id] = true;
-
-          if (typeof entry.text === "string" && entry.text.trim()) {
-            addMessage("agent", entry.text.trim());
-          }
-
-          if (typeof entry.createdAt === "string" && entry.createdAt) {
-            lastHumanReplyCursor = entry.createdAt;
-          }
-        });
-
-        if (typeof data.cursor === "string" && data.cursor) {
-          lastHumanReplyCursor = data.cursor;
-        }
-
-        persistSession();
-        return data;
-      })
-      .catch(function () {
-        return null;
-      });
-  }
-
-  function startAgentReplyPolling() {
-    if (agentReplyPollTimer !== null || !token) {
-      return;
-    }
-
-    pollAgentReplies();
-    agentReplyPollTimer = window.setInterval(function () {
-      pollAgentReplies();
-    }, 4000);
-  }
 
   function buildRuntimeMetadata() {
     var url = null;
@@ -695,7 +850,6 @@
 
   function initializeSession() {
     if (initialized && token) {
-      startAgentReplyPolling();
       return Promise.resolve();
     }
 
@@ -744,21 +898,6 @@
         lastHumanReplyCursor = new Date().toISOString();
       }
       persistSession();
-      startAgentReplyPolling();
-    });
-  }
-
-  function trackEvent(type, payload) {
-    if (!token || !isTelemetryEnabled(type)) {
-      return Promise.resolve();
-    }
-
-    return request("/api/webchat/events", "POST", {
-      token: token,
-      type: type,
-      payload: payload || {},
-    }).catch(function () {
-      return null;
     });
   }
 
@@ -786,13 +925,10 @@
       var cfg = data.config || {};
       normalizeTelemetrySettingsFromConfig(cfg);
       if (typeof cfg.title === "string" && cfg.title.trim()) {
-        panelTitle.textContent = cfg.title.trim();
+        title = cfg.title.trim();
       }
       if (typeof cfg.primaryColor === "string" && cfg.primaryColor.trim()) {
         primaryColor = cfg.primaryColor.trim();
-        button.style.background = primaryColor;
-        panelHeader.style.background = primaryColor;
-        sendButton.style.background = primaryColor;
       }
       if (typeof cfg.welcomeMessage === "string" && cfg.welcomeMessage.trim()) {
         addMessage("bot", cfg.welcomeMessage.trim());
@@ -800,166 +936,5 @@
     });
   }
 
-  function sendMessage() {
-    if (isSending) {
-      return;
-    }
 
-    var text = input.value.trim();
-    if (!text) {
-      return;
-    }
-
-    // Defensive: block sending if required fields are missing
-    if (!conversationId || !botId || !token) {
-      console.warn(
-        "[ReplyBase Webchat] Blocked send: missing required fields",
-        { conversationId, botId, token },
-      );
-      addSystemNote(
-        "Please wait for chat to fully load before sending a message.",
-      );
-      return;
-    }
-
-    input.value = "";
-    addMessage("user", text);
-    isSending = true;
-    sendButton.disabled = true;
-
-    trackEvent("MESSAGE", {
-      url: window.location.href,
-      direction: "outbound",
-      messageLength: text.length,
-    });
-
-    request("/api/webchat/message", "POST", {
-      token: token,
-      conversationId: conversationId,
-      botId: botId,
-      message: text,
-      planName: window.ReplyBaseWebchatPlanName || "pro", // TODO: set dynamically if available
-      metadata: buildRuntimeMetadata(),
-      botSignals: buildBotSignals(),
-    })
-      .then(function (data) {
-        var entries = normalizeResponseEntries(data);
-        if (!entries.length) {
-          if (
-            data &&
-            data.meta &&
-            typeof data.meta.mode === "string" &&
-            data.meta.mode.indexOf("human_handoff") === 0
-          ) {
-            return;
-          }
-          addSystemNote("No response received");
-          return;
-        }
-
-        return renderResponseEntries(entries);
-      })
-      .catch(function (err) {
-        hideBotTyping();
-        trackEvent("ERROR", {
-          url: window.location.href,
-          stage: "message",
-          reason: "request_failed",
-          message: err && err.message ? err.message : "Message failed",
-        });
-        addSystemNote(err && err.message ? err.message : "Message failed");
-      })
-      .finally(function () {
-        hideBotTyping();
-        isSending = false;
-        sendButton.disabled = false;
-      });
-  }
-
-  function openPanel() {
-    if (cookieConsentMode === "required" && !resolveCookieConsent()) {
-      panel.classList.add("open");
-      button.style.display = "none";
-      root.setAttribute("data-open", "true");
-      isOpen = true;
-      setComposerDisabled(true);
-      renderConsentNotice();
-      return;
-    }
-
-    clearConsentNotice();
-    setComposerDisabled(true); // Disable input until session is ready
-    panel.classList.add("open");
-    button.style.display = "none";
-    root.setAttribute("data-open", "true");
-    isOpen = true;
-    resetUnreadCount();
-    if (!initialized) {
-      loadConfig()
-        .then(function () {
-          return initializeSession();
-        })
-        .then(function () {
-          setComposerDisabled(false); // Enable input after session is ready
-          return trackEvent("OPEN", {
-            url: window.location.href,
-            trigger: "launcher",
-          });
-        })
-        .catch(function (err) {
-          addSystemNote(
-            err && err.message ? err.message : "Unable to start chat",
-          );
-        });
-    } else {
-      setComposerDisabled(false);
-      startAgentReplyPolling();
-      trackEvent("OPEN", {
-        url: window.location.href,
-        trigger: "launcher",
-      });
-    }
-  }
-
-  function closePanel(trigger) {
-    panel.classList.remove("open");
-    button.style.display = "inline-flex";
-    button.style.alignItems = "center";
-    button.style.justifyContent = "center";
-    root.setAttribute("data-open", "false");
-    isOpen = false;
-    trackEvent("CLOSE", {
-      url: window.location.href,
-      trigger: trigger || "launcher",
-    });
-  }
-
-  button.addEventListener("click", function () {
-    if (isOpen) {
-      closePanel("launcher");
-    } else {
-      openPanel();
-    }
-  });
-
-  closeButton.addEventListener("click", function () {
-    closePanel("header_close");
-  });
-  sendButton.addEventListener("click", sendMessage);
-  input.addEventListener("keydown", function (event) {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      sendMessage();
-      return;
-    }
-
-    var now = Date.now();
-    if (now - lastTypingAt > 3000) {
-      lastTypingAt = now;
-      trackEvent("TYPING", {
-        url: window.location.href,
-        inputLength: input.value.trim().length,
-      });
-    }
-  });
 })();
