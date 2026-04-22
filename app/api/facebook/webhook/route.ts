@@ -6,11 +6,6 @@ import {
   sendTextMessage,
 } from "@/lib/facebook-sender";
 import { verifyWebhookSignature } from "@/lib/facebook-utils";
-import {
-  processDefaultBotFlow,
-  shouldUseDefaultFlow,
-} from "@/lib/default-bot-flow";
-import { OnboardingFlowHandler } from "@/lib/onboarding-flow-handler";
 import { executeBotEntryFlowFirst } from "@/lib/bot-entry-flow-engine";
 import { recordMilestoneEvent } from "@/lib/milestone-events";
 import { isChannelEnabled } from "@/lib/channel-config";
@@ -384,7 +379,72 @@ async function handleMessage(
       // Fall through to AI
     }
 
-    // 7. AI / default-flow fallback removed. Static message only.
+    // 7. AI fallback: if flow did not handle, use fallback AI
+    try {
+      if (facebookPage.botId && conversation) {
+        // Fetch plan name for quota/context (default to "free" if missing)
+        const subscription = await prisma.subscription.findUnique({
+          where: { tenantId },
+          select: { plan: { select: { name: true } } },
+        });
+        const plan = subscription?.plan?.name || "free";
+
+        // Fetch last 10 messages for context
+        const lastMessages = await prisma.crmMessage.findMany({
+          where: { conversationId: conversation.id },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+          select: { content: true, source: true },
+        });
+        // Build messages array for AI (user/assistant roles)
+        const aiMessages = lastMessages.reverse().map((msg) => ({
+          role: msg.source === "human" ? "user" : "assistant",
+          content: msg.content,
+        }));
+        aiMessages.push({ role: "user", content: messageText });
+
+        // Dynamically import aiFallback to avoid circular deps
+        const { aiFallback } = await import("@/lib/ai-fallback");
+        const aiStream = await aiFallback({
+          botId: facebookPage.botId,
+          conversationId: conversation.id,
+          messages: aiMessages,
+          planName: plan,
+        });
+
+        // Use .text() to get the full AI response (streamText returns a StreamTextResult)
+        const aiText =
+          aiStream && "text" in aiStream
+            ? await aiStream.text
+            : String(aiStream ?? "");
+
+        if (aiText.trim()) {
+          await sendTextMessage(accessToken, senderPsid, aiText.trim());
+          await prisma.crmMessage.create({
+            data: {
+              conversationId: conversation.id,
+              direction: "outbound",
+              content: aiText.trim(),
+              source: "ai",
+            },
+          });
+          await recordMilestoneEvent(tenantId, "first-channel", {
+            channelType: "facebook",
+            pageId: facebookPage.id,
+          });
+          await recordMilestoneEvent(tenantId, "first-automated-reply", {
+            channelType: "facebook",
+            source: "ai",
+          });
+          return;
+        }
+      }
+    } catch (aiError) {
+      console.error("[Facebook Webhook] AI fallback error:", aiError);
+      // If AI fails, fall through to static message
+    }
+
+    // 8. Static fallback if all else fails
     await sendTextMessage(
       accessToken,
       senderPsid,
