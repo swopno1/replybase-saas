@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 const createBotSchema = z.object({
   name: z.string().min(1),
   channel: z.enum(["web", "facebook", "telegram", "whatsapp"]).optional(),
+  context: z.string().optional(),
 });
 
 export async function GET() {
@@ -94,15 +95,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { name, channel } = parsed.data;
+    const { name, channel, context } = parsed.data;
     const normalizedChannelType = channel || "web";
-
+    let parsedContext: any = {};
+    if (context && context.trim()) {
+      try {
+        parsedContext = JSON.parse(context);
+      } catch {
+        parsedContext = context; // fallback to plain text if not valid JSON
+      }
+    }
     const bot = await prisma.bot.create({
       data: {
         name,
-        // projectId, // Remove projectId assignment
         tenantId: session.user.tenantId,
         enabled: true,
+        context: parsedContext,
         channels: {
           create: {
             type: normalizedChannelType,

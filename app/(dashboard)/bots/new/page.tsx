@@ -36,6 +36,7 @@ function CreateBotContent() {
   const [formData, setFormData] = useState({
     name: "",
     channel: "web" as BotChannelType,
+    context: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -58,6 +59,7 @@ function CreateBotContent() {
         body: JSON.stringify({
           name: formData.name,
           channel: formData.channel,
+          context: formData.context || "",
         }),
       });
 
@@ -159,6 +161,24 @@ function CreateBotContent() {
               </p>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Bot Context (optional)
+              </label>
+              <textarea
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={4}
+                placeholder="Paste JSON or plain text context for your bot (optional)"
+                value={formData.context}
+                onChange={(e) =>
+                  setFormData({ ...formData, context: e.target.value })
+                }
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Optionally provide context or instructions for your bot. Leave
+                blank for none.
+              </p>
+            </div>
             <div className="bg-blue-50 border border-blue-200 rounded p-4">
               <p className="text-sm text-blue-800">
                 <strong>Next:</strong> After creating your bot, you&apos;ll be
