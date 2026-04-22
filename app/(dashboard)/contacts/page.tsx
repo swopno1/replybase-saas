@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { Prisma } from "@prisma/client";
 import {
   Card,
   CardContent,
@@ -18,31 +19,21 @@ export const metadata: Metadata = {
 };
 
 async function getContacts(tenantId: string) {
+  console.log("[getContacts] tenantId:", tenantId);
+  if (!tenantId) {
+    console.warn("[getContacts] No tenantId provided, returning empty array.");
+    return [];
+  }
   const contacts = await prisma.contact.findMany({
-    where: {
-      tenantId,
-    },
+    where: { tenantId },
     include: {
       conversations: {
-        select: {
-          id: true,
-          channel: true,
-          updatedAt: true,
-        },
-        orderBy: {
-          updatedAt: "desc",
-        },
+        select: { id: true, channel: true, updatedAt: true },
+        orderBy: { updatedAt: Prisma.SortOrder.desc },
       },
-      identities: {
-        select: {
-          type: true,
-          value: true,
-        },
-      },
+      identities: { select: { type: true, value: true } },
     },
-    orderBy: {
-      createdAt: "desc",
-    },
+    orderBy: { createdAt: Prisma.SortOrder.desc },
     take: 100,
   });
   return contacts;
@@ -75,17 +66,22 @@ export default async function ContactsPage() {
       </CardHeader>
       <CardContent>
         <ContactsList
-          initialContacts={contacts.map((contact) => ({
+          initialContacts={contacts.map((contact: any) => ({
             id: contact.id,
             name: contact.name,
             email: contact.email,
             phone: contact.phone,
-            identities: contact.identities,
-            conversations: contact.conversations.map((conversation) => ({
-              id: conversation.id,
-              channel: conversation.channel,
-              updatedAt: conversation.updatedAt.toISOString(),
-            })),
+            identities: contact.identities || [],
+            conversations: (contact.conversations || []).map(
+              (conversation: any) => ({
+                id: conversation.id,
+                channel: conversation.channel,
+                updatedAt:
+                  conversation.updatedAt instanceof Date
+                    ? conversation.updatedAt.toISOString()
+                    : conversation.updatedAt,
+              }),
+            ),
           }))}
         />
       </CardContent>
