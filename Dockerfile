@@ -6,12 +6,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl libssl-
 
 WORKDIR /app
 
-# Copy dependency files
-COPY package.json package-lock.json* ./
+
+# Install pnpm and copy dependency files
+RUN npm install -g pnpm
+COPY package.json pnpm-lock.yaml ./
 COPY prisma ./prisma/
 
-# Install dependencies (postinstall runs automatically via npm ci lifecycle)
-RUN npm ci
+# Install dependencies with pnpm
+RUN pnpm install --frozen-lockfile
 
 # Pre-generate Prisma client to maximise layer cache hits
 # (build script runs it again, but this layer is only invalidated on schema changes)
@@ -25,7 +27,7 @@ ARG NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 ARG NEXT_PUBLIC_APP_URL
 
 # Build the Next.js app
-RUN npm run build
+RUN pnpm run build
 
 # --- PRODUCTION STAGE ---
 FROM node:22.12-slim AS runner
