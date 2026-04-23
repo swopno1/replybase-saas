@@ -30,10 +30,7 @@ import {
 import { recordWebchatMetric } from "@/lib/webchat-metrics";
 import { getWebchatRolloutDecision } from "@/lib/webchat-rollout";
 
-export const dynamic = 'force-dynamic';
-
-
-
+export const dynamic = "force-dynamic";
 
 const initSchema = z
   .object({
@@ -79,6 +76,20 @@ export async function POST(request: NextRequest) {
   try {
     if (!isWebchatOriginAllowed(request)) {
       const reason = getWebchatOriginRejectionReason(request);
+      console.error("[Webchat CORS] Blocked request (global CORS)", {
+        origin: request.headers.get("origin"),
+        referer: request.headers.get("referer"),
+        reason,
+        env: {
+          WEBCHAT_ALLOWED_ORIGINS: process.env.WEBCHAT_ALLOWED_ORIGINS,
+          WEBCHAT_STRICT_ORIGIN_REFERER_MATCH:
+            process.env.WEBCHAT_STRICT_ORIGIN_REFERER_MATCH,
+          WEBCHAT_REQUIRE_ORIGIN_OR_REFERER:
+            process.env.WEBCHAT_REQUIRE_ORIGIN_OR_REFERER,
+          WEBCHAT_ALLOW_WILDCARD_IN_PRODUCTION:
+            process.env.WEBCHAT_ALLOW_WILDCARD_IN_PRODUCTION,
+        },
+      });
       recordWebchatMetric("webchat.cors.denied", {
         reason: reason ?? undefined,
         stage: "init",
@@ -233,6 +244,12 @@ export async function POST(request: NextRequest) {
         requestReferer,
       )
     ) {
+      console.error("[Webchat CORS] Blocked request (per-site allowlist)", {
+        siteId: site.id,
+        allowedDomains: site.allowedDomains,
+        origin: inputOrigin || requestOrigin,
+        referer: requestReferer,
+      });
       await recordWebchatErrorEvent({
         siteId: site.id,
         reason: "blocked_origin",
