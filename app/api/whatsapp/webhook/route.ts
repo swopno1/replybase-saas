@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { verifyWebhookSignature } from "@/lib/facebook-utils";
+import { verifyWebhookSignature } from "@/lib/server/facebook-utils";
 import { prisma } from "@/lib/prisma";
 // AI fallback removed April 2026
 import { executeBotEntryFlowFirst } from "@/lib/bot-entry-flow-engine";
@@ -487,12 +487,12 @@ async function sendAutoReply(params: {
     }));
     aiMessages.push({ role: "user", content: params.inboundText });
 
-    // Use planName from bot or default to "free"
-    const bot = await prisma.bot.findUnique({
-      where: { id: params.channel.botId },
-      select: { id: true, planName: true },
+    // Use tenant subscription plan name (fallback to "free")
+    const subscription = await prisma.subscription.findUnique({
+      where: { tenantId: params.channel.bot.tenantId },
+      select: { plan: { select: { name: true } } },
     });
-    const planName = bot?.planName || "free";
+    const planName = subscription?.plan?.name || "free";
 
     const aiStream = await aiFallback({
       botId: params.channel.botId,

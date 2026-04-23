@@ -1,0 +1,171 @@
+
+> replybase-saas@0.1.0 build /Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas
+> prisma generate && next build
+
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+
+✔ Generated Prisma Client (v7.7.0) to ./node_modules/.pnpm/@prisma+client@7.7.0_prisma@7.7.0_@types+react-dom@19.2.3_@types+react@19.2.14__@types+_02d3f0b5920edcd4e1eef563352d2a56/node_modules/@prisma/client in 358ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+
+▲ Next.js 16.1.1 (Turbopack)
+- Environments: .env
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 13.6s
+  Running TypeScript ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/32) ...
+  Generating static pages using 7 workers (8/32) 
+  Generating static pages using 7 workers (16/32) 
+  Generating static pages using 7 workers (24/32) 
+✓ Generating static pages using 7 workers (32/32) in 295.0ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ○ /_not-found
+├ ƒ /activity
+├ ƒ /admin
+├ ƒ /admin/analytics
+├ ƒ /admin/kpi-health
+├ ƒ /admin/onboarding
+├ ƒ /admin/segmented-analytics
+├ ƒ /admin/subscribers
+├ ƒ /admin/users
+├ ƒ /admin/webchat-monitoring
+├ ƒ /admin/webchat-rollout
+├ ƒ /admin/webhook-logs
+├ ƒ /ai-status
+├ ƒ /api/activities
+├ ƒ /api/admin/kpi-health
+├ ƒ /api/admin/plans
+├ ƒ /api/admin/segmented-kpis
+├ ƒ /api/admin/subscribers
+├ ƒ /api/admin/subscribers/[id]
+├ ƒ /api/admin/users
+├ ƒ /api/admin/users/[userId]
+├ ƒ /api/admin/webchat-rollout
+├ ƒ /api/admin/webhook-logs
+├ ƒ /api/ai/gemini
+├ ƒ /api/analytics
+├ ƒ /api/analytics/onboarding-milestones
+├ ƒ /api/auth/[...nextauth]
+├ ƒ /api/auth/forgot-password
+├ ƒ /api/auth/register
+├ ƒ /api/auth/reset-password
+├ ƒ /api/billing/checkout
+├ ƒ /api/billing/portal
+├ ƒ /api/billing/subscription
+├ ƒ /api/billing/subscription/[id]
+├ ƒ /api/billing/webhook
+├ ƒ /api/bots
+├ ƒ /api/bots/[botId]
+├ ƒ /api/bots/[botId]/channels
+├ ƒ /api/bots/[botId]/channels/[channelId]
+├ ƒ /api/bots/[botId]/webchat-site
+├ ƒ /api/bots/[botId]/webchat-site/diagnostics
+├ ƒ /api/contacts
+├ ƒ /api/contacts/[contactId]
+├ ƒ /api/conversations
+├ ƒ /api/conversations/[conversationId]
+├ ƒ /api/conversations/[conversationId]/messages
+├ ƒ /api/conversations/[conversationId]/notes
+├ ƒ /api/cron/expired-trials
+├ ƒ /api/cron/prune-logs
+├ ƒ /api/cron/prune-sessions
+├ ƒ /api/cron/trial-reminders
+├ ƒ /api/data-deletion/request
+├ ƒ /api/data-deletion/status
+├ ƒ /api/execution-logs
+├ ƒ /api/facebook/data-deletion
+├ ƒ /api/facebook/deauthorize
+├ ƒ /api/facebook/pages
+├ ƒ /api/facebook/webhook
+├ ƒ /api/flows
+├ ƒ /api/flows/[id]
+├ ƒ /api/flows/[id]/assign
+├ ƒ /api/flows/[id]/clone
+├ ƒ /api/flows/[id]/duplicate
+├ ƒ /api/flows/from-template
+├ ƒ /api/health
+├ ƒ /api/integrations/facebook
+├ ƒ /api/integrations/facebook/pages
+├ ƒ /api/integrations/facebook/pages/[pageId]
+├ ƒ /api/integrations/facebook/pages/[pageId]/toggle-ai-engine
+├ ƒ /api/leads
+├ ƒ /api/leads/[leadId]
+├ ƒ /api/meta/setup-status
+├ ƒ /api/newsletter/subscribe
+├ ƒ /api/newsletter/unsubscribe
+├ ƒ /api/oidc/[...oidc]
+├ ƒ /api/public/leads
+├ ƒ /api/system-health
+├ ƒ /api/telegram/connect
+├ ƒ /api/telegram/disconnect
+├ ƒ /api/telegram/health
+├ ƒ /api/telegram/logs
+├ ƒ /api/telegram/reconnect
+├ ƒ /api/telegram/status
+├ ƒ /api/telegram/webhook/[channelId]
+├ ƒ /api/tenant/channels
+├ ƒ /api/tenant/lead-notifications
+├ ƒ /api/tenant/lead-notifications/test
+├ ƒ /api/usage
+├ ƒ /api/users
+├ ƒ /api/users/account
+├ ƒ /api/users/password
+├ ƒ /api/users/profile
+├ ƒ /api/webchat/config
+├ ƒ /api/webchat/events
+├ ƒ /api/webchat/init
+├ ƒ /api/webchat/message
+├ ƒ /api/webchat/messages
+├ ƒ /api/whatsapp/connect
+├ ƒ /api/whatsapp/disconnect
+├ ƒ /api/whatsapp/logs
+├ ƒ /api/whatsapp/status
+├ ƒ /api/whatsapp/webhook
+├ ○ /auth/forgot-password
+├ ƒ /auth/login
+├ ƒ /auth/register
+├ ƒ /billing
+├ ƒ /bots
+├ ƒ /bots/[botId]
+├ ƒ /bots/new
+├ ƒ /contacts
+├ ƒ /conversations
+├ ƒ /conversations/[conversationId]
+├ ƒ /data-deletion-status
+├ ƒ /flows
+├ ƒ /flows/[id]/edit
+├ ƒ /flows/[id]/settings
+├ ○ /icon.png
+├ ƒ /integrations/facebook
+├ ƒ /integrations/telegram
+├ ƒ /integrations/webchat
+├ ƒ /integrations/webchat/test
+├ ƒ /integrations/whatsapp
+├ ƒ /leads
+├ ○ /manifest.webmanifest
+├ ○ /opengraph-image.png
+├ ƒ /pricing
+├ ○ /robots.txt
+├ ƒ /settings
+├ ƒ /settings/account
+├ ƒ /settings/billing
+├ ƒ /settings/channels
+├ ○ /sitemap.xml
+├ ○ /twitter-image.png
+└ ○ /webchat-e2e
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

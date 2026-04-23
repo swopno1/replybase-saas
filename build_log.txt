@@ -1,0 +1,7 @@
+
+> replybase-saas@0.1.0 build /Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas
+> prisma generate && next build
+
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.

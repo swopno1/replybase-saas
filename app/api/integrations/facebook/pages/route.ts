@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { withAuthAndTenant } from "@/lib/route-helpers";
-import { generateAppSecretProof } from "@/lib/facebook-utils";
+import { generateAppSecretProof } from "@/lib/server/facebook-utils";
 
 export const dynamic = "force-dynamic";
 

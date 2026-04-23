@@ -11,8 +11,6 @@ import {
   getTenantLimits,
 } from "@/lib/subscription";
 
-export const runtime = "edge";
-
 export async function POST(req: NextRequest) {
   // Auth check
   const session = await getServerSession(authOptions);

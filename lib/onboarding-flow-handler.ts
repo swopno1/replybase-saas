@@ -1,7 +1,7 @@
 import { OnboardingService, OnboardingMessage } from "@/lib/onboarding-service";
 import { prisma } from "@/lib/prisma";
 import { OnboardingStage, EmailFrequency } from "@prisma/client";
-import { generateAppSecretProof } from "@/lib/facebook-utils";
+import { generateAppSecretProof } from "@/lib/server/facebook-utils";
 
 const FACEBOOK_API_URL = "https://graph.facebook.com/v19.0";
 

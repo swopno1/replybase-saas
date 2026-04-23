@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { parseSignedRequest } from "@/lib/facebook-utils";
+import { parseSignedRequest } from "@/lib/server/facebook-utils";
 import { prisma } from "@/lib/prisma";
 import { isChannelEnabled } from "@/lib/channel-config";
 

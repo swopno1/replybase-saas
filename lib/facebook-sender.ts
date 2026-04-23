@@ -3,7 +3,7 @@
  * Sends messages to Facebook Messenger users via the Send API
  */
 
-import { generateAppSecretProof } from "@/lib/facebook-utils";
+import { generateAppSecretProof } from "@/lib/server/facebook-utils";
 
 const FACEBOOK_GRAPH_API_VERSION = "v18.0";
 const FACEBOOK_GRAPH_URL = `https://graph.facebook.com/${FACEBOOK_GRAPH_API_VERSION}`;

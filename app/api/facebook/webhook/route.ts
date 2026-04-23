@@ -5,7 +5,7 @@ import {
   sendFacebookSenderAction,
   sendTextMessage,
 } from "@/lib/facebook-sender";
-import { verifyWebhookSignature } from "@/lib/facebook-utils";
+import { verifyWebhookSignature } from "@/lib/server/facebook-utils";
 import { executeBotEntryFlowFirst } from "@/lib/bot-entry-flow-engine";
 import { recordMilestoneEvent } from "@/lib/milestone-events";
 import { isChannelEnabled } from "@/lib/channel-config";

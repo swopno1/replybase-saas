@@ -5,9 +5,9 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import type { AdapterUser } from "next-auth/adapters";
 import { PrismaAdapter } from "next-auth-prisma-adapter";
 import { prisma } from "@/lib/prisma";
-import { verifyPassword } from "@/lib/password";
+import { verifyPassword } from "@/lib/server/password";
 import { isChannelEnabled } from "@/lib/channel-config";
-import { generateAppSecretProof } from "@/lib/facebook-utils";
+import { generateAppSecretProof } from "@/lib/server/facebook-utils";
 
 type FacebookProfile = {
   id: string;

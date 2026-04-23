@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
-import { checkHealth } from "@/lib/ai-engine";
+// import { checkHealth } from "@/lib/ai-engine";
 import {
   Card,
   CardContent,
@@ -23,7 +23,7 @@ import { authOptions } from "@/lib/auth";
 import { isChannelVisibleInUi } from "@/lib/channel-config";
 import { redirect } from "next/navigation";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export default async function AIStatusPage() {
   if (!isChannelVisibleInUi("facebook")) {
@@ -36,9 +36,8 @@ export default async function AIStatusPage() {
   }
   const { tenantId } = session.user;
 
-  // Get engine health
-  const health = await checkHealth();
-  const isEngineUp = health.engine === "ok";
+  // TODO: Engine health check removed (ai-engine missing)
+  const isEngineUp = false;
 
   // Get connected Facebook pages
   const connectedPages = tenantId

@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
-import { generateAppSecretProof } from "@/lib/facebook-utils";
+import { generateAppSecretProof } from "@/lib/server/facebook-utils";
 
 export const dynamic = "force-dynamic";
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { converse } from "@/lib/ai-engine";
+// import { converse } from "@/lib/ai-engine";
 import {
   answerTelegramCallbackQuery,
   sendTelegramChatAction,
@@ -420,25 +420,9 @@ export async function POST(
         }
 
         if (!replyText) {
-          const aiResponse = await converse({
-            botId: channel.bot.id,
-            tenantId,
-            contact: {
-              name: userName,
-            },
-            message: messageText,
-          });
-
-          type TextResponse = { type: "text"; text?: string };
-          const textResponse = aiResponse.responses?.find(
-            (response: TextResponse) =>
-              response.type === "text" && Boolean(response.text),
-          );
-
-          if (textResponse?.text) {
-            replyText = textResponse.text;
-            replySource = "ai";
-          }
+          replyText =
+            "Sorry, I could not process that right now. Please try again in a moment.";
+          replySource = "system";
         }
       } catch (error) {
         console.error("[Telegram Webhook] AI error:", error);
