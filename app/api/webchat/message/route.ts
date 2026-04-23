@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import { prisma } from "@/lib/prisma";
 import {
   createWebchatCorsHeaders,
   getWebchatOriginRejectionReason,
   isWebchatOriginAllowed,
 } from "@/lib/webchat-cors";
+import { findActiveWebChannel } from "@/lib/webchat";
 
 export async function POST(request: NextRequest) {
   if (!isWebchatOriginAllowed(request)) {
@@ -26,6 +28,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Fetch channel config for fallbackMode/customFallbackMessage
+    const channel = await findActiveWebChannel({ botId });
+    const config = (channel?.config || {}) as Record<string, any>;
+    const fallbackMode = config.fallbackMode || "ai";
+    const customFallbackMessage =
+      config.customFallbackMessage ||
+      "Our AI Agent is under development! We'll be up again soon.";
+
+    if (fallbackMode === "manual") {
+      // Always reply with customFallbackMessage, skip AI
+      await prisma.crmMessage.create({
+        data: {
+          conversationId,
+          direction: "outbound",
+          content: customFallbackMessage,
+          source: "manual_fallback",
+        },
+      });
+      return NextResponse.json({
+        responses: [
+          {
+            type: "text",
+            text: customFallbackMessage,
+          },
+        ],
+        meta: { mode: "manual_fallback" },
+      });
+    }
+
+    // fallbackMode is "ai" or missing: run AI, fallback to customFallbackMessage if AI fails
     // Fetch last messages for context
     const lastMessages = await prisma.crmMessage.findMany({
       where: { conversationId },
@@ -42,6 +74,7 @@ export async function POST(request: NextRequest) {
     // Dynamically import aiFallback to avoid circular deps
     const { aiFallback } = await import("@/lib/ai-fallback");
     let aiText = "";
+    let aiErrorOccurred = false;
     try {
       const aiStream = await aiFallback({
         botId,
@@ -54,8 +87,8 @@ export async function POST(request: NextRequest) {
           ? await aiStream.text
           : String(aiStream ?? "");
     } catch (aiError) {
-      // Defensive: fallback to static message
-      aiText = "Our AI Agent is under development! We'll be up again soon.";
+      aiErrorOccurred = true;
+      aiText = customFallbackMessage;
     }
 
     if (aiText.trim()) {
@@ -64,7 +97,7 @@ export async function POST(request: NextRequest) {
           conversationId,
           direction: "outbound",
           content: aiText.trim(),
-          source: "ai",
+          source: aiErrorOccurred ? "manual_fallback" : "ai",
         },
       });
       return NextResponse.json({
@@ -74,7 +107,7 @@ export async function POST(request: NextRequest) {
             text: aiText.trim(),
           },
         ],
-        meta: { mode: "ai_fallback" },
+        meta: { mode: aiErrorOccurred ? "manual_fallback" : "ai_fallback" },
       });
     }
 
@@ -83,7 +116,7 @@ export async function POST(request: NextRequest) {
       responses: [
         {
           type: "text",
-          text: "Our AI Agent is under development! We'll be up again soon.",
+          text: customFallbackMessage,
         },
       ],
       meta: { mode: "safe_fallback" },
