@@ -6,7 +6,12 @@ export type TrackingEventName =
   | "signup_completed"
   | "onboarding_step_completed"
   | "dashboard_loaded"
-  | "pricing_viewed";
+  | "pricing_viewed"
+  | "subscription_started"
+  | "subscription_updated"
+  | "webchat_opened"
+  | "webchat_message_sent"
+  | "feature_used";
 
 type OnceScope = "memory" | "session" | "local";
 
@@ -40,6 +45,11 @@ const plausibleGoalMap: Partial<Record<TrackingEventName, string>> = {
   get_started_click: "Get Started Click",
   signup_completed: "Signup Completed",
   pricing_viewed: "Pricing Viewed",
+  subscription_started: "Subscription Started",
+  subscription_updated: "Subscription Updated",
+  webchat_opened: "Webchat Opened",
+  webchat_message_sent: "Webchat Message Sent",
+  feature_used: "Feature Used",
 };
 
 function hasWindow() {
@@ -96,9 +106,25 @@ export function setClarityTags(tags: Record<string, string | undefined>) {
   }
 }
 
-export function trackEvent(eventName: TrackingEventName, options: TrackEventOptions = {}) {
+const debouncedEvents = new Map<string, number>();
+
+export function trackEvent(
+  eventName: TrackingEventName,
+  options: TrackEventOptions = {},
+) {
   if (!hasWindow()) {
     return false;
+  }
+
+  // Debounce high-frequency events (e.g., chat messages)
+  if (eventName === "webchat_message_sent") {
+    const now = Date.now();
+    const lastTracked = debouncedEvents.get(eventName) || 0;
+    if (now - lastTracked < 2000) {
+      // Debounce for 2 seconds
+      return false;
+    }
+    debouncedEvents.set(eventName, now);
   }
 
   const onceKey = options.onceKey;

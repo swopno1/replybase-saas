@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { setClarityTags, trackEvent } from "@/lib/client-analytics";
 
 type DashboardFunnelTrackerProps = {
@@ -12,6 +13,8 @@ export function DashboardFunnelTracker({
   tenantId,
   completedMilestoneIds,
 }: DashboardFunnelTrackerProps) {
+  const searchParams = useSearchParams();
+
   useEffect(() => {
     setClarityTags({
       page_type: "dashboard",
@@ -39,6 +42,19 @@ export function DashboardFunnelTracker({
       });
     }
   }, [completedMilestoneIds, tenantId]);
+
+  useEffect(() => {
+    if (searchParams.get("checkout") === "success") {
+      trackEvent("subscription_updated", {
+        onceKey: `subscription_updated:${tenantId}`,
+        onceScope: "local",
+        properties: {
+          tenant_id: tenantId,
+          status: "success",
+        },
+      });
+    }
+  }, [searchParams, tenantId]);
 
   return null;
 }

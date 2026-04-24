@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { isPlatformAdmin } from "@/lib/admin";
 import { authOptions } from "@/lib/auth";
-import { AdminNav } from "@/components/admin-nav";
+import { AdminLayoutWrapper } from "@/components/admin/admin-layout-wrapper";
 
 export default async function AdminLayout({
   children,
@@ -15,17 +15,5 @@ export default async function AdminLayout({
     redirect("/");
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="border-b bg-white">
-        <div className="container mx-auto px-4 py-4">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">
-            Admin Dashboard
-          </h1>
-          <AdminNav />
-        </div>
-      </div>
-      <div className="container mx-auto px-4 py-8">{children}</div>
-    </div>
-  );
+  return <AdminLayoutWrapper>{children}</AdminLayoutWrapper>;
 }

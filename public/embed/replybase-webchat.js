@@ -388,6 +388,16 @@
         messageLength: text.length,
       });
 
+      // Track with Plausible if available
+      if (typeof window.plausible === "function") {
+        window.plausible("Webchat Message Sent", {
+          props: {
+            url: window.location.href,
+            messageLength: text.length,
+          },
+        });
+      }
+
       request("/api/webchat/message", "POST", {
         token: token,
         conversationId: conversationId,
@@ -454,6 +464,16 @@
         url: window.location.href,
         trigger: "launcher",
       });
+
+      // Track with Plausible if available
+      if (typeof window.plausible === "function") {
+        window.plausible("Webchat Opened", {
+          props: {
+            url: window.location.href,
+            trigger: "launcher",
+          },
+        });
+      }
     }
 
     function closePanel(trigger) {
