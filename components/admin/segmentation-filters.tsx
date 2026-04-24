@@ -82,14 +82,14 @@ export function SegmentationFilters({
                 Plan Tier
               </label>
               <Select
-                value={filters.planName || ""}
+                value={filters.planName || "all"}
                 onValueChange={handlePlanChange}
               >
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="All plans" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All plans</SelectItem>
+                  <SelectItem value="all">All plans</SelectItem>
                   {plans.map((plan) => (
                     <SelectItem key={plan.name} value={plan.name}>
                       {plan.displayName}
@@ -105,14 +105,14 @@ export function SegmentationFilters({
                 Channel Type
               </label>
               <Select
-                value={filters.channelType || ""}
+                value={filters.channelType || "all"}
                 onValueChange={handleChannelChange}
               >
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="All channels" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All channels</SelectItem>
+                  <SelectItem value="all">All channels</SelectItem>
                   {channelTypes.map((type) => (
                     <SelectItem key={type} value={type}>
                       {formatChannelTypeLabel(type)}
@@ -128,14 +128,14 @@ export function SegmentationFilters({
                 Signup Cohort
               </label>
               <Select
-                value={filters.cohortWeekStart || ""}
+                value={filters.cohortWeekStart || "all"}
                 onValueChange={handleCohortChange}
               >
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="All cohorts" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All cohorts</SelectItem>
+                  <SelectItem value="all">All cohorts</SelectItem>
                   {cohorts.map((cohort) => (
                     <SelectItem key={cohort.weekStart} value={cohort.weekStart}>
                       {cohort.label} ({cohort.tenantCount} users)
