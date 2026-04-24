@@ -45,8 +45,8 @@ vi.mock("@/lib/ai-fallback", () => ({
   aiFallback: vi.fn(),
 }));
 
-vi.mock("@/lib/bot-entry-flow-engine", () => ({
-  executeBotEntryFlowFirst: vi.fn().mockResolvedValue(null),
+vi.mock("@/lib/webchat-conversation-engine", () => ({
+  executeWebchatFlowFirst: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock("@/lib/webchat-diagnostics", () => ({
@@ -70,7 +70,7 @@ import { prisma } from "@/lib/prisma";
 import { verifyWebchatSessionToken } from "@/lib/webchat-session";
 import { isOriginAllowedForSite, findActiveWebChannel } from "@/lib/webchat";
 import { aiFallback } from "@/lib/ai-fallback";
-import { executeBotEntryFlowFirst } from "@/lib/bot-entry-flow-engine";
+import { executeWebchatFlowFirst } from "@/lib/webchat-conversation-engine";
 import { getWebchatRolloutDecision } from "@/lib/webchat-rollout";
 
 // ---------------------------------------------------------------------------
@@ -162,7 +162,7 @@ describe("POST /api/webchat/message — integration", () => {
     vi.mocked(prisma.crmMessage.findMany).mockResolvedValue([] as never);
     vi.mocked(isOriginAllowedForSite).mockReturnValue(true);
     vi.mocked(findActiveWebChannel).mockResolvedValue(mockActiveWebChannel as never);
-    vi.mocked(executeBotEntryFlowFirst).mockResolvedValue(null);
+    vi.mocked(executeWebchatFlowFirst).mockResolvedValue(null);
     vi.mocked(getWebchatRolloutDecision).mockResolvedValue({
       allowed: true,
       mode: "off",
@@ -241,7 +241,7 @@ describe("POST /api/webchat/message — integration", () => {
   // -------------------------------------------------------------------------
   describe("flow response path", () => {
     it("returns 200 with flow responses and mode=flow", async () => {
-      vi.mocked(executeBotEntryFlowFirst).mockResolvedValue({
+      vi.mocked(executeWebchatFlowFirst).mockResolvedValue({
         handled: true,
         flowSessionId: "flow_sess_1",
         flowId: "flow_1",

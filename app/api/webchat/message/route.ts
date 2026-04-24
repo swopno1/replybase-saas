@@ -104,17 +104,25 @@ export async function POST(request: NextRequest) {
     }
 
     // Try executing assigned flow first natively
-    const { executeBotEntryFlowFirst } = await import("@/lib/bot-entry-flow-engine");
-    const scopeKey = String(
-      (conversation.metadata as Record<string, any>)?.siteId || channel.id
+    const { buildWebchatSourceContext, executeWebchatFlowFirst } = await import(
+      "@/lib/webchat-conversation-engine"
     );
 
-    const flowResult = await executeBotEntryFlowFirst({
+    const sourceContext = buildWebchatSourceContext({
+      requestOrigin: request.headers.get("origin"),
+      requestReferer: request.headers.get("referer"),
+      messageMetadata: body.metadata as Record<string, unknown> | undefined,
+      existingMetadata: conversation.metadata as Record<string, unknown> | undefined,
+    });
+
+    const flowResult = await executeWebchatFlowFirst({
       tenantId: channel.bot.tenantId,
+      botId,
       contactId: conversation.contactId,
-      scopeKey,
+      siteId: String((conversation.metadata as Record<string, any>)?.siteId || channel.id),
       message,
       channelId: channel.id,
+      sourceContext,
     });
 
     if (flowResult && flowResult.handled) {
