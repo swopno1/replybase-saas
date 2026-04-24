@@ -76,19 +76,11 @@ export async function POST(request: NextRequest) {
   try {
     if (!isWebchatOriginAllowed(request)) {
       const reason = getWebchatOriginRejectionReason(request);
+      // Always log CORS/global allowlist rejections for debugging
       console.error("[Webchat CORS] Blocked request (global CORS)", {
         origin: request.headers.get("origin"),
         referer: request.headers.get("referer"),
         reason,
-        env: {
-          WEBCHAT_ALLOWED_ORIGINS: process.env.WEBCHAT_ALLOWED_ORIGINS,
-          WEBCHAT_STRICT_ORIGIN_REFERER_MATCH:
-            process.env.WEBCHAT_STRICT_ORIGIN_REFERER_MATCH,
-          WEBCHAT_REQUIRE_ORIGIN_OR_REFERER:
-            process.env.WEBCHAT_REQUIRE_ORIGIN_OR_REFERER,
-          WEBCHAT_ALLOW_WILDCARD_IN_PRODUCTION:
-            process.env.WEBCHAT_ALLOW_WILDCARD_IN_PRODUCTION,
-        },
       });
       recordWebchatMetric("webchat.cors.denied", {
         reason: reason ?? undefined,
@@ -100,10 +92,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (err) {
+      console.error("[Webchat Init] Invalid JSON body", { error: err });
+      return NextResponse.json(
+        { error: "Invalid JSON body" },
+        { status: 400, headers: createWebchatCorsHeaders(request) },
+      );
+    }
     const parsed = initSchema.safeParse(body);
 
     if (!parsed.success) {
+      console.error("[Webchat Init] Invalid request schema", {
+        issues: parsed.error.issues,
+      });
       return NextResponse.json(
         {
           error: "Invalid request",
@@ -244,6 +248,7 @@ export async function POST(request: NextRequest) {
         requestReferer,
       )
     ) {
+      // Always log per-site allowlist rejections for debugging
       console.error("[Webchat CORS] Blocked request (per-site allowlist)", {
         siteId: site.id,
         allowedDomains: site.allowedDomains,
@@ -364,6 +369,7 @@ export async function POST(request: NextRequest) {
       { headers: createWebchatCorsHeaders(request) },
     );
   } catch (error) {
+    // Always log unexpected errors for debugging
     console.error("[Webchat Init] Failed to initialize session:", error);
     return NextResponse.json(
       { error: "Failed to initialize webchat" },

@@ -11,6 +11,11 @@ import { findActiveWebChannel } from "@/lib/webchat";
 export async function POST(request: NextRequest) {
   if (!isWebchatOriginAllowed(request)) {
     const reason = getWebchatOriginRejectionReason(request);
+    console.error("[Webchat Message] Blocked by CORS", {
+      origin: request.headers.get("origin"),
+      referer: request.headers.get("referer"),
+      reason,
+    });
     return NextResponse.json(
       { error: "Origin not allowed", reason },
       { status: 403, headers: createWebchatCorsHeaders(request) },
@@ -19,9 +24,16 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
+    console.log("[Webchat Message] Incoming request", body);
     const { conversationId, botId, message, planName } = body;
     // Defensive: require all fields
     if (!conversationId || !botId || !message || !planName) {
+      console.error("[Webchat Message] Missing required fields", {
+        conversationId,
+        botId,
+        message,
+        planName,
+      });
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400, headers: createWebchatCorsHeaders(request) },
@@ -37,7 +49,10 @@ export async function POST(request: NextRequest) {
       "Our AI Agent is under development! We'll be up again soon.";
 
     if (fallbackMode === "manual") {
-      // Always reply with customFallbackMessage, skip AI
+      console.warn("[Webchat Message] Manual fallback mode active", {
+        conversationId,
+        botId,
+      });
       await prisma.crmMessage.create({
         data: {
           conversationId,
@@ -89,6 +104,9 @@ export async function POST(request: NextRequest) {
     } catch (aiError) {
       aiErrorOccurred = true;
       aiText = customFallbackMessage;
+      console.error("[Webchat Message] AI error, using fallback", {
+        error: aiError,
+      });
     }
 
     if (aiText.trim()) {
@@ -99,6 +117,10 @@ export async function POST(request: NextRequest) {
           content: aiText.trim(),
           source: aiErrorOccurred ? "manual_fallback" : "ai",
         },
+      });
+      console.log("[Webchat Message] Responding", {
+        mode: aiErrorOccurred ? "manual_fallback" : "ai_fallback",
+        aiText,
       });
       return NextResponse.json({
         responses: [
@@ -112,6 +134,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Static fallback if all else fails
+    console.error(
+      "[Webchat Message] All fallbacks failed, using static fallback",
+      { conversationId, botId },
+    );
     return NextResponse.json({
       responses: [
         {
@@ -122,6 +148,7 @@ export async function POST(request: NextRequest) {
       meta: { mode: "safe_fallback" },
     });
   } catch (error) {
+    console.error("[Webchat Message] Internal server error", { error });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500, headers: createWebchatCorsHeaders(request) },

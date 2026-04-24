@@ -179,8 +179,8 @@
       ".rb-composer { display: flex; gap: 8px; padding: 10px; border-top: 1px solid #e2e8f0; background: #fff; }",
       ".rb-input { flex: 1; border: 1px solid #cbd5e1; border-radius: 10px; padding: 9px 10px; font-size: 14px; outline: none; }",
       ".rb-input:focus { border-color: " +
-        primaryColor +
-        "; box-shadow: 0 0 0 3px rgba(15,118,110,0.15); }",
+      primaryColor +
+      "; box-shadow: 0 0 0 3px rgba(15,118,110,0.15); }",
       ".rb-send { min-width: 64px; border-radius: 10px; color: #fff; font-weight: 600; }",
       ".rb-note { align-self: center; color: #64748b; font-size: 12px; text-align: center; }",
       ".rb-typing { align-self: flex-start; color: #64748b; font-size: 12px; font-style: italic; }",
@@ -597,36 +597,88 @@
     startAgentReplyPolling();
   }
 
-  // Initialization: load config and session, then render widget
+  // --- Loading indicator ---
+  var loadingDiv = document.createElement("div");
+  loadingDiv.id = "replybase-webchat-loading";
+  loadingDiv.style.position = "fixed";
+  loadingDiv.style.bottom = "20px";
+  loadingDiv.style.right = "20px";
+  loadingDiv.style.background = "#f1f5f9";
+  loadingDiv.style.color = "#0f172a";
+  loadingDiv.style.padding = "16px 24px";
+  loadingDiv.style.border = "1px solid #cbd5e1";
+  loadingDiv.style.borderRadius = "12px";
+  loadingDiv.style.zIndex = "2147483647";
+  loadingDiv.style.fontFamily = "'Segoe UI', Tahoma, sans-serif";
+  loadingDiv.textContent = "Loading chat widget...";
+  document.body.appendChild(loadingDiv);
+
+  function showError(message) {
+    var errorDiv = document.createElement("div");
+    errorDiv.id = "replybase-webchat-error";
+    errorDiv.style.position = "fixed";
+    errorDiv.style.bottom = "20px";
+    errorDiv.style.right = "20px";
+    errorDiv.style.background = "#fff0f0";
+    errorDiv.style.color = "#b91c1c";
+    errorDiv.style.padding = "16px 24px";
+    errorDiv.style.border = "1px solid #fca5a5";
+    errorDiv.style.borderRadius = "12px";
+    errorDiv.style.zIndex = "2147483647";
+    errorDiv.style.fontFamily = "'Segoe UI', Tahoma, sans-serif";
+    errorDiv.textContent = "Chat unavailable: " + message;
+    document.body.appendChild(errorDiv);
+    if (loadingDiv && loadingDiv.parentNode)
+      loadingDiv.parentNode.removeChild(loadingDiv);
+  }
+
   (function initWidget() {
+    console.log("[ReplyBase Webchat] Starting widget initialization...");
     loadConfig()
       .then(function () {
+        console.log("[ReplyBase Webchat] Config loaded:", {
+          publicKey,
+          channelId,
+          botId,
+          initChallengeToken,
+        });
+        // Explicitly check required fields after config
+        if (!initChallengeToken) {
+          throw new Error("Missing initChallengeToken after config load");
+        }
+        if (!botId && !publicKey && !channelId) {
+          throw new Error(
+            "Missing botId, publicKey, and channelId after config load",
+          );
+        }
         return initializeSession();
       })
       .then(function () {
+        console.log("[ReplyBase Webchat] Session initialized:", {
+          token,
+          conversationId,
+          visitorId,
+        });
+        // Explicitly check required fields after session
+        if (!token) {
+          throw new Error("Missing token after session initialization");
+        }
+        if (!conversationId) {
+          throw new Error(
+            "Missing conversationId after session initialization",
+          );
+        }
+        if (loadingDiv && loadingDiv.parentNode)
+          loadingDiv.parentNode.removeChild(loadingDiv);
         renderWidget();
       })
       .catch(function (err) {
-        // Show a clear error if widget cannot load
-        var errorDiv = document.createElement("div");
-        errorDiv.id = "replybase-webchat-error";
-        errorDiv.style.position = "fixed";
-        errorDiv.style.bottom = "20px";
-        errorDiv.style.right = "20px";
-        errorDiv.style.background = "#fff0f0";
-        errorDiv.style.color = "#b91c1c";
-        errorDiv.style.padding = "16px 24px";
-        errorDiv.style.border = "1px solid #fca5a5";
-        errorDiv.style.borderRadius = "12px";
-        errorDiv.style.zIndex = "2147483647";
-        errorDiv.style.fontFamily = "'Segoe UI', Tahoma, sans-serif";
-        errorDiv.textContent =
-          "Chat unavailable: " +
-          (err && err.message ? err.message : "Unable to load chat widget.");
-        document.body.appendChild(errorDiv);
+        var msg =
+          err && err.message ? err.message : "Unable to load chat widget.";
+        console.error("[ReplyBase Webchat] Initialization failed:", msg, err);
+        showError(msg);
       });
   })();
-
 
   function resolveCookieConsent() {
     if (cookieConsentMode === "off") {
@@ -711,7 +763,6 @@
     return true;
   }
 
-
   function getStoredSession() {
     if (!canUsePersistentStorage()) {
       return null;
@@ -750,7 +801,6 @@
       lastHumanReplyCursor: lastHumanReplyCursor,
     });
   }
-
 
   function delay(ms) {
     return new Promise(function (resolve) {
@@ -792,8 +842,6 @@
         };
       });
   }
-
-
 
   function buildRuntimeMetadata() {
     var url = null;
@@ -912,6 +960,12 @@
       if (typeof data.publicKey === "string" && data.publicKey.trim()) {
         publicKey = data.publicKey.trim();
       }
+      if (typeof data.botId === "string" && data.botId.trim()) {
+        botId = data.botId.trim();
+      }
+      if (typeof data.channelId === "string" && data.channelId.trim()) {
+        channelId = data.channelId.trim();
+      }
       if (
         data.initChallenge &&
         typeof data.initChallenge.token === "string" &&
@@ -935,6 +989,4 @@
       }
     });
   }
-
-
 })();
