@@ -749,7 +749,7 @@ ${getReactLeadFormSnippet()}`;
   async function loadChannels(botId: string) {
     setIsChannelsLoading(true);
     try {
-      const response = await fetch(`/ api / bots / ${botId}/channels`);
+      const response = await fetch(`/api/bots/${botId}/channels`);
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || "Failed to load channels");
