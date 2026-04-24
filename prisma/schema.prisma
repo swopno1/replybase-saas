@@ -374,8 +374,6 @@ model Contact {
   conversations       CrmConversation[]
   onboardingSessions  OnboardingSession[]
 
-  @@unique([tenantId, email])
-  @@unique([tenantId, phone])
   @@index([tenantId])
   @@map("contacts")
 }
