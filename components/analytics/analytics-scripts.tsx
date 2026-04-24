@@ -1,7 +1,7 @@
 import Script from "next/script";
 
 const plausibleDomain =
-  process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN || "replybase.co.uk";
+  process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN || "app.replybase.co.uk";
 const plausibleScriptSrc =
   process.env.NEXT_PUBLIC_PLAUSIBLE_SCRIPT_SRC ||
   "https://engine.replybase.co.uk/js/script.js";
