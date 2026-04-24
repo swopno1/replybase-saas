@@ -934,18 +934,23 @@
         utmTerm: buildRuntimeMetadata().utmTerm,
         utmContent: buildRuntimeMetadata().utmContent,
       },
-      botSignals: buildBotSignals(),
     };
 
-    return request("/api/webchat/init", "POST", payload).then(function (data) {
-      token = data.token;
-      conversationId = data.conversationId;
-      visitorId = data.visitorId;
-      initialized = true;
-      if (!lastHumanReplyCursor) {
-        lastHumanReplyCursor = new Date().toISOString();
-      }
-      persistSession();
+    var elapsedMs = Date.now() - widgetBootedAt;
+    var waitMs = Math.max(810 - elapsedMs, 0);
+
+    return delay(waitMs).then(function () {
+      payload.botSignals = buildBotSignals();
+      return request("/api/webchat/init", "POST", payload).then(function (data) {
+        token = data.token;
+        conversationId = data.conversationId;
+        visitorId = data.visitorId;
+        initialized = true;
+        if (!lastHumanReplyCursor) {
+          lastHumanReplyCursor = new Date().toISOString();
+        }
+        persistSession();
+      });
     });
   }
 
