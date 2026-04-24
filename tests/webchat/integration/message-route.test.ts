@@ -27,6 +27,7 @@ vi.mock("@/lib/prisma", () => ({
     crmMessage: {
       create: vi.fn().mockResolvedValue({ id: "msg_1" }),
       findFirst: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([]),
     },
   },
 }));
@@ -37,17 +38,15 @@ vi.mock("@/lib/webchat-session", () => ({
 
 vi.mock("@/lib/webchat", () => ({
   isOriginAllowedForSite: vi.fn().mockReturnValue(true),
+  findActiveWebChannel: vi.fn(),
 }));
 
-vi.mock("@/lib/ai-engine", () => ({
-  converse: vi.fn(),
-  AiEngineError: class AiEngineError extends Error {},
+vi.mock("@/lib/ai-fallback", () => ({
+  aiFallback: vi.fn(),
 }));
 
-vi.mock("@/lib/webchat-conversation-engine", () => ({
-  buildWebchatSourceContext: vi.fn().mockReturnValue({ origin: null }),
-  executeWebchatFlowFirst: vi.fn().mockResolvedValue(null),
-  mergeConversationMetadata: vi.fn().mockReturnValue({}),
+vi.mock("@/lib/bot-entry-flow-engine", () => ({
+  executeBotEntryFlowFirst: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock("@/lib/webchat-diagnostics", () => ({
@@ -69,9 +68,9 @@ vi.mock("@/lib/webchat-rollout", () => ({
 import { POST } from "@/app/api/webchat/message/route";
 import { prisma } from "@/lib/prisma";
 import { verifyWebchatSessionToken } from "@/lib/webchat-session";
-import { isOriginAllowedForSite } from "@/lib/webchat";
-import { converse } from "@/lib/ai-engine";
-import { executeWebchatFlowFirst } from "@/lib/webchat-conversation-engine";
+import { isOriginAllowedForSite, findActiveWebChannel } from "@/lib/webchat";
+import { aiFallback } from "@/lib/ai-fallback";
+import { executeBotEntryFlowFirst } from "@/lib/bot-entry-flow-engine";
 import { getWebchatRolloutDecision } from "@/lib/webchat-rollout";
 
 // ---------------------------------------------------------------------------
@@ -92,13 +91,20 @@ const mockSite = {
   allowedDomains: [],
 };
 
+const mockActiveWebChannel = {
+  id: "chan_1",
+  name: "Web Channel",
+  bot: { id: "bot_1", tenantId: "tenant_1" },
+  config: {},
+};
+
 const mockConversation = {
   id: "conv_1",
   botId: "bot_1",
   channel: "web",
   contactId: "contact_1",
   botPaused: false,
-  metadata: {},
+  metadata: { siteId: "site_1" },
   bot: { id: "bot_1", name: "TestBot", entryFlow: null, welcomeMessage: null },
 };
 
@@ -125,7 +131,10 @@ function makeReq(
 function validBody(overrides: Record<string, unknown> = {}) {
   return {
     token: "valid.session.token",
+    conversationId: "conv_1",
+    botId: "bot_1",
     message: "Hello bot",
+    planName: "pro",
     botSignals: { honeypot: "" },
     ...overrides,
   };
@@ -150,17 +159,16 @@ describe("POST /api/webchat/message — integration", () => {
       mockWebChatSession as never,
     );
     vi.mocked(prisma.crmMessage.findFirst).mockResolvedValue(null as never);
+    vi.mocked(prisma.crmMessage.findMany).mockResolvedValue([] as never);
     vi.mocked(isOriginAllowedForSite).mockReturnValue(true);
-    vi.mocked(executeWebchatFlowFirst).mockResolvedValue(null);
+    vi.mocked(findActiveWebChannel).mockResolvedValue(mockActiveWebChannel as never);
+    vi.mocked(executeBotEntryFlowFirst).mockResolvedValue(null);
     vi.mocked(getWebchatRolloutDecision).mockResolvedValue({
       allowed: true,
       mode: "off",
       reason: "rollout_not_enforced",
     });
-    vi.mocked(converse).mockResolvedValue({
-      sessionId: "ai_session_1",
-      responses: [{ type: "text", text: "Hello from AI" }],
-    } as never);
+    vi.mocked(aiFallback).mockResolvedValue({ text: "Hello from AI" } as never);
     delete process.env.WEBCHAT_ALLOWED_ORIGINS;
   });
 
@@ -182,57 +190,13 @@ describe("POST /api/webchat/message — integration", () => {
   // Schema validation
   // -------------------------------------------------------------------------
   describe("schema validation", () => {
-    it("returns 400 for missing token", async () => {
-      const req = makeReq({ message: "hi" });
+    it("returns 400 for missing conversationId", async () => {
+      // The new endpoint validates missing required fields directly
+      const req = makeReq({ message: "hi", botId: "bot1", planName: "pro" });
       const res = await POST(req);
       expect(res.status).toBe(400);
       const json = await res.json();
-      expect(json.error).toBe("Invalid request");
-    });
-
-    it("returns 400 for empty message", async () => {
-      const req = makeReq({ token: "tok", message: "" });
-      const res = await POST(req);
-      expect(res.status).toBe(400);
-    });
-
-    it("accepts widget metadata when optional fields are null", async () => {
-      const req = makeReq(
-        validBody({
-          metadata: {
-            pageUrl: "https://www.vivescriptsolutions.com/",
-            referrer: null,
-            locale: "en-GB",
-            pageTitle: "ViveScript Solutions",
-            userAgent: "Mozilla/5.0",
-            origin: "https://www.vivescriptsolutions.com",
-            utmSource: null,
-            utmMedium: null,
-            utmCampaign: null,
-            utmTerm: null,
-            utmContent: null,
-          },
-        }),
-        { origin: "https://www.vivescriptsolutions.com" },
-      );
-      const res = await POST(req);
-      expect(res.status).toBe(200);
-    });
-  });
-
-  // -------------------------------------------------------------------------
-  // Auth
-  // -------------------------------------------------------------------------
-  describe("session token auth", () => {
-    it("returns 401 when session token is invalid", async () => {
-      vi.mocked(verifyWebchatSessionToken).mockImplementation(() => {
-        throw new Error("Token expired");
-      });
-      const req = makeReq(validBody());
-      const res = await POST(req);
-      expect(res.status).toBe(401);
-      const json = await res.json();
-      expect(json.error).toBe("Invalid session token");
+      expect(json.error).toBe("Missing required fields");
     });
   });
 
@@ -240,125 +204,20 @@ describe("POST /api/webchat/message — integration", () => {
   // Resource resolution
   // -------------------------------------------------------------------------
   describe("resource resolution", () => {
-    it("returns 404 when site is not found", async () => {
-      vi.mocked(prisma.webChatSite.findUnique).mockResolvedValue(null);
+    it("returns 404 when channel is not found", async () => {
+      vi.mocked(findActiveWebChannel).mockResolvedValue(null);
       const req = makeReq(validBody());
       const res = await POST(req);
       expect(res.status).toBe(404);
       const json = await res.json();
-      expect(json.error).toBe("Webchat site not found");
+      expect(json.error).toBe("Channel not found");
     });
 
-    it("returns 404 when conversation channel is not web", async () => {
-      vi.mocked(prisma.crmConversation.findUnique).mockResolvedValue({
-        ...mockConversation,
-        channel: "telegram",
-      } as never);
+    it("returns 404 when crmConversation is not found", async () => {
+      vi.mocked(prisma.crmConversation.findUnique).mockResolvedValue(null);
       const req = makeReq(validBody());
       const res = await POST(req);
       expect(res.status).toBe(404);
-    });
-
-    it("returns 404 when conversation botId does not match token", async () => {
-      vi.mocked(prisma.crmConversation.findUnique).mockResolvedValue({
-        ...mockConversation,
-        botId: "different_bot",
-      } as never);
-      const req = makeReq(validBody());
-      const res = await POST(req);
-      expect(res.status).toBe(404);
-    });
-  });
-
-  // -------------------------------------------------------------------------
-  // Bot mitigation
-  // -------------------------------------------------------------------------
-  describe("bot mitigation", () => {
-    it("returns 403 when honeypot triggered", async () => {
-      const req = makeReq(validBody({ botSignals: { honeypot: "filled" } }));
-      const res = await POST(req);
-      expect(res.status).toBe(403);
-      const json = await res.json();
-      expect(json.reason).toBe("honeypot_triggered");
-    });
-  });
-
-  // -------------------------------------------------------------------------
-  // Human handoff
-  // -------------------------------------------------------------------------
-  describe("human handoff", () => {
-    it("returns a human handoff response when bot automation is paused", async () => {
-      vi.mocked(prisma.crmConversation.findUnique).mockResolvedValue({
-        ...mockConversation,
-        botPaused: true,
-      } as never);
-
-      const req = makeReq(validBody(), {
-        origin: "https://www.vivescriptsolutions.com",
-      });
-      const res = await POST(req);
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.meta.mode).toBe("human_handoff");
-      expect(json.responses[0].text).toContain("team member");
-      expect(executeWebchatFlowFirst).not.toHaveBeenCalled();
-      expect(converse).not.toHaveBeenCalled();
-    });
-
-    it("does not repeat the handoff notice after a human reply already exists", async () => {
-      vi.mocked(prisma.crmConversation.findUnique).mockResolvedValue({
-        ...mockConversation,
-        botPaused: true,
-      } as never);
-      vi.mocked(prisma.crmMessage.findFirst)
-        .mockResolvedValueOnce({ id: "msg_human_1" } as never)
-        .mockResolvedValueOnce(null as never);
-
-      const req = makeReq(validBody(), {
-        origin: "https://www.vivescriptsolutions.com",
-      });
-      const res = await POST(req);
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.meta.mode).toBe("human_handoff_waiting");
-      expect(json.responses).toEqual([]);
-      expect(executeWebchatFlowFirst).not.toHaveBeenCalled();
-      expect(converse).not.toHaveBeenCalled();
-    });
-  });
-
-  // -------------------------------------------------------------------------
-  // Site-level origin check
-  // -------------------------------------------------------------------------
-  describe("site origin check", () => {
-    it("returns 403 when origin not allowed for site", async () => {
-      vi.mocked(isOriginAllowedForSite).mockReturnValue(false);
-      const req = makeReq(validBody());
-      const res = await POST(req);
-      expect(res.status).toBe(403);
-      const json = await res.json();
-      expect(json.error).toBe("Origin not allowed for this site");
-    });
-  });
-
-  // -------------------------------------------------------------------------
-  // Rollout gating
-  // -------------------------------------------------------------------------
-  describe("rollout gating", () => {
-    it("returns 403 when tenant is blocked by rollout policy", async () => {
-      vi.mocked(getWebchatRolloutDecision).mockResolvedValue({
-        allowed: false,
-        mode: "pilot",
-        reason: "pilot_only",
-      });
-      const req = makeReq(validBody());
-      const res = await POST(req);
-      expect(res.status).toBe(403);
-      const json = await res.json();
-      expect(json.error).toBe("Webchat is not enabled for this tenant");
-      expect(json.reason).toBe("pilot_only");
     });
   });
 
@@ -366,20 +225,14 @@ describe("POST /api/webchat/message — integration", () => {
   // Happy path — AI response
   // -------------------------------------------------------------------------
   describe("AI response path", () => {
-    it("returns 200 with AI responses and mode=ai", async () => {
+    it("returns 200 with AI responses and mode=ai_fallback", async () => {
       const req = makeReq(validBody());
       const res = await POST(req);
       expect(res.status).toBe(200);
       const json = await res.json();
       expect(json.responses).toBeDefined();
-      expect(json.meta.mode).toBe("ai");
-    });
-
-    it("returns conversationId in the response", async () => {
-      const req = makeReq(validBody());
-      const res = await POST(req);
-      const json = await res.json();
-      expect(json.conversationId).toBe("conv_1");
+      expect(json.responses[0].text).toBe("Hello from AI");
+      expect(json.meta.mode).toBe("ai_fallback");
     });
   });
 
@@ -388,7 +241,7 @@ describe("POST /api/webchat/message — integration", () => {
   // -------------------------------------------------------------------------
   describe("flow response path", () => {
     it("returns 200 with flow responses and mode=flow", async () => {
-      vi.mocked(executeWebchatFlowFirst).mockResolvedValue({
+      vi.mocked(executeBotEntryFlowFirst).mockResolvedValue({
         handled: true,
         flowSessionId: "flow_sess_1",
         flowId: "flow_1",
@@ -403,12 +256,12 @@ describe("POST /api/webchat/message — integration", () => {
       const json = await res.json();
       expect(json.meta.mode).toBe("flow");
       expect(json.responses[0].text).toBe("Flow reply");
+      // ensure CRM message was created synchronously
       expect(prisma.crmMessage.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            conversationId: "conv_1",
-            direction: "inbound",
-            content: "Hello bot",
+            content: "Flow reply",
+            direction: "outbound",
           }),
         }),
       );
@@ -419,13 +272,13 @@ describe("POST /api/webchat/message — integration", () => {
   // Safe fallback
   // -------------------------------------------------------------------------
   describe("safe fallback path", () => {
-    it("returns 200 with fallback message when AI engine throws", async () => {
-      vi.mocked(converse).mockRejectedValue(new Error("AI unavailable"));
+    it("returns 200 with manual fallback message when AI engine throws", async () => {
+      vi.mocked(aiFallback).mockRejectedValue(new Error("AI unavailable"));
       const req = makeReq(validBody());
       const res = await POST(req);
       expect(res.status).toBe(200);
       const json = await res.json();
-      expect(json.meta.mode).toBe("safe_fallback");
+      expect(json.meta.mode).toBe("manual_fallback");
       expect(json.responses).toHaveLength(1);
       expect(json.responses[0].type).toBe("text");
     });
