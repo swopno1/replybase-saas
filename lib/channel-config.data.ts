@@ -20,7 +20,7 @@ export const CHANNEL_CONFIG_DATA: Record<ChannelId, ChannelConfigData> = {
     displayName: "Telegram",
     description: "Telegram Bot integration",
     enabled: true,
-    uiVisible: true,
+    uiVisible: false,
     notes: "Production ready",
   },
   webchat: {
@@ -34,7 +34,7 @@ export const CHANNEL_CONFIG_DATA: Record<ChannelId, ChannelConfigData> = {
     displayName: "WhatsApp",
     description: "WhatsApp Business Cloud API integration",
     enabled: true,
-    uiVisible: true,
+    uiVisible: false,
     notes: "Meta verified and active",
   },
 };
