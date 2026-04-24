@@ -470,7 +470,7 @@ export function RegisterForm() {
     <Card>
       <CardHeader className="text-center">
         <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-emerald-50 border border-emerald-200 px-4 py-1.5 text-xs font-semibold text-emerald-700">
-          🎁 14-day free trial &middot; No credit card required
+          🎁 14-day free trial &middot; No credit card charged until trial ends
         </div>
         {signupPlanLabel ? (
           <p className="mb-2 text-xs text-muted-foreground">

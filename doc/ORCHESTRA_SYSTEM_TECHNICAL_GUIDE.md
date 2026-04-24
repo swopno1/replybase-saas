@@ -504,7 +504,7 @@ state['conversionReadiness'] = scorer.get_readiness_level(state['intentScore'])
         "primary": {
           "text": "Start 30-day free trial",
           "link": "replybase.com/start-free-trial",
-          "description": "No credit card. Full access. Test with your actual workflow."
+          "description": "No credit card charged until trial ends. Full access. Test with your actual workflow."
         },
         "secondary": {
           "text": "Jump on a quick call",

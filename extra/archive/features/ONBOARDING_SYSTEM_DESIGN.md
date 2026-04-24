@@ -386,7 +386,7 @@ Key methods:
 
 ### 2. Reassurance
 
-- ✅ "No credit card required" for trial
+- ✅ "No credit card charged" for trial
 - ✅ "Cancel anytime" messaging
 - ✅ Professional tone throughout
 - ✅ Response times < 1 second

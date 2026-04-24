@@ -358,7 +358,7 @@ Bot:
 
 Next step: I'd love to get you set up with either:
 → A **10-min personalized walkthrough** (I show you exactly how it works for SaaS)
-→ A **30-day free trial** (no credit card, just test it)
+→ A **30-day free trial** (No credit card charged until trial ends, just test it)
 → A **call with our sales team** (if you want to negotiate custom pricing)
 
 Which feels best?"
@@ -403,7 +403,7 @@ and teams exactly like yours see results in the first 30 days.
 Here's what I want you to do next:
 
 **Option 1: Start a Free Trial (Best for Test-First)**
-→ 30 days, no credit card, full access
+→ 30 days, No credit card charged until trial ends, full access
 → Load your own data, test with your team
 → We give you a dedicated onboarding person
 → Watch the ROI happen in real-time
@@ -452,7 +452,7 @@ Bot:
 Okay, here's the next step:
 
 1. **Click here to start your free trial**: [replybase.com/start-free-trial]
-   (Takes 2 minutes to set up. No credit card needed yet.)
+   (Takes 2 minutes to set up. No credit card charged until trial ends needed yet.)
 
 2. **You'll get an email with onboarding details** + my team's contact
    (If you have questions during setup, we're here.)
@@ -753,7 +753,7 @@ Does that number feel in the ballpark, or is budget a concern?"
 🤖 Bot: "Smart move. You should absolutely test drive it.
 
 Here's what I'd recommend:
-→ Start a 30-day **free trial** (no credit card)
+→ Start a 30-day **free trial** (No credit card charged until trial ends)
 → Load your actual support tickets, let the AI learn your system
 → Watch your response times drop
 → In 30 days, you'll know exactly if the ROI is real

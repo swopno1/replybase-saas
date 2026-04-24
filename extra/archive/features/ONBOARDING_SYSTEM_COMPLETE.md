@@ -145,7 +145,7 @@ Other           →  Generic Lead Gen, Contact Form
 ```
 Free Trial                          Pay Now
 ├─ 14 days full access             ├─ Start immediately
-├─ No credit card required         ├─ Full premium support
+├─ No credit card charged until trial ends         ├─ Full premium support
 ├─ Pre-built demo templates        ├─ Cancel anytime
 ├─ Personalized onboarding         ├─ Faster deployment
 └─ Auto-upgrade option             └─ Premium features
@@ -369,7 +369,7 @@ Welcome: "🎉 Welcome to ReplyBase! We're excited to help you..."
 
 Confidence: "Great choice! 🎯 Here's what comes next..."
 
-Reassurance: "No credit card required for the 14-day trial"
+Reassurance: "No credit card charged until trial ends for the 14-day trial"
 
 Urgency: "Limited spots available for our launch offer"
 

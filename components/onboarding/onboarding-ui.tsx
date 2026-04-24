@@ -226,7 +226,7 @@ export function TrialVsPayment({
               </div>
               <p className="text-2xl font-bold">14 Days</p>
               <p className="text-sm text-muted-foreground">
-                No credit card required
+                No credit card charged until trial ends
               </p>
             </div>
             <ul className="space-y-2 text-sm">
