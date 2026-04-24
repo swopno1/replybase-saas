@@ -1580,19 +1580,16 @@ export default function WebchatIntegrationPage() {
         <CardHeader>
           <CardTitle>Embed Snippet</CardTitle>
           <CardDescription>
-            Paste this in your website HTML before the closing body tag. This
-            snippet prefers your webchat public key when available.
+            Paste this in your website HTML before the closing body tag. This snippet prefers your webchat public key when available.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Textarea
-            value={
-              embedSnippet ||
-              "Select a bot and web channel to generate the embed snippet."
-            }
-            readOnly
-            rows={10}
-            className="font-mono text-xs"
+          <SnippetTabs
+            type="embed"
+            html={embedSnippet || "Select a bot and web channel to generate the embed snippet."}
+            react={getReactEmbedSnippet()}
+            nextjs={getNextJsEmbedSnippet()}
+            label="Embed Snippet"
           />
         </CardContent>
       </Card>
@@ -1601,30 +1598,16 @@ export default function WebchatIntegrationPage() {
         <CardHeader>
           <CardTitle>Lead Form Snippet</CardTitle>
           <CardDescription>
-            Paste this where you want a simple enquiry form. It submits to the
-            public leads endpoint and triggers the same lead dashboard and
-            notification flow.
+            Paste this where you want a simple enquiry form. It submits to the public leads endpoint and triggers the same lead dashboard and notification flow.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              onClick={() => void copyLeadFormSnippet()}
-              disabled={!site?.publicKey}
-            >
-              <Copy className="mr-2 h-4 w-4" />
-              Copy Lead Form Snippet
-            </Button>
-          </div>
-          <Textarea
-            value={
-              leadFormSnippet ||
-              "Save or load a webchat site to generate the lead form snippet."
-            }
-            readOnly
-            rows={18}
-            className="font-mono text-xs"
+        <CardContent>
+          <SnippetTabs
+            type="lead"
+            html={leadFormSnippet || "Save or load a webchat site to generate the lead form snippet."}
+            react={getReactLeadFormSnippet()}
+            nextjs={getNextJsLeadFormSnippet()}
+            label="Lead Form Snippet"
           />
         </CardContent>
       </Card>
@@ -1690,6 +1673,38 @@ export default function WebchatIntegrationPage() {
                     </p>
                     {entry.message ? (
                       <p className="mt-2 text-sm text-slate-700">
+                        // --- SnippetTabs component ---
+                        function SnippetTabs({ type, html, react, nextjs, label }: { type: "embed" | "lead"; html: string; react: string; nextjs: string; label: string }) {
+                          const [tab, setTab] = useState<"html" | "react" | "nextjs">("html");
+                          const snippet = tab === "html" ? html : tab === "react" ? react : nextjs;
+                          const handleCopy = async () => {
+                            try {
+                              await navigator.clipboard.writeText(snippet);
+                              // @ts-ignore
+                              if (window.toast) window.toast.success(`${label} copied!`);
+                            } catch {
+                              // @ts-ignore
+                              if (window.toast) window.toast.error(`Failed to copy ${label.toLowerCase()}`);
+                            }
+                          };
+                          return (
+                            <div>
+                              <div className="mb-2 flex gap-2">
+                                <button type="button" className={`px-3 py-1 rounded-t-md border-b-2 ${tab === "html" ? "border-primary font-semibold" : "border-transparent"}`} onClick={() => setTab("html")}>HTML</button>
+                                <button type="button" className={`px-3 py-1 rounded-t-md border-b-2 ${tab === "react" ? "border-primary font-semibold" : "border-transparent"}`} onClick={() => setTab("react")}>React</button>
+                                <button type="button" className={`px-3 py-1 rounded-t-md border-b-2 ${tab === "nextjs" ? "border-primary font-semibold" : "border-transparent"}`} onClick={() => setTab("nextjs")}>Next.js</button>
+                                <Button type="button" size="sm" variant="outline" className="ml-auto" onClick={handleCopy}>
+                                  <Copy className="mr-2 h-4 w-4" /> Copy {label}
+                                </Button>
+                              </div>
+                              <Textarea value={snippet} readOnly rows={type === "lead" ? 12 : 8} className="font-mono text-xs" />
+                            </div>
+                          );
+                        }
+
+                        // --- Snippet generators ---
+                        function getReactEmbedSnippet() {
+                          return `import Script from "next/script";
                         {entry.message}
                       </p>
                     ) : null}
@@ -1700,6 +1715,9 @@ export default function WebchatIntegrationPage() {
               <p className="text-sm text-muted-foreground">
                 No diagnostics events recorded for this site yet.
               </p>
+                        }
+                        function getNextJsEmbedSnippet() {
+                          return `import Script from "next/script";
             )}
           </div>
         </CardContent>
@@ -1710,6 +1728,9 @@ export default function WebchatIntegrationPage() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <CardTitle>Live Preview</CardTitle>
+                        }
+                        function getReactLeadFormSnippet() {
+                          return `import { useRef } from "react";
               <CardDescription>
                 Real-time preview of your widget style before embedding.
               </CardDescription>
@@ -1723,6 +1744,9 @@ export default function WebchatIntegrationPage() {
           <div className="relative h-96 rounded-lg border bg-slate-50 p-4 overflow-hidden">
             <div
               className={`absolute bottom-4 ${
+                        }
+                        function getNextJsLeadFormSnippet() {
+                          return `import { useRef } from "react";
                 position === "left" ? "left-4" : "right-4"
               } w-[280px] max-w-[90%]`}
             >
@@ -1736,6 +1760,7 @@ export default function WebchatIntegrationPage() {
                     <button
                       type="button"
                       onClick={() => setIsPreviewOpen(false)}
+                        }
                       className="rounded px-2 py-1 text-xs font-semibold hover:bg-black/15"
                     >
                       Close

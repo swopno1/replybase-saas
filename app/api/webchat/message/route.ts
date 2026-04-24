@@ -61,15 +61,18 @@ export async function POST(request: NextRequest) {
           source: "manual_fallback",
         },
       });
-      return NextResponse.json({
-        responses: [
-          {
-            type: "text",
-            text: customFallbackMessage,
-          },
-        ],
-        meta: { mode: "manual_fallback" },
-      });
+      return NextResponse.json(
+        {
+          responses: [
+            {
+              type: "text",
+              text: customFallbackMessage,
+            },
+          ],
+          meta: { mode: "manual_fallback" },
+        },
+        { headers: createWebchatCorsHeaders(request) }
+      );
     }
 
     // fallbackMode is "ai" or missing: run AI, fallback to customFallbackMessage if AI fails
@@ -122,15 +125,18 @@ export async function POST(request: NextRequest) {
         mode: aiErrorOccurred ? "manual_fallback" : "ai_fallback",
         aiText,
       });
-      return NextResponse.json({
-        responses: [
-          {
-            type: "text",
-            text: aiText.trim(),
-          },
-        ],
-        meta: { mode: aiErrorOccurred ? "manual_fallback" : "ai_fallback" },
-      });
+      return NextResponse.json(
+        {
+          responses: [
+            {
+              type: "text",
+              text: aiText.trim(),
+            },
+          ],
+          meta: { mode: aiErrorOccurred ? "manual_fallback" : "ai_fallback" },
+        },
+        { headers: createWebchatCorsHeaders(request) }
+      );
     }
 
     // Static fallback if all else fails
@@ -138,15 +144,18 @@ export async function POST(request: NextRequest) {
       "[Webchat Message] All fallbacks failed, using static fallback",
       { conversationId, botId },
     );
-    return NextResponse.json({
-      responses: [
-        {
-          type: "text",
-          text: customFallbackMessage,
-        },
-      ],
-      meta: { mode: "safe_fallback" },
-    });
+    return NextResponse.json(
+      {
+        responses: [
+          {
+            type: "text",
+            text: customFallbackMessage,
+          },
+        ],
+        meta: { mode: "safe_fallback" },
+      },
+      { headers: createWebchatCorsHeaders(request) }
+    );
   } catch (error) {
     console.error("[Webchat Message] Internal server error", { error });
     return NextResponse.json(
