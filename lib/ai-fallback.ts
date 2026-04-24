@@ -65,7 +65,7 @@ export async function aiFallback({
 
   // Use cost-effective model for all, can upgrade for pro later
   const aiStream = await streamText({
-    model: google("gemini-pro"),
+    model: google("gemini-1.5-flash"),
     messages: promptMessages,
     output: Output.text(),
   });

@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
   // Free/Starter: Use Gemini Pro (cost-effective, simple)
   // Pro/Business: TODO - Use advanced model and context
   const planName = (limits.displayName || limits.name || "free").toLowerCase();
-  const model = google("gemini-pro"); // default, cost-effective
+  const model = google("gemini-1.5-flash"); // default, cost-effective
 
   if (planName.includes("free") || planName.includes("starter")) {
     // Free/Starter: Use Gemini Pro, simple prompt

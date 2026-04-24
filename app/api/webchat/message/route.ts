@@ -42,7 +42,13 @@ export async function POST(request: NextRequest) {
 
     // Fetch channel config for fallbackMode/customFallbackMessage
     const channel = await findActiveWebChannel({ botId });
-    const config = (channel?.config || {}) as Record<string, any>;
+    if (!channel) {
+      return NextResponse.json(
+        { error: "Channel not found" },
+        { status: 404, headers: createWebchatCorsHeaders(request) },
+      );
+    }
+    const config = (channel.config || {}) as Record<string, any>;
     const fallbackMode = config.fallbackMode || "ai";
     const customFallbackMessage =
       config.customFallbackMessage ||
@@ -75,8 +81,76 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // fallbackMode is "ai" or missing: run AI, fallback to customFallbackMessage if AI fails
+    const conversation = await prisma.crmConversation.findUnique({
+      where: { id: conversationId },
+      select: { contactId: true, metadata: true },
+    });
+
+    if (!conversation) {
+      return NextResponse.json(
+        { error: "Conversation not found" },
+        { status: 404, headers: createWebchatCorsHeaders(request) },
+      );
+    }
+
+    // Try executing assigned flow first natively
+    const { executeBotEntryFlowFirst } = await import("@/lib/bot-entry-flow-engine");
+    const scopeKey = String(
+      (conversation.metadata as Record<string, any>)?.siteId || channel.id
+    );
+
+    const flowResult = await executeBotEntryFlowFirst({
+      tenantId: channel.bot.tenantId,
+      contactId: conversation.contactId,
+      scopeKey,
+      message,
+      channelId: channel.id,
+    });
+
+    if (flowResult && flowResult.handled) {
+      if (flowResult.responses.length > 0) {
+        const outMessages = flowResult.responses
+          .filter((r) => r.type === "text")
+          .map((r) => (r as { type: "text"; text: string }).text);
+
+        for (const outMsg of outMessages) {
+          await prisma.crmMessage.create({
+            data: {
+              conversationId,
+              direction: "outbound",
+              content: outMsg,
+              source: "flow",
+            },
+          });
+        }
+
+        console.log("[Webchat Message] Responding from flow", {
+          responses: flowResult.responses,
+        });
+
+        return NextResponse.json(
+          {
+            responses: flowResult.responses,
+            meta: { mode: "flow", flowId: flowResult.flowId },
+          },
+          { headers: createWebchatCorsHeaders(request) },
+        );
+      }
+
+      if (!flowResult.completed) {
+        return NextResponse.json(
+          {
+            responses: flowResult.responses,
+            meta: { mode: "flow", flowId: flowResult.flowId },
+          },
+          { headers: createWebchatCorsHeaders(request) },
+        );
+      }
+    }
+
+    // fallbackMode is "ai" or missing AND Flow bypassed: run AI, fallback to customFallbackMessage if AI fails
     // Fetch last messages for context
+
     const lastMessages = await prisma.crmMessage.findMany({
       where: { conversationId },
       orderBy: { createdAt: "desc" },
