@@ -40,6 +40,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Save inbound message immediately so the SaaS dashboard sees it
+    await prisma.crmMessage.create({
+      data: {
+        conversationId,
+        direction: "inbound",
+        content: message.trim(),
+        source: "human",
+      },
+    });
+
     // Fetch channel config for fallbackMode/customFallbackMessage
     const channel = await findActiveWebChannel({ botId });
     if (!channel) {
