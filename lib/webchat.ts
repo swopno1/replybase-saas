@@ -262,29 +262,47 @@ export async function getOrCreateWebChatSite(params: {
     return toActiveWebChatSite(existingSite);
   }
 
-  const createdSite = await prisma.webChatSite.create({
-    data: {
-      channelId: params.channelId,
-      botId: params.botId,
-      tenantId: params.tenantId,
-      name: params.name,
-      publicKey: generatePublicKey(),
-      secretKey: generateSecretKey(),
-      allowedDomains: getPrimaryAllowedDomain(params.metadata),
-      themeConfig: params.themeConfig || {},
-      isActive: true,
-    },
-    include: {
-      bot: {
-        select: {
-          id: true,
-          tenantId: true,
+  try {
+    const createdSite = await prisma.webChatSite.create({
+      data: {
+        channelId: params.channelId,
+        botId: params.botId,
+        tenantId: params.tenantId,
+        name: params.name,
+        publicKey: generatePublicKey(),
+        secretKey: generateSecretKey(),
+        allowedDomains: getPrimaryAllowedDomain(params.metadata),
+        themeConfig: params.themeConfig || {},
+        isActive: true,
+      },
+      include: {
+        bot: {
+          select: {
+            id: true,
+            tenantId: true,
+          },
         },
       },
-    },
-  });
+    });
 
-  return toActiveWebChatSite(createdSite);
+    return toActiveWebChatSite(createdSite);
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const site = await prisma.webChatSite.findUniqueOrThrow({
+        where: { channelId: params.channelId },
+        include: {
+          bot: {
+            select: { id: true, tenantId: true },
+          },
+        },
+      });
+      return toActiveWebChatSite(site);
+    }
+    throw error;
+  }
 }
 
 export async function findActiveWebChatSite(input: {
@@ -449,30 +467,30 @@ export async function resolveWebchatVisitorSession(params: {
 
   const webChatSession = existingSession
     ? await prisma.webChatSession.update({
-        where: { id: existingSession.id },
-        data: {
-          conversationId: conversation.id,
-          lastSeenAt: new Date(),
-          fingerprint:
-            typeof params.metadata?.fingerprint === "string"
-              ? params.metadata.fingerprint
-              : existingSession.fingerprint,
-          metadata: sessionMetadata,
-        },
-      })
+      where: { id: existingSession.id },
+      data: {
+        conversationId: conversation.id,
+        lastSeenAt: new Date(),
+        fingerprint:
+          typeof params.metadata?.fingerprint === "string"
+            ? params.metadata.fingerprint
+            : existingSession.fingerprint,
+        metadata: sessionMetadata,
+      },
+    })
     : await prisma.webChatSession.create({
-        data: {
-          siteId: params.siteId,
-          conversationId: conversation.id,
-          visitorId,
-          fingerprint:
-            typeof params.metadata?.fingerprint === "string"
-              ? params.metadata.fingerprint
-              : null,
-          metadata: sessionMetadata,
-          lastSeenAt: new Date(),
-        },
-      });
+      data: {
+        siteId: params.siteId,
+        conversationId: conversation.id,
+        visitorId,
+        fingerprint:
+          typeof params.metadata?.fingerprint === "string"
+            ? params.metadata.fingerprint
+            : null,
+        metadata: sessionMetadata,
+        lastSeenAt: new Date(),
+      },
+    });
 
   return {
     visitorId,
