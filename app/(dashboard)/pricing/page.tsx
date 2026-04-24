@@ -126,6 +126,12 @@ function PricingContent() {
       },
     });
 
+    trackEvent("subscription_started", {
+      properties: {
+        plan: planName,
+      },
+    });
+
     if (planName === "free") {
       router.push("/");
       return;
