@@ -1,13 +1,14 @@
 import Script from "next/script";
 
 const plausibleDomain =
-  process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN || "app.replybase.co.uk";
+  process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN || "replybase.co.uk";
 const plausibleScriptSrc =
   process.env.NEXT_PUBLIC_PLAUSIBLE_SCRIPT_SRC ||
-  "https://analytics.replybase.co.uk/js/script.js";
+  "https://engine.replybase.co.uk/js/script.js";
 const clarityProjectId = process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID || "";
 const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY || "";
-const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://app.posthog.com";
+const posthogHost =
+  process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://app.posthog.com";
 
 export function AnalyticsScripts() {
   return (
