@@ -1,3 +1,5 @@
+"use client";
+
 import Script from "next/script";
 
 const plausibleDomain =
@@ -5,6 +7,7 @@ const plausibleDomain =
 const plausibleScriptSrc =
   process.env.NEXT_PUBLIC_PLAUSIBLE_SCRIPT_SRC ||
   "https://engine.replybase.co.uk/js/script.js";
+
 /*
 const clarityProjectId = process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID || "";
 const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY || "";
@@ -13,17 +16,12 @@ const posthogHost =
 */
 
 export function AnalyticsScripts() {
-  // Only load in production and not on localhost or preview deployments
+  // Only load in production on the specific production domain
   if (typeof window !== "undefined") {
     const hostname = window.location.hostname;
-    const isLocalhost =
-      hostname === "localhost" ||
-      hostname === "127.0.0.1" ||
-      hostname.endsWith(".local");
-    const isPreview =
-      hostname.includes("vercel.app") && !hostname.includes("-production");
+    const isProduction = hostname === "app.replybase.co.uk";
 
-    if (process.env.NODE_ENV !== "production" || isLocalhost || isPreview) {
+    if (!isProduction || process.env.NODE_ENV !== "production") {
       return null;
     }
   } else if (process.env.NODE_ENV !== "production") {

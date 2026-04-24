@@ -390,12 +390,32 @@
 
       // Track with Plausible if available
       if (typeof window.plausible === "function") {
+        // Track general message sent event
         window.plausible("Webchat Message Sent", {
           props: {
             url: window.location.href,
             messageLength: text.length,
           },
         });
+
+        // Track "first_message_sent" goal if this is the first message in the session
+        var hasTrackedFirstMessage = false;
+        try {
+          hasTrackedFirstMessage = !!window.sessionStorage.getItem(
+            "replybase_tracked_first_message",
+          );
+        } catch (e) {}
+
+        if (!hasTrackedFirstMessage) {
+          window.plausible("first_message_sent", {
+            props: {
+              url: window.location.href,
+            },
+          });
+          try {
+            window.sessionStorage.setItem("replybase_tracked_first_message", "1");
+          } catch (e) {}
+        }
       }
 
       request("/api/webchat/message", "POST", {
