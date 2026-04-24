@@ -4,6 +4,7 @@ export type TrackingEventName =
   | "get_started_click"
   | "signup_started"
   | "signup_completed"
+  | "onboarding_completed"
   | "onboarding_step_completed"
   | "dashboard_loaded"
   | "pricing_viewed"
@@ -11,7 +12,8 @@ export type TrackingEventName =
   | "subscription_updated"
   | "webchat_opened"
   | "webchat_message_sent"
-  | "feature_used";
+  | "first_message_sent"
+  | "feature_used"
   | "newsletter_signup"
   | "contact_form_submission";
 
@@ -44,16 +46,10 @@ declare global {
 const inMemoryEventKeys = new Set<string>();
 
 const plausibleGoalMap: Partial<Record<TrackingEventName, string>> = {
-  get_started_click: "Get Started Click",
-  signup_completed: "Signup Completed",
-  pricing_viewed: "Pricing Viewed",
-  subscription_started: "Subscription Started",
-  subscription_updated: "Subscription Updated",
-  webchat_opened: "Webchat Opened",
-  webchat_message_sent: "Webchat Message Sent",
-  feature_used: "Feature Used",
-  newsletter_signup: "Newsletter Signup",
-  contact_form_submission: "Contact Form Submission",
+  signup_completed: "signup",
+  onboarding_completed: "onboarding_completed",
+  first_message_sent: "first_message_sent",
+  subscription_started: "subscription_started",
 };
 
 function hasWindow() {

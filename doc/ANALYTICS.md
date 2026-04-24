@@ -19,14 +19,12 @@ All custom events are tracked using the `trackEvent` utility in `lib/client-anal
 
 | Event ID | Plausible Goal Name | Description | Properties |
 |----------|---------------------|-------------|------------|
-| `get_started_click` | `Get Started Click` | Triggered when a user clicks a "Get Started" or similar CTA. | `path` (current URL path) |
-| `signup_started` | - | Triggered when a user starts the signup process. | `path` |
-| `signup_completed` | `Signup Completed` | Triggered when a user successfully completes signup. | `path` |
-| `onboarding_step_completed` | - | Triggered when a user completes a step in the onboarding flow. | `path`, `step_name` |
-| `dashboard_loaded` | - | Triggered when the main dashboard is loaded. | `path` |
-| `pricing_viewed` | `Pricing Viewed` | Triggered when a user views the pricing section or page. | `path` |
-| `newsletter_signup` | `Newsletter Signup` | Triggered when a user signs up for the newsletter. | `path`, `email` (optional) |
-| `contact_form_submission` | `Contact Form Submission` | Triggered when a user submits a contact form. | `path`, `form_id` |
+| `signup_completed` | `signup` | Triggered when a user successfully completes signup. | `path`, `method`, `source`, `plan` |
+| `onboarding_completed` | `onboarding_completed` | Triggered when all 4 major activation milestones are completed on the dashboard. | `path`, `tenant_id` |
+| `first_message_sent` | `first_message_sent` | Triggered the first time a user sends a message via the Webchat widget in a session. | `url` |
+| `subscription_started` | `subscription_started` | Triggered after a successful Stripe checkout redirect back to the dashboard. | `path`, `tenant_id`, `status` |
+
+*Note: Other events like `signup_started` and `onboarding_step_completed` are tracked via Clarity/PostHog (if enabled) but are currently skipped for Plausible to focus on core conversion goals.*
 
 ## Technical Details
 
@@ -36,9 +34,10 @@ The Plausible script is loaded using the Next.js `<Script>` component in `app/la
 
 ### Privacy & Compliance
 
+- **Strict Production Check**: Analytics scripts only load when the hostname exactly matches `app.replybase.co.uk` and `NODE_ENV` is `production`.
 - **GDPR Compliance**: Plausible Analytics is GDPR-compliant by design as it does not use cookies and does not track personal data.
 - **Anonymization**: All data is anonymized. No IP addresses or personal identifiers are stored.
-- **Client-Side Safety**: No API keys or secrets are exposed to the client.
+- **Client-Side Safety**: No API keys or secrets are exposed to the client. The self-hosted instance at `engine.replybase.co.uk` is used.
 
 ### Error Handling
 
