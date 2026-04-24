@@ -12,6 +12,8 @@ export type TrackingEventName =
   | "webchat_opened"
   | "webchat_message_sent"
   | "feature_used";
+  | "newsletter_signup"
+  | "contact_form_submission";
 
 type OnceScope = "memory" | "session" | "local";
 
@@ -50,6 +52,8 @@ const plausibleGoalMap: Partial<Record<TrackingEventName, string>> = {
   webchat_opened: "Webchat Opened",
   webchat_message_sent: "Webchat Message Sent",
   feature_used: "Feature Used",
+  newsletter_signup: "Newsletter Signup",
+  contact_form_submission: "Contact Form Submission",
 };
 
 function hasWindow() {
@@ -138,17 +142,29 @@ export function trackEvent(
     path: window.location.pathname,
   });
 
-  const plausibleGoalName = plausibleGoalMap[eventName];
-  if (plausibleGoalName && typeof window.plausible === "function") {
-    window.plausible(plausibleGoalName, { props: properties });
+  try {
+    const plausibleGoalName = plausibleGoalMap[eventName];
+    if (plausibleGoalName && typeof window.plausible === "function") {
+      window.plausible(plausibleGoalName, { props: properties });
+    }
+  } catch (err) {
+    console.error("Failed to track Plausible event", err);
   }
 
-  if (typeof window.clarity === "function") {
-    window.clarity("event", eventName);
+  try {
+    if (typeof window.clarity === "function") {
+      window.clarity("event", eventName);
+    }
+  } catch (err) {
+    console.error("Failed to track Clarity event", err);
   }
 
-  if (window.posthog?.capture) {
-    window.posthog.capture(eventName, properties);
+  try {
+    if (window.posthog?.capture) {
+      window.posthog.capture(eventName, properties);
+    }
+  } catch (err) {
+    console.error("Failed to track PostHog event", err);
   }
 
   return true;
