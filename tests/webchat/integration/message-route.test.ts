@@ -47,6 +47,7 @@ vi.mock("@/lib/ai-fallback", () => ({
 
 vi.mock("@/lib/webchat-conversation-engine", () => ({
   executeWebchatFlowFirst: vi.fn().mockResolvedValue(null),
+  buildWebchatSourceContext: vi.fn().mockReturnValue({}),
 }));
 
 vi.mock("@/lib/webchat-diagnostics", () => ({
