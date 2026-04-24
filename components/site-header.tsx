@@ -26,6 +26,7 @@ export async function SiteHeader() {
                 name: session.user.name || "User",
                 email: session.user.email || "",
                 avatar: session.user.image || "",
+                isAdmin: session.user.isAdmin || false,
               }}
             />
           )}

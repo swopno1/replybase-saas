@@ -23,6 +23,7 @@ export function NavUser({
     name: string;
     email: string;
     avatar: string;
+    isAdmin?: boolean;
   };
 }) {
   const initials =
@@ -68,6 +69,14 @@ export function NavUser({
               <span>Billing</span>
             </DropdownMenuItem>
           </Link>
+          {user.isAdmin && (
+            <Link href="/admin">
+              <DropdownMenuItem>
+                <span className="mr-2">🛠️</span>
+                <span>Admin</span>
+              </DropdownMenuItem>
+            </Link>
+          )}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem
