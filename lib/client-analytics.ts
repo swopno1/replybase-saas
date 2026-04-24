@@ -6,7 +6,9 @@ export type TrackingEventName =
   | "signup_completed"
   | "onboarding_step_completed"
   | "dashboard_loaded"
-  | "pricing_viewed";
+  | "pricing_viewed"
+  | "newsletter_signup"
+  | "contact_form_submission";
 
 type OnceScope = "memory" | "session" | "local";
 
@@ -40,6 +42,8 @@ const plausibleGoalMap: Partial<Record<TrackingEventName, string>> = {
   get_started_click: "Get Started Click",
   signup_completed: "Signup Completed",
   pricing_viewed: "Pricing Viewed",
+  newsletter_signup: "Newsletter Signup",
+  contact_form_submission: "Contact Form Submission",
 };
 
 function hasWindow() {
@@ -96,8 +100,16 @@ export function setClarityTags(tags: Record<string, string | undefined>) {
   }
 }
 
-export function trackEvent(eventName: TrackingEventName, options: TrackEventOptions = {}) {
+export function trackEvent(
+  eventName: TrackingEventName,
+  options: TrackEventOptions = {},
+) {
   if (!hasWindow()) {
+    return false;
+  }
+
+  // Only track in production
+  if (process.env.NODE_ENV !== "production") {
     return false;
   }
 
@@ -112,17 +124,29 @@ export function trackEvent(eventName: TrackingEventName, options: TrackEventOpti
     path: window.location.pathname,
   });
 
-  const plausibleGoalName = plausibleGoalMap[eventName];
-  if (plausibleGoalName && typeof window.plausible === "function") {
-    window.plausible(plausibleGoalName, { props: properties });
+  try {
+    const plausibleGoalName = plausibleGoalMap[eventName];
+    if (plausibleGoalName && typeof window.plausible === "function") {
+      window.plausible(plausibleGoalName, { props: properties });
+    }
+  } catch (err) {
+    console.error("Failed to track Plausible event", err);
   }
 
-  if (typeof window.clarity === "function") {
-    window.clarity("event", eventName);
+  try {
+    if (typeof window.clarity === "function") {
+      window.clarity("event", eventName);
+    }
+  } catch (err) {
+    console.error("Failed to track Clarity event", err);
   }
 
-  if (window.posthog?.capture) {
-    window.posthog.capture(eventName, properties);
+  try {
+    if (window.posthog?.capture) {
+      window.posthog.capture(eventName, properties);
+    }
+  } catch (err) {
+    console.error("Failed to track PostHog event", err);
   }
 
   return true;

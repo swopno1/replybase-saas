@@ -27,6 +27,7 @@ import {
 import { toast } from "sonner";
 import BillingTabContent from "@/components/settings/billing-tab";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
+import { trackEvent } from "@/lib/client-analytics";
 
 const VALID_TABS = [
   "profile",
@@ -198,6 +199,11 @@ function SettingsTabsInner() {
           data.message || "You are already subscribed to the newsletter",
         );
       } else {
+        trackEvent("newsletter_signup", {
+          properties: {
+            source: "account",
+          },
+        });
         toast.success(data?.message || "Subscribed to newsletter");
       }
     } catch (error) {
