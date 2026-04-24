@@ -449,6 +449,115 @@ export default function WebchatIntegrationPage() {
 </script>`;
   }, [origin, primaryColor, site?.publicKey]);
 
+  const getReactEmbedSnippet = () => {
+    if (!selectedChannelId) return "";
+    const baseUrl = origin || "https://YOUR_REPLYBASE_DOMAIN";
+    return `import { useEffect } from "react";
+
+export default function ReplyBaseWebchat() {
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "${baseUrl}/embed/replybase-webchat.js";
+    script.setAttribute("data-base-url", "${baseUrl}");
+${site?.publicKey ? `    script.setAttribute("data-public-key", "${site.publicKey}");` : `    script.setAttribute("data-channel-id", "${selectedChannelId}");`}
+    script.setAttribute("data-title", "${title.replace(/\"/g, "&quot;")}");
+    script.setAttribute("data-primary-color", "${primaryColor}");
+    script.setAttribute("data-position", "${position}");
+    script.defer = true;
+    document.body.appendChild(script);
+    
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
+  return null;
+}`;
+  };
+
+  const getNextJsEmbedSnippet = () => {
+    if (!selectedChannelId) return "";
+    const baseUrl = origin || "https://YOUR_REPLYBASE_DOMAIN";
+    return `import Script from "next/script";
+
+export default function ReplyBaseWebchat() {
+  return (
+    <Script
+      src="${baseUrl}/embed/replybase-webchat.js"
+      data-base-url="${baseUrl}"
+${site?.publicKey ? `      data-public-key="${site.publicKey}"` : `      data-channel-id="${selectedChannelId}"`}
+      data-title="${title.replace(/\"/g, "&quot;")}"
+      data-primary-color="${primaryColor}"
+      data-position="${position}"
+      strategy="lazyOnload"
+    />
+  );
+}`;
+  };
+
+  const getReactLeadFormSnippet = () => {
+    if (!site?.publicKey) return "";
+    const baseUrl = origin || "https://YOUR_REPLYBASE_DOMAIN";
+    const endpoint = `${baseUrl}/api/public/leads`;
+    const accentColor = /^#[0-9a-fA-F]{6}$/.test(primaryColor.trim()) ? primaryColor.trim() : "#0f766e";
+    return `import { useRef, useState } from "react";
+
+export default function ReplyBaseLeadForm() {
+  const mountRef = useRef(null);
+  const [status, setStatus] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setStatus("Sending...");
+    const formData = new FormData(e.currentTarget);
+    try {
+      const response = await fetch("${endpoint}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          publicKey: "${site.publicKey}",
+          source: "form",
+          name: String(formData.get("name") || "").trim(),
+          enquiry: String(formData.get("enquiry") || "").trim(),
+          email: String(formData.get("email") || "").trim(),
+          phone: String(formData.get("phone") || "").trim(),
+          metadata: { pageUrl: window.location.href, pageTitle: document.title },
+        }),
+      });
+      if (!response.ok) throw new Error("Failed");
+      e.currentTarget.reset();
+      setStatus("Thanks. Your enquiry has been sent.");
+    } catch {
+      setStatus("Unable to submit enquiry right now.");
+    }
+  };
+
+  return (
+    <div ref={mountRef}>
+      <form onSubmit={handleSubmit} style={{ maxWidth: 480, padding: 20, border: "1px solid #e2e8f0", borderRadius: 16, background: "#ffffff", fontFamily: "Segoe UI, Tahoma, sans-serif", boxShadow: "0 12px 30px rgba(15,23,42,0.08)" }}>
+        <div style={{ marginBottom: 16 }}>
+          <h3 style={{ margin: "0 0 6px", fontSize: 20, color: "#0f172a" }}>Request a Callback</h3>
+          <p style={{ margin: 0, fontSize: 14, color: "#475569" }}>Share your enquiry and ReplyBase will send it straight to your team.</p>
+        </div>
+        <label style={{ display: "block", marginBottom: 12, fontSize: 14, color: "#0f172a" }}>Name<input name="name" required style={{ display: "block", width: "100%", marginTop: 6, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10 }} /></label>
+        <label style={{ display: "block", marginBottom: 12, fontSize: 14, color: "#0f172a" }}>Enquiry<textarea name="enquiry" required rows={4} style={{ display: "block", width: "100%", marginTop: 6, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, resize: "vertical" }} /></label>
+        <label style={{ display: "block", marginBottom: 12, fontSize: 14, color: "#0f172a" }}>Email<input name="email" type="email" style={{ display: "block", width: "100%", marginTop: 6, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10 }} /></label>
+        <label style={{ display: "block", marginBottom: 12, fontSize: 14, color: "#0f172a" }}>Phone<input name="phone" type="tel" style={{ display: "block", width: "100%", marginTop: 6, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10 }} /></label>
+        <button type="submit" style={{ width: "100%", padding: "12px 16px", border: "none", borderRadius: 10, background: "${accentColor}", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}>Send Enquiry</button>
+        <p style={{ margin: "12px 0 0", fontSize: 13, color: "#475569" }}>{status}</p>
+      </form>
+    </div>
+  );
+}
+`;
+  };
+  const getNextJsLeadFormSnippet = () => {
+    if (!site?.publicKey) return "";
+    return `"use client";
+    
+${getReactLeadFormSnippet()}`;
+  };
+
   const previewColor = useMemo(() => {
     const hexColor = primaryColor.trim();
     if (/^#[0-9a-fA-F]{6}$/.test(hexColor)) {
@@ -491,7 +600,7 @@ export default function WebchatIntegrationPage() {
     if (assignedChannelFlow) {
       return {
         title: "Channel flow first, AI fallback",
-        description: `Webchat first runs the assigned channel flow (${assignedChannelFlow.name}). If no final response is produced, AI handles the reply.`,
+        description: `Webchat first runs the assigned channel flow(${assignedChannelFlow.name}).If no final response is produced, AI handles the reply.`,
       };
     }
 
@@ -544,7 +653,7 @@ export default function WebchatIntegrationPage() {
       params.set("allowedDomains", normalizedAllowedDomains.join(","));
     }
 
-    return `/integrations/webchat/test?${params.toString()}`;
+    return `/ integrations / webchat / test ? ${params.toString()} `;
   }, [
     channelName,
     origin,
@@ -575,7 +684,7 @@ export default function WebchatIntegrationPage() {
     setPreviewMessages((current) => [
       ...current,
       {
-        id: `user-${Date.now()}`,
+        id: `user - ${Date.now()} `,
         role: "user",
         text: message,
       },
@@ -587,7 +696,7 @@ export default function WebchatIntegrationPage() {
       setPreviewMessages((current) => [
         ...current,
         {
-          id: `bot-${Date.now()}`,
+          id: `bot - ${Date.now()} `,
           role: "bot",
           text: reply,
         },
@@ -618,8 +727,8 @@ export default function WebchatIntegrationPage() {
 
       const flattenedBots: Bot[] = Array.isArray(data.projects)
         ? data.projects.flatMap((project: { bots?: Bot[] }) =>
-            Array.isArray(project.bots) ? project.bots : [],
-          )
+          Array.isArray(project.bots) ? project.bots : [],
+        )
         : Array.isArray(data.bots)
           ? data.bots
           : [];
@@ -640,7 +749,7 @@ export default function WebchatIntegrationPage() {
   async function loadChannels(botId: string) {
     setIsChannelsLoading(true);
     try {
-      const response = await fetch(`/api/bots/${botId}/channels`);
+      const response = await fetch(`/ api / bots / ${botId}/channels`);
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || "Failed to load channels");
@@ -667,10 +776,10 @@ export default function WebchatIntegrationPage() {
 
       const flowList: FlowOption[] = Array.isArray(data.flows)
         ? data.flows.map((flow: FlowOption) => ({
-            id: flow.id,
-            name: flow.name,
-            isActive: flow.isActive,
-          }))
+          id: flow.id,
+          name: flow.name,
+          isActive: flow.isActive,
+        }))
         : [];
       setFlows(flowList);
     } catch (error) {
@@ -1563,7 +1672,7 @@ export default function WebchatIntegrationPage() {
                 any stored private credential must be updated.
               </p>
               {!canLaunchTestFromDashboard &&
-              normalizedAllowedDomains.length ? (
+                normalizedAllowedDomains.length ? (
                 <p className="text-amber-700">
                   The current dashboard origin {origin || "(unknown)"} is not on
                   this site&apos;s allowlist. The harness will surface the same
@@ -1673,38 +1782,6 @@ export default function WebchatIntegrationPage() {
                     </p>
                     {entry.message ? (
                       <p className="mt-2 text-sm text-slate-700">
-                        // --- SnippetTabs component ---
-                        function SnippetTabs({ type, html, react, nextjs, label }: { type: "embed" | "lead"; html: string; react: string; nextjs: string; label: string }) {
-                          const [tab, setTab] = useState<"html" | "react" | "nextjs">("html");
-                          const snippet = tab === "html" ? html : tab === "react" ? react : nextjs;
-                          const handleCopy = async () => {
-                            try {
-                              await navigator.clipboard.writeText(snippet);
-                              // @ts-ignore
-                              if (window.toast) window.toast.success(`${label} copied!`);
-                            } catch {
-                              // @ts-ignore
-                              if (window.toast) window.toast.error(`Failed to copy ${label.toLowerCase()}`);
-                            }
-                          };
-                          return (
-                            <div>
-                              <div className="mb-2 flex gap-2">
-                                <button type="button" className={`px-3 py-1 rounded-t-md border-b-2 ${tab === "html" ? "border-primary font-semibold" : "border-transparent"}`} onClick={() => setTab("html")}>HTML</button>
-                                <button type="button" className={`px-3 py-1 rounded-t-md border-b-2 ${tab === "react" ? "border-primary font-semibold" : "border-transparent"}`} onClick={() => setTab("react")}>React</button>
-                                <button type="button" className={`px-3 py-1 rounded-t-md border-b-2 ${tab === "nextjs" ? "border-primary font-semibold" : "border-transparent"}`} onClick={() => setTab("nextjs")}>Next.js</button>
-                                <Button type="button" size="sm" variant="outline" className="ml-auto" onClick={handleCopy}>
-                                  <Copy className="mr-2 h-4 w-4" /> Copy {label}
-                                </Button>
-                              </div>
-                              <Textarea value={snippet} readOnly rows={type === "lead" ? 12 : 8} className="font-mono text-xs" />
-                            </div>
-                          );
-                        }
-
-                        // --- Snippet generators ---
-                        function getReactEmbedSnippet() {
-                          return `import Script from "next/script";
                         {entry.message}
                       </p>
                     ) : null}
@@ -1715,9 +1792,6 @@ export default function WebchatIntegrationPage() {
               <p className="text-sm text-muted-foreground">
                 No diagnostics events recorded for this site yet.
               </p>
-                        }
-                        function getNextJsEmbedSnippet() {
-                          return `import Script from "next/script";
             )}
           </div>
         </CardContent>
@@ -1728,9 +1802,6 @@ export default function WebchatIntegrationPage() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <CardTitle>Live Preview</CardTitle>
-                        }
-                        function getReactLeadFormSnippet() {
-                          return `import { useRef } from "react";
               <CardDescription>
                 Real-time preview of your widget style before embedding.
               </CardDescription>
@@ -1743,12 +1814,8 @@ export default function WebchatIntegrationPage() {
         <CardContent>
           <div className="relative h-96 rounded-lg border bg-slate-50 p-4 overflow-hidden">
             <div
-              className={`absolute bottom-4 ${
-                        }
-                        function getNextJsLeadFormSnippet() {
-                          return `import { useRef } from "react";
-                position === "left" ? "left-4" : "right-4"
-              } w-[280px] max-w-[90%]`}
+              className={`absolute bottom-4 ${position === "left" ? "left-4" : "right-4"
+                } w-[280px] max-w-[90%]`}
             >
               {isPreviewOpen && (
                 <div className="overflow-hidden rounded-xl border bg-white shadow-xl">
@@ -1760,7 +1827,6 @@ export default function WebchatIntegrationPage() {
                     <button
                       type="button"
                       onClick={() => setIsPreviewOpen(false)}
-                        }
                       className="rounded px-2 py-1 text-xs font-semibold hover:bg-black/15"
                     >
                       Close
@@ -1814,9 +1880,8 @@ export default function WebchatIntegrationPage() {
               <button
                 type="button"
                 onClick={() => setIsPreviewOpen((value) => !value)}
-                className={`mt-3 h-12 w-12 rounded-full text-sm font-semibold text-white shadow-lg flex items-center justify-center ${
-                  position === "left" ? "mr-auto" : "ml-auto"
-                }`}
+                className={`mt-3 h-12 w-12 rounded-full text-sm font-semibold text-white shadow-lg flex items-center justify-center ${position === "left" ? "mr-auto" : "ml-auto"
+                  }`}
                 style={{ backgroundColor: previewColor }}
               >
                 {isPreviewOpen ? "Hide" : "Chat"}
@@ -1825,6 +1890,80 @@ export default function WebchatIntegrationPage() {
           </div>
         </CardContent>
       </Card>
+    </div >
+  );
+}
+
+function SnippetTabs({
+  type,
+  html,
+  react,
+  nextjs,
+  label,
+}: {
+  type: "embed" | "lead";
+  html: string;
+  react: string;
+  nextjs: string;
+  label: string;
+}) {
+  const [tab, setTab] = useState<"html" | "react" | "nextjs">("html");
+
+  const snippet = tab === "html" ? html : tab === "react" ? react : nextjs;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(snippet);
+      toast.success(`${label} copied!`);
+    } catch {
+      toast.error(`Failed to copy ${label.toLowerCase()}`);
+    }
+  };
+
+  return (
+    <div>
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant={tab === "html" ? "default" : "outline"}
+            onClick={() => setTab("html")}
+          >
+            HTML
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={tab === "react" ? "default" : "outline"}
+            onClick={() => setTab("react")}
+          >
+            React
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={tab === "nextjs" ? "default" : "outline"}
+            onClick={() => setTab("nextjs")}
+          >
+            Next.js
+          </Button>
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={handleCopy}
+        >
+          <Copy className="mr-2 h-4 w-4" /> Copy Snippet
+        </Button>
+      </div>
+      <Textarea
+        value={snippet}
+        readOnly
+        rows={type === "lead" ? 14 : 10}
+        className="font-mono text-xs"
+      />
     </div>
   );
 }
