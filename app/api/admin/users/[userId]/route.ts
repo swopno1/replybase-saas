@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { isPlatformAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { recordActivity } from "@/lib/activity-log";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +43,20 @@ export async function PATCH(
   const updated = await prisma.user.update({
     where: { id: userId },
     data: { isAdmin },
-    select: { id: true, name: true, email: true, isAdmin: true },
+    select: { id: true, name: true, email: true, isAdmin: true, tenantId: true },
+  });
+
+  // Audit Log
+  await recordActivity({
+    tenantId: updated.tenantId,
+    userId: session.user.id,
+    type: "settings_updated",
+    title: "User Admin Status Updated by Admin",
+    description: `Admin updated user ${updated.email} admin status to ${isAdmin}`,
+    metadata: {
+      targetUserId: updated.id,
+      isAdmin,
+    },
   });
 
   return NextResponse.json({ user: updated });
