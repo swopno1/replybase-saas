@@ -3,7 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 // import { checkAiQuota } from "@/lib/ai-quota"; // To be implemented
 import { streamText, Output } from "ai";
-import { google } from "@ai-sdk/google";
+import { getAiModel, AiProvider } from "@/lib/ai-service";
+import { prisma } from "@/lib/prisma";
 import {
   checkLimit,
   incrementUsage,
@@ -48,22 +49,19 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Select cost-effective AI model based on plan
-  // Free/Starter: Use Gemini Pro (cost-effective, simple)
-  // Pro/Business: TODO - Use advanced model and context
-  const planName = (limits.displayName || limits.name || "free").toLowerCase();
-  const model = google("gemini-1.5-flash"); // default, cost-effective
+  // Fetch tenant AI settings
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { aiProvider: true, aiApiKey: true },
+  });
 
-  if (planName.includes("free") || planName.includes("starter")) {
-    // Free/Starter: Use Gemini Pro, simple prompt
-    // For starter: TODO - add context to prompt
-    // TODO: Add context injection for starter plan
-  } else if (planName.includes("pro") || planName.includes("business")) {
-    // Pro/Business: TODO - Use advanced model and richer context
-    // TODO: Use Gemini 1.5 Pro or similar, add context
-    // model = google("gemini-1.5-pro"); // Example, update as needed
-    // TODO: Add context injection for pro/business
-  }
+  const planName = (limits.displayName || limits.name || "free").toLowerCase();
+  const provider = (tenant?.aiProvider as AiProvider) || "gemini";
+  const model = getAiModel({
+    provider,
+    apiKey: tenant?.aiApiKey || undefined,
+    planName,
+  });
 
   let body;
   try {
@@ -80,7 +78,7 @@ export async function POST(req: NextRequest) {
   const promptMessages = messages;
 
   try {
-    // Use the Vercel AI SDK to stream Gemini output
+    // Use the Vercel AI SDK to stream AI output
     const aiStream = await streamText({
       model,
       messages: promptMessages,
@@ -108,7 +106,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     return NextResponse.json(
       {
-        error: "Gemini AI error",
+        error: "AI Provider error",
         detail: err instanceof Error ? err.message : String(err),
       },
       { status: 500 },

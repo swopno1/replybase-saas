@@ -20,6 +20,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     contact: {
       update: vi.fn().mockResolvedValue({ id: "contact_1" }),
+      findUnique: vi.fn().mockResolvedValue({ id: "contact_1" }),
     },
   },
 }));

@@ -15,6 +15,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+
   // Allow webhook routes to be public
   if (pathname.startsWith("/api/billing/webhook")) {
     return NextResponse.next();
@@ -45,9 +46,8 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow OIDC discovery and health endpoints to be public
+  // Allow health and public endpoints to be public
   if (
-    pathname.startsWith("/api/oidc") ||
     pathname.startsWith("/api/health") ||
     pathname.startsWith("/api/system-health") ||
     pathname.startsWith("/api/auth")
