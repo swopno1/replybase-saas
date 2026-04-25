@@ -73,7 +73,8 @@ function SettingsTabsInner() {
   });
 
   const [aiSettings, setAiSettings] = useState({
-    aiProvider: "gemini",
+    aiProvider: "default",
+    aiModel: "",
     aiApiKey: "",
   });
   const [aiLoading, setAiLoading] = useState(false);
@@ -118,7 +119,8 @@ function SettingsTabsInner() {
         const data = await response.json();
         if (cancelled) return;
         setAiSettings({
-          aiProvider: data.aiProvider || "gemini",
+          aiProvider: data.aiProvider || "default",
+          aiModel: data.aiModel || "",
           aiApiKey: data.hasApiKey ? "********" : "",
         });
       } catch (error) {
@@ -910,39 +912,97 @@ function SettingsTabsInner() {
                       setAiSettings({
                         ...aiSettings,
                         aiProvider: e.target.value,
+                        aiModel: "",
                       })
                     }
                   >
-                    <option value="gemini">Google Gemini (Default)</option>
-                    <option value="openai">OpenAI (GPT-4o)</option>
-                    <option value="anthropic">Anthropic (Claude)</option>
+                    <option value="default">Default (Replybase Managed)</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="anthropic">Anthropic</option>
+                    <option value="gemini">Google Gemini (User Provided)</option>
                   </select>
-                  <p className="text-xs text-muted-foreground">
-                    Gemini 1.5 Flash/Pro is used by default if no preference is
-                    set.
-                  </p>
-                </div>
-
-                {aiSettings.aiProvider !== "gemini" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="aiApiKey">API Key</Label>
-                    <Input
-                      id="aiApiKey"
-                      type="password"
-                      placeholder={`Enter your ${aiSettings.aiProvider} API key`}
-                      value={aiSettings.aiApiKey}
-                      onChange={(e) =>
-                        setAiSettings({
-                          ...aiSettings,
-                          aiApiKey: e.target.value,
-                        })
-                      }
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Your API key is stored securely and used only for your
-                      bot&apos;s requests.
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <p>
+                      {aiSettings.aiProvider === "default"
+                        ? "Uses Replybase-managed Gemini 1.5 Flash/Pro based on your plan. No configuration required."
+                        : "Configure your own API credentials and model selection below."}
                     </p>
                   </div>
+                </div>
+
+                {aiSettings.aiProvider !== "default" && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="aiApiKey">API Key</Label>
+                      <Input
+                        id="aiApiKey"
+                        type="password"
+                        placeholder={`Enter your ${aiSettings.aiProvider} API key`}
+                        value={aiSettings.aiApiKey}
+                        onChange={(e) =>
+                          setAiSettings({
+                            ...aiSettings,
+                            aiApiKey: e.target.value,
+                          })
+                        }
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Your API key is stored securely and never exposed to the
+                        client.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="aiModel">Model Selection</Label>
+                      <select
+                        id="aiModel"
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                        value={aiSettings.aiModel}
+                        onChange={(e) =>
+                          setAiSettings({
+                            ...aiSettings,
+                            aiModel: e.target.value,
+                          })
+                        }
+                        required
+                      >
+                        <option value="" disabled>
+                          Select a model
+                        </option>
+                        {aiSettings.aiProvider === "openai" && (
+                          <>
+                            <option value="gpt-4o">GPT-4o (Advanced)</option>
+                            <option value="gpt-4o-mini">
+                              GPT-4o mini (Fast & Economical)
+                            </option>
+                          </>
+                        )}
+                        {aiSettings.aiProvider === "anthropic" && (
+                          <>
+                            <option value="claude-3-5-sonnet-latest">
+                              Claude 3.5 Sonnet (Advanced)
+                            </option>
+                            <option value="claude-3-haiku-latest">
+                              Claude 3 Haiku (Fast)
+                            </option>
+                          </>
+                        )}
+                        {aiSettings.aiProvider === "gemini" && (
+                          <>
+                            <option value="gemini-1.5-pro">
+                              Gemini 1.5 Pro (Advanced)
+                            </option>
+                            <option value="gemini-1.5-flash">
+                              Gemini 1.5 Flash (Fast)
+                            </option>
+                          </>
+                        )}
+                      </select>
+                      <p className="text-xs text-muted-foreground">
+                        Choose from our curated list of high-performance models.
+                      </p>
+                    </div>
+                  </>
                 )}
 
                 <Button type="submit" disabled={aiSaving}>

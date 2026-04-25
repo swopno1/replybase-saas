@@ -32,6 +32,7 @@ export async function aiFallback({
         select: {
           aiProvider: true,
           aiApiKey: true,
+          aiModel: true,
         },
       },
     },
@@ -72,10 +73,11 @@ export async function aiFallback({
   }
   // For free/starter, just use messages
 
-  const provider = (bot?.tenant?.aiProvider as AiProvider) || "gemini";
+  const provider = (bot?.tenant?.aiProvider as AiProvider) || "default";
   const model = getAiModel({
     provider,
     apiKey: bot?.tenant?.aiApiKey || undefined,
+    model: bot?.tenant?.aiModel || undefined,
     planName,
   });
 
