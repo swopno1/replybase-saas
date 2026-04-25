@@ -122,14 +122,16 @@ export function KpiHealthMonitor({ data }: Props) {
           </div>
           {data.dataQuality.dataFreshness !== "fresh" && (
             <div className="mt-3 rounded-md bg-yellow-50 p-3">
-              <p className="text-sm text-yellow-800">
-                ⚠️ Low data collection volume detected. This may indicate:
+              <div className="text-sm text-yellow-800">
+                <span>
+                  ⚠️ Low data collection volume detected. This may indicate:
+                </span>
                 <ul className="mt-2 ml-4 list-disc space-y-1">
                   <li>Low user activity (expected during off-hours)</li>
                   <li>Instrumentation issues (check logs)</li>
                   <li>Database connectivity problems</li>
                 </ul>
-              </p>
+              </div>
             </div>
           )}
         </CardContent>

@@ -27,17 +27,28 @@ const navItems = [
   { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
   { name: "KPI Health", href: "/admin/kpi-health", icon: HeartPulse },
   { name: "Subscribers", href: "/admin/subscribers", icon: ShieldCheck },
-  { name: "Segmented Analytics", href: "/admin/segmented-analytics", icon: PieChart },
+  {
+    name: "Segmented Analytics",
+    href: "/admin/segmented-analytics",
+    icon: PieChart,
+  },
   { name: "Onboarding", href: "/admin/onboarding", icon: UserPlus },
-  { name: "Webchat Monitoring", href: "/admin/webchat-monitoring", icon: Monitor },
+  {
+    name: "Webchat Monitoring",
+    href: "/admin/webchat-monitoring",
+    icon: Monitor,
+  },
   { name: "Webchat Rollout", href: "/admin/webchat-rollout", icon: Rocket },
   { name: "Webhook Logs", href: "/admin/webhook-logs", icon: History },
   { name: "User Management", href: "/admin/users", icon: Users },
 ];
 
-export function AdminSidebar({ isCollapsed, setIsCollapsed }: {
+export function AdminSidebar({
+  isCollapsed,
+  setIsCollapsed,
+}: {
   isCollapsed: boolean;
-  setIsCollapsed: (v: boolean) => void
+  setIsCollapsed: (v: boolean) => void;
 }) {
   const pathname = usePathname();
 
@@ -45,11 +56,15 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed }: {
     <aside
       className={cn(
         "hidden lg:flex flex-col border-r bg-white transition-all duration-300 h-screen sticky top-0",
-        isCollapsed ? "w-[80px]" : "w-[260px]"
+        isCollapsed ? "w-[80px]" : "w-[260px]",
       )}
     >
       <div className="p-6 flex items-center justify-between">
-        {!isCollapsed && <span className="font-bold text-xl tracking-tight">Replybase Admin</span>}
+        {!isCollapsed && (
+          <Link href="/" className="font-bold text-xl tracking-tight">
+            Replybase Admin
+          </Link>
+        )}
         <Button
           variant="ghost"
           size="icon"
@@ -75,10 +90,13 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed }: {
                 "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                 isActive
                   ? "bg-blue-50 text-blue-600"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
               )}
             >
-              <item.icon size={20} className={cn(isActive ? "text-blue-600" : "text-gray-400")} />
+              <item.icon
+                size={20}
+                className={cn(isActive ? "text-blue-600" : "text-gray-400")}
+              />
               {!isCollapsed && <span>{item.name}</span>}
             </Link>
           );
@@ -95,7 +113,9 @@ export function AdminMobileNav() {
   return (
     <div className="lg:hidden">
       <div className="flex items-center justify-between p-4 border-b bg-white">
-        <span className="font-bold">Replybase Admin</span>
+        <Link href="/" className="font-bold">
+          Replybase Admin
+        </Link>
         <Button variant="ghost" size="icon" onClick={() => setIsOpen(true)}>
           <Menu size={24} />
         </Button>
@@ -113,11 +133,13 @@ export function AdminMobileNav() {
       <div
         className={cn(
           "fixed inset-y-0 left-0 z-50 w-[280px] bg-white transform transition-transform duration-300 lg:hidden",
-          isOpen ? "translate-x-0" : "-translate-x-full"
+          isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
         <div className="p-6 flex items-center justify-between border-b">
-          <span className="font-bold text-xl">Replybase Admin</span>
+          <Link href="/" className="font-bold text-xl">
+            Replybase Admin
+          </Link>
           <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
             <X size={24} />
           </Button>
@@ -138,10 +160,13 @@ export function AdminMobileNav() {
                   "flex items-center gap-3 px-4 py-3 rounded-lg text-base font-medium transition-colors",
                   isActive
                     ? "bg-blue-50 text-blue-600"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
                 )}
               >
-                <item.icon size={22} className={cn(isActive ? "text-blue-600" : "text-gray-400")} />
+                <item.icon
+                  size={22}
+                  className={cn(isActive ? "text-blue-600" : "text-gray-400")}
+                />
                 <span>{item.name}</span>
               </Link>
             );
