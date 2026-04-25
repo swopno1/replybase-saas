@@ -400,7 +400,8 @@ async function resolveFlow(params: {
   });
 
   if (activeSession) {
-    const sessionAge = Date.now() - activeSession.updatedAt.getTime();
+    const updatedAt = activeSession.updatedAt || new Date();
+    const sessionAge = Date.now() - updatedAt.getTime();
     if (sessionAge < STALE_SESSION_AGE_MS) {
       // Recent session — resume from where the visitor left off.
       const variables =

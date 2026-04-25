@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { streamText, Output } from "ai";
-import { google } from "@ai-sdk/google";
+import { getAiModel, AiProvider } from "@/lib/ai-service";
 
 export interface AiFallbackOptions {
   botId: string;
@@ -22,10 +22,19 @@ export async function aiFallback({
   planName,
   charLimit = 1000,
 }: AiFallbackOptions) {
-  // Fetch bot context
+  // Fetch bot and tenant context
   const bot = await prisma.bot.findUnique({
     where: { id: botId },
-    select: { context: true, name: true },
+    select: {
+      context: true,
+      name: true,
+      tenant: {
+        select: {
+          aiProvider: true,
+          aiApiKey: true,
+        },
+      },
+    },
   });
 
   // Fetch last N messages (limit by char count)
@@ -63,9 +72,15 @@ export async function aiFallback({
   }
   // For free/starter, just use messages
 
-  // Use cost-effective model for all, can upgrade for pro later
+  const provider = (bot?.tenant?.aiProvider as AiProvider) || "gemini";
+  const model = getAiModel({
+    provider,
+    apiKey: bot?.tenant?.aiApiKey || undefined,
+    planName,
+  });
+
   const aiStream = await streamText({
-    model: google("gemini-1.5-flash"),
+    model,
     messages: promptMessages,
     output: Output.text(),
   });

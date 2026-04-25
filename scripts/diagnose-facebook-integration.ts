@@ -417,7 +417,7 @@ async function phase5_ExecutionEngineTrace(pageId: string) {
   return recentSessions;
 }
 
-async function phase6_TypebotBotGeneration(pageData: {
+async function phase6_BotBotGeneration(pageData: {
   id: string;
   botId: string | null;
   name: string;
@@ -465,10 +465,10 @@ async function phase6_TypebotBotGeneration(pageData: {
   });
 
   log("BOT", "INFO", "Bot activation architecture", {
-    note: "Flow Builder system is INDEPENDENT of Typebot",
+    note: "Flow Builder system is INDEPENDENT of Bot",
     flow_storage: "Stored in flows/flow_nodes tables",
-    execution: "Internal FlowExecutionEngine (not Typebot)",
-    typebot_usage: "Only used if AI engine is called for custom responses",
+    execution: "Internal FlowExecutionEngine (not Bot)",
+    bot_usage: "Only used if AI engine is called for custom responses",
     get_started_path: "Webhook -> Flow Engine -> Send message",
   });
 
@@ -650,8 +650,8 @@ async function phase10_FinalValidation() {
     q4: "Is GET_STARTED registered as a postback?",
     a4: 'Yes - webhook handles postback events and converts to "Hi" message.',
 
-    q5: "Is Typebot actually required or redundant?",
-    a5: "For Flow Builder: Redundant. Typebot only used for AI engine responses, not flows.",
+    q5: "Is Bot actually required or redundant?",
+    a5: "For Flow Builder: Redundant. Bot only used for AI engine responses, not flows.",
   };
 
   Object.entries(criticalQuestions).forEach(([key, value]) => {
@@ -798,7 +798,7 @@ async function main() {
     const sessions = await phase5_ExecutionEngineTrace(page.id);
 
     // Phase 6: Bot Generation
-    const bot = await phase6_TypebotBotGeneration(page);
+    const bot = await phase6_BotBotGeneration(page);
 
     // Phase 7: Message Delivery
     const messages = await phase7_MessageDeliveryCheck(page.id);

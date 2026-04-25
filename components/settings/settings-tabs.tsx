@@ -23,6 +23,7 @@ import {
   Copy,
   Check,
   CreditCard,
+  Brain,
 } from "lucide-react";
 import { toast } from "sonner";
 import BillingTabContent from "@/components/settings/billing-tab";
@@ -35,6 +36,7 @@ const VALID_TABS = [
   "notifications",
   "privacy",
   "billing",
+  "ai",
 ] as const;
 
 type SettingsTab = (typeof VALID_TABS)[number];
@@ -70,6 +72,13 @@ function SettingsTabsInner() {
     email: session?.user?.email || "",
   });
 
+  const [aiSettings, setAiSettings] = useState({
+    aiProvider: "gemini",
+    aiApiKey: "",
+  });
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSaving, setAiSaving] = useState(false);
+
   useEffect(() => {
     if (!session?.user) return;
     let cancelled = false;
@@ -101,7 +110,26 @@ function SettingsTabsInner() {
       }
     };
 
+    const loadAiSettings = async () => {
+      setAiLoading(true);
+      try {
+        const response = await fetch("/api/tenant/ai-settings");
+        if (!response.ok) throw new Error("Failed to load AI settings");
+        const data = await response.json();
+        if (cancelled) return;
+        setAiSettings({
+          aiProvider: data.aiProvider || "gemini",
+          aiApiKey: data.hasApiKey ? "********" : "",
+        });
+      } catch (error) {
+        console.error("AI settings load error:", error);
+      } finally {
+        if (!cancelled) setAiLoading(false);
+      }
+    };
+
     void loadLeadNotificationSettings();
+    void loadAiSettings();
     return () => {
       cancelled = true;
     };
@@ -361,6 +389,25 @@ function SettingsTabsInner() {
     }
   };
 
+  const handleAiUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAiSaving(true);
+    try {
+      const response = await fetch("/api/tenant/ai-settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(aiSettings),
+      });
+      if (!response.ok) throw new Error("Failed to update AI settings");
+      toast.success("AI settings updated successfully");
+    } catch (error) {
+      console.error("AI update error:", error);
+      toast.error("Failed to update AI settings");
+    } finally {
+      setAiSaving(false);
+    }
+  };
+
   const handleSendTestNotification = async () => {
     setNotificationsTesting(true);
     try {
@@ -459,6 +506,10 @@ function SettingsTabsInner() {
         <TabsTrigger value="billing">
           <CreditCard className="mr-2 h-4 w-4" />
           Billing
+        </TabsTrigger>
+        <TabsTrigger value="ai">
+          <Brain className="mr-2 h-4 w-4" />
+          AI
         </TabsTrigger>
       </TabsList>
 
@@ -830,6 +881,102 @@ function SettingsTabsInner() {
       {/* BILLING TAB */}
       <TabsContent value="billing">
         <BillingTabContent />
+      </TabsContent>
+
+      {/* AI SETTINGS TAB */}
+      <TabsContent value="ai" className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>AI Provider Settings</CardTitle>
+            <CardDescription>
+              Configure your preferred AI engine for fallback messaging and bot
+              responses.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {aiLoading ? (
+              <div className="py-4 text-center text-sm text-muted-foreground">
+                Loading AI settings...
+              </div>
+            ) : (
+              <form onSubmit={handleAiUpdate} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="aiProvider">AI Provider</Label>
+                  <select
+                    id="aiProvider"
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    value={aiSettings.aiProvider}
+                    onChange={(e) =>
+                      setAiSettings({
+                        ...aiSettings,
+                        aiProvider: e.target.value,
+                      })
+                    }
+                  >
+                    <option value="gemini">Google Gemini (Default)</option>
+                    <option value="openai">OpenAI (GPT-4o)</option>
+                    <option value="anthropic">Anthropic (Claude)</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    Gemini 1.5 Flash/Pro is used by default if no preference is
+                    set.
+                  </p>
+                </div>
+
+                {aiSettings.aiProvider !== "gemini" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="aiApiKey">API Key</Label>
+                    <Input
+                      id="aiApiKey"
+                      type="password"
+                      placeholder={`Enter your ${aiSettings.aiProvider} API key`}
+                      value={aiSettings.aiApiKey}
+                      onChange={(e) =>
+                        setAiSettings({
+                          ...aiSettings,
+                          aiApiKey: e.target.value,
+                        })
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Your API key is stored securely and used only for your
+                      bot&apos;s requests.
+                    </p>
+                  </div>
+                )}
+
+                <Button type="submit" disabled={aiSaving}>
+                  {aiSaving ? "Saving..." : "Save AI Settings"}
+                </Button>
+              </form>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>AI Usage Information</CardTitle>
+            <CardDescription>
+              Details about how AI is used in ReplyBase.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm">
+            <p>
+              ReplyBase uses AI to provide fallback responses when your flows
+              don&apos;t have a match for a user&apos;s message.
+            </p>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>
+                <strong>Free/Starter:</strong> Uses cost-effective models (Gemini
+                Flash, GPT-4o-mini).
+              </li>
+              <li>
+                <strong>Pro/Business:</strong> Uses advanced models with more
+                context (Gemini Pro, GPT-4o, Claude 3.5 Sonnet).
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
       </TabsContent>
     </Tabs>
   );
