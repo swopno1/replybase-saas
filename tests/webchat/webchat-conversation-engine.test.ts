@@ -20,6 +20,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     contact: {
       update: vi.fn().mockResolvedValue({ id: "contact_1" }),
+      findUnique: vi.fn(),
     },
   },
 }));
@@ -50,6 +51,11 @@ describe("executeWebchatFlowFirst", () => {
       null as never,
     );
     vi.mocked(prisma.lead.findFirst).mockResolvedValue(null as never);
+    vi.mocked(prisma.contact.findUnique).mockResolvedValue({
+      name: "Amir",
+      email: "amir@example.com",
+      phone: "+8801819062270",
+    } as never);
   });
 
   it("does not restart an entry flow after it already completed for the same visitor", async () => {
@@ -119,6 +125,7 @@ describe("executeWebchatFlowFirst", () => {
             lead_budget: "$30/month",
           },
           isActive: true,
+          updatedAt: new Date(),
         } as never);
       }
 

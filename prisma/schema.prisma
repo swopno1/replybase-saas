@@ -826,3 +826,20 @@ model WebhookLog {
   @@index([source, event])
   @@map("webhook_logs")
 }
+
+model TestHistory {
+  id            String   @id @default(cuid())
+  type          String   // "unit" | "integration" | "e2e" | "load" | "accessibility" | "security" | "smoke"
+  name          String
+  status        String   // "passed" | "failed" | "error"
+  duration      Int      // in milliseconds
+  metrics       Json?    // For load tests: { p50: number, p95: number, throughput: number, errorRate: number }
+  output        String?  // Summary of test results or error message
+  metadata      Json?    // Environment info, version, etc.
+  createdAt     DateTime @default(now())
+
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+  @@map("test_history")
+}

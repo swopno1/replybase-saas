@@ -40,6 +40,7 @@ const navItems = [
   },
   { name: "Webchat Rollout", href: "/admin/webchat-rollout", icon: Rocket },
   { name: "Webhook Logs", href: "/admin/webhook-logs", icon: History },
+  { name: "System Tests", href: "/admin/tests", icon: ShieldCheck },
   { name: "User Management", href: "/admin/users", icon: Users },
 ];
 
