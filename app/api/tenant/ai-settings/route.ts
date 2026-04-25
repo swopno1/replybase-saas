@@ -12,11 +12,12 @@ export async function GET(req: NextRequest) {
   try {
     const tenant = await prisma.tenant.findUnique({
       where: { id: session.user.tenantId },
-      select: { aiProvider: true, aiApiKey: true },
+      select: { aiProvider: true, aiApiKey: true, aiModel: true },
     });
 
     return NextResponse.json({
-      aiProvider: tenant?.aiProvider,
+      aiProvider: tenant?.aiProvider || "default",
+      aiModel: tenant?.aiModel,
       hasApiKey: !!tenant?.aiApiKey,
     });
   } catch (error) {
@@ -33,16 +34,41 @@ export async function PATCH(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { aiProvider, aiApiKey } = body;
+    const { aiProvider, aiApiKey, aiModel } = body;
 
     // Validate provider
-    const validProviders = ["gemini", "openai", "anthropic"];
+    const validProviders = ["default", "gemini", "openai", "anthropic"];
     if (!validProviders.includes(aiProvider)) {
-      return NextResponse.json({ error: "Invalid AI provider" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid AI provider" },
+        { status: 400 },
+      );
     }
 
-    const data: any = { aiProvider };
-    if (aiApiKey !== undefined && aiApiKey !== "********") {
+    // Validate model based on provider
+    const validModels: Record<string, string[]> = {
+      openai: ["gpt-4o", "gpt-4o-mini"],
+      anthropic: ["claude-3-5-sonnet-latest", "claude-3-haiku-latest"],
+      gemini: ["gemini-1.5-pro", "gemini-1.5-flash"],
+      default: [],
+    };
+
+    if (
+      aiProvider !== "default" &&
+      aiModel &&
+      !validModels[aiProvider]?.includes(aiModel)
+    ) {
+      return NextResponse.json({ error: "Invalid AI model" }, { status: 400 });
+    }
+
+    const data: any = {
+      aiProvider,
+      aiModel: aiProvider === "default" ? null : aiModel || null,
+    };
+
+    if (aiProvider === "default") {
+      data.aiApiKey = null;
+    } else if (aiApiKey !== undefined && aiApiKey !== "********") {
       data.aiApiKey = aiApiKey === "" ? null : aiApiKey;
     }
 

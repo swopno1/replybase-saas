@@ -52,14 +52,15 @@ export async function POST(req: NextRequest) {
   // Fetch tenant AI settings
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
-    select: { aiProvider: true, aiApiKey: true },
+    select: { aiProvider: true, aiApiKey: true, aiModel: true },
   });
 
   const planName = (limits.displayName || limits.name || "free").toLowerCase();
-  const provider = (tenant?.aiProvider as AiProvider) || "gemini";
+  const provider = (tenant?.aiProvider as AiProvider) || "default";
   const model = getAiModel({
     provider,
     apiKey: tenant?.aiApiKey || undefined,
+    model: tenant?.aiModel || undefined,
     planName,
   });
 

@@ -79,7 +79,8 @@ model Tenant {
   users         User[]
   activityLogs  ActivityLog[]
   webChatSites  WebChatSite[]
-  aiProvider    String?        @default("gemini")
+  aiProvider    String?        @default("default")
+  aiModel       String?
   aiApiKey      String?
   newsletterSubscriptions NewsletterSubscriber[]
   dataDeletionRequests    DataDeletionRequest[]
