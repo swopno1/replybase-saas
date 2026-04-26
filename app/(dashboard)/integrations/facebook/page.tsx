@@ -26,8 +26,11 @@ import {
   ExternalLink,
   Trash2,
   Zap,
+  ShieldCheck,
+  FileText,
 } from "lucide-react";
 import Link from "next/link";
+import { FacebookLogo } from "@/components/icons/MetaIcons";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { isChannelVisibleInUi } from "@/lib/channel-config";
@@ -81,6 +84,7 @@ export default function FacebookIntegrationPage() {
   const [unassigningMap, setUnassigningMap] = useState<Record<string, boolean>>(
     {},
   );
+  const [checkingMap, setCheckingMap] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!channelVisible) {
@@ -315,6 +319,34 @@ export default function FacebookIntegrationPage() {
     }
   };
 
+  const handleCheckConnection = async (page: FBPage) => {
+    setCheckingMap((prev) => ({ ...prev, [page.id]: true }));
+    try {
+      const res = await fetch(
+        `/api/integrations/facebook/pages/${page.id}/check-connection`,
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to check connection");
+
+      if (data.tokenValid && data.webhookSubscribed) {
+        toast.success(`Connection for ${page.name} is healthy!`);
+      } else if (!data.tokenValid) {
+        toast.error(`Session for ${page.name} has expired. Please reconnect.`);
+      } else if (!data.webhookSubscribed) {
+        toast.warning(
+          `${page.name} is connected but not receiving webhook events. Try unlinking and reconnecting.`,
+        );
+      }
+      await fetchPages();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to check connection",
+      );
+    } finally {
+      setCheckingMap((prev) => ({ ...prev, [page.id]: false }));
+    }
+  };
+
   const connectedPagesCount = pages.filter(
     (p) => p.connected || p.engineConnected,
   ).length;
@@ -385,14 +417,31 @@ export default function FacebookIntegrationPage() {
             <Button
               onClick={() => signIn("facebook")}
               size="lg"
-              className="w-full sm:w-auto"
+              className="w-full sm:w-auto bg-[#1877F2] hover:bg-[#166fe5] text-white"
             >
-              <MessageSquare className="mr-2 h-4 w-4" />
-              Connect with Facebook
+              <FacebookLogo className="mr-2 h-4 w-4" />
+              Continue with Facebook
             </Button>
-            <div className="text-xs text-muted-foreground pt-2">
-              We only request permissions for pages you manage and messaging
-              capabilities.
+            <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground pt-2 border-t mt-4">
+              <Link
+                href="/privacy"
+                className="hover:underline flex items-center gap-1"
+              >
+                <ShieldCheck className="h-3 w-3" />
+                Privacy Policy
+              </Link>
+              <Link
+                href="/terms"
+                className="hover:underline flex items-center gap-1"
+              >
+                <FileText className="h-3 w-3" />
+                Terms of Service
+              </Link>
+            </div>
+            <div className="text-[10px] text-muted-foreground leading-relaxed">
+              By connecting, you agree to our Terms and Privacy Policy. We only
+              request permissions for pages you manage and messaging
+              capabilities required for ReplyBase to function.
             </div>
           </CardContent>
         </Card>
@@ -466,6 +515,7 @@ export default function FacebookIntegrationPage() {
                     const isError = statusMap[page.id] === "error";
                     const isAssigning = assigningMap[page.id] ?? false;
                     const isUnassigning = unassigningMap[page.id] ?? false;
+                    const isChecking = checkingMap[page.id] ?? false;
                     const selectedFlowId = selectedFlowIdMap[page.id] ?? "";
 
                     return (
@@ -566,6 +616,19 @@ export default function FacebookIntegrationPage() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
+                                  onClick={() => handleCheckConnection(page)}
+                                  disabled={isChecking}
+                                  title="Check Connection"
+                                >
+                                  {isChecking ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <ShieldCheck className="h-4 w-4" />
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
                                   onClick={() => handleUnlinkPage(page)}
                                   className="text-destructive hover:text-destructive hover:bg-destructive/10"
                                 >
@@ -574,6 +637,19 @@ export default function FacebookIntegrationPage() {
                               </div>
                             ) : isConnected ? (
                               <div className="flex gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleCheckConnection(page)}
+                                  disabled={isChecking}
+                                  title="Check Connection"
+                                >
+                                  {isChecking ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <ShieldCheck className="h-4 w-4" />
+                                  )}
+                                </Button>
                                 <Link href="/ai-status">
                                   <Button variant="default" size="sm">
                                     Enable AI

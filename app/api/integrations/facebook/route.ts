@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { recordWebhookSetupLog } from "@/lib/webhook-setup-log";
 import { isChannelEnabled } from "@/lib/channel-config";
-import { generateAppSecretProof } from "@/lib/server/facebook-utils";
+import { getFacebookGraphUrl } from "@/lib/server/facebook-utils";
 
 export async function POST(req: Request) {
   // Check if Facebook channel is enabled
@@ -93,18 +93,15 @@ export async function POST(req: Request) {
     // Subscribe the page to webhook events so Meta delivers messages to our webhook
     let webhookSubscribed = false;
     try {
-      const appSecret = process.env.FACEBOOK_CLIENT_SECRET as string;
-      const proof = generateAppSecretProof(accessToken, appSecret);
-      const subUrl = new URL(
-        `https://graph.facebook.com/v18.0/${verifiedPageId}/subscribed_apps`,
+      const subUrl = getFacebookGraphUrl(
+        `${verifiedPageId}/subscribed_apps`,
+        accessToken,
+        {
+          subscribed_fields:
+            "messages,messaging_postbacks,messaging_optins,messaging_referrals",
+        },
       );
-      subUrl.searchParams.set("access_token", accessToken);
-      subUrl.searchParams.set("appsecret_proof", proof);
-      subUrl.searchParams.set(
-        "subscribed_fields",
-        "messages,messaging_postbacks,messaging_optins,messaging_referrals",
-      );
-      const subRes = await fetch(subUrl.toString(), { method: "POST" });
+      const subRes = await fetch(subUrl, { method: "POST" });
       const subData = await subRes.json();
       if (subRes.ok && subData.success) {
         webhookSubscribed = true;
@@ -190,13 +187,12 @@ export async function DELETE() {
     // Revoke the app's permissions on Meta so the app is removed from the
     // user's "Active business tools" at facebook.com/settings?tab=business_tools
     if (account?.access_token) {
-      const appSecret = process.env.FACEBOOK_CLIENT_SECRET as string;
-      const proof = generateAppSecretProof(account.access_token, appSecret);
       try {
-        await fetch(
-          `https://graph.facebook.com/me/permissions?access_token=${account.access_token}&appsecret_proof=${proof}`,
-          { method: "DELETE" },
+        const revokeUrl = getFacebookGraphUrl(
+          "me/permissions",
+          account.access_token,
         );
+        await fetch(revokeUrl, { method: "DELETE" });
       } catch (revokeErr) {
         // Non-fatal — continue cleanup even if Meta revocation fails
         console.warn(

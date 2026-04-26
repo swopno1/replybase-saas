@@ -1,9 +1,7 @@
 import { OnboardingService, OnboardingMessage } from "@/lib/onboarding-service";
 import { prisma } from "@/lib/prisma";
 import { OnboardingStage, EmailFrequency } from "@prisma/client";
-import { generateAppSecretProof } from "@/lib/server/facebook-utils";
-
-const FACEBOOK_API_URL = "https://graph.facebook.com/v19.0";
+import { getFacebookGraphUrl } from "@/lib/server/facebook-utils";
 
 export class OnboardingFlowHandler {
   /**
@@ -299,17 +297,9 @@ export class OnboardingFlowHandler {
         messagePayload.message = { text: message.text };
       }
 
-      const url = new URL(`${FACEBOOK_API_URL}/${pageId}/messages`);
-      url.searchParams.set("access_token", pageAccessToken);
-      const appSecret = process.env.FACEBOOK_CLIENT_SECRET;
-      if (appSecret) {
-        url.searchParams.set(
-          "appsecret_proof",
-          generateAppSecretProof(pageAccessToken, appSecret),
-        );
-      }
+      const url = getFacebookGraphUrl(`${pageId}/messages`, pageAccessToken);
 
-      await fetch(url.toString(), {
+      await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

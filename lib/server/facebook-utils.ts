@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { FACEBOOK_BASE_URL } from "@/lib/meta-config";
 
 interface SignedRequestPayload {
   user_id?: string;
@@ -85,4 +86,31 @@ export function generateAppSecretProof(
     .createHmac("sha256", appSecret)
     .update(accessToken)
     .digest("hex");
+}
+
+/**
+ * Appends appsecret_proof to a Facebook Graph API URL
+ */
+export function getFacebookGraphUrl(
+  path: string,
+  accessToken: string,
+  params: Record<string, string> = {},
+): string {
+  const appSecret = process.env.FACEBOOK_CLIENT_SECRET;
+
+  const url = new URL(`${FACEBOOK_BASE_URL}/${path}`);
+  url.searchParams.set("access_token", accessToken);
+
+  if (appSecret) {
+    url.searchParams.set(
+      "appsecret_proof",
+      generateAppSecretProof(accessToken, appSecret),
+    );
+  }
+
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, value);
+  }
+
+  return url.toString();
 }

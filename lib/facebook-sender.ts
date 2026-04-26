@@ -3,10 +3,7 @@
  * Sends messages to Facebook Messenger users via the Send API
  */
 
-import { generateAppSecretProof } from "@/lib/server/facebook-utils";
-
-const FACEBOOK_GRAPH_API_VERSION = "v18.0";
-const FACEBOOK_GRAPH_URL = `https://graph.facebook.com/${FACEBOOK_GRAPH_API_VERSION}`;
+import { getFacebookGraphUrl } from "@/lib/server/facebook-utils";
 
 interface SendMessageResult {
   success: boolean;
@@ -23,18 +20,9 @@ export async function sendFacebookSenderAction(
   action: "typing_on" | "typing_off" | "mark_seen",
 ): Promise<boolean> {
   try {
-    const url = new URL(`${FACEBOOK_GRAPH_URL}/me/messages`);
-    url.searchParams.set("access_token", pageAccessToken);
+    const url = getFacebookGraphUrl("me/messages", pageAccessToken);
 
-    const appSecret = process.env.FACEBOOK_CLIENT_SECRET;
-    if (appSecret) {
-      url.searchParams.set(
-        "appsecret_proof",
-        generateAppSecretProof(pageAccessToken, appSecret),
-      );
-    }
-
-    const response = await fetch(url.toString(), {
+    const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -62,18 +50,9 @@ export async function sendTextMessage(
   text: string,
 ): Promise<SendMessageResult> {
   try {
-    const url = new URL(`${FACEBOOK_GRAPH_URL}/me/messages`);
-    url.searchParams.set("access_token", pageAccessToken);
+    const url = getFacebookGraphUrl("me/messages", pageAccessToken);
 
-    const appSecret = process.env.FACEBOOK_CLIENT_SECRET;
-    if (appSecret) {
-      url.searchParams.set(
-        "appsecret_proof",
-        generateAppSecretProof(pageAccessToken, appSecret),
-      );
-    }
-
-    const response = await fetch(url.toString(), {
+    const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

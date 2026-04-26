@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { withAuthAndTenant } from "@/lib/route-helpers";
-import { generateAppSecretProof } from "@/lib/server/facebook-utils";
+import { getFacebookGraphUrl } from "@/lib/server/facebook-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -20,16 +20,12 @@ export const GET = withAuthAndTenant(async ({ id: userId, tenantId }) => {
 
   // Call FB Graph API to get pages
   try {
-    const appSecret = process.env.FACEBOOK_CLIENT_SECRET as string;
-    const proof = generateAppSecretProof(account.access_token, appSecret);
-    const fbRes = await fetch(
-      `https://graph.facebook.com/v18.0/me/accounts?appsecret_proof=${proof}`,
-      {
-        headers: {
-          Authorization: `Bearer ${account.access_token}`,
-        },
+    const fbUrl = getFacebookGraphUrl("me/accounts", account.access_token);
+    const fbRes = await fetch(fbUrl, {
+      headers: {
+        Authorization: `Bearer ${account.access_token}`,
       },
-    );
+    });
     if (!fbRes.ok) {
       const errorText = await fbRes.text();
       console.error("[Facebook Pages] Graph API Error:", errorText);
