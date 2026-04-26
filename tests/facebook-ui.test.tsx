@@ -16,12 +16,6 @@ const { mockRouter } = vi.hoisted(() => ({
   },
 }));
 
-const mockRouter = {
-  replace: vi.fn(),
-  push: vi.fn(),
-  prefetch: vi.fn(),
-};
-
 vi.mock('next/navigation', () => ({
   useRouter: () => mockRouter,
   usePathname: () => '/integrations/facebook',
@@ -123,17 +117,17 @@ describe('Facebook Integration UI Compliance', () => {
 
     expect(container.textContent).toContain('Test Page');
     // Wait for the links to appear in the DOM
-    const privacyLink = await screen.findByRole('link', { name: /Privacy Policy/i });
-    const termsLink = await screen.findByRole('link', { name: /Terms of Service/i });
+    const privacyLinks = await screen.findAllByRole('link', { name: /Privacy Policy/i });
+    const termsLinks = await screen.findAllByRole('link', { name: /Terms of Service/i });
 
-    expect(privacyLink).toBeDefined();
-    expect(termsLink).toBeDefined();
+    expect(privacyLinks.length).toBeGreaterThan(0);
+    expect(termsLinks.length).toBeGreaterThan(0);
 
-    expect(privacyLink?.getAttribute('href')).toBe('https://replybase.co.uk/privacy');
-    expect(termsLink?.getAttribute('href')).toBe('https://replybase.co.uk/terms');
-    expect(privacyLink?.getAttribute('target')).toBe('_blank');
-    expect(termsLink?.getAttribute('target')).toBe('_blank');
-    expect(privacyLink?.getAttribute('rel')).toBe('noopener noreferrer');
-    expect(termsLink?.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(privacyLinks[0]?.getAttribute('href')).toBe('https://replybase.co.uk/privacy');
+    expect(termsLinks[0]?.getAttribute('href')).toBe('https://replybase.co.uk/terms');
+    expect(privacyLinks[0]?.getAttribute('target')).toBe('_blank');
+    expect(termsLinks[0]?.getAttribute('target')).toBe('_blank');
+    expect(privacyLinks[0]?.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(termsLinks[0]?.getAttribute('rel')).toBe('noopener noreferrer');
   });
 });

@@ -1,6 +1,11 @@
 "use client";
 
-import { CrmConversation, User, ConversationStatus } from "@prisma/client";
+import {
+  CrmConversation,
+  User,
+  ConversationStatus,
+  Lead,
+} from "@prisma/client";
 import { useState, useEffect } from "react";
 import {
   Select,
@@ -24,6 +29,7 @@ export function ConversationHeader({
       name: string | null;
       email?: string | null;
       phone?: string | null;
+      leads?: Lead[];
     };
     assignee: Partial<User> | null;
     webChatSessions?: Array<{
@@ -62,6 +68,21 @@ export function ConversationHeader({
         setConversation((current) =>
           current ? { ...current, ...data.conversation } : data.conversation,
         );
+        onRefresh();
+      });
+  };
+
+  const handleLeadStatusUpdate = (status: string) => {
+    const lead = conversation.contact.leads?.[0];
+    if (!lead) return;
+
+    fetch(`/api/leads/${lead.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    })
+      .then((res) => res.json())
+      .then(() => {
         onRefresh();
       });
   };
@@ -135,23 +156,45 @@ export function ConversationHeader({
           />
           <Label htmlFor="bot-paused">Bot Paused</Label>
         </div>
-        <Select
-          onValueChange={(status) =>
-            handleUpdate({ status: status as ConversationStatus })
-          }
-          value={conversation.status}
-        >
-          <SelectTrigger className="w-30">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.values(ConversationStatus).map((status) => (
-              <SelectItem key={status} value={status}>
-                {status}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2 border-r pr-4">
+          <Select
+            onValueChange={(status) =>
+              handleUpdate({ status: status as ConversationStatus })
+            }
+            value={conversation.status}
+          >
+            <SelectTrigger className="w-30">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.values(ConversationStatus).map((status) => (
+                <SelectItem key={status} value={status}>
+                  {status}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {conversation.contact.leads?.[0] && (
+            <Select
+              onValueChange={handleLeadStatusUpdate}
+              value={conversation.contact.leads[0].status}
+            >
+              <SelectTrigger className="w-36 bg-blue-50 border-blue-200 text-blue-700">
+                <SelectValue placeholder="Lead Status" />
+              </SelectTrigger>
+              <SelectContent>
+                {["new", "contacted", "qualified", "converted", "lost"].map(
+                  (status) => (
+                    <SelectItem key={status} value={status}>
+                      Lead: {status.charAt(0).toUpperCase() + status.slice(1)}
+                    </SelectItem>
+                  ),
+                )}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
         <Select
           onValueChange={(assigneeId) =>
             handleUpdate({

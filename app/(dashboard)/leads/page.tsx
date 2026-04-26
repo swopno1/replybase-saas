@@ -295,7 +295,7 @@ export default function LeadsPage() {
       case "contacted":
         return "bg-yellow-500";
       case "qualified":
-        return "bg-green-500";
+        return "bg-emerald-500";
       case "converted":
         return "bg-purple-500";
       case "lost":
@@ -580,29 +580,82 @@ export default function LeadsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* ── Lead Pipeline Summary ───────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        {[
+          { status: "new", label: "New Leads", color: "bg-blue-500" },
+          {
+            status: "contacted",
+            label: "Contacted",
+            color: "bg-yellow-500",
+          },
+          {
+            status: "qualified",
+            label: "Qualified",
+            color: "bg-emerald-500",
+          },
+          {
+            status: "converted",
+            label: "Converted",
+            color: "bg-purple-500",
+          },
+          { status: "lost", label: "Lost", color: "bg-red-500" },
+        ].map((item) => (
+          <Card
+            key={item.status}
+            className={`border-t-4 ${
+              item.status === "new"
+                ? "border-blue-500"
+                : item.status === "contacted"
+                  ? "border-yellow-500"
+                  : item.status === "qualified"
+                    ? "border-emerald-500"
+                    : item.status === "converted"
+                      ? "border-purple-500"
+                      : "border-red-500"
+            }`}
+          >
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                {item.label}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">
+                {leads.filter((l) => l.status === item.status).length}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {leads.length > 0
+                  ? Math.round(
+                      (leads.filter((l) => l.status === item.status).length /
+                        leads.length) *
+                        100,
+                    )
+                  : 0}
+                % of total
+              </p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
       {/* ── Lead statistics ───────────────────────────────────────────── */}
       <Card>
         <CardHeader>
-          <CardTitle>Lead Statistics</CardTitle>
+          <CardTitle>Interest & Activation</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div className="text-center p-4 border rounded-lg">
               <div className="text-2xl font-bold">{leads.length}</div>
-              <div className="text-sm text-muted-foreground">Total Leads</div>
-            </div>
-            <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold">
-                {leads.filter((l) => l.status === "qualified").length}
-              </div>
-              <div className="text-sm text-muted-foreground">Qualified</div>
+              <div className="text-sm text-muted-foreground">Total Records</div>
             </div>
             <div className="text-center p-4 border rounded-lg">
               <div className="text-2xl font-bold">
                 {leads.filter((l) => l.interestedInSubscription).length}
               </div>
               <div className="text-sm text-muted-foreground">
-                Interested in Subscription
+                Subscription Interest
               </div>
             </div>
             <div className="text-center p-4 border rounded-lg">
@@ -610,7 +663,7 @@ export default function LeadsPage() {
                 {leads.filter((l) => l.trialRequested).length}
               </div>
               <div className="text-sm text-muted-foreground">
-                Trial Requested
+                Trial Requests
               </div>
             </div>
           </div>
