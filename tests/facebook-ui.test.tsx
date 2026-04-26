@@ -16,12 +16,6 @@ const { mockRouter } = vi.hoisted(() => ({
   },
 }));
 
-const mockRouter = {
-  replace: vi.fn(),
-  push: vi.fn(),
-  prefetch: vi.fn(),
-};
-
 vi.mock('next/navigation', () => ({
   useRouter: () => mockRouter,
   usePathname: () => '/integrations/facebook',
