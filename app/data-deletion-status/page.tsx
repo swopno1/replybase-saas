@@ -92,7 +92,7 @@ export default async function DataDeletionStatusPage({
     PENDING: <Clock className="mx-auto h-16 w-16 text-amber-500" />,
     IN_PROGRESS: <Clock className="mx-auto h-16 w-16 text-blue-500 animate-pulse" />,
     COMPLETED: <CheckCircle2 className="mx-auto h-16 w-16 text-emerald-500" />,
-    FAILED: <AlertCircle className="mx-auto h-16 w-16 text-red-500" />,
+    ERROR: <AlertCircle className="mx-auto h-16 w-16 text-red-500" />,
     REJECTED: <AlertCircle className="mx-auto h-16 w-16 text-red-500" />,
     CANCELLED: <AlertCircle className="mx-auto h-16 w-16 text-slate-400" />,
   };
@@ -101,7 +101,7 @@ export default async function DataDeletionStatusPage({
     PENDING: "Queued for Deletion",
     IN_PROGRESS: "Processing Request",
     COMPLETED: "Data Successfully Deleted",
-    FAILED: "Deletion Failed",
+    ERROR: "Deletion Failed",
     REJECTED: "Request Rejected",
     CANCELLED: "Request Cancelled",
   };
