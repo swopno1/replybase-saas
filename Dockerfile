@@ -44,15 +44,15 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 --home /app nextjs
 
 # Copy only the necessary files from the builder
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+# Standalone mode includes a minimal node_modules with only production dependencies
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./
 
-# Copy entire node_modules from builder. Multi-stage still optimizes by excluding
-# build artifacts, test files, and dev-only code via .dockerignore on the COPY . .
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+# Install prisma CLI globally in runner for migrations (much smaller than copying 1.9GB node_modules)
+RUN npm install -g prisma@7.7.0
 
 USER nextjs
 EXPOSE 3000
@@ -64,5 +64,5 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD wget -qO- http://localhost:3000/api/health || exit 1
 
 # Run migrations then start the server.
-# sh -c ensures DATABASE_URL (and other runtime env vars) are expanded correctly.
-CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node server.js"]
+# Standalone output places node_modules at ./node_modules inside the standalone folder.
+CMD ["sh", "-c", "prisma migrate deploy && node server.js"]
