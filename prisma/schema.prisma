@@ -761,7 +761,7 @@ enum DataDeletionStatus {
   PENDING
   IN_PROGRESS
   COMPLETED
-  FAILED
+  ERROR
   REJECTED
   CANCELLED
 }

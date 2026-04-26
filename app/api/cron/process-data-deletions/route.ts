@@ -79,7 +79,7 @@ export async function GET(req: Request) {
         await prisma.dataDeletionRequest.update({
           where: { id: request.id },
           data: {
-            status: DataDeletionStatus.FAILED,
+            status: DataDeletionStatus.ERROR,
             notes: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
           },
         });
@@ -114,7 +114,7 @@ async function checkAndAlertStuckRequests() {
           requestedAt: { lt: twentyFourHoursAgo },
         },
         {
-          status: DataDeletionStatus.FAILED,
+          status: DataDeletionStatus.ERROR,
         },
       ],
     },
