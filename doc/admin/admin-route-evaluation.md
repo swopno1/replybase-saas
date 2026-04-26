@@ -18,6 +18,40 @@ The admin interface utilizes a modern, responsive design with a persistent sideb
 
 ---
 
+## Platform Improvements (v2 - Implemented)
+
+### 1. Dynamic Role-Based Access Control (RBAC)
+The hardcoded admin email checks have been replaced with a database-driven RBAC system.
+- **Model Changes:** Added `UserRole` enum (`USER`, `ADMIN`, `SUPERADMIN`) and a `role` field to the `User` model.
+- **Session Logic:** NextAuth sessions now include the user's role, retrieved directly from the database during the JWT callback.
+- **Authorization:** `isPlatformAdmin` utility in `lib/admin.ts` now validates against the `role` field, providing a more secure and scalable way to manage permissions.
+
+### 2. Comprehensive Audit Logging
+A new administrative auditing layer has been implemented to track sensitive platform changes.
+- **Audit Table:** The `AdminActivity` table logs the 'who, what, when, where, and how' of every state-changing admin action.
+- **Utility:** A centralized `logAdminActivity` helper in `lib/admin-audit.ts` handles log creation, capturing IP addresses, user agents, and detailed metadata (e.g., before/after state).
+- **Coverage:** Implemented in critical management routes including User Role changes and Subscription modifications.
+
+### 3. Perceived Performance & UX
+The admin interface has been optimized for a smoother, more professional experience.
+- **Skeleton Loading:** All management tables now use `Skeleton` placeholders during data fetching to eliminate layout shift and provide immediate visual feedback.
+- **Advanced Filtering:** Added server-side searching, role-based filtering, and pagination to the User Management dashboard. This ensures the UI remains fast even as the user base grows.
+- **Improved Actions:** Replaced simple toggle buttons with descriptive Dropdown Menus for multi-role support and better clarity.
+
+### 4. Robust Error Handling
+- **Structured Responses:** Admin API routes now return detailed error objects including specific error codes and context.
+- **Client-Side Feedback:** The UI utilizes `sonner` toasts with descriptive messages and secondary technical details (error codes) for easier troubleshooting without leaking sensitive stack traces.
+
+---
+
+## Technical Debt & Roadmap
+- [x] Migrate `isAdmin` boolean to `UserRole`.
+- [x] Implement server-side pagination for all admin tables.
+- [ ] Add an "Audit Log" viewer page for Super Admins.
+- [ ] Implement multi-factor authentication (MFA) for administrative roles.
+
+---
+
 ## High-Level Findings
 
 ### Strengths

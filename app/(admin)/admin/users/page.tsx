@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import {
   Card,
@@ -19,8 +19,34 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, ShieldCheck, ShieldOff } from "lucide-react";
+import { 
+  Loader2, 
+  ShieldCheck, 
+  ShieldOff, 
+  Search, 
+  Filter, 
+  ChevronLeft, 
+  ChevronRight,
+  MoreHorizontal
+} from "lucide-react";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export const dynamic = 'force-dynamic';
 
@@ -29,64 +55,96 @@ interface AdminUser {
   name: string | null;
   email: string | null;
   isAdmin: boolean;
+  role: "USER" | "ADMIN" | "SUPERADMIN";
   createdAt: string;
   tenant: { id: string; name: string } | null;
+}
+
+interface PaginationData {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
 export default function AdminUsersPage() {
   const { data: session } = useSession();
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [pagination, setPagination] = useState<PaginationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionUserId, setActionUserId] = useState<string | null>(null);
+  
+  // Filters
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("ALL");
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/admin/users");
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+      });
+      
+      if (search) params.append("search", search);
+      if (roleFilter !== "ALL") params.append("role", roleFilter);
+
+      const res = await fetch(`/api/admin/users?${params.toString()}`);
+      const data = await res.json();
+      
       if (res.ok) {
-        const data = await res.json();
         setUsers(data.users);
+        setPagination(data.pagination);
       } else {
-        toast.error("Failed to load users");
+        toast.error(data.error || "Failed to load users", {
+          description: data.code ? `Error Code: ${data.code}` : undefined
+        });
       }
-    } catch {
-      toast.error("Failed to load users");
+    } catch (error: any) {
+      toast.error("Failed to load users", {
+        description: error.message
+      });
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, limit, search, roleFilter]);
 
-  const handleToggleAdmin = async (user: AdminUser) => {
-    setActionUserId(user.id);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchUsers();
+    }, 300); // Debounce search
+    return () => clearTimeout(timer);
+  }, [fetchUsers]);
+
+  const handleUpdateRole = async (userId: string, newRole: string) => {
+    setActionUserId(userId);
     try {
-      const res = await fetch(`/api/admin/users/${user.id}`, {
+      const res = await fetch(`/api/admin/users/${userId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isAdmin: !user.isAdmin }),
+        body: JSON.stringify({ role: newRole }),
       });
 
+      const data = await res.json();
+      
       if (res.ok) {
-        const data = await res.json();
-        toast.success(
-          data.user.isAdmin
-            ? `${data.user.name || data.user.email} is now an admin`
-            : `${data.user.name || data.user.email} admin access removed`,
-        );
+        toast.success(`User role updated to ${newRole}`);
         setUsers((prev) =>
           prev.map((u) =>
-            u.id === user.id ? { ...u, isAdmin: data.user.isAdmin } : u,
+            u.id === userId ? { ...u, role: data.user.role, isAdmin: data.user.isAdmin } : u,
           ),
         );
       } else {
-        const error = await res.json();
-        toast.error(error.error || "Failed to update user");
+        toast.error(data.error || "Failed to update user", {
+          description: data.code ? `Error Code: ${data.code}` : undefined
+        });
       }
-    } catch {
-      toast.error("Failed to update user");
+    } catch (error: any) {
+      toast.error("Failed to update user", {
+        description: error.message
+      });
     } finally {
       setActionUserId(null);
     }
@@ -99,128 +157,197 @@ export default function AdminUsersPage() {
       day: "numeric",
     });
 
-  const adminCount = users.filter((u) => u.isAdmin).length;
+  const getRoleBadge = (role: string) => {
+    switch (role) {
+      case "SUPERADMIN":
+        return <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100 border-purple-200">Super Admin</Badge>;
+      case "ADMIN":
+        return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 border-blue-200">Admin</Badge>;
+      default:
+        return <Badge variant="secondary">User</Badge>;
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">User Management</h2>
-        <p className="text-muted-foreground">
-          Promote or demote users across all tenants.
-        </p>
+      <div className="flex items-end justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">User Management</h2>
+          <p className="text-muted-foreground">
+            Manage roles and permissions across all platform users.
+          </p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Total Users</CardDescription>
-            <CardTitle className="text-3xl">{users.length}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Admin Users</CardDescription>
-            <CardTitle className="text-3xl">{adminCount}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Regular Users</CardDescription>
-            <CardTitle className="text-3xl">
-              {users.length - adminCount}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
+      {/* Filters Bar */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name or email..."
+                className="pl-9"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1); // Reset to first page on search
+                }}
+              />
+            </div>
+            <div className="w-full md:w-[200px]">
+              <Select 
+                value={roleFilter} 
+                onValueChange={(val) => {
+                  setRoleFilter(val);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger>
+                  <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="Filter by role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Roles</SelectItem>
+                  <SelectItem value="USER">User</SelectItem>
+                  <SelectItem value="ADMIN">Admin</SelectItem>
+                  <SelectItem value="SUPERADMIN">Super Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>All Users</CardTitle>
-          <CardDescription>
-            Showing all users across every tenant. Changes take effect on the
-            user&apos;s next login.
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle>Platform Users</CardTitle>
+            <CardDescription>
+              {pagination ? `Total ${pagination.total} users found` : "Loading users..."}
+            </CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User</TableHead>
+                <TableHead>Workspace</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Joined</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                // SKELETON ROWS
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-10 w-[200px]" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-[150px]" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-[80px]" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-[100px]" /></TableCell>
+                    <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto rounded-full" /></TableCell>
+                  </TableRow>
+                ))
+              ) : users.length === 0 ? (
                 <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Tenant</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Joined</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    No users found.
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.map((user) => {
+              ) : (
+                users.map((user) => {
                   const isSelf = user.id === session?.user?.id;
                   const isActioning = actionUserId === user.id;
 
                   return (
                     <TableRow key={user.id}>
                       <TableCell>
-                        <div>
-                          <div className="font-medium">
+                        <div className="flex flex-col">
+                          <span className="font-medium">
                             {user.name || "—"}
-                            {isSelf && (
-                              <span className="ml-2 text-xs text-muted-foreground">
-                                (you)
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {user.email}
-                          </div>
+                            {isSelf && <Badge variant="outline" className="ml-2 text-[10px] px-1 py-0 h-4">YOU</Badge>}
+                          </span>
+                          <span className="text-xs text-muted-foreground">{user.email}</span>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm">
-                          {user.tenant?.name || (
-                            <span className="text-muted-foreground">—</span>
-                          )}
+                        <span className="text-sm font-medium">
+                          {user.tenant?.name || <span className="text-muted-foreground italic">No Workspace</span>}
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={user.isAdmin ? "default" : "secondary"}>
-                          {user.isAdmin ? "Admin" : "User"}
-                        </Badge>
+                        {getRoleBadge(user.role)}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {formatDate(user.createdAt)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          variant={user.isAdmin ? "outline" : "default"}
-                          disabled={isSelf || isActioning}
-                          onClick={() => handleToggleAdmin(user)}
-                          title={
-                            isSelf
-                              ? "You cannot change your own admin status"
-                              : undefined
-                          }
-                        >
-                          {isActioning ? (
-                            <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                          ) : user.isAdmin ? (
-                            <ShieldOff className="h-3 w-3 mr-1" />
-                          ) : (
-                            <ShieldCheck className="h-3 w-3 mr-1" />
-                          )}
-                          {user.isAdmin ? "Demote" : "Promote"}
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0" disabled={isSelf || isActioning}>
+                              <span className="sr-only">Open menu</span>
+                              {isActioning ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <MoreHorizontal className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleUpdateRole(user.id, "USER")} disabled={user.role === "USER"}>
+                              <ShieldOff className="mr-2 h-4 w-4" />
+                              Set as User
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleUpdateRole(user.id, "ADMIN")} disabled={user.role === "ADMIN"}>
+                              <ShieldCheck className="mr-2 h-4 w-4 text-blue-600" />
+                              Set as Admin
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleUpdateRole(user.id, "SUPERADMIN")} disabled={user.role === "SUPERADMIN"}>
+                              <ShieldCheck className="mr-2 h-4 w-4 text-purple-600" />
+                              Set as Super Admin
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   );
-                })}
-              </TableBody>
-            </Table>
+                })
+              )}
+            </TableBody>
+          </Table>
+
+          {/* Pagination Controls */}
+          {pagination && pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between space-x-2 py-4">
+              <div className="text-sm text-muted-foreground">
+                Page {pagination.page} of {pagination.totalPages}
+              </div>
+              <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1 || loading}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
+                  disabled={page === pagination.totalPages || loading}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>

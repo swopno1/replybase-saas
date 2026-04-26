@@ -40,6 +40,7 @@ model User {
   name                  String?
   email                 String?           @unique
   isAdmin               Boolean           @default(false)
+  role                  UserRole          @default(USER)
   passwordHash          String?
   emailVerified         DateTime?
   image                 String?
@@ -58,6 +59,7 @@ model User {
   newsletterSubscriptions NewsletterSubscriber[]
   dataDeletionRequests   DataDeletionRequest[]
   passwordResetTokens    PasswordResetToken[]
+  adminActivities        AdminActivity[]
 
   @@index([tenantId])
   @@map("users")
@@ -757,6 +759,12 @@ enum NewsletterStatus {
   UNSUBSCRIBED
 }
 
+enum UserRole {
+  USER
+  ADMIN
+  SUPERADMIN
+}
+
 enum DataDeletionStatus {
   PENDING
   IN_PROGRESS
@@ -809,6 +817,26 @@ model WebhookLog {
   @@index([source])
   @@index([source, event])
   @@map("webhook_logs")
+}
+
+model AdminActivity {
+  id          String   @id @default(cuid())
+  adminId     String
+  action      String   // e.g., "USER_PROMOTED", "SUBSCRIPTION_UPDATED", "SYSTEM_CONFIG_CHANGED"
+  entityType  String   // "USER", "TENANT", "SUBSCRIPTION", etc.
+  entityId    String?
+  description String
+  metadata    Json?    // Store before/after state or additional context
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  admin       User     @relation(fields: [adminId], references: [id])
+
+  @@index([adminId])
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@map("admin_activities")
 }
 
 model TestHistory {

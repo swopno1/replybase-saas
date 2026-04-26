@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { isPlatformAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
-import { recordActivity } from "@/lib/activity-log";
+import { logAdminActivity } from "@/lib/admin-audit";
 
 export const dynamic = "force-dynamic";
 
@@ -26,11 +26,16 @@ export async function PATCH(
   }
 
   const body = await request.json();
-  const { isAdmin } = body;
-
-  if (typeof isAdmin !== "boolean") {
+  const { role } = body;
+ 
+  const validRoles = ["USER", "ADMIN", "SUPERADMIN"];
+  if (role && !validRoles.includes(role)) {
     return NextResponse.json(
-      { error: "isAdmin must be a boolean" },
+      { 
+        error: "Invalid role provided", 
+        code: "INVALID_ROLE",
+        context: { role, validRoles }
+      },
       { status: 400 },
     );
   }
@@ -42,21 +47,29 @@ export async function PATCH(
 
   const updated = await prisma.user.update({
     where: { id: userId },
-    data: { isAdmin },
-    select: { id: true, name: true, email: true, isAdmin: true, tenantId: true },
+    data: { 
+      role: role || undefined,
+      // Keep isAdmin in sync for backward compatibility if needed, 
+      // but primary logic should now use role.
+      isAdmin: role ? (role === "ADMIN" || role === "SUPERADMIN") : undefined 
+    },
+    select: { id: true, name: true, email: true, isAdmin: true, role: true, tenantId: true },
   });
-
+ 
   // Audit Log
-  await recordActivity({
-    tenantId: updated.tenantId,
-    userId: session.user.id,
-    type: "settings_updated",
-    title: "User Admin Status Updated by Admin",
-    description: `Admin updated user ${updated.email} admin status to ${isAdmin}`,
+  await logAdminActivity({
+    adminId: session.user.id,
+    action: role === "USER" ? "USER_DEMOTED" : "USER_PROMOTED",
+    entityType: "USER",
+    entityId: updated.id,
+    description: `Admin updated user ${updated.email} role to ${updated.role}`,
     metadata: {
       targetUserId: updated.id,
-      isAdmin,
+      oldRole: target.role,
+      newRole: updated.role,
     },
+    ipAddress: request.headers.get("x-forwarded-for") || undefined,
+    userAgent: request.headers.get("user-agent") || undefined,
   });
 
   return NextResponse.json({ user: updated });

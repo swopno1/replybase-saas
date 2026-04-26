@@ -34,6 +34,7 @@ export const authOptions: NextAuthOptions = {
           tenantId: tenant.id,
           // Bootstrap a platform admin if this is the first account.
           isAdmin: existingUsers === 0,
+          role: existingUsers === 0 ? "SUPERADMIN" : "USER",
         },
       });
       return user as unknown as AdapterUser;
@@ -117,6 +118,8 @@ export const authOptions: NextAuthOptions = {
             email: true,
             tenantId: true,
             passwordHash: true,
+            isAdmin: true,
+            role: true,
           },
         });
 
@@ -138,6 +141,8 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           email: user.email,
           tenantId: user.tenantId,
+          role: user.role,
+          isAdmin: user.isAdmin,
         };
       },
     }),
@@ -151,12 +156,13 @@ export const authOptions: NextAuthOptions = {
         // Fetch user with tenant to get tenantId
         const dbUser = await prisma.user.findUnique({
           where: { id: user.id },
-          select: { tenantId: true, isAdmin: true },
+          select: { tenantId: true, isAdmin: true, role: true },
         });
 
         token.id = user.id;
         token.tenantId = dbUser?.tenantId || "";
         token.isAdmin = dbUser?.isAdmin ?? false;
+        token.role = dbUser?.role || "USER";
 
         // Fetch subscription status separately to avoid complex nested includes typing issues
         if (dbUser?.tenantId) {
@@ -206,10 +212,10 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string;
         session.user.tenantId = token.tenantId as string;
         session.user.subscriptionStatus = token.subscriptionStatus as string;
         session.user.isAdmin = token.isAdmin as boolean;
+        session.user.role = token.role;
       }
       return session;
     },

@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { isPlatformAdmin } from "@/lib/admin";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { recordActivity } from "@/lib/activity-log";
+import { logAdminActivity } from "@/lib/admin-audit";
 
 export const dynamic = "force-dynamic";
 
@@ -130,13 +130,14 @@ export async function PATCH(
     });
 
     // Audit Log
-    await recordActivity({
-      tenantId: subscription.tenantId,
-      userId: session.user.id,
-      type: "subscription_updated",
-      title: "Subscription Updated by Admin",
-      description: `Admin updated subscription: Plan ${oldSubscription.plan.name} -> ${subscription.plan.name}, Status ${oldSubscription.status} -> ${subscription.status}`,
+    await logAdminActivity({
+      adminId: session.user.id,
+      action: "SUBSCRIPTION_UPDATED",
+      entityType: "SUBSCRIPTION",
+      entityId: subscription.id,
+      description: `Admin updated subscription for tenant ${subscription.tenantId}: Plan ${oldSubscription.plan.name} -> ${subscription.plan.name}, Status ${oldSubscription.status} -> ${subscription.status}`,
       metadata: {
+        tenantId: subscription.tenantId,
         previous: {
           planId: oldSubscription.planId,
           status: oldSubscription.status,
@@ -148,6 +149,8 @@ export async function PATCH(
           currentPeriodEnd: subscription.currentPeriodEnd,
         },
       },
+      ipAddress: req.headers.get("x-forwarded-for") || undefined,
+      userAgent: req.headers.get("user-agent") || undefined,
     });
 
     return NextResponse.json({ subscription });
@@ -173,10 +176,28 @@ export async function DELETE(
 
     const { id } = await params;
 
+    const subscription = await prisma.subscription.findUnique({ where: { id } });
+    if (!subscription) {
+      return NextResponse.json({ error: "Subscription not found" }, { status: 404 });
+    }
+ 
     await prisma.subscription.delete({
       where: { id },
     });
-
+ 
+    await logAdminActivity({
+      adminId: session.user.id,
+      action: "SUBSCRIPTION_DELETED",
+      entityType: "SUBSCRIPTION",
+      entityId: id,
+      description: `Admin deleted subscription for tenant ${subscription.tenantId}`,
+      metadata: {
+        tenantId: subscription.tenantId,
+      },
+      ipAddress: req.headers.get("x-forwarded-for") || undefined,
+      userAgent: req.headers.get("user-agent") || undefined,
+    });
+ 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[Admin API] Error deleting subscriber:", error);
