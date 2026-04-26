@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -123,6 +123,8 @@ export default function SubscriberDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeTab = searchParams.get("tab") || "overview";
   const { id } = use(params);
   const { confirm } = useConfirmation();
   const [data, setData] = useState<{
@@ -287,7 +289,15 @@ export default function SubscriberDetailPage({
         </Badge>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-4">
+      <Tabs 
+        value={activeTab} 
+        onValueChange={(value) => {
+          const params = new URLSearchParams(searchParams.toString());
+          params.set("tab", value);
+          router.push(`/admin/subscribers/${id}?${params.toString()}`);
+        }} 
+        className="space-y-4"
+      >
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="subscription">Subscription</TabsTrigger>
@@ -525,7 +535,7 @@ export default function SubscriberDetailPage({
                       <TableCell>{flow._count.leads}</TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="sm" asChild>
-                          <a href={`/flows/${flow.id}/edit`} target="_blank" rel="noopener noreferrer">
+                          <a href={`/admin/flows/${flow.id}/edit`} target="_blank" rel="noopener noreferrer">
                             <ExternalLink className="h-4 w-4" />
                           </a>
                         </Button>
