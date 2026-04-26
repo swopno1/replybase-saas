@@ -40,6 +40,7 @@ import {
   History,
   Shield,
   ExternalLink,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
@@ -133,6 +134,7 @@ export default function SubscriberDetailPage({
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [creatingFlow, setCreatingFlow] = useState(false);
   const [plans, setPlans] = useState<Plan[]>([]);
 
   // Form states
@@ -156,8 +158,8 @@ export default function SubscriberDetailPage({
         setPeriodEnd(
           result.subscription.currentPeriodEnd
             ? new Date(result.subscription.currentPeriodEnd)
-                .toISOString()
-                .split("T")[0]
+              .toISOString()
+              .split("T")[0]
             : "",
         );
       } else {
@@ -213,9 +215,8 @@ export default function SubscriberDetailPage({
   const handleToggleUserAdmin = async (userId: string, currentStatus: boolean) => {
     const confirmed = await confirm({
       title: currentStatus ? "Revoke Admin Privileges" : "Grant Admin Privileges",
-      description: `Are you sure you want to ${
-        currentStatus ? "revoke" : "grant"
-      } admin privileges for this user?`,
+      description: `Are you sure you want to ${currentStatus ? "revoke" : "grant"
+        } admin privileges for this user?`,
       confirmText: currentStatus ? "Revoke" : "Grant",
     });
 
@@ -240,6 +241,34 @@ export default function SubscriberDetailPage({
       toast.error("Error updating user");
     }
   };
+
+  const handleCreateFlow = async () => {
+    setCreatingFlow(true);
+    try {
+      const response = await fetch("/api/admin/flows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantId: subscription.tenant.id,
+          name: `${subscription.tenant.name} Flow`,
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        toast.success("Flow created successfully");
+        router.push(`/admin/flows/${result.flow.id}/edit`);
+      } else {
+        toast.error("Failed to create flow");
+      }
+    } catch (error) {
+      console.error("Error creating flow:", error);
+      toast.error("Error creating flow");
+    } finally {
+      setCreatingFlow(false);
+    }
+  };
+
 
   if (loading) {
     return (
@@ -289,13 +318,13 @@ export default function SubscriberDetailPage({
         </Badge>
       </div>
 
-      <Tabs 
-        value={activeTab} 
+      <Tabs
+        value={activeTab}
         onValueChange={(value) => {
           const params = new URLSearchParams(searchParams.toString());
           params.set("tab", value);
           router.push(`/admin/subscribers/${id}?${params.toString()}`);
-        }} 
+        }}
         className="space-y-4"
       >
         <TabsList>
@@ -507,9 +536,19 @@ export default function SubscriberDetailPage({
 
         <TabsContent value="flows">
           <Card>
-            <CardHeader>
-              <CardTitle>Conversational Flows</CardTitle>
-              <CardDescription>View flows assigned to this subscriber</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Conversational Flows</CardTitle>
+                <CardDescription>View and manage flows assigned to this subscriber</CardDescription>
+              </div>
+              <Button onClick={handleCreateFlow} disabled={creatingFlow} size="sm">
+                {creatingFlow ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="mr-2 h-4 w-4" />
+                )}
+                Add New Flow
+              </Button>
             </CardHeader>
             <CardContent>
               <Table>
