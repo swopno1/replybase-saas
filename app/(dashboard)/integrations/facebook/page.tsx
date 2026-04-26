@@ -861,18 +861,50 @@ export default function FacebookIntegrationPage() {
           {/* Info Card */}
           <Card className="border-dashed">
             <CardHeader>
-              <CardTitle className="text-sm">Next Steps</CardTitle>
+              <CardTitle className="text-sm">Next Steps & Legal</CardTitle>
             </CardHeader>
-            <CardContent className="text-sm text-muted-foreground space-y-2">
-              <p>
-                After connecting a page, assign a <strong>Flow</strong> to
-                handle automated conversations, or go to{" "}
-                <strong>AI Status</strong> to enable AI replies.
-              </p>
-              <p>
-                A flow takes priority over AI. If a flow is assigned and active,
-                it handles messages first.
-              </p>
+            <CardContent className="text-sm text-muted-foreground space-y-4">
+              <div className="space-y-2">
+                <p>
+                  After connecting a page, assign a <strong>Flow</strong> to
+                  handle automated conversations, or go to{" "}
+                  <strong>AI Status</strong> to enable AI replies.
+                </p>
+                <p>
+                  A flow takes priority over AI. If a flow is assigned and
+                  active, it handles messages first.
+                </p>
+              </div>
+
+              <div className="pt-4 border-t space-y-3">
+                <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium">
+                  <a
+                    href="https://replybase.co.uk/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:underline flex items-center gap-1 text-primary"
+                  >
+                    <ShieldCheck className="h-3 w-3" />
+                    Privacy Policy
+                  </a>
+                  <a
+                    href="https://replybase.co.uk/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:underline flex items-center gap-1 text-primary"
+                  >
+                    <FileText className="h-3 w-3" />
+                    Terms of Service
+                  </a>
+                </div>
+                <div className="text-[10px] leading-relaxed">
+                  ReplyBase complies with Meta's Platform Policy. We only
+                  request permissions for pages you manage and messaging
+                  capabilities required for ReplyBase to function. You can
+                  request data deletion at any time through our support or via
+                  the Meta App settings.
+                </div>
+              </div>
             </CardContent>
           </Card>
 

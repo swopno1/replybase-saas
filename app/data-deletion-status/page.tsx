@@ -26,6 +26,19 @@ export default async function DataDeletionStatusPage({
             A confirmation code is required to view the status of your request.
             Please check the link provided by Meta or your initial request confirmation.
           </p>
+
+          <div className="space-y-4 mb-8 text-left bg-slate-50 dark:bg-slate-900/50 rounded-lg p-4">
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Resources</h2>
+            <div className="space-y-3">
+              <a href="https://replybase.co.uk/privacy" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors">
+                <ShieldCheck className="h-4 w-4" /> Privacy Policy
+              </a>
+              <a href="https://replybase.co.uk/terms" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors">
+                <FileText className="h-4 w-4" /> Terms of Service
+              </a>
+            </div>
+          </div>
+
           <div className="pt-6 border-t border-slate-100 dark:border-slate-700">
             <Link href="/" className="text-sm font-medium text-blue-600 hover:text-blue-500 transition-colors">
               Return to ReplyBase
@@ -52,6 +65,19 @@ export default async function DataDeletionStatusPage({
             We could not find a data deletion request with the confirmation
             code <strong>{code}</strong>. It may have expired or been entered incorrectly.
           </p>
+
+          <div className="space-y-4 mb-8 text-left bg-slate-50 dark:bg-slate-900/50 rounded-lg p-4">
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Resources</h2>
+            <div className="space-y-3">
+              <a href="https://replybase.co.uk/privacy" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors">
+                <ShieldCheck className="h-4 w-4" /> Privacy Policy
+              </a>
+              <a href="https://replybase.co.uk/terms" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors">
+                <FileText className="h-4 w-4" /> Terms of Service
+              </a>
+            </div>
+          </div>
+
           <div className="pt-6 border-t border-slate-100 dark:border-slate-700">
             <Link href="/" className="text-sm font-medium text-blue-600 hover:text-blue-500 transition-colors">
               Return to ReplyBase
@@ -66,6 +92,7 @@ export default async function DataDeletionStatusPage({
     PENDING: <Clock className="mx-auto h-16 w-16 text-amber-500" />,
     IN_PROGRESS: <Clock className="mx-auto h-16 w-16 text-blue-500 animate-pulse" />,
     COMPLETED: <CheckCircle2 className="mx-auto h-16 w-16 text-emerald-500" />,
+    ERROR: <AlertCircle className="mx-auto h-16 w-16 text-red-500" />,
     REJECTED: <AlertCircle className="mx-auto h-16 w-16 text-red-500" />,
     CANCELLED: <AlertCircle className="mx-auto h-16 w-16 text-slate-400" />,
   };
@@ -74,6 +101,7 @@ export default async function DataDeletionStatusPage({
     PENDING: "Queued for Deletion",
     IN_PROGRESS: "Processing Request",
     COMPLETED: "Data Successfully Deleted",
+    ERROR: "Deletion Failed",
     REJECTED: "Request Rejected",
     CANCELLED: "Request Cancelled",
   };
@@ -126,12 +154,14 @@ export default async function DataDeletionStatusPage({
             <a href="https://wa.me/447822033580" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
               <MessageCircle className="h-4 w-4" /> +44 7822 033580
             </a>
-            <a href="https://replybase.co.uk/privacy" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-              <ShieldCheck className="h-4 w-4" /> Privacy Policy
-            </a>
-            <a href="https://replybase.co.uk/terms" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-              <FileText className="h-4 w-4" /> Terms of Service
-            </a>
+            <div className="pt-2 border-t border-slate-200 dark:border-slate-700/50 mt-2 space-y-3">
+              <a href="https://replybase.co.uk/privacy" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                <ShieldCheck className="h-4 w-4" /> Privacy Policy
+              </a>
+              <a href="https://replybase.co.uk/terms" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                <FileText className="h-4 w-4" /> Terms of Service
+              </a>
+            </div>
           </div>
         </div>
 

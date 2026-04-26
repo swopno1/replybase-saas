@@ -16,6 +16,12 @@ const { mockRouter } = vi.hoisted(() => ({
   },
 }));
 
+const mockRouter = {
+  replace: vi.fn(),
+  push: vi.fn(),
+  prefetch: vi.fn(),
+};
+
 vi.mock('next/navigation', () => ({
   useRouter: () => mockRouter,
   usePathname: () => '/integrations/facebook',
@@ -116,5 +122,18 @@ describe('Facebook Integration UI Compliance', () => {
     }, { timeout: 5000 });
 
     expect(container.textContent).toContain('Test Page');
+    // Wait for the links to appear in the DOM
+    const privacyLink = await screen.findByRole('link', { name: /Privacy Policy/i });
+    const termsLink = await screen.findByRole('link', { name: /Terms of Service/i });
+
+    expect(privacyLink).toBeDefined();
+    expect(termsLink).toBeDefined();
+
+    expect(privacyLink?.getAttribute('href')).toBe('https://replybase.co.uk/privacy');
+    expect(termsLink?.getAttribute('href')).toBe('https://replybase.co.uk/terms');
+    expect(privacyLink?.getAttribute('target')).toBe('_blank');
+    expect(termsLink?.getAttribute('target')).toBe('_blank');
+    expect(privacyLink?.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(termsLink?.getAttribute('rel')).toBe('noopener noreferrer');
   });
 });

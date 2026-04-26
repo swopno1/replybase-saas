@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { DataDeletionStatus } from "@prisma/client";
+import { recordActivity } from "@/lib/activity-log";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,9 @@ export async function GET(req: Request) {
   }
 
   try {
+    // 1. Alert for stuck/failed requests
+    await checkAndAlertStuckRequests();
+
     const pendingRequests = await prisma.dataDeletionRequest.findMany({
       where: {
         status: DataDeletionStatus.PENDING,
@@ -37,7 +41,7 @@ export async function GET(req: Request) {
 
         // If we have a tenantId, we can do a thorough cleanup
         if (request.tenantId) {
-          await cleanupTenantData(request.tenantId);
+          await cleanupTenantData(request.tenantId, request.userId);
         } else if (request.email && request.email.endsWith("@facebook-user")) {
           // If it's a specific Facebook user deletion request without a tenantId yet,
           // we should look for contacts with this Facebook PSID and scrub them.
@@ -53,13 +57,29 @@ export async function GET(req: Request) {
           },
         });
 
+        // Audit log
+        if (request.tenantId) {
+          await recordActivity({
+            tenantId: request.tenantId,
+            userId: request.userId,
+            type: "settings_updated",
+            title: "Data Deletion Completed",
+            description: `Facebook data deletion request ${request.confirmationCode} has been processed.`,
+            metadata: {
+              requestId: request.id,
+              confirmationCode: request.confirmationCode,
+              email: request.email,
+            },
+          });
+        }
+
         results.push({ id: request.id, status: "success" });
       } catch (error) {
         console.error(`Failed to process deletion request ${request.id}:`, error);
         await prisma.dataDeletionRequest.update({
           where: { id: request.id },
           data: {
-            status: DataDeletionStatus.PENDING, // Reset to pending to retry later
+            status: DataDeletionStatus.ERROR,
             notes: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
           },
         });
@@ -81,16 +101,59 @@ export async function GET(req: Request) {
 }
 
 /**
+ * Checks for requests that are stuck in PENDING for > 24h or have failed notes
+ */
+async function checkAndAlertStuckRequests() {
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  const stuckRequests = await prisma.dataDeletionRequest.findMany({
+    where: {
+      OR: [
+        {
+          status: DataDeletionStatus.PENDING,
+          requestedAt: { lt: twentyFourHoursAgo },
+        },
+        {
+          status: DataDeletionStatus.ERROR,
+        },
+      ],
+    },
+    take: 5,
+  });
+
+  for (const request of stuckRequests) {
+    console.warn(`Alert: Data deletion request ${request.id} is stuck or failed:`, request);
+
+    // Log a system event for admin visibility
+    // We use a generic system tenant ID or the request's tenantId if available
+    const alertTenantId = request.tenantId || "system";
+
+    await recordActivity({
+      tenantId: alertTenantId,
+      type: "system_event",
+      title: "Data Deletion Alert",
+      description: `Request ${request.confirmationCode} for ${request.email} is stuck or failed. Manual intervention may be required.`,
+      metadata: {
+        requestId: request.id,
+        status: request.status,
+        requestedAt: request.requestedAt,
+        notes: request.notes,
+      },
+    });
+  }
+}
+
+/**
  * Performs deep cleanup for a tenant (similar to scripts/cleanup_facebook_data.py)
  */
-async function cleanupTenantData(tenantId: string) {
+async function cleanupTenantData(tenantId: string, userId?: string | null) {
   const pages = await prisma.facebookPage.findMany({
     where: { tenantId },
     select: { id: true },
   });
   const pageIds = pages.map((p) => p.id);
 
-  await prisma.$transaction([
+  const operations: any[] = [
     // Delete flow assignments
     prisma.flowAssignment.deleteMany({
       where: { pageId: { in: pageIds } },
@@ -128,7 +191,21 @@ async function cleanupTenantData(tenantId: string) {
       where: { tenantId },
       data: { facebook: false },
     }),
-  ]);
+  ];
+
+  // If we have a userId, we should also remove their Facebook account connection
+  if (userId) {
+    operations.push(
+      prisma.account.deleteMany({
+        where: {
+          userId,
+          provider: "facebook",
+        },
+      }),
+    );
+  }
+
+  await prisma.$transaction(operations);
 }
 
 /**
@@ -141,40 +218,48 @@ async function cleanupFacebookUserData(psid: string) {
       type: "facebook_psid",
       value: psid,
     },
-    include: {
-      contact: true,
-    },
   });
 
   for (const identity of identities) {
     const contactId = identity.contactId;
 
-    // Delete messages, conversations, and the contact
-    // In a production app, you might want to anonymize instead of delete
-    // but Meta's "Data Deletion" often implies complete removal.
-
+    // Meta's "Data Deletion" requires complete removal of data received from them.
     const conversations = await prisma.crmConversation.findMany({
       where: { contactId },
       select: { id: true },
     });
-    const conversationIds = conversations.map(c => c.id);
+    const conversationIds = conversations.map((c) => c.id);
 
     await prisma.$transaction([
       prisma.crmMessage.deleteMany({
-        where: { conversationId: { in: conversationIds } }
+        where: { conversationId: { in: conversationIds } },
       }),
       prisma.internalNote.deleteMany({
-        where: { conversationId: { in: conversationIds } }
+        where: { conversationId: { in: conversationIds } },
+      }),
+      prisma.lead.deleteMany({
+        where: { contactId },
+      }),
+      prisma.onboardingSession.deleteMany({
+        where: { contactId },
+      }),
+      prisma.flowSession.deleteMany({
+        where: { userId: psid },
       }),
       prisma.crmConversation.deleteMany({
-        where: { contactId }
+        where: { contactId },
       }),
       prisma.contactIdentity.deleteMany({
-        where: { contactId }
+        where: { contactId },
       }),
       prisma.contact.delete({
-        where: { id: contactId }
-      })
+        where: { id: contactId },
+      }),
     ]);
   }
+
+  // Also catch any FlowSessions that might not be linked to a contact yet
+  await prisma.flowSession.deleteMany({
+    where: { userId: psid },
+  });
 }
