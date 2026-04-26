@@ -9,15 +9,9 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import {
-  ArrowRight,
-  Bell,
-  Globe,
-  MessageCircle,
-  MessageSquare,
-  Send,
-} from "lucide-react";
+import { ArrowRight, Bell, Globe, MessageCircle, Send } from "lucide-react";
 import type { ChannelId, ChannelStatus } from "@/lib/channel-config";
+import { FacebookLogo } from "@/components/icons/MetaIcons";
 
 const CHANNEL_ROUTES: Record<ChannelId, string> = {
   webchat: "/integrations/webchat",
@@ -29,7 +23,7 @@ const CHANNEL_ROUTES: Record<ChannelId, string> = {
 const CHANNEL_ICONS: Record<ChannelId, React.FC<{ className?: string }>> = {
   webchat: ({ className }) => <Globe className={className} />,
   telegram: ({ className }) => <Send className={className} />,
-  facebook: ({ className }) => <MessageSquare className={className} />,
+  facebook: ({ className }) => <FacebookLogo className={className} />,
   whatsapp: ({ className }) => <MessageCircle className={className} />,
 };
 
