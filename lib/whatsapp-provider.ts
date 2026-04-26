@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { WHATSAPP_GRAPH_API_VERSION } from "@/lib/meta-config";
 
 export type WhatsAppProvider = "meta_cloud" | "twilio" | "360dialog";
 
@@ -45,7 +46,7 @@ export interface WhatsAppValidationResult {
   error?: string;
 }
 
-const META_GRAPH_BASE = "https://graph.facebook.com/v20.0";
+const META_GRAPH_BASE = `https://graph.facebook.com/${WHATSAPP_GRAPH_API_VERSION}`;
 const TWILIO_BASE = "https://api.twilio.com/2010-04-01";
 const D360_BASE = "https://waba-v2.360dialog.io";
 
