@@ -185,28 +185,6 @@ export async function getTenantUsage(tenantId: string) {
 export const getTenantSubscription = getTenantLimits;
 
 /**
- * Tracks if a notification has already been sent for a specific threshold to avoid spamming.
- */
-async function shouldNotify(tenantId: string, type: string, threshold: number): Promise<boolean> {
-  const today = startOfUtcDay().toISOString().split('T')[0];
-  const key = `usage_notif:${tenantId}:${type}:${threshold}:${today}`;
-  
-  // Use ActivityLog to check if we already notified today
-  const existingLog = await prisma.activityLog.findFirst({
-    where: {
-      tenantId,
-      type: "usage_alert",
-      metadata: {
-        path: "$.threshold",
-        equals: threshold
-      }
-    }
-  });
-
-  return !existingLog;
-}
-
-/**
  * Sends notifications if usage crosses thresholds (80%, 100%)
  */
 async function notifyUsageIfNeeded(tenantId: string, type: string, current: number, limit: number) {
