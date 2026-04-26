@@ -33,25 +33,42 @@ export async function GET(
       );
     }
 
-    // 1. Verify token validity
-    // Note: debug_token usually requires an APP ACCESS TOKEN.
-    // We use a simple /me call to verify the Page Access Token is still valid.
+    // 1. Verify token validity and permissions
     const meUrl = getFacebookGraphUrl("me", facebookPage.accessToken, {
-      fields: "id,name",
+      fields: "id,name,permissions",
     });
 
     const meRes = await fetch(meUrl);
+    const meData = await meRes.json();
     const tokenValid = meRes.ok;
 
+    const requiredPermissions = [
+      "pages_messaging",
+      "pages_show_list",
+      "pages_read_engagement",
+      "pages_manage_metadata",
+    ];
+    const grantedPermissions =
+      meData.permissions?.data
+        ?.filter((p: { status: string }) => p.status === "granted")
+        .map((p: { permission: string }) => p.permission) || [];
+
+    const missingPermissions = requiredPermissions.filter(
+      (p) => !grantedPermissions.includes(p),
+    );
+
     // 2. Check webhook subscription status
-    const subUrl = getFacebookGraphUrl(`${pageId}/subscribed_apps`, facebookPage.accessToken);
+    const subUrl = getFacebookGraphUrl(
+      `${pageId}/subscribed_apps`,
+      facebookPage.accessToken,
+    );
     const subRes = await fetch(subUrl);
     let webhookSubscribed = false;
 
     if (subRes.ok) {
       const subData = await subRes.json();
       webhookSubscribed = subData.data?.some(
-        (app: { id: string }) => app.id === process.env.FACEBOOK_CLIENT_ID
+        (app: { id: string }) => app.id === process.env.FACEBOOK_CLIENT_ID,
       );
     }
 
@@ -67,6 +84,7 @@ export async function GET(
       success: true,
       tokenValid,
       webhookSubscribed,
+      missingPermissions,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {

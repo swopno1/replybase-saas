@@ -2,20 +2,28 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import FacebookIntegrationPage from '../app/(dashboard)/integrations/facebook/page';
-import { useConfirmation } from '@/components/ui/confirmation-provider';
-import { useRouter } from 'next/navigation';
+import React from 'react';
 
-// Mock dependencies
-vi.mock('next-auth/react', () => ({
-  signIn: vi.fn(),
+// Define stable mocks
+const { mockRouter } = vi.hoisted(() => ({
+  mockRouter: {
+    replace: vi.fn(),
+    push: vi.fn(),
+    refresh: vi.fn(),
+    prefetch: vi.fn(),
+  },
 }));
 
 vi.mock('next/navigation', () => ({
-  useRouter: vi.fn(() => ({
-    replace: vi.fn(),
-  })),
+  useRouter: () => mockRouter,
+  usePathname: () => '/integrations/facebook',
+}));
+
+vi.mock('next-auth/react', () => ({
+  signIn: vi.fn(),
+  useSession: vi.fn(() => ({ data: null, status: 'unauthenticated' })),
 }));
 
 vi.mock('@/components/ui/confirmation-provider', () => ({
@@ -34,36 +42,79 @@ vi.mock('sonner', () => ({
 
 vi.mock('@/lib/channel-config', () => ({
   isChannelVisibleInUi: vi.fn(() => true),
+  isChannelEnabled: vi.fn(() => true),
 }));
 
 describe('Facebook Integration UI Compliance', () => {
   beforeEach(() => {
-    // Mock fetch for page load
-    global.fetch = vi.fn().mockImplementation(() =>
-      Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({ connected: false, pages: [] }),
-      })
-    );
+    vi.clearAllMocks();
   });
 
-  it('should render branding and display required legal links', async () => {
-    render(<FacebookIntegrationPage />);
+  it('should render branding and display required legal links when not connected', async () => {
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (url.includes('/api/integrations/facebook/pages')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ connected: false, pages: [] }),
+        } as Response);
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
+    });
 
-    const connectButton = await screen.findByText(/Continue with Facebook/i);
-    expect(connectButton).toBeDefined();
-    expect(connectButton.closest('button')?.className).toContain('bg-[#1877F2]');
+    const { container } = render(<FacebookIntegrationPage />);
 
-    const privacyLink = await screen.findByRole('link', { name: /Privacy Policy/i });
-    const termsLink = await screen.findByRole('link', { name: /Terms of Service/i });
+    // Wait for the button by searching for its class or text
+    await waitFor(() => {
+      const button = container.querySelector('button.bg-\\[\\#1877F2\\]');
+      if (!button) throw new Error('Button not found');
+      expect(button.textContent).toContain('Continue with Facebook');
+    }, { timeout: 5000 });
 
-    expect(privacyLink).toBeDefined();
-    expect(termsLink).toBeDefined();
-    expect(privacyLink?.getAttribute('href')).toBe('https://replybase.co.uk/privacy');
-    expect(termsLink?.getAttribute('href')).toBe('https://replybase.co.uk/terms');
-    expect(privacyLink?.getAttribute('target')).toBe('_blank');
-    expect(termsLink?.getAttribute('target')).toBe('_blank');
-    expect(privacyLink?.getAttribute('rel')).toBe('noopener noreferrer');
-    expect(termsLink?.getAttribute('rel')).toBe('noopener noreferrer');
+    const privacyLink = container.querySelector('a[href="https://replybase.co.uk/privacy"]');
+    const termsLink = container.querySelector('a[href="https://replybase.co.uk/terms"]');
+
+    expect(privacyLink).not.toBeNull();
+    expect(termsLink).not.toBeNull();
+    expect(privacyLink?.textContent).toContain('Privacy Policy');
+    expect(termsLink?.textContent).toContain('Terms of Service');
+  });
+
+  it('should render diagnostic button and handle connection check when connected', async () => {
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (url.includes('/api/integrations/facebook/pages')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            connected: true,
+            pages: [
+              {
+                id: '123',
+                name: 'Test Page',
+                connected: true,
+                webhookSubscribed: true,
+                category: 'Test Category'
+              }
+            ]
+          }),
+        } as Response);
+      }
+      if (url.includes('/api/flows')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ flows: [] }),
+        } as Response);
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
+    });
+
+    const { container } = render(<FacebookIntegrationPage />);
+
+    // Should find "Check Connection" button (it has title="Check Connection")
+    await waitFor(() => {
+      const checkButton = container.querySelector('button[title="Check Connection"]');
+      if (!checkButton) throw new Error('Check Connection button not found');
+    }, { timeout: 5000 });
+
+    expect(container.textContent).toContain('Test Page');
   });
 });

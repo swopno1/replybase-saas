@@ -85,6 +85,9 @@ export default function FacebookIntegrationPage() {
     {},
   );
   const [checkingMap, setCheckingMap] = useState<Record<string, boolean>>({});
+  const [diagnosticResult, setDiagnosticResult] = useState<Record<string, any>>(
+    {},
+  );
 
   useEffect(() => {
     if (!channelVisible) {
@@ -321,6 +324,7 @@ export default function FacebookIntegrationPage() {
 
   const handleCheckConnection = async (page: FBPage) => {
     setCheckingMap((prev) => ({ ...prev, [page.id]: true }));
+    setDiagnosticResult((prev) => ({ ...prev, [page.id]: undefined }));
     try {
       const res = await fetch(
         `/api/integrations/facebook/pages/${page.id}/check-connection`,
@@ -328,13 +332,15 @@ export default function FacebookIntegrationPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to check connection");
 
+      setDiagnosticResult((prev) => ({ ...prev, [page.id]: data }));
+
       if (data.tokenValid && data.webhookSubscribed) {
         toast.success(`Connection for ${page.name} is healthy!`);
       } else if (!data.tokenValid) {
         toast.error(`Session for ${page.name} has expired. Please reconnect.`);
       } else if (!data.webhookSubscribed) {
         toast.warning(
-          `${page.name} is connected but not receiving webhook events. Try unlinking and reconnecting.`,
+          `${page.name} is connected but not receiving webhook events.`,
         );
       }
       await fetchPages();
@@ -401,7 +407,7 @@ export default function FacebookIntegrationPage() {
         <Card className="border-primary/50 bg-primary/5">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5 text-primary" />
+              <FacebookLogo className="h-5 w-5 text-primary" />
               Connect Your Facebook Account
             </CardTitle>
             <CardDescription>
@@ -498,7 +504,7 @@ export default function FacebookIntegrationPage() {
             <CardContent>
               {pages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
+                  <FacebookLogo className="h-12 w-12 text-muted-foreground mb-4" />
                   <h3 className="text-lg font-medium mb-2">No pages found</h3>
                   <p className="text-sm text-muted-foreground mb-4 max-w-md">
                     We couldn&apos;t find any Facebook Pages associated with
@@ -520,6 +526,7 @@ export default function FacebookIntegrationPage() {
                     const isAssigning = assigningMap[page.id] ?? false;
                     const isUnassigning = unassigningMap[page.id] ?? false;
                     const isChecking = checkingMap[page.id] ?? false;
+                    const pageDiagnostics = diagnosticResult[page.id];
                     const selectedFlowId = selectedFlowIdMap[page.id] ?? "";
 
                     return (
@@ -536,7 +543,7 @@ export default function FacebookIntegrationPage() {
                               ) : isConnected ? (
                                 <CheckCircle2 className="h-5 w-5 text-blue-500" />
                               ) : (
-                                <MessageSquare className="h-5 w-5 text-muted-foreground" />
+                                <FacebookLogo className="h-5 w-5 text-muted-foreground" />
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -680,6 +687,73 @@ export default function FacebookIntegrationPage() {
                           </div>
                         </div>
 
+                        {/* Diagnostics Details */}
+                        {pageDiagnostics && (
+                          <div
+                            className={`mt-4 p-3 rounded-md text-sm border ${
+                              pageDiagnostics.tokenValid &&
+                              pageDiagnostics.webhookSubscribed
+                                ? "bg-green-50 border-green-200 text-green-800"
+                                : "bg-amber-50 border-amber-200 text-amber-800"
+                            }`}
+                          >
+                            <div className="font-semibold mb-1 flex items-center gap-2">
+                              <ShieldCheck className="h-4 w-4" />
+                              Diagnostic Results
+                            </div>
+                            <ul className="space-y-1 list-disc list-inside">
+                              <li>
+                                Token Validity:{" "}
+                                {pageDiagnostics.tokenValid ? (
+                                  <span className="text-green-600 font-medium">
+                                    Valid
+                                  </span>
+                                ) : (
+                                  <span className="text-red-600 font-medium">
+                                    Expired / Invalid
+                                  </span>
+                                )}
+                              </li>
+                              <li>
+                                Webhook Subscription:{" "}
+                                {pageDiagnostics.webhookSubscribed ? (
+                                  <span className="text-green-600 font-medium">
+                                    Active
+                                  </span>
+                                ) : (
+                                  <span className="text-red-600 font-medium">
+                                    Inactive
+                                  </span>
+                                )}
+                              </li>
+                              {pageDiagnostics.missingPermissions?.length >
+                                0 && (
+                                <li className="text-red-700">
+                                  Missing Permissions:{" "}
+                                  {pageDiagnostics.missingPermissions.join(
+                                    ", ",
+                                  )}
+                                </li>
+                              )}
+                            </ul>
+                            {!pageDiagnostics.tokenValid && (
+                              <p className="mt-2 text-xs">
+                                <strong>Action:</strong> Click &quot;Re-connect
+                                Facebook Account&quot; at the bottom of the
+                                page to refresh your session.
+                              </p>
+                            )}
+                            {pageDiagnostics.tokenValid &&
+                              !pageDiagnostics.webhookSubscribed && (
+                                <p className="mt-2 text-xs">
+                                  <strong>Action:</strong> Try unlinking this
+                                  page and then connecting it again to restore
+                                  the webhook subscription.
+                                </p>
+                              )}
+                          </div>
+                        )}
+
                         {/* Flow assignment section — only for connected pages */}
                         {isConnected && (
                           <div className="border-t pt-3 space-y-2">
@@ -803,18 +877,41 @@ export default function FacebookIntegrationPage() {
           </Card>
 
           {/* Action Buttons */}
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="destructive"
-              onClick={handleUnlinkAllPages}
-              disabled={!connected}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Disconnect All
-            </Button>
-            <Button variant="outline" onClick={() => signIn("facebook")}>
-              Re-connect Facebook Account
-            </Button>
+          <div className="flex flex-col gap-4">
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="destructive"
+                onClick={handleUnlinkAllPages}
+                disabled={!connected}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Disconnect All
+              </Button>
+              <Button variant="outline" onClick={() => signIn("facebook")}>
+                Re-connect Facebook Account
+              </Button>
+            </div>
+
+            <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground pt-4 border-t">
+              <a
+                href="https://replybase.co.uk/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline flex items-center gap-1"
+              >
+                <ShieldCheck className="h-3 w-3" />
+                Privacy Policy
+              </a>
+              <a
+                href="https://replybase.co.uk/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline flex items-center gap-1"
+              >
+                <FileText className="h-3 w-3" />
+                Terms of Service
+              </a>
+            </div>
           </div>
         </div>
       )}
