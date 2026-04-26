@@ -49,7 +49,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./
 
 # Install prisma CLI globally in runner for migrations (much smaller than copying 1.9GB node_modules)
 RUN npm install -g prisma@7.7.0
@@ -65,4 +64,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
 
 # Run migrations then start the server.
 # Standalone output places node_modules at ./node_modules inside the standalone folder.
-CMD ["sh", "-c", "prisma migrate deploy && node server.js"]
+CMD ["sh", "-c", "prisma migrate deploy --schema ./prisma/schema.prisma && node server.js"]
