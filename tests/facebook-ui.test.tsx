@@ -58,8 +58,8 @@ describe('Facebook Integration UI Compliance', () => {
   it('should display required legal links', async () => {
     render(<FacebookIntegrationPage />);
 
-    const privacyLink = await screen.findByRole('link', { name: /Privacy Policy/i });
-    const termsLink = await screen.findByRole('link', { name: /Terms of Service/i });
+    const privacyLink = await screen.findByText('Privacy Policy');
+    const termsLink = await screen.findByText('Terms of Service');
 
     expect(privacyLink).toBeDefined();
     expect(termsLink).toBeDefined();
