@@ -50,7 +50,7 @@ export const authOptions: NextAuthOptions = {
           FacebookProvider({
             clientId: process.env.FACEBOOK_CLIENT_ID as string,
             clientSecret: process.env.FACEBOOK_CLIENT_SECRET as string,
-            allowDangerousEmailAccountLinking: true,
+            allowDangerousEmailAccountLinking: false,
             authorization: {
               params: {
                 scope:
@@ -97,7 +97,7 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID as string,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-      allowDangerousEmailAccountLinking: true,
+      allowDangerousEmailAccountLinking: false,
     }),
     CredentialsProvider({
       name: "Credentials",
@@ -167,49 +167,31 @@ export const authOptions: NextAuthOptions = {
         token.tenantId = dbUser?.tenantId || "";
         token.isAdmin = dbUser?.isAdmin ?? false;
         token.role = dbUser?.role || "USER";
+        token.lastSubscriptionCheck = Date.now();
 
         // Fetch subscription status separately to avoid complex nested includes typing issues
         if (dbUser?.tenantId) {
-          let tenantSub = await prisma.subscription.findFirst({
+          const tenantSub = await prisma.subscription.findFirst({
             where: { tenantId: dbUser.tenantId },
             orderBy: { createdAt: "desc" },
           });
-
-          // If no subscription exists, create a free plan subscription
-          if (!tenantSub) {
-            const freePlan = await prisma.plan.upsert({
-              where: { name: "free" },
-              update: {},
-              create: {
-                name: "free",
-                displayName: "Free",
-                price: 0,
-                currency: "GBP",
-              },
-            });
-
-            const now = Date.now();
-            const trialEndsAt = new Date(now + 14 * 24 * 60 * 60 * 1000);
-            const currentPeriodEnd = new Date(now + 30 * 24 * 60 * 60 * 1000);
-
-            tenantSub = await prisma.subscription.upsert({
-              where: { tenantId: dbUser.tenantId },
-              update: {},
-              create: {
-                tenantId: dbUser.tenantId,
-                planId: freePlan.id,
-                stripeId: `free_${dbUser.tenantId}`,
-                status: "active",
-                currentPeriodStart: new Date(),
-                currentPeriodEnd,
-                trialEndsAt,
-              },
-            });
-          }
-
           token.subscriptionStatus = tenantSub?.status || "active";
         } else {
           token.subscriptionStatus = "inactive";
+        }
+      } else {
+        // Refresh subscription status if token is more than 1 hour old
+        const now = Date.now();
+        const lastCheck = (token.lastSubscriptionCheck as number) || 0;
+        const ONE_HOUR = 60 * 60 * 1000;
+
+        if (now - lastCheck > ONE_HOUR && token.tenantId) {
+          const tenantSub = await prisma.subscription.findFirst({
+            where: { tenantId: token.tenantId as string },
+            orderBy: { createdAt: "desc" },
+          });
+          token.subscriptionStatus = tenantSub?.status || "active";
+          token.lastSubscriptionCheck = now;
         }
       }
       return token;

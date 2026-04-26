@@ -19,6 +19,10 @@ import { prisma } from "@/lib/prisma";
 const AGGREGATE_BOT_ID = "__aggregate_bot__";
 const AGGREGATE_CHANNEL_ID = "__aggregate_channel__";
 
+// Industry standards for usage management
+const NOTIFICATION_THRESHOLD = 0.8; // 80% usage
+const GRACE_BUFFER_PERCENT = 0.05;  // 5% grace period
+
 function startOfUtcDay(date = new Date()): Date {
   const value = new Date(date);
   value.setUTCHours(0, 0, 0, 0);
@@ -181,6 +185,79 @@ export async function getTenantUsage(tenantId: string) {
 export const getTenantSubscription = getTenantLimits;
 
 /**
+ * Tracks if a notification has already been sent for a specific threshold to avoid spamming.
+ */
+async function shouldNotify(tenantId: string, type: string, threshold: number): Promise<boolean> {
+  const today = startOfUtcDay().toISOString().split('T')[0];
+  const key = `usage_notif:${tenantId}:${type}:${threshold}:${today}`;
+  
+  // Use ActivityLog to check if we already notified today
+  const existingLog = await prisma.activityLog.findFirst({
+    where: {
+      tenantId,
+      type: "usage_alert",
+      metadata: {
+        path: "$.threshold",
+        equals: threshold
+      }
+    }
+  });
+
+  return !existingLog;
+}
+
+/**
+ * Sends notifications if usage crosses thresholds (80%, 100%)
+ */
+async function notifyUsageIfNeeded(tenantId: string, type: string, current: number, limit: number) {
+  if (limit <= 0) return;
+  
+  const usageRatio = current / limit;
+  let threshold = 0;
+
+  if (usageRatio >= 1.0) {
+    threshold = 1.0;
+  } else if (usageRatio >= NOTIFICATION_THRESHOLD) {
+    threshold = NOTIFICATION_THRESHOLD;
+  }
+
+  if (threshold === 0) return;
+
+  // For 1.0 (100%), we always notify if it's the first time today
+  // For 0.8 (80%), we only notify once per period
+  const logType = threshold === 1.0 ? "USAGE_LIMIT_EXCEEDED" : "USAGE_LIMIT_WARNING";
+  
+  try {
+    // Check if we already logged this today to avoid noise
+    const today = startOfUtcDay();
+    const existing = await prisma.activityLog.findFirst({
+      where: {
+        tenantId,
+        type: logType,
+        createdAt: { gte: today }
+      }
+    });
+
+    if (!existing) {
+      await prisma.activityLog.create({
+        data: {
+          tenantId,
+          type: logType,
+          title: threshold === 1.0 ? "Usage Limit Reached" : "Usage Warning (80%)",
+          description: `Your ${type.replace('_', ' ')} usage has reached ${Math.floor(usageRatio * 100)}% of your plan limit (${current}/${limit}).`,
+          metadata: { threshold, current, limit, type }
+        }
+      });
+      
+      // TODO: Integrate with sendEmail once tenant admin email is easily accessible here
+      console.log(`[Usage Alert] Tenant ${tenantId} reached ${threshold * 100}% of ${type}`);
+    }
+  } catch (err) {
+    console.error("Failed to process usage notification:", err);
+  }
+}
+
+/**
  * Rate limiting helpers (used by `lib/rate-limit.ts`)
  *
  * Enforces persisted usage limits using the `usage_logs` table.
@@ -230,8 +307,8 @@ export async function checkLimit(
       }),
     ]);
 
-    const dailyRemaining = Math.max(dailyLimit - dailyUsage, 0);
-    const monthlyRemaining = Math.max(monthlyLimit - monthlyUsage, 0);
+    const dailyRemaining = Math.max(dailyLimit * (1 + GRACE_BUFFER_PERCENT) - dailyUsage, 0);
+    const monthlyRemaining = Math.max(monthlyLimit * (1 + GRACE_BUFFER_PERCENT) - monthlyUsage, 0);
 
     if (dailyRemaining <= 0) {
       return {
@@ -254,7 +331,7 @@ export async function checkLimit(
     const monthlyIsTighter = monthlyRemaining < dailyRemaining;
     return {
       allowed: true,
-      remaining: monthlyIsTighter ? monthlyRemaining : dailyRemaining,
+      remaining: Math.floor(monthlyIsTighter ? monthlyRemaining : dailyRemaining),
       limit: monthlyIsTighter ? monthlyLimit : dailyLimit,
       retryAfter: monthlyIsTighter
         ? secondsUntil(startOfNextUtcMonth(now), now)
@@ -274,7 +351,7 @@ export async function checkLimit(
     endDate: startOfNextUtcDay(today),
   });
 
-  const remaining = Math.max(limit - dailyUsage, 0);
+  const remaining = Math.max(limit * (1 + GRACE_BUFFER_PERCENT) - dailyUsage, 0);
   if (remaining <= 0) {
     return {
       allowed: false,
@@ -286,7 +363,7 @@ export async function checkLimit(
 
   return {
     allowed: true,
-    remaining,
+    remaining: Math.floor(remaining),
     limit,
     retryAfter: secondsUntil(startOfNextUtcDay(now), now),
   };
@@ -340,4 +417,27 @@ export async function incrementUsage(
       },
     },
   });
+
+  // Check for notifications after incrementing
+  // We fetch total usage to be accurate
+  const limits = await getTenantLimits(user.tenantId);
+  const now = new Date();
+  
+  if (type === "message") {
+    const dailyUsage = await getUsageCount({
+      tenantId: user.tenantId,
+      type: "message",
+      startDate: startOfUtcDay(now),
+      endDate: startOfNextUtcDay(now),
+    });
+    await notifyUsageIfNeeded(user.tenantId, "daily_messages", dailyUsage, limits.dailyMessageLimit);
+  } else if (type === "flow_execution") {
+    const dailyUsage = await getUsageCount({
+      tenantId: user.tenantId,
+      type: "flow_execution",
+      startDate: startOfUtcDay(now),
+      endDate: startOfNextUtcDay(now),
+    });
+    await notifyUsageIfNeeded(user.tenantId, "flow_executions", dailyUsage, limits.flowExecutionCap);
+  }
 }

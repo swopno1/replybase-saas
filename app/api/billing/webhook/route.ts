@@ -116,11 +116,19 @@ async function syncSubscription(
   // Our seed script sets price = X. We can iterate limit 1.
   // Or we rely on the product name or metadata set in seed script.
 
-  // Better: We fetch the product from Stripe to get metadata 'app_plan_id'
   const product = await stripe!.products.retrieve(
     sub.items.data[0].price.product as string,
   );
-  const planName = product.metadata.app_plan_id || "free";
+  let planName = product.metadata.app_plan_id;
+
+  // Fallback: If metadata is missing, try to infer from product name (e.g. "ReplyBase Pro")
+  if (!planName) {
+    const nameLower = product.name.toLowerCase();
+    if (nameLower.includes("pro")) planName = "pro";
+    else if (nameLower.includes("starter")) planName = "starter";
+    else if (nameLower.includes("business")) planName = "business";
+    else planName = "free";
+  }
 
   const dbPlan = await prisma.plan.findUnique({ where: { name: planName } });
 
