@@ -54,12 +54,13 @@ describe('Facebook Integration UI Compliance', () => {
     expect(connectButton).toBeDefined();
     expect(connectButton.closest('button')?.className).toContain('bg-[#1877F2]');
 
-    const allLinks = await screen.findAllByRole('link');
-    const privacyLink = allLinks.find(l => l.getAttribute('href') === 'https://replybase.co.uk/privacy');
-    const termsLink = allLinks.find(l => l.getAttribute('href') === 'https://replybase.co.uk/terms');
+    const privacyLink = await screen.findByRole('link', { name: /Privacy Policy/i });
+    const termsLink = await screen.findByRole('link', { name: /Terms of Service/i });
 
     expect(privacyLink).toBeDefined();
     expect(termsLink).toBeDefined();
+    expect(privacyLink?.getAttribute('href')).toBe('https://replybase.co.uk/privacy');
+    expect(termsLink?.getAttribute('href')).toBe('https://replybase.co.uk/terms');
     expect(privacyLink?.getAttribute('target')).toBe('_blank');
     expect(termsLink?.getAttribute('target')).toBe('_blank');
     expect(privacyLink?.getAttribute('rel')).toBe('noopener noreferrer');
