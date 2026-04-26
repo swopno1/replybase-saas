@@ -47,25 +47,22 @@ describe('Facebook Integration UI Compliance', () => {
     );
   });
 
-  it('should render official "Continue with Facebook" branding', async () => {
+  it('should render branding and display required legal links', async () => {
     render(<FacebookIntegrationPage />);
 
     const connectButton = await screen.findByText(/Continue with Facebook/i);
     expect(connectButton).toBeDefined();
     expect(connectButton.closest('button')?.className).toContain('bg-[#1877F2]');
-  });
 
-  it('should display required legal links', async () => {
-    render(<FacebookIntegrationPage />);
-
-    const privacyLink = await screen.findByText('Privacy Policy', {}, { timeout: 5000 });
-    const termsLink = await screen.findByText('Terms of Service', {}, { timeout: 5000 });
+    const allLinks = await screen.findAllByRole('link');
+    const privacyLink = allLinks.find(l => l.getAttribute('href') === 'https://replybase.co.uk/privacy');
+    const termsLink = allLinks.find(l => l.getAttribute('href') === 'https://replybase.co.uk/terms');
 
     expect(privacyLink).toBeDefined();
     expect(termsLink).toBeDefined();
-    expect(privacyLink.closest('a')?.getAttribute('href')).toBe('https://replybase.co.uk/privacy');
-    expect(termsLink.closest('a')?.getAttribute('href')).toBe('https://replybase.co.uk/terms');
-    expect(privacyLink.closest('a')?.getAttribute('target')).toBe('_blank');
-    expect(termsLink.closest('a')?.getAttribute('target')).toBe('_blank');
+    expect(privacyLink?.getAttribute('target')).toBe('_blank');
+    expect(termsLink?.getAttribute('target')).toBe('_blank');
+    expect(privacyLink?.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(termsLink?.getAttribute('rel')).toBe('noopener noreferrer');
   });
 });
