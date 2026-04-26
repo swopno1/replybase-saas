@@ -50,7 +50,15 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
-# Install prisma CLI globally in runner for migrations (much smaller than copying 1.9GB node_modules)
+# Create a lightweight prisma.config.js for production (no dependencies needed)
+RUN echo "module.exports = { \
+  schema: 'prisma/schema.prisma', \
+  datasource: { \
+    url: process.env.DATABASE_URL \
+  } \
+};" > prisma.config.js
+
+# Install prisma CLI globally in runner for migrations
 RUN npm install -g prisma@7.7.0
 
 USER nextjs
