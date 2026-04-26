@@ -5,8 +5,8 @@
 
  RUN  v3.2.4 /Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas
 
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+stdout | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
+Links found: [ { text: 'Back to Dashboard', href: '/' } ]
 
 stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
 Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
@@ -74,124 +74,10 @@ Maximum update depth exceeded. This can happen when a component calls setState i
 stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
 Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
 
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
-stderr | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
-
- ❯ tests/facebook-ui.test.tsx (2 tests | 1 failed) 1176ms
-   ✓ Facebook Integration UI Compliance > should render official "Continue with Facebook" branding 53ms
-   × Facebook Integration UI Compliance > should display required legal links 1122ms
-     → Unable to find role="link" and name `/Terms of Service/i`
+ ❯ tests/facebook-ui.test.tsx (2 tests | 1 failed) 1186ms
+   ✓ Facebook Integration UI Compliance > should render official "Continue with Facebook" branding 55ms
+   × Facebook Integration UI Compliance > should display required legal links 1129ms
+     → Unable to find an element with the text: Terms of Service. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
 
 Ignored nodes: comments, script, style
 [36m<body>[39m
@@ -430,7 +316,7 @@ Ignored nodes: comments, script, style
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
 
  FAIL  tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should display required legal links
-TestingLibraryElementError: Unable to find role="link" and name `/Terms of Service/i`
+TestingLibraryElementError: Unable to find an element with the text: Terms of Service. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
 
 Ignored nodes: comments, script, style
 [36m<body>[39m
@@ -667,19 +553,19 @@ Ignored nodes: comments, script, style
 [36m</body>[39m
  ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
  ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
- ❯ tests/facebook-ui.test.tsx:62:36
-     60| 
-     61|     const privacyLink = await screen.findByRole('link', { name: /Priva…
-     62|     const termsLink = await screen.findByRole('link', { name: /Terms o…
+ ❯ tests/facebook-ui.test.tsx:64:36
+     62|     console.log('Links found:', allLinks.map(l => ({ text: l.textConte…
+     63|     const privacyLink = await screen.findByText('Privacy Policy');
+     64|     const termsLink = await screen.findByText('Terms of Service');
        |                                    ^
-     63| 
-     64|     expect(privacyLink).toBeDefined();
+     65| 
+     66|     expect(privacyLink).toBeDefined();
 
 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
 
 
  Test Files  1 failed (1)
       Tests  1 failed | 1 passed (2)
-   Start at  08:18:35
-   Duration  2.81s (transform 209ms, setup 0ms, collect 464ms, tests 1.18s, environment 699ms, prepare 86ms)
+   Start at  08:24:25
+   Duration  3.13s (transform 211ms, setup 0ms, collect 538ms, tests 1.19s, environment 842ms, prepare 155ms)
 

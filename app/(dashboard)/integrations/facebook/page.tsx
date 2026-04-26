@@ -423,7 +423,7 @@ export default function FacebookIntegrationPage() {
               Continue with Facebook
             </Button>
             <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground pt-2 border-t mt-4">
-              <a
+              <Link
                 href="https://replybase.co.uk/privacy"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -431,8 +431,8 @@ export default function FacebookIntegrationPage() {
               >
                 <ShieldCheck className="h-3 w-3" />
                 Privacy Policy
-              </a>
-              <a
+              </Link>
+              <Link
                 href="https://replybase.co.uk/terms"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -440,7 +440,7 @@ export default function FacebookIntegrationPage() {
               >
                 <FileText className="h-3 w-3" />
                 Terms of Service
-              </a>
+              </Link>
             </div>
             <div className="text-[10px] text-muted-foreground leading-relaxed">
               By connecting, you agree to our Terms and Privacy Policy. We only
