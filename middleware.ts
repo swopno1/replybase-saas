@@ -10,6 +10,14 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Redirect /privacy and /terms to external URLs
+  if (pathname === "/privacy") {
+    return NextResponse.redirect(new URL("https://replybase.co.uk/privacy", req.url));
+  }
+  if (pathname === "/terms") {
+    return NextResponse.redirect(new URL("https://replybase.co.uk/terms", req.url));
+  }
+
   // Allow chat routes to be public
   if (pathname.startsWith("/chat/")) {
     return NextResponse.next();
@@ -60,8 +68,6 @@ export async function middleware(req: NextRequest) {
 
   const publicPaths = [
     "/pricing",
-    "/terms",
-    "/privacy",
     "/faq",
     "/webchat-e2e",
     "/data-deletion-status",

@@ -423,20 +423,24 @@ export default function FacebookIntegrationPage() {
               Continue with Facebook
             </Button>
             <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground pt-2 border-t mt-4">
-              <Link
-                href="/privacy"
+              <a
+                href="https://replybase.co.uk/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="hover:underline flex items-center gap-1"
               >
                 <ShieldCheck className="h-3 w-3" />
                 Privacy Policy
-              </Link>
-              <Link
-                href="/terms"
+              </a>
+              <a
+                href="https://replybase.co.uk/terms"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="hover:underline flex items-center gap-1"
               >
                 <FileText className="h-3 w-3" />
                 Terms of Service
-              </Link>
+              </a>
             </div>
             <div className="text-[10px] text-muted-foreground leading-relaxed">
               By connecting, you agree to our Terms and Privacy Policy. We only

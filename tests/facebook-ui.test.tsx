@@ -58,12 +58,14 @@ describe('Facebook Integration UI Compliance', () => {
   it('should display required legal links', async () => {
     render(<FacebookIntegrationPage />);
 
-    const privacyLink = await screen.findByText(/Privacy Policy/i);
-    const termsLink = await screen.findByText(/Terms of Service/i);
+    const privacyLink = await screen.findByRole('link', { name: /Privacy Policy/i });
+    const termsLink = await screen.findByRole('link', { name: /Terms of Service/i });
 
     expect(privacyLink).toBeDefined();
     expect(termsLink).toBeDefined();
-    expect(privacyLink.closest('a')?.getAttribute('href')).toBe('/privacy');
-    expect(termsLink.closest('a')?.getAttribute('href')).toBe('/terms');
+    expect(privacyLink.closest('a')?.getAttribute('href')).toBe('https://replybase.co.uk/privacy');
+    expect(termsLink.closest('a')?.getAttribute('href')).toBe('https://replybase.co.uk/terms');
+    expect(privacyLink.closest('a')?.getAttribute('target')).toBe('_blank');
+    expect(termsLink.closest('a')?.getAttribute('target')).toBe('_blank');
   });
 });

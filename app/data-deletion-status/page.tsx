@@ -126,12 +126,12 @@ export default async function DataDeletionStatusPage({
             <a href="https://wa.me/447822033580" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
               <MessageCircle className="h-4 w-4" /> +44 7822 033580
             </a>
-            <Link href="/privacy" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+            <a href="https://replybase.co.uk/privacy" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
               <ShieldCheck className="h-4 w-4" /> Privacy Policy
-            </Link>
-            <Link href="/terms" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+            </a>
+            <a href="https://replybase.co.uk/terms" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
               <FileText className="h-4 w-4" /> Terms of Service
-            </Link>
+            </a>
           </div>
         </div>
 

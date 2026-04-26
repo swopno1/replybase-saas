@@ -16,8 +16,8 @@ export default function AuthLayout({
           {children}
           <FieldDescription className="px-6 text-center">
             By creating an account, you agree to our{" "}
-            <a href="https://replybase.co.uk/terms">Terms of Service</a> and{" "}
-            <a href="https://replybase.co.uk/privacy">Privacy Policy</a>.
+            <a href="https://replybase.co.uk/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a> and{" "}
+            <a href="https://replybase.co.uk/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
           </FieldDescription>
         </div>
       </div>
