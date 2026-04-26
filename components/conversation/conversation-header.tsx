@@ -42,7 +42,7 @@ export function ConversationHeader({
   const [users, setUsers] = useState<User[]>([]);
 
   useEffect(() => {
-    setConversation(initialConversation);
+    queueMicrotask(() => setConversation(initialConversation));
   }, [initialConversation]);
 
   useEffect(() => {

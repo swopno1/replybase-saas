@@ -148,6 +148,18 @@ export default function WhatsAppIntegrationPage() {
   const [dialogApiKey, setDialogApiKey] = useState("");
   const [dialogChannelId, setDialogChannelId] = useState("");
 
+  const handleSelectBot = (id: string) => {
+    setSelectedBotId(id);
+    if (!id) {
+      setStatus(null);
+      setLogs([]);
+      setFlows([]);
+      setWhatsappChannel(null);
+      setAssignedFlow(null);
+      setSelectedFlowId("");
+    }
+  };
+
   useEffect(() => {
     if (!channelVisible) {
       router.replace("/");
@@ -158,11 +170,7 @@ export default function WhatsAppIntegrationPage() {
   }, [channelVisible, router]);
 
   useEffect(() => {
-    if (!selectedBotId) {
-      setStatus(null);
-      setLogs([]);
-      return;
-    }
+    if (!selectedBotId) return;
 
     let cancelled = false;
 
@@ -190,22 +198,12 @@ export default function WhatsAppIntegrationPage() {
     };
 
     run();
+    void loadFlows();
+    void loadWhatsAppChannel(selectedBotId);
+
     return () => {
       cancelled = true;
     };
-  }, [selectedBotId]);
-
-  useEffect(() => {
-    if (!selectedBotId) {
-      setFlows([]);
-      setWhatsappChannel(null);
-      setAssignedFlow(null);
-      setSelectedFlowId("");
-      return;
-    }
-
-    void loadFlows();
-    void loadWhatsAppChannel(selectedBotId);
   }, [selectedBotId]);
 
   const canConnect = useMemo(() => {
@@ -251,7 +249,7 @@ export default function WhatsAppIntegrationPage() {
 
       setBots(list);
       if (list.length === 1) {
-        setSelectedBotId(list[0].id);
+        handleSelectBot(list[0].id);
       }
     } catch {
       toast.error("Failed to load bots");
@@ -524,7 +522,7 @@ export default function WhatsAppIntegrationPage() {
         loading={loadingBots}
         bots={bots}
         selectedBotId={selectedBotId}
-        onSelectBot={setSelectedBotId}
+        onSelectBot={handleSelectBot}
       />
 
       {selectedBotId && (

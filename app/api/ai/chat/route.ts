@@ -20,7 +20,6 @@ export async function POST(req: NextRequest) {
   }
 
   // Quota checks
-  // 1. AI Responses / Month (messages)
   const aiMessageQuota = await checkLimit(session.user.id, "message");
   if (!aiMessageQuota.allowed) {
     return NextResponse.json(
@@ -34,7 +33,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 2. Automations / Month (unique conversations created this month)
   const tenantId = session.user.tenantId;
   const limits = await getTenantLimits(tenantId);
   const automationCount = await getMonthlyConversationCount(tenantId);
@@ -49,13 +47,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Fetch tenant AI settings
+  // Prepare AI context based on plan and tenant settings
+  const planName = (limits.displayName || limits.name || "free").toLowerCase();
+  const isPremium = planName.includes("pro") || planName.includes("business");
+
+  // Fetch full tenant details for context injection
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
-    select: { aiProvider: true, aiApiKey: true, aiModel: true },
+    select: { name: true, aiProvider: true, aiApiKey: true, aiModel: true },
   });
 
-  const planName = (limits.displayName || limits.name || "free").toLowerCase();
   const provider = (tenant?.aiProvider as AiProvider) || "default";
   const model = getAiModel({
     provider,
@@ -75,16 +76,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  // let promptMessages = messages;
-  const promptMessages = messages;
+  const systemPrompt = `You are a helpful AI assistant integrated into ${tenant?.name || "ReplyBase"}. 
+You are currently serving a ${planName.toUpperCase()} tier customer. 
+${isPremium ? "Provide detailed, expert-level assistance and prioritize accuracy and deep reasoning. You have access to more advanced models." : "Provide concise and helpful answers."}
+The current workspace is ${tenant?.name || "unknown"}.`;
+
+  const promptMessages = [
+    { role: "system", content: systemPrompt },
+    ...messages,
+  ];
 
   try {
     // Use the Vercel AI SDK to stream AI output
     const aiStream = await streamText({
       model,
-      messages: promptMessages,
+      messages: promptMessages as any,
       output: Output.text(),
-      // Optionally add user/tenant context here
     });
 
     // Increment AI message usage

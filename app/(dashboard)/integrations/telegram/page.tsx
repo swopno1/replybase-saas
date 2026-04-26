@@ -130,16 +130,24 @@ export default function TelegramIntegrationPage() {
   const [logs, setLogs] = useState<WebhookLogEntry[]>([]);
   const [isLogsLoading, setIsLogsLoading] = useState(false);
 
+  const handleSelectBot = (id: string) => {
+    setSelectedBotId(id);
+    if (!id) {
+      setStatus(null);
+      setLogs([]);
+      setFlows([]);
+      setTelegramChannel(null);
+      setAssignedFlow(null);
+      setSelectedFlowId("");
+    }
+  };
+
   useEffect(() => {
     loadBots();
   }, []);
 
   useEffect(() => {
-    if (!selectedBotId) {
-      setStatus(null);
-      setLogs([]);
-      return;
-    }
+    if (!selectedBotId) return;
 
     let cancelled = false;
 
@@ -165,22 +173,12 @@ export default function TelegramIntegrationPage() {
     };
 
     run();
+    void loadFlows();
+    void loadTelegramChannel(selectedBotId);
+
     return () => {
       cancelled = true;
     };
-  }, [selectedBotId]);
-
-  useEffect(() => {
-    if (!selectedBotId) {
-      setFlows([]);
-      setTelegramChannel(null);
-      setAssignedFlow(null);
-      setSelectedFlowId("");
-      return;
-    }
-
-    void loadFlows();
-    void loadTelegramChannel(selectedBotId);
   }, [selectedBotId]);
 
   const loadBots = async () => {
@@ -197,7 +195,7 @@ export default function TelegramIntegrationPage() {
           : [];
       setBots(list);
       if (list.length === 1) {
-        setSelectedBotId(list[0].id);
+        handleSelectBot(list[0].id);
       }
     } catch {
       toast.error("Failed to load bots");
@@ -504,7 +502,7 @@ export default function TelegramIntegrationPage() {
         loading={isBotsLoading}
         bots={bots}
         selectedBotId={selectedBotId}
-        onSelectBot={setSelectedBotId}
+        onSelectBot={handleSelectBot}
         createBotHref="/bots/new"
       />
 

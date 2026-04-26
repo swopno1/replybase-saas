@@ -19,7 +19,11 @@ export const authOptions: NextAuthOptions = {
   adapter: {
     ...PrismaAdapter(prisma),
     createUser: async (data: Omit<AdapterUser, "id">) => {
-      const existingUsers = await prisma.user.count();
+      const adminEmails = (process.env.ADMIN_EMAILS || "").split(",").map(e => e.trim().toLowerCase());
+      const isInitialAdmin = data.email && (
+        data.email.toLowerCase() === process.env.INITIAL_ADMIN_EMAIL?.toLowerCase() ||
+        adminEmails.includes(data.email.toLowerCase())
+      );
 
       // Create tenant first
       const tenant = await prisma.tenant.create({
@@ -32,9 +36,9 @@ export const authOptions: NextAuthOptions = {
         data: {
           ...data,
           tenantId: tenant.id,
-          // Bootstrap a platform admin if this is the first account.
-          isAdmin: existingUsers === 0,
-          role: existingUsers === 0 ? "SUPERADMIN" : "USER",
+          // Bootstrap a platform admin based on environment configuration.
+          isAdmin: Boolean(isInitialAdmin),
+          role: isInitialAdmin ? "SUPERADMIN" : "USER",
         },
       });
       return user as unknown as AdapterUser;

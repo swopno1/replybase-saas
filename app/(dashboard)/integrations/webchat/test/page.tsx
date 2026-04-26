@@ -26,11 +26,9 @@ function normalizeOrigin(value: string) {
 function WebchatTestHarnessContent() {
   const searchParams = useSearchParams();
   const [reloadKey, setReloadKey] = useState(0);
-  const [currentOrigin, setCurrentOrigin] = useState<string>("");
-  useEffect(() => {
-    setCurrentOrigin(window.location.origin);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const [currentOrigin, setCurrentOrigin] = useState<string>(() =>
+    typeof window !== "undefined" ? window.location.origin : "",
+  );
 
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">(
     "idle",

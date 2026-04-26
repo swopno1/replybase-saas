@@ -238,12 +238,9 @@ export default function WebchatIntegrationPage() {
     };
   }, []);
 
-  useEffect(() => {
-    loadBots();
-  }, []);
-
-  useEffect(() => {
-    if (!selectedBotId) {
+  const handleSelectBot = (id: string) => {
+    setSelectedBotId(id);
+    if (!id) {
       setChannels([]);
       setSelectedChannelId("");
       setSite(null);
@@ -253,9 +250,9 @@ export default function WebchatIntegrationPage() {
       setSelectedBotEntryFlow(undefined);
       return;
     }
-    void loadChannels(selectedBotId);
+    void loadChannels(id);
     void loadFlows();
-    void fetch(`/api/bots/${selectedBotId}`)
+    void fetch(`/api/bots/${id}`)
       .then((r) => r.json())
       .then((d: { bot?: { entryFlow?: string | null } }) => {
         setSelectedBotEntryFlow(
@@ -263,7 +260,45 @@ export default function WebchatIntegrationPage() {
         );
       })
       .catch(() => setSelectedBotEntryFlow(null));
-  }, [selectedBotId]);
+  };
+
+  const handleSelectChannel = (id: string) => {
+    setSelectedChannelId(id);
+    const channel = webChannels.find((c) => c.id === id);
+    if (channel) {
+      setChannelName(channel.name || "Website Chat");
+      setTitle(
+        typeof channel.config?.title === "string"
+          ? channel.config.title
+          : "Chat with us",
+      );
+      setPrimaryColor(
+        typeof channel.config?.primaryColor === "string"
+          ? channel.config.primaryColor
+          : "#0f766e",
+      );
+      setWelcomeMessage(
+        typeof channel.config?.welcomeMessage === "string"
+          ? channel.config.welcomeMessage
+          : "Hi. How can I help you today?",
+      );
+      setPosition(channel.config?.position === "left" ? "left" : "right");
+
+      const assignment = channel.flowAssignments?.[0];
+      setSelectedFlowId(assignment?.flowId || "");
+
+      void loadWebchatSite(selectedBotId, id);
+      void loadWebchatDiagnostics(selectedBotId, id);
+    } else {
+      setSite(null);
+      setDiagnostics(null);
+      setAllowedDomains([]);
+    }
+  };
+
+  useEffect(() => {
+    loadBots();
+  }, []);
 
   const webChannels = useMemo(
     () => channels.filter((channel) => channel.type.toLowerCase() === "web"),
@@ -272,7 +307,7 @@ export default function WebchatIntegrationPage() {
 
   useEffect(() => {
     if (!webChannels.length) {
-      setSelectedChannelId("");
+      if (selectedChannelId) setSelectedChannelId("");
       return;
     }
 
@@ -280,9 +315,15 @@ export default function WebchatIntegrationPage() {
       (channel) => channel.id === selectedChannelId,
     );
     if (!selectedStillExists) {
-      setSelectedChannelId(webChannels[0].id);
+      handleSelectChannel(webChannels[0].id);
     }
-  }, [webChannels, selectedChannelId]);
+  }, [webChannels]);
+
+  useEffect(() => {
+    setAllowedDomains(site?.allowedDomains || []);
+    setAllowedDomainsDraft("");
+    setIsSecretVisible(false);
+  }, [site?.id]); // Only reset when site object actually changes
 
   const selectedChannel = useMemo(
     () => webChannels.find((channel) => channel.id === selectedChannelId),
@@ -302,53 +343,6 @@ export default function WebchatIntegrationPage() {
     } satisfies FlowOption;
   }, [selectedChannel]);
 
-  useEffect(() => {
-    setSelectedFlowId(assignedChannelFlow?.id || "");
-  }, [assignedChannelFlow?.id]);
-
-  useEffect(() => {
-    if (!selectedChannel) {
-      return;
-    }
-
-    setChannelName(selectedChannel.name || "Website Chat");
-    setTitle(
-      typeof selectedChannel.config?.title === "string"
-        ? selectedChannel.config.title
-        : "Chat with us",
-    );
-    setPrimaryColor(
-      typeof selectedChannel.config?.primaryColor === "string"
-        ? selectedChannel.config.primaryColor
-        : "#0f766e",
-    );
-    setWelcomeMessage(
-      typeof selectedChannel.config?.welcomeMessage === "string"
-        ? selectedChannel.config.welcomeMessage
-        : "Hi. How can I help you today?",
-    );
-    setPosition(selectedChannel.config?.position === "left" ? "left" : "right");
-  }, [selectedChannel]);
-
-  useEffect(() => {
-    if (!selectedBotId || !selectedChannelId) {
-      setSite(null);
-      setDiagnostics(null);
-      setIsSecretVisible(false);
-      setAllowedDomains([]);
-      setAllowedDomainsDraft("");
-      return;
-    }
-
-    void loadWebchatSite(selectedBotId, selectedChannelId);
-    void loadWebchatDiagnostics(selectedBotId, selectedChannelId);
-  }, [selectedBotId, selectedChannelId]);
-
-  useEffect(() => {
-    setAllowedDomains(site?.allowedDomains || []);
-    setAllowedDomainsDraft("");
-    setIsSecretVisible(false);
-  }, [site]);
 
   const embedSnippet = useMemo(() => {
     if (!selectedChannelId) {
@@ -735,7 +729,7 @@ ${getReactLeadFormSnippet()}`;
 
       setBots(flattenedBots);
       if (flattenedBots.length > 0) {
-        setSelectedBotId(flattenedBots[0].id);
+        handleSelectBot(flattenedBots[0].id);
       }
     } catch (error) {
       toast.error(
@@ -1303,7 +1297,7 @@ ${getReactLeadFormSnippet()}`;
                   Loading bots...
                 </div>
               ) : (
-                <Select value={selectedBotId} onValueChange={setSelectedBotId}>
+                <Select value={selectedBotId} onValueChange={handleSelectBot}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a bot" />
                   </SelectTrigger>
@@ -1328,7 +1322,7 @@ ${getReactLeadFormSnippet()}`;
               ) : webChannels.length > 0 ? (
                 <Select
                   value={selectedChannelId}
-                  onValueChange={setSelectedChannelId}
+                  onValueChange={handleSelectChannel}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select a web channel" />

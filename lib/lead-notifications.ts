@@ -121,6 +121,8 @@ async function sendTelegramLeadNotification(
   };
 }
 
+import { sendEmail } from "./email";
+
 async function sendEmailLeadNotification(
   input: NewLeadNotificationInput,
   recipients: string[],
@@ -135,70 +137,33 @@ async function sendEmailLeadNotification(
     };
   }
 
-  const resendApiKey = process.env.RESEND_API_KEY;
-  const from = process.env.LEAD_NOTIFICATION_EMAIL_FROM;
-
-  if (!resendApiKey || !from) {
-    return {
-      channel: "email",
-      attempted: true,
-      delivered: 0,
-      failed: recipients.length,
-      errors: [
-        "Email is not fully configured (RESEND_API_KEY/LEAD_NOTIFICATION_EMAIL_FROM)",
-      ],
-    };
-  }
-
   const subject = `New Lead - ${input.name}`;
   const text = buildLeadSummaryMessage(input);
 
-  try {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${resendApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from,
-        to: recipients,
-        subject,
-        text,
-      }),
-    });
+  const result = await sendEmail({
+    to: recipients,
+    subject,
+    text,
+    from: process.env.LEAD_NOTIFICATION_EMAIL_FROM || "ReplyBase <noreply@replybase.co.uk>",
+  });
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      return {
-        channel: "email",
-        attempted: true,
-        delivered: 0,
-        failed: recipients.length,
-        errors: [
-          `Resend request failed (${response.status}): ${errorBody || "Unknown error"}`,
-        ],
-      };
-    }
-
-    return {
-      channel: "email",
-      attempted: true,
-      delivered: recipients.length,
-      failed: 0,
-      errors: [],
-    };
-  } catch (error) {
+  if (!result.ok) {
     return {
       channel: "email",
       attempted: true,
       delivered: 0,
       failed: recipients.length,
-      errors: [
-        error instanceof Error ? error.message : "Unknown email delivery error",
-      ],
+      errors: [result.error || "Unknown email delivery error"],
     };
   }
+
+  return {
+    channel: "email",
+    attempted: true,
+    delivered: recipients.length,
+    failed: 0,
+    errors: [],
+  };
 }
 
 export async function sendNewLeadNotifications(
@@ -226,31 +191,31 @@ export async function sendNewLeadNotifications(
     telegram.status === "fulfilled"
       ? telegram.value
       : {
-          channel: "telegram",
-          attempted: true,
-          delivered: 0,
-          failed: 1,
-          errors: [
-            telegram.reason instanceof Error
-              ? telegram.reason.message
-              : "Unknown Telegram notification error",
-          ],
-        };
+        channel: "telegram",
+        attempted: true,
+        delivered: 0,
+        failed: 1,
+        errors: [
+          telegram.reason instanceof Error
+            ? telegram.reason.message
+            : "Unknown Telegram notification error",
+        ],
+      };
 
   const emailResult: DeliveryResult =
     email.status === "fulfilled"
       ? email.value
       : {
-          channel: "email",
-          attempted: true,
-          delivered: 0,
-          failed: 1,
-          errors: [
-            email.reason instanceof Error
-              ? email.reason.message
-              : "Unknown email notification error",
-          ],
-        };
+        channel: "email",
+        attempted: true,
+        delivered: 0,
+        failed: 1,
+        errors: [
+          email.reason instanceof Error
+            ? email.reason.message
+            : "Unknown email notification error",
+        ],
+      };
 
   return {
     telegram: telegramResult,

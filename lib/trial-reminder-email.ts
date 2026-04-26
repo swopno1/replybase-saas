@@ -58,50 +58,20 @@ function buildBody(input: TrialReminderEmailInput): string {
 
 type SendResult = { ok: boolean; error?: string };
 
+import { sendEmail } from "./email";
+
 export async function sendTrialReminderEmail(
   input: TrialReminderEmailInput,
 ): Promise<SendResult> {
-  const resendApiKey = process.env.RESEND_API_KEY;
-  const from =
-    process.env.TRIAL_REMINDER_EMAIL_FROM ||
-    process.env.LEAD_NOTIFICATION_EMAIL_FROM ||
-    "ReplyBase <noreply@replybase.co.uk>";
-
-  if (!resendApiKey) {
-    return { ok: false, error: "RESEND_API_KEY not configured" };
-  }
-
   const subject = buildSubject(input.daysRemaining);
   const text = buildBody(input);
 
-  try {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${resendApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from,
-        to: [input.to],
-        subject,
-        text,
-      }),
-    });
+  const result = await sendEmail({
+    to: input.to,
+    subject,
+    text,
+    from: process.env.TRIAL_REMINDER_EMAIL_FROM || "ReplyBase <noreply@replybase.co.uk>",
+  });
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      return {
-        ok: false,
-        error: `Resend ${response.status}: ${errorBody || "Unknown error"}`,
-      };
-    }
-
-    return { ok: true };
-  } catch (error) {
-    return {
-      ok: false,
-      error: error instanceof Error ? error.message : "Unknown send error",
-    };
-  }
+  return { ok: result.ok, error: result.error };
 }

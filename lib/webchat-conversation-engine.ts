@@ -400,25 +400,35 @@ async function resolveFlow(params: {
   });
 
   if (activeSession) {
-    const updatedAt = activeSession.updatedAt || new Date();
-    const sessionAge = Date.now() - updatedAt.getTime();
-    if (sessionAge < STALE_SESSION_AGE_MS) {
-      // Recent session — resume from where the visitor left off.
-      const variables =
-        (activeSession.variables as Record<string, unknown>) || {};
-      const runtime = getRuntimeState(variables, activeSession.flowId);
-      const flow = await loadAccessibleFlow({
-        tenantId: params.tenantId,
-        flowId: runtime.activeFlowId,
-      });
+    const updatedAt = activeSession.updatedAt ? new Date(activeSession.updatedAt) : new Date();
+    const updatedAtTime = updatedAt.getTime();
+    
+    if (!isNaN(updatedAtTime)) {
+      const sessionAge = Date.now() - updatedAtTime;
+      if (sessionAge < STALE_SESSION_AGE_MS) {
+        // Recent session — resume from where the visitor left off.
+        const variables =
+          (activeSession.variables as Record<string, unknown>) || {};
+        const runtime = getRuntimeState(variables, activeSession.flowId);
+        const flow = await loadAccessibleFlow({
+          tenantId: params.tenantId,
+          flowId: runtime.activeFlowId,
+        });
 
-      if (flow) {
-        return { flow, session: activeSession, pageId, isNewSession: false };
+        if (flow) {
+          return { flow, session: activeSession, pageId, isNewSession: false };
+        }
+      } else {
+        // Stale session (> 24 h inactive) — expire it so the visitor gets a
+        // fresh start.  Contact variables (name, email) will be injected by the
+        // caller so the lead-gen gate skips re-interrogating known contacts.
+        await prisma.flowSession.update({
+          where: { id: activeSession.id },
+          data: { isActive: false },
+        });
       }
     } else {
-      // Stale session (> 24 h inactive) — expire it so the visitor gets a
-      // fresh start.  Contact variables (name, email) will be injected by the
-      // caller so the lead-gen gate skips re-interrogating known contacts.
+      // Fallback for invalid date: deactivate stale session
       await prisma.flowSession.update({
         where: { id: activeSession.id },
         data: { isActive: false },
