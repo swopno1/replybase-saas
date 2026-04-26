@@ -17,6 +17,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { isChannelVisibleInUi, type ChannelId } from "@/lib/channel-config";
+import { FacebookLogo } from "@/components/icons/MetaIcons";
 
 import {
   Sidebar,
@@ -64,7 +65,7 @@ const items = [
   {
     title: "Facebook Pages",
     url: "/integrations/facebook",
-    icon: MessageSquare,
+    icon: FacebookLogo,
     channelId: "facebook" as ChannelId,
   },
   {

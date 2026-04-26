@@ -26,9 +26,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Search, Pencil, Trash2, Calendar } from "lucide-react";
+import { Loader2, Search, Pencil, Trash2, Calendar, Eye } from "lucide-react";
 import { toast } from "sonner";
-import { EditSubscriberDialog } from "@/components/edit-subscriber-dialog";
+import Link from "next/link";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
 
 export const dynamic = "force-dynamic";
@@ -270,12 +270,10 @@ export default function SubscribersPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(sub)}
-                          >
-                            <Pencil className="h-4 w-4" />
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href={`/admin/subscribers/${sub.id}`}>
+                              <Eye className="h-4 w-4" />
+                            </Link>
                           </Button>
                           <Button
                             variant="outline"
@@ -296,13 +294,6 @@ export default function SubscribersPage() {
         </CardContent>
       </Card>
 
-      {editingSubscriber && (
-        <EditSubscriberDialog
-          subscriber={editingSubscriber}
-          onClose={() => setEditingSubscriber(null)}
-          onSuccess={handleUpdateSuccess}
-        />
-      )}
     </div>
   );
 }

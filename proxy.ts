@@ -1,7 +1,7 @@
 import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.AUTH_SECRET });
   const { pathname } = req.nextUrl;
 
@@ -10,10 +10,19 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Redirect /privacy and /terms to external URLs
+  if (pathname === "/privacy") {
+    return NextResponse.redirect(new URL("https://replybase.co.uk/privacy", req.url));
+  }
+  if (pathname === "/terms") {
+    return NextResponse.redirect(new URL("https://replybase.co.uk/terms", req.url));
+  }
+
   // Allow chat routes to be public
   if (pathname.startsWith("/chat/")) {
     return NextResponse.next();
   }
+
 
   // Allow webhook routes to be public
   if (pathname.startsWith("/api/billing/webhook")) {
@@ -45,9 +54,8 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow OIDC discovery and health endpoints to be public
+  // Allow health and public endpoints to be public
   if (
-    pathname.startsWith("/api/oidc") ||
     pathname.startsWith("/api/health") ||
     pathname.startsWith("/api/system-health") ||
     pathname.startsWith("/api/auth")
@@ -60,8 +68,6 @@ export async function middleware(req: NextRequest) {
 
   const publicPaths = [
     "/pricing",
-    "/terms",
-    "/privacy",
     "/faq",
     "/webchat-e2e",
     "/data-deletion-status",

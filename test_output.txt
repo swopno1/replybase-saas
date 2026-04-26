@@ -1,0 +1,34 @@
+
+> replybase-saas@0.1.0 test
+> vitest run tests/facebook-ui.test.tsx
+
+
+ RUN  v3.2.4 /Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas
+
+stdout | tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should render branding and display required legal links
+ALL LINKS: [ '/' ]
+
+ ❯ tests/facebook-ui.test.tsx (1 test | 1 failed) 137ms
+   × Facebook Integration UI Compliance > should render branding and display required legal links 136ms
+     → expected undefined to be defined
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/facebook-ui.test.tsx > Facebook Integration UI Compliance > should render branding and display required legal links
+AssertionError: expected undefined to be defined
+ ❯ tests/facebook-ui.test.tsx:62:25
+     60|     const termsLink = allLinks.find(l => l.getAttribute('href') === 'h…
+     61| 
+     62|     expect(privacyLink).toBeDefined();
+       |                         ^
+     63|     expect(termsLink).toBeDefined();
+     64|     expect(privacyLink?.getAttribute('target')).toBe('_blank');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  08:32:30
+   Duration  1.82s (transform 130ms, setup 0ms, collect 368ms, tests 137ms, environment 702ms, prepare 166ms)
+

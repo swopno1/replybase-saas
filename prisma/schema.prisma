@@ -79,6 +79,9 @@ model Tenant {
   users         User[]
   activityLogs  ActivityLog[]
   webChatSites  WebChatSite[]
+  aiProvider    String?        @default("default")
+  aiModel       String?
+  aiApiKey      String?
   newsletterSubscriptions NewsletterSubscriber[]
   dataDeletionRequests    DataDeletionRequest[]
   onboardingMilestoneEvents OnboardingMilestoneEvent[]
@@ -403,7 +406,7 @@ model CrmConversation {
   status         ConversationStatus @default(OPEN)
   assigneeId     String?
   botPaused      Boolean            @default(false)
-  // Typebot support
+  // External session support
   externalSessionId String?
   metadata          Json?
   assignee       User?              @relation("AssignedConversations", fields: [assigneeId], references: [id])
@@ -642,26 +645,6 @@ model FlowSession {
   @@map("flow_sessions")
 }
 
-// OIDC Provider Models
-model OidcModel {
-  id        String   @id // key
-  type      String   // model
-  payload   Json     // the payload
-  grantId   String?  // grantId, if applicable
-  userCode  String?  // userCode, if applicable
-  uid       String?  // uid, if applicable
-  expiresAt DateTime? // expiration
-  consumedAt DateTime? // consumed at
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([type, id]) // Composite unique constraint
-  @@index([grantId])
-  @@index([userCode])
-  @@index([uid])
-  @@map("oidc_models")
-}
-
 enum ConversationStatus {
   OPEN
   PENDING
@@ -714,7 +697,7 @@ model DemoTemplate {
   displayName       String
   description       String?
   businessType      String // e.g., "ecommerce", "service", "saas"
-  flowJson          Json // Typebot flow structure
+  flowJson          Json // Flow structure
   icon              String? // Icon or emoji for UI display
   category          String? // e.g., "engagement", "qualification", "nurture"
   enabled           Boolean                   @default(true)
@@ -778,6 +761,7 @@ enum DataDeletionStatus {
   PENDING
   IN_PROGRESS
   COMPLETED
+  ERROR
   REJECTED
   CANCELLED
 }

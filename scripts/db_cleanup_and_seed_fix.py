@@ -249,7 +249,7 @@ def main():
             details = NULL,
             "lastChecked" = NOW()
         WHERE system = 'ai-engine'
-    """, None, "Reset ai-engine system_health to healthy (cleared stale Typebot error)")
+    """, None, "Reset ai-engine system_health to healthy (cleared stale AI error)")
 
     # ──────────────────────────────────────────────────────────
     # 7. REJECT STALE DATA DELETION REQUEST (>30 days unprocessed)

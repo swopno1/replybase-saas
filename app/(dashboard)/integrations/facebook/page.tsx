@@ -26,8 +26,11 @@ import {
   ExternalLink,
   Trash2,
   Zap,
+  ShieldCheck,
+  FileText,
 } from "lucide-react";
 import Link from "next/link";
+import { FacebookLogo } from "@/components/icons/MetaIcons";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { isChannelVisibleInUi } from "@/lib/channel-config";
@@ -79,6 +82,10 @@ export default function FacebookIntegrationPage() {
   >({});
   const [assigningMap, setAssigningMap] = useState<Record<string, boolean>>({});
   const [unassigningMap, setUnassigningMap] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [checkingMap, setCheckingMap] = useState<Record<string, boolean>>({});
+  const [diagnosticResult, setDiagnosticResult] = useState<Record<string, any>>(
     {},
   );
 
@@ -315,6 +322,37 @@ export default function FacebookIntegrationPage() {
     }
   };
 
+  const handleCheckConnection = async (page: FBPage) => {
+    setCheckingMap((prev) => ({ ...prev, [page.id]: true }));
+    setDiagnosticResult((prev) => ({ ...prev, [page.id]: undefined }));
+    try {
+      const res = await fetch(
+        `/api/integrations/facebook/pages/${page.id}/check-connection`,
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to check connection");
+
+      setDiagnosticResult((prev) => ({ ...prev, [page.id]: data }));
+
+      if (data.tokenValid && data.webhookSubscribed) {
+        toast.success(`Connection for ${page.name} is healthy!`);
+      } else if (!data.tokenValid) {
+        toast.error(`Session for ${page.name} has expired. Please reconnect.`);
+      } else if (!data.webhookSubscribed) {
+        toast.warning(
+          `${page.name} is connected but not receiving webhook events.`,
+        );
+      }
+      await fetchPages();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to check connection",
+      );
+    } finally {
+      setCheckingMap((prev) => ({ ...prev, [page.id]: false }));
+    }
+  };
+
   const connectedPagesCount = pages.filter(
     (p) => p.connected || p.engineConnected,
   ).length;
@@ -369,7 +407,7 @@ export default function FacebookIntegrationPage() {
         <Card className="border-primary/50 bg-primary/5">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5 text-primary" />
+              <FacebookLogo className="h-5 w-5 text-primary" />
               Connect Your Facebook Account
             </CardTitle>
             <CardDescription>
@@ -385,14 +423,35 @@ export default function FacebookIntegrationPage() {
             <Button
               onClick={() => signIn("facebook")}
               size="lg"
-              className="w-full sm:w-auto"
+              className="w-full sm:w-auto bg-[#1877F2] hover:bg-[#166fe5] text-white"
             >
-              <MessageSquare className="mr-2 h-4 w-4" />
-              Connect with Facebook
+              <FacebookLogo className="mr-2 h-4 w-4" />
+              Continue with Facebook
             </Button>
-            <div className="text-xs text-muted-foreground pt-2">
-              We only request permissions for pages you manage and messaging
-              capabilities.
+            <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground pt-2 border-t mt-4">
+              <a
+                href="https://replybase.co.uk/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline flex items-center gap-1"
+              >
+                <ShieldCheck className="h-3 w-3" />
+                Privacy Policy
+              </a>
+              <a
+                href="https://replybase.co.uk/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline flex items-center gap-1"
+              >
+                <FileText className="h-3 w-3" />
+                Terms of Service
+              </a>
+            </div>
+            <div className="text-[10px] text-muted-foreground leading-relaxed">
+              By connecting, you agree to our Terms and Privacy Policy. We only
+              request permissions for pages you manage and messaging
+              capabilities required for ReplyBase to function.
             </div>
           </CardContent>
         </Card>
@@ -445,7 +504,7 @@ export default function FacebookIntegrationPage() {
             <CardContent>
               {pages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
+                  <FacebookLogo className="h-12 w-12 text-muted-foreground mb-4" />
                   <h3 className="text-lg font-medium mb-2">No pages found</h3>
                   <p className="text-sm text-muted-foreground mb-4 max-w-md">
                     We couldn&apos;t find any Facebook Pages associated with
@@ -466,6 +525,8 @@ export default function FacebookIntegrationPage() {
                     const isError = statusMap[page.id] === "error";
                     const isAssigning = assigningMap[page.id] ?? false;
                     const isUnassigning = unassigningMap[page.id] ?? false;
+                    const isChecking = checkingMap[page.id] ?? false;
+                    const pageDiagnostics = diagnosticResult[page.id];
                     const selectedFlowId = selectedFlowIdMap[page.id] ?? "";
 
                     return (
@@ -482,7 +543,7 @@ export default function FacebookIntegrationPage() {
                               ) : isConnected ? (
                                 <CheckCircle2 className="h-5 w-5 text-blue-500" />
                               ) : (
-                                <MessageSquare className="h-5 w-5 text-muted-foreground" />
+                                <FacebookLogo className="h-5 w-5 text-muted-foreground" />
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -566,6 +627,19 @@ export default function FacebookIntegrationPage() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
+                                  onClick={() => handleCheckConnection(page)}
+                                  disabled={isChecking}
+                                  title="Check Connection"
+                                >
+                                  {isChecking ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <ShieldCheck className="h-4 w-4" />
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
                                   onClick={() => handleUnlinkPage(page)}
                                   className="text-destructive hover:text-destructive hover:bg-destructive/10"
                                 >
@@ -574,6 +648,19 @@ export default function FacebookIntegrationPage() {
                               </div>
                             ) : isConnected ? (
                               <div className="flex gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleCheckConnection(page)}
+                                  disabled={isChecking}
+                                  title="Check Connection"
+                                >
+                                  {isChecking ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <ShieldCheck className="h-4 w-4" />
+                                  )}
+                                </Button>
                                 <Link href="/ai-status">
                                   <Button variant="default" size="sm">
                                     Enable AI
@@ -599,6 +686,73 @@ export default function FacebookIntegrationPage() {
                             )}
                           </div>
                         </div>
+
+                        {/* Diagnostics Details */}
+                        {pageDiagnostics && (
+                          <div
+                            className={`mt-4 p-3 rounded-md text-sm border ${
+                              pageDiagnostics.tokenValid &&
+                              pageDiagnostics.webhookSubscribed
+                                ? "bg-green-50 border-green-200 text-green-800"
+                                : "bg-amber-50 border-amber-200 text-amber-800"
+                            }`}
+                          >
+                            <div className="font-semibold mb-1 flex items-center gap-2">
+                              <ShieldCheck className="h-4 w-4" />
+                              Diagnostic Results
+                            </div>
+                            <ul className="space-y-1 list-disc list-inside">
+                              <li>
+                                Token Validity:{" "}
+                                {pageDiagnostics.tokenValid ? (
+                                  <span className="text-green-600 font-medium">
+                                    Valid
+                                  </span>
+                                ) : (
+                                  <span className="text-red-600 font-medium">
+                                    Expired / Invalid
+                                  </span>
+                                )}
+                              </li>
+                              <li>
+                                Webhook Subscription:{" "}
+                                {pageDiagnostics.webhookSubscribed ? (
+                                  <span className="text-green-600 font-medium">
+                                    Active
+                                  </span>
+                                ) : (
+                                  <span className="text-red-600 font-medium">
+                                    Inactive
+                                  </span>
+                                )}
+                              </li>
+                              {pageDiagnostics.missingPermissions?.length >
+                                0 && (
+                                <li className="text-red-700">
+                                  Missing Permissions:{" "}
+                                  {pageDiagnostics.missingPermissions.join(
+                                    ", ",
+                                  )}
+                                </li>
+                              )}
+                            </ul>
+                            {!pageDiagnostics.tokenValid && (
+                              <p className="mt-2 text-xs">
+                                <strong>Action:</strong> Click &quot;Re-connect
+                                Facebook Account&quot; at the bottom of the
+                                page to refresh your session.
+                              </p>
+                            )}
+                            {pageDiagnostics.tokenValid &&
+                              !pageDiagnostics.webhookSubscribed && (
+                                <p className="mt-2 text-xs">
+                                  <strong>Action:</strong> Try unlinking this
+                                  page and then connecting it again to restore
+                                  the webhook subscription.
+                                </p>
+                              )}
+                          </div>
+                        )}
 
                         {/* Flow assignment section — only for connected pages */}
                         {isConnected && (
@@ -707,34 +861,89 @@ export default function FacebookIntegrationPage() {
           {/* Info Card */}
           <Card className="border-dashed">
             <CardHeader>
-              <CardTitle className="text-sm">Next Steps</CardTitle>
+              <CardTitle className="text-sm">Next Steps & Legal</CardTitle>
             </CardHeader>
-            <CardContent className="text-sm text-muted-foreground space-y-2">
-              <p>
-                After connecting a page, assign a <strong>Flow</strong> to
-                handle automated conversations, or go to{" "}
-                <strong>AI Status</strong> to enable AI replies.
-              </p>
-              <p>
-                A flow takes priority over AI. If a flow is assigned and active,
-                it handles messages first.
-              </p>
+            <CardContent className="text-sm text-muted-foreground space-y-4">
+              <div className="space-y-2">
+                <p>
+                  After connecting a page, assign a <strong>Flow</strong> to
+                  handle automated conversations, or go to{" "}
+                  <strong>AI Status</strong> to enable AI replies.
+                </p>
+                <p>
+                  A flow takes priority over AI. If a flow is assigned and
+                  active, it handles messages first.
+                </p>
+              </div>
+
+              <div className="pt-4 border-t space-y-3">
+                <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium">
+                  <a
+                    href="https://replybase.co.uk/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:underline flex items-center gap-1 text-primary"
+                  >
+                    <ShieldCheck className="h-3 w-3" />
+                    Privacy Policy
+                  </a>
+                  <a
+                    href="https://replybase.co.uk/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:underline flex items-center gap-1 text-primary"
+                  >
+                    <FileText className="h-3 w-3" />
+                    Terms of Service
+                  </a>
+                </div>
+                <div className="text-[10px] leading-relaxed">
+                  ReplyBase complies with Meta's Platform Policy. We only
+                  request permissions for pages you manage and messaging
+                  capabilities required for ReplyBase to function. You can
+                  request data deletion at any time through our support or via
+                  the Meta App settings.
+                </div>
+              </div>
             </CardContent>
           </Card>
 
           {/* Action Buttons */}
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="destructive"
-              onClick={handleUnlinkAllPages}
-              disabled={!connected}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Disconnect All
-            </Button>
-            <Button variant="outline" onClick={() => signIn("facebook")}>
-              Re-connect Facebook Account
-            </Button>
+          <div className="flex flex-col gap-4">
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="destructive"
+                onClick={handleUnlinkAllPages}
+                disabled={!connected}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Disconnect All
+              </Button>
+              <Button variant="outline" onClick={() => signIn("facebook")}>
+                Re-connect Facebook Account
+              </Button>
+            </div>
+
+            <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground pt-4 border-t">
+              <a
+                href="https://replybase.co.uk/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline flex items-center gap-1"
+              >
+                <ShieldCheck className="h-3 w-3" />
+                Privacy Policy
+              </a>
+              <a
+                href="https://replybase.co.uk/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline flex items-center gap-1"
+              >
+                <FileText className="h-3 w-3" />
+                Terms of Service
+              </a>
+            </div>
           </div>
         </div>
       )}
