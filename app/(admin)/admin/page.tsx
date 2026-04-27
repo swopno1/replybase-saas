@@ -17,6 +17,9 @@ import { Badge } from "@/components/ui/badge";
 export const dynamic = "force-dynamic";
 
 async function getBusinessStats() {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
   const [
     totalUsers,
     totalTenants,
@@ -25,8 +28,9 @@ async function getBusinessStats() {
     totalContacts,
     totalConversations,
     recentSubscriptions,
-    monthlyRevenue,
+    revenueData,
     onboardingStats,
+    revenueDetails,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.tenant.count(),
@@ -47,29 +51,52 @@ async function getBusinessStats() {
       orderBy: { createdAt: "desc" },
       take: 10,
     }),
-    prisma.subscription.findMany({
+    prisma.revenue.aggregate({
+      _sum: { amount: true },
       where: {
-        status: { in: ["active", "trialing"] },
-        plan: { price: { gt: 0 } },
+        status: "paid",
+        paidAt: { gte: thirtyDaysAgo },
       },
-      include: { plan: true },
     }),
     prisma.onboardingSession.aggregate({
-      _count: {
-        id: true,
+      _count: { id: true },
+      where: { status: "COMPLETED" },
+    }),
+    prisma.tenant.findMany({
+      include: {
+        subscriptions: {
+          include: { plan: true },
+        },
+        users: {
+          select: { email: true, name: true },
+          take: 1,
+        },
+        revenue: {
+          orderBy: { paidAt: "desc" },
+        },
       },
       where: {
-        status: "COMPLETED",
+        subscriptions: { isNot: null },
       },
     }),
   ]);
 
   const totalOnboarding = await prisma.onboardingSession.count();
 
-  const revenue = monthlyRevenue.reduce(
-    (sum, sub) => sum + (sub.plan.price || 0),
-    0,
-  );
+  const formattedRevenueDetails = revenueDetails.map((tenant) => {
+    const totalPaid = tenant.revenue.reduce((sum, rev) => sum + rev.amount, 0);
+    const lastPayment = tenant.revenue[0];
+
+    return {
+      tenantName: tenant.name,
+      userEmail: tenant.users[0]?.email || "N/A",
+      stripeSubscriptionId: tenant.subscriptions?.stripeId || "N/A",
+      monthlyAmount: tenant.subscriptions?.plan.price || 0,
+      lastPaymentDate: lastPayment?.paidAt || null,
+      status: tenant.subscriptions?.status || "inactive",
+      totalPaid,
+    };
+  });
 
   return {
     totalUsers,
@@ -79,11 +106,12 @@ async function getBusinessStats() {
     totalContacts,
     totalConversations,
     recentSubscriptions,
-    monthlyRevenue: revenue,
+    monthlyRevenue: revenueData._sum.amount || 0,
     onboardingConversion: totalOnboarding
       ? ((onboardingStats._count.id / totalOnboarding) * 100).toFixed(1)
       : "0",
     totalOnboarding,
+    revenueDetails: formattedRevenueDetails,
   };
 }
 
@@ -106,7 +134,7 @@ export default async function AdminPage() {
         <Card className="border-none shadow-sm bg-white">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Monthly Revenue
+              Actual Revenue (30d)
             </CardTitle>
             <div className="p-2 bg-green-50 rounded-lg">
               <DollarSign className="h-4 w-4 text-green-600" />
@@ -118,7 +146,7 @@ export default async function AdminPage() {
             </div>
             <div className="flex items-center mt-2 text-xs font-medium text-green-600">
               <ArrowUpRight className="h-3 w-3 mr-1" />
-              <span>Live estimate</span>
+              <span>Real payments</span>
             </div>
           </CardContent>
         </Card>
@@ -184,6 +212,54 @@ export default async function AdminPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           <PlausibleDashboard sharedLink={plausibleSharedLink} />
+
+          <Card className="border-none shadow-sm">
+            <CardHeader>
+              <CardTitle>Revenue Details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-xs text-gray-500 uppercase bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2">Tenant / User</th>
+                      <th className="px-4 py-2">Stripe ID</th>
+                      <th className="px-4 py-2 text-right">Monthly</th>
+                      <th className="px-4 py-2">Last Paid</th>
+                      <th className="px-4 py-2">Status</th>
+                      <th className="px-4 py-2 text-right">Total Paid</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.revenueDetails.map((detail, idx) => (
+                      <tr key={idx} className="border-b hover:bg-gray-50">
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-gray-900">{detail.tenantName}</div>
+                          <div className="text-xs text-gray-500">{detail.userEmail}</div>
+                        </td>
+                        <td className="px-4 py-3 text-xs font-mono">{detail.stripeSubscriptionId}</td>
+                        <td className="px-4 py-3 text-right">£{detail.monthlyAmount.toFixed(2)}</td>
+                        <td className="px-4 py-3 text-xs">
+                          {detail.lastPaymentDate ? new Date(detail.lastPaymentDate).toLocaleDateString() : "Never"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant="outline" className="capitalize text-[10px]">
+                            {detail.status}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-right font-bold">£{detail.totalPaid.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                    {stats.revenueDetails.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="text-center py-4 text-gray-500">No revenue data available</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
 
           <Card className="border-none shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between">
