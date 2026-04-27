@@ -20,7 +20,7 @@ const onboardingSchema = z.object({
   }),
   productDetails: z.object({
     offer: z.string().max(1000),
-    targetCustomers: z.string().max(1000),
+    targetCustomers: z.union([z.string(), z.array(z.string())]),
   }),
   productSpecifics: z.object({
     mainProducts: z.string().max(1000),
@@ -99,8 +99,21 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const validatedData = onboardingSchema.parse(body);
 
-    // AI Summarization
-    const summary = await summarizeOnboardingData(validatedData as any);
+    // TODO: Re-enable AI summarization once the correct model is available
+    // For now, we skip the AI call to avoid 500 errors and return a placeholder summary.
+    // const summary = await summarizeOnboardingData(validatedData as any);
+    const summary = {
+      companyProfile: `${validatedData.kyc.company} is a business in the ${validatedData.businessBasics.industry} industry.`,
+      targetAudience: Array.isArray(validatedData.productDetails.targetCustomers)
+        ? validatedData.productDetails.targetCustomers.join(", ")
+        : validatedData.productDetails.targetCustomers,
+      keyOfferings: validatedData.productSpecifics.mainProducts,
+      pricingStrategy: validatedData.productSpecifics.pricing,
+      competitiveAdvantage: validatedData.productSpecifics.usps,
+      commonQueries: "Refer to support documents.",
+      toneAndVoice: "Professional and helpful",
+      isPlaceholder: true
+    };
 
     await prisma.tenant.update({
       where: { id: session.user.tenantId },
