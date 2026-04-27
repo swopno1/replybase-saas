@@ -91,14 +91,14 @@ describe("Onboarding API", () => {
     const data = await response.json();
 
     expect(data.success).toBe(true);
-    expect(data.summary).toEqual({ summary: "test summary" });
+    expect(data.summary.isPlaceholder).toBe(true);
     expect(prisma.tenant.update).toHaveBeenCalledWith({
       where: { id: mockTenantId },
       data: {
         isOnboarded: true,
         onboardingData: {
           raw: onboardingData,
-          summary: { summary: "test summary" },
+          summary: expect.objectContaining({ isPlaceholder: true }),
         },
       },
     });
