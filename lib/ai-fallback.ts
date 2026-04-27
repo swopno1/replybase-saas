@@ -2,10 +2,15 @@ import { prisma } from "@/lib/prisma";
 import { streamText, Output } from "ai";
 import { getAiModel, AiProvider } from "@/lib/ai-service";
 
+export interface AiMessage {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+
 export interface AiFallbackOptions {
   botId: string;
   conversationId: string;
-  messages: any[]; // TODO: Need to define a proper type for messages
+  messages: AiMessage[];
   planName: string;
   charLimit?: number;
 }
@@ -81,10 +86,18 @@ export async function aiFallback({
     planName,
   });
 
-  const aiStream = await streamText({
-    model,
-    messages: promptMessages,
-    output: Output.text(),
-  });
-  return aiStream;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const aiStream = await streamText({
+      model,
+      messages: promptMessages,
+      output: Output.text(),
+      abortSignal: controller.signal,
+    });
+    return aiStream;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }

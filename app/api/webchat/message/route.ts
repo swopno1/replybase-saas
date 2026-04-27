@@ -176,10 +176,10 @@ export async function POST(request: NextRequest) {
       select: { content: true, source: true },
     });
     const aiMessages = lastMessages.reverse().map((msg) => ({
-      role: msg.source === "human" ? "user" : "assistant",
+      role: (msg.source === "human" ? "user" : "assistant") as any,
       content: msg.content,
     }));
-    aiMessages.push({ role: "user", content: message });
+    aiMessages.push({ role: "user" as any, content: message });
 
     // Dynamically import aiFallback to avoid circular deps
     const { aiFallback } = await import("@/lib/ai-fallback");

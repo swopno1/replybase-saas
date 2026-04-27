@@ -59,10 +59,6 @@ export default function BillingTabContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCanceling, setIsCanceling] = useState(false);
 
-  useEffect(() => {
-    fetchBillingData();
-  }, []);
-
   const fetchBillingData = async () => {
     try {
       setIsLoading(true);
@@ -78,6 +74,10 @@ export default function BillingTabContent() {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchBillingData();
+  }, []);
 
   const handleUpgrade = () => {
     router.push("/pricing");
