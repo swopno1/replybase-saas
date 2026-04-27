@@ -442,12 +442,8 @@ async function handleMessage(
           });
 
           // Track usage after successful AI response
-          const tenantUsers = await prisma.user.findFirst({
-            where: { tenantId },
-            select: { id: true },
-          });
-          if (tenantUsers) {
-            await incrementUsage(tenantUsers.id, "message", 1).catch(() => {});
+        if (aiText && aiText !== AI_FALLBACK_MESSAGE) {
+          await incrementUsage("__tenant:" + tenantId, "message", 1).catch(() => {});
           }
           return;
         }

@@ -8,6 +8,7 @@ import {
 } from "@/lib/webchat-cors";
 import { findActiveWebChannel } from "@/lib/webchat";
 import { AI_FALLBACK_MESSAGE } from "@/lib/ai-fallback";
+import { checkLimit, incrementUsage } from "@/lib/subscription";
 
 export async function POST(request: NextRequest) {
   if (!isWebchatOriginAllowed(request)) {
@@ -186,23 +187,37 @@ export async function POST(request: NextRequest) {
     const { aiFallback } = await import("@/lib/ai-fallback");
     let aiText = "";
     let aiErrorOccurred = false;
-    try {
-      const aiStream = await aiFallback({
-        botId,
-        conversationId,
-        messages: aiMessages,
-        planName,
-      });
-      aiText =
-        aiStream && "text" in aiStream
-          ? await aiStream.text
-          : String(aiStream ?? "");
-    } catch (aiError) {
-      aiErrorOccurred = true;
+
+    // Enforce usage limits before making paid AI call
+    const usageCheck = await checkLimit("__tenant:" + channel.bot.tenantId, "message");
+
+    if (!usageCheck.allowed) {
+      console.warn("[Webchat Message] AI quota exceeded", { tenantId: channel.bot.tenantId });
       aiText = customFallbackMessage;
-      console.error("[Webchat Message] AI error, using fallback", {
-        error: aiError,
-      });
+      aiErrorOccurred = true; // Treated as "fallback needed"
+    } else {
+      try {
+        const aiStream = await aiFallback({
+          botId,
+          conversationId,
+          messages: aiMessages,
+          planName,
+        });
+        aiText =
+          aiStream && "text" in aiStream
+            ? await aiStream.text
+            : String(aiStream ?? "");
+
+        if (!aiErrorOccurred && aiText.trim() && aiText !== customFallbackMessage) {
+           await incrementUsage("__tenant:" + channel.bot.tenantId, "message", 1).catch(() => {});
+        }
+      } catch (aiError) {
+        aiErrorOccurred = true;
+        aiText = customFallbackMessage;
+        console.error("[Webchat Message] AI error, using fallback", {
+          error: aiError,
+        });
+      }
     }
 
     if (aiText.trim()) {

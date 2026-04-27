@@ -241,7 +241,7 @@ async function notifyUsageIfNeeded(tenantId: string, type: string, current: numb
  * Enforces persisted usage limits using the `usage_logs` table.
  */
 export async function checkLimit(
-  userId: string,
+  id: string,
   type: "message" | "flow_execution",
 ): Promise<{
   allowed: boolean;
@@ -249,16 +249,23 @@ export async function checkLimit(
   limit: number;
   retryAfter?: number;
 }> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { tenantId: true },
-  });
+  let tenantId: string | null = null;
 
-  if (!user?.tenantId) {
+  if (id.startsWith("__tenant:")) {
+    tenantId = id.replace("__tenant:", "");
+  } else {
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { tenantId: true },
+    });
+    tenantId = user?.tenantId || null;
+  }
+
+  if (!tenantId) {
     return { allowed: false, remaining: 0, limit: 0 };
   }
 
-  const limits = await getTenantLimits(user.tenantId);
+  const limits = await getTenantLimits(tenantId);
   const now = new Date();
   const today = startOfUtcDay(now);
 
@@ -272,13 +279,13 @@ export async function checkLimit(
 
     const [dailyUsage, monthlyUsage] = await Promise.all([
       getUsageCount({
-        tenantId: user.tenantId,
+        tenantId,
         type: "message",
         startDate: today,
         endDate: startOfNextUtcDay(today),
       }),
       getUsageCount({
-        tenantId: user.tenantId,
+        tenantId,
         type: "message",
         startDate: startOfUtcMonth(now),
         endDate: startOfNextUtcMonth(now),
@@ -323,7 +330,7 @@ export async function checkLimit(
   }
 
   const dailyUsage = await getUsageCount({
-    tenantId: user.tenantId,
+    tenantId,
     type: "flow_execution",
     startDate: today,
     endDate: startOfNextUtcDay(today),
@@ -348,18 +355,27 @@ export async function checkLimit(
 }
 
 export async function incrementUsage(
-  userId: string,
+  id: string,
   type: "message" | "flow_execution",
   amount: number,
   botId?: string,
   channelId?: string,
 ): Promise<void> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { tenantId: true },
-  });
+  let tenantId: string | null = null;
+  let finalUserId: string | null = null;
 
-  if (!user?.tenantId || amount <= 0) {
+  if (id.startsWith("__tenant:")) {
+    tenantId = id.replace("__tenant:", "");
+  } else {
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { tenantId: true },
+    });
+    tenantId = user?.tenantId || null;
+    finalUserId = id;
+  }
+
+  if (!tenantId || amount <= 0) {
     return;
   }
 
@@ -373,7 +389,7 @@ export async function incrementUsage(
   await prisma.usageLog.upsert({
     where: {
       tenantId_type_date_botId_channelId: {
-        tenantId: user.tenantId,
+        tenantId: tenantId,
         type,
         date,
         botId: normalizedBotId,
@@ -381,8 +397,8 @@ export async function incrementUsage(
       },
     },
     create: {
-      tenantId: user.tenantId,
-      userId: null,
+      tenantId: tenantId,
+      userId: finalUserId,
       botId: normalizedBotId,
       channelId: normalizedChannelId,
       type,
@@ -398,24 +414,24 @@ export async function incrementUsage(
 
   // Check for notifications after incrementing
   // We fetch total usage to be accurate
-  const limits = await getTenantLimits(user.tenantId);
+  const limits = await getTenantLimits(tenantId);
   const now = new Date();
   
   if (type === "message") {
     const dailyUsage = await getUsageCount({
-      tenantId: user.tenantId,
+      tenantId: tenantId,
       type: "message",
       startDate: startOfUtcDay(now),
       endDate: startOfNextUtcDay(now),
     });
-    await notifyUsageIfNeeded(user.tenantId, "daily_messages", dailyUsage, limits.dailyMessageLimit);
+    await notifyUsageIfNeeded(tenantId, "daily_messages", dailyUsage, limits.dailyMessageLimit);
   } else if (type === "flow_execution") {
     const dailyUsage = await getUsageCount({
-      tenantId: user.tenantId,
+      tenantId: tenantId,
       type: "flow_execution",
       startDate: startOfUtcDay(now),
       endDate: startOfNextUtcDay(now),
     });
-    await notifyUsageIfNeeded(user.tenantId, "flow_executions", dailyUsage, limits.flowExecutionCap);
+    await notifyUsageIfNeeded(tenantId, "flow_executions", dailyUsage, limits.flowExecutionCap);
   }
 }

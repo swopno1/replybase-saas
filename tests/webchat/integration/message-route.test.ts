@@ -43,6 +43,7 @@ vi.mock("@/lib/webchat", () => ({
 
 vi.mock("@/lib/ai-fallback", () => ({
   aiFallback: vi.fn(),
+  AI_FALLBACK_MESSAGE: "Our AI assistant is temporarily unavailable. Please try again shortly—your request is important to us.",
 }));
 
 vi.mock("@/lib/webchat-conversation-engine", () => ({
@@ -64,6 +65,11 @@ vi.mock("@/lib/webchat-rollout", () => ({
     mode: "off",
     reason: "rollout_not_enforced",
   }),
+}));
+
+vi.mock("@/lib/subscription", () => ({
+  checkLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 10, limit: 10 }),
+  incrementUsage: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { POST } from "@/app/api/webchat/message/route";
