@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { MoreHorizontal, Trash2, Copy } from "lucide-react";
+import { MoreHorizontal, Trash2, Copy, MessageSquare } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
+import { DataTable } from "@/components/data-table";
+import { ColumnDef, PaginationState, RowSelectionState } from "@tanstack/react-table";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type ConversationListItem = {
   id: string;
@@ -26,40 +29,60 @@ type ConversationListItem = {
   };
 };
 
-type ConversationsListProps = {
-  initialConversations: ConversationListItem[];
-};
-
 const activityDateFormatter = new Intl.DateTimeFormat("en-GB", {
   day: "2-digit",
   month: "2-digit",
   year: "numeric",
-  timeZone: "UTC",
+  hour: "2-digit",
+  minute: "2-digit",
 });
 
 function formatActivityDate(value: string): string {
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return "-";
-  }
-
+  if (Number.isNaN(parsed.getTime())) return "-";
   return activityDateFormatter.format(parsed);
 }
 
-export function ConversationsList({
-  initialConversations,
-}: ConversationsListProps) {
+export function ConversationsList() {
   const router = useRouter();
   const { confirm } = useConfirmation();
-  const [conversations, setConversations] = useState(initialConversations);
-  const [deletingConversationId, setDeletingConversationId] = useState<
-    string | null
-  >(null);
+  const [conversations, setConversations] = useState<ConversationListItem[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [pageCount, setPageCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 20,
+  });
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [isAllMatchingSelected, setIsAllMatchingSelected] = useState(false);
 
-  const hasConversations = useMemo(
-    () => conversations.length > 0,
-    [conversations.length],
-  );
+  const fetchConversations = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: (pagination.pageIndex + 1).toString(),
+        limit: pagination.pageSize.toString(),
+      });
+      const response = await fetch(`/api/conversations?${params.toString()}`);
+      if (response.ok) {
+        const data = await response.json();
+        setConversations(data.conversations);
+        setTotalCount(data.totalCount);
+        setPageCount(data.totalPages);
+        setIsAllMatchingSelected(false);
+      }
+    } catch (error) {
+      console.error("Failed to fetch conversations:", error);
+      toast.error("Failed to load conversations");
+    } finally {
+      setLoading(false);
+    }
+  }, [pagination]);
+
+  useEffect(() => {
+    fetchConversations();
+  }, [fetchConversations]);
 
   const handleCopyConversationId = async (conversationId: string) => {
     try {
@@ -70,113 +93,146 @@ export function ConversationsList({
     }
   };
 
-  const handleDeleteConversation = async (conversationId: string) => {
+  const handleDeleteConversations = async (ids: string[], allMatching = false) => {
+    const message = allMatching
+      ? `Are you sure you want to delete ALL ${totalCount} matching conversations? This cannot be undone.`
+      : `Are you sure you want to delete ${ids.length} conversation(s)? This cannot be undone.`;
+
     const confirmed = await confirm({
-      title: "Delete Conversation",
-      description: "Delete this conversation? This cannot be undone.",
+      title: "Delete Conversations",
+      description: message,
       confirmText: "Delete",
       variant: "destructive",
     });
 
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
-    setDeletingConversationId(conversationId);
     try {
-      const response = await fetch(`/api/conversations/${conversationId}`, {
+      const response = await fetch("/api/conversations", {
         method: "DELETE",
+        body: JSON.stringify({ ids: allMatching ? "ALL" : ids }),
       });
 
-      if (!response.ok) {
-        const data = (await response.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        throw new Error(data?.error || "Failed to delete conversation");
-      }
+      if (!response.ok) throw new Error("Failed to delete conversations");
 
-      setConversations((prev) =>
-        prev.filter((item) => item.id !== conversationId),
-      );
-      toast.success("Conversation deleted");
+      toast.success(`${ids.length} conversation(s) deleted`);
+      setRowSelection({});
+      fetchConversations();
       router.refresh();
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to delete conversation",
-      );
-    } finally {
-      setDeletingConversationId(null);
+      toast.error("Failed to delete conversations");
     }
   };
 
-  if (!hasConversations) {
-    return (
-      <p className="text-muted-foreground text-center">No conversations yet.</p>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      {conversations.map((conversation) => (
-        <div
-          key={conversation.id}
-          className="flex items-center gap-3 rounded-lg border p-4 hover:bg-muted"
-        >
-          <Avatar>
-            <AvatarFallback>
-              {conversation.contact.name?.charAt(0) || "?"}
-            </AvatarFallback>
-          </Avatar>
-
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-semibold">
-              {conversation.contact.name || "Unknown contact"}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Last activity: {formatActivityDate(conversation.updatedAt)}
-            </p>
+  const columns = useMemo<ColumnDef<ConversationListItem>[]>(() => [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllPageRowsSelected()}
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
+      accessorKey: "contact.name",
+      header: "Contact",
+      cell: ({ row }) => {
+        const name = row.original.contact.name || "Unknown contact";
+        return (
+          <div className="flex items-center gap-3">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback>{name.charAt(0) || "?"}</AvatarFallback>
+            </Avatar>
+            <span className="font-medium">{name}</span>
           </div>
-
-          <Badge variant="outline">{conversation.channel}</Badge>
-
+        );
+      },
+    },
+    {
+      accessorKey: "channel",
+      header: "Channel",
+      cell: ({ row }) => <Badge variant="outline">{row.original.channel}</Badge>,
+    },
+    {
+      accessorKey: "updatedAt",
+      header: "Last Activity",
+      cell: ({ row }) => formatActivityDate(row.original.updatedAt),
+    },
+    {
+      id: "actions",
+      header: () => <div className="text-right">Actions</div>,
+      enableHiding: false,
+      cell: ({ row }) => (
+        <div className="text-right">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Conversation options"
-              >
+              <Button variant="ghost" size="icon">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem asChild>
-                <Link href={`/conversations/${conversation.id}`}>
-                  Open conversation
+                <Link href={`/conversations/${row.original.id}`}>
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  Open chat
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handleCopyConversationId(conversation.id)}
-              >
+              <DropdownMenuItem onClick={() => handleCopyConversationId(row.original.id)}>
                 <Copy className="mr-2 h-4 w-4" />
                 Copy ID
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => handleDeleteConversation(conversation.id)}
-                disabled={deletingConversationId === conversation.id}
+                onClick={() => handleDeleteConversations([row.original.id])}
                 className="text-destructive"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
-                {deletingConversationId === conversation.id
-                  ? "Deleting..."
-                  : "Delete"}
+                Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      ))}
+      ),
+    },
+  ], []);
+
+  const selectedIds = useMemo(() => Object.keys(rowSelection), [rowSelection]);
+  const currentSelectionCount = isAllMatchingSelected ? totalCount : selectedIds.length;
+
+  return (
+    <div className="space-y-4">
+      {selectedIds.length > 0 && (
+        <div className="flex justify-end gap-2">
+          <Button variant="destructive" size="sm" onClick={() => handleDeleteConversations(selectedIds, isAllMatchingSelected)}>
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete ({currentSelectionCount})
+          </Button>
+        </div>
+      )}
+      <DataTable
+        columns={columns}
+        data={conversations}
+        pageCount={pageCount}
+        pagination={pagination}
+        onPaginationChange={setPagination}
+        rowSelection={rowSelection}
+        onRowSelectionChange={setRowSelection}
+        isLoading={loading}
+        persistenceKey="conversations_table"
+        totalCount={totalCount}
+        onSelectAllMatching={setIsAllMatchingSelected}
+        isAllMatchingSelected={isAllMatchingSelected}
+      />
     </div>
   );
 }

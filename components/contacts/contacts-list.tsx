@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { MoreHorizontal, Trash2, Mail, Phone } from "lucide-react";
+import { MoreHorizontal, Trash2, Mail, Phone, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +14,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
+import { DataTable } from "@/components/data-table";
+import { ColumnDef, PaginationState, RowSelectionState } from "@tanstack/react-table";
+import { Checkbox } from "@/components/ui/checkbox";
+import Link from "next/link";
 
 type ContactIdentity = { type: string; value: string };
 type ContactConversation = { id: string; channel: string; updatedAt: string };
@@ -26,17 +29,11 @@ type ContactListItem = {
   phone: string | null;
   identities: ContactIdentity[];
   conversations: ContactConversation[];
-};
-
-type ContactsListProps = {
-  initialContacts: ContactListItem[];
+  createdAt: string;
 };
 
 function formatIdentityLabel(type: string) {
-  if (type === "webchat_visitor_id") {
-    return "Webchat visitor";
-  }
-
+  if (type === "webchat_visitor_id") return "Webchat visitor";
   return type
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
@@ -59,162 +56,216 @@ function getVisitorDisplayName(contact: ContactListItem) {
   return "Unknown Visitor";
 }
 
-export function ContactsList({ initialContacts }: ContactsListProps) {
+export function ContactsList() {
   const router = useRouter();
   const { confirm } = useConfirmation();
-  const [contacts, setContacts] = useState(initialContacts);
-  const [deletingContactId, setDeletingContactId] = useState<string | null>(
-    null,
-  );
+  const [contacts, setContacts] = useState<ContactListItem[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [pageCount, setPageCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 20,
+  });
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [isAllMatchingSelected, setIsAllMatchingSelected] = useState(false);
 
-  const handleDeleteContact = async (contactId: string) => {
+  const fetchContacts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: (pagination.pageIndex + 1).toString(),
+        limit: pagination.pageSize.toString(),
+      });
+      const response = await fetch(`/api/contacts?${params.toString()}`);
+      if (response.ok) {
+        const data = await response.json();
+        setContacts(data.contacts);
+        setTotalCount(data.totalCount);
+        setPageCount(data.totalPages);
+        setIsAllMatchingSelected(false);
+      }
+    } catch (error) {
+      console.error("Failed to fetch contacts:", error);
+      toast.error("Failed to load contacts");
+    } finally {
+      setLoading(false);
+    }
+  }, [pagination]);
+
+  useEffect(() => {
+    fetchContacts();
+  }, [fetchContacts]);
+
+  const handleDeleteContacts = async (ids: string[], allMatching = false) => {
+    const message = allMatching
+      ? `Are you sure you want to delete ALL ${totalCount} matching contacts? Related conversation links may be removed.`
+      : `Are you sure you want to delete ${ids.length} contact(s)? Related conversation links may be removed.`;
+
     const confirmed = await confirm({
-      title: "Delete Contact",
-      description:
-        "Delete this contact? Related conversation links may be removed.",
+      title: "Delete Contacts",
+      description: message,
       confirmText: "Delete",
       variant: "destructive",
     });
 
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
-    setDeletingContactId(contactId);
     try {
-      const response = await fetch(`/api/contacts/${contactId}`, {
+      const response = await fetch("/api/contacts", {
         method: "DELETE",
+        body: JSON.stringify({ ids: allMatching ? "ALL" : ids }),
       });
 
-      if (!response.ok) {
-        const data = (await response.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        throw new Error(data?.error || "Failed to delete contact");
-      }
+      if (!response.ok) throw new Error("Failed to delete contacts");
 
-      setContacts((prev) => prev.filter((item) => item.id !== contactId));
-      toast.success("Contact deleted");
+      toast.success(`${ids.length} contact(s) deleted`);
+      setRowSelection({});
+      fetchContacts();
       router.refresh();
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to delete contact",
-      );
-    } finally {
-      setDeletingContactId(null);
+      toast.error("Failed to delete contacts");
     }
   };
 
-  if (contacts.length === 0) {
-    return (
-      <p className="text-center text-muted-foreground py-8">
-        No contacts yet. Contacts will appear here when people start
-        conversations.
-      </p>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      {contacts.map((contact) => {
-        const latestConversation = contact.conversations[0];
-        const displayName = getVisitorDisplayName(contact);
+  const columns = useMemo<ColumnDef<ContactListItem>[]>(() => [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllPageRowsSelected()}
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
+      accessorKey: "name",
+      header: "Contact",
+      cell: ({ row }) => {
+        const displayName = getVisitorDisplayName(row.original);
         const avatarLabel = displayName.charAt(0)?.toUpperCase() || "?";
-
         return (
-          <div
-            key={contact.id}
-            className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-          >
-            <div className="flex items-center space-x-4 min-w-0">
-              <Avatar>
-                <AvatarFallback>{avatarLabel}</AvatarFallback>
-              </Avatar>
-              <div className="min-w-0">
-                <p className="font-semibold truncate">{displayName}</p>
-                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  {contact.email ? (
-                    <p className="text-sm text-muted-foreground">
-                      {contact.email}
-                    </p>
-                  ) : null}
-                  {contact.phone ? (
-                    <p className="text-sm text-muted-foreground">
-                      {contact.phone}
-                    </p>
-                  ) : null}
-                  {!contact.email && !contact.phone ? (
-                    <p className="text-sm text-muted-foreground">
-                      Anonymous website visitor
-                    </p>
-                  ) : null}
-                </div>
-                {contact.identities.length > 0 && (
-                  <div className="flex gap-1 mt-1 flex-wrap">
-                    {contact.identities.map((identity, idx) => (
-                      <Badge key={idx} variant="outline" className="text-xs">
-                        {formatIdentityLabel(identity.type)}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary">
-                {contact.conversations.length} conversation
-                {contact.conversations.length !== 1 ? "s" : ""}
-              </Badge>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Contact options"
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {latestConversation ? (
-                    <DropdownMenuItem asChild>
-                      <Link href={`/conversations/${latestConversation.id}`}>
-                        Open chat
-                      </Link>
-                    </DropdownMenuItem>
-                  ) : null}
-                  {contact.email ? (
-                    <DropdownMenuItem asChild>
-                      <a href={`mailto:${contact.email}`}>
-                        <Mail className="mr-2 h-4 w-4" />
-                        Email contact
-                      </a>
-                    </DropdownMenuItem>
-                  ) : null}
-                  {contact.phone ? (
-                    <DropdownMenuItem asChild>
-                      <a href={`tel:${contact.phone}`}>
-                        <Phone className="mr-2 h-4 w-4" />
-                        Call contact
-                      </a>
-                    </DropdownMenuItem>
-                  ) : null}
-                  <DropdownMenuItem
-                    onClick={() => handleDeleteContact(contact.id)}
-                    disabled={deletingContactId === contact.id}
-                    className="text-destructive"
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    {deletingContactId === contact.id
-                      ? "Deleting..."
-                      : "Delete"}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+          <div className="flex items-center gap-3">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback>{avatarLabel}</AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col">
+              <span className="font-medium">{displayName}</span>
+              <span className="text-xs text-muted-foreground">
+                {row.original.email || row.original.phone || "Anonymous"}
+              </span>
             </div>
           </div>
         );
-      })}
+      },
+    },
+    {
+      id: "identities",
+      header: "Identities",
+      cell: ({ row }) => (
+        <div className="flex flex-wrap gap-1">
+          {row.original.identities.map((id, idx) => (
+            <Badge key={idx} variant="outline" className="text-[10px] px-1 py-0 h-4">
+              {formatIdentityLabel(id.type)}
+            </Badge>
+          ))}
+        </div>
+      ),
+    },
+    {
+      id: "conversations",
+      header: "Conversations",
+      cell: ({ row }) => (
+        <Badge variant="secondary">
+          {row.original.conversations.length} conversation{row.original.conversations.length !== 1 ? "s" : ""}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: "createdAt",
+      header: "Joined",
+      cell: ({ row }) => new Date(row.original.createdAt).toLocaleDateString(),
+    },
+    {
+      id: "actions",
+      header: () => <div className="text-right">Actions</div>,
+      enableHiding: false,
+      cell: ({ row }) => {
+        const latestConversation = row.original.conversations[0];
+        return (
+          <div className="text-right">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {latestConversation && (
+                  <DropdownMenuItem asChild>
+                    <Link href={`/conversations/${latestConversation.id}`}>
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      Open chat
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                {row.original.email && (
+                  <DropdownMenuItem asChild>
+                    <a href={`mailto:${row.original.email}`}>
+                      <Mail className="mr-2 h-4 w-4" />
+                      Email contact
+                    </a>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={() => handleDeleteContacts([row.original.id])} className="text-destructive">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        );
+      },
+    },
+  ], []);
+
+  const selectedIds = useMemo(() => Object.keys(rowSelection), [rowSelection]);
+  const currentSelectionCount = isAllMatchingSelected ? totalCount : selectedIds.length;
+
+  return (
+    <div className="space-y-4">
+      {selectedIds.length > 0 && (
+        <div className="flex justify-end gap-2">
+          <Button variant="destructive" size="sm" onClick={() => handleDeleteContacts(selectedIds, isAllMatchingSelected)}>
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete ({currentSelectionCount})
+          </Button>
+        </div>
+      )}
+      <DataTable
+        columns={columns}
+        data={contacts}
+        pageCount={pageCount}
+        pagination={pagination}
+        onPaginationChange={setPagination}
+        rowSelection={rowSelection}
+        onRowSelectionChange={setRowSelection}
+        isLoading={loading}
+        persistenceKey="contacts_table"
+        totalCount={totalCount}
+        onSelectAllMatching={setIsAllMatchingSelected}
+        isAllMatchingSelected={isAllMatchingSelected}
+      />
     </div>
   );
 }

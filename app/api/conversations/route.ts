@@ -19,29 +19,83 @@ const createConversationSchema = z.object({
 export const GET: (
   request: NextRequest,
   context: { params: Promise<Record<string, string | string[]>> },
-) => Promise<Response> = withAuthAndTenant(async ({ tenantId }) => {
+) => Promise<Response> = withAuthAndTenant(async ({ tenantId }, request) => {
   try {
-    const conversations = await prisma.crmConversation.findMany({
-      where: {
-        contact: {
-          tenantId: tenantId,
-        },
-      },
-      include: {
-        contact: {
-          select: {
-            id: true,
-            name: true,
+    const searchParams = request.nextUrl.searchParams;
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "50");
+    const skip = (page - 1) * limit;
+
+    const [conversations, totalCount] = await Promise.all([
+      prisma.crmConversation.findMany({
+        where: {
+          contact: {
+            tenantId: tenantId,
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
+        include: {
+          contact: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+        orderBy: { updatedAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.crmConversation.count({
+        where: {
+          contact: {
+            tenantId: tenantId,
+          },
+        },
+      }),
+    ]);
+
+    return NextResponse.json({
+      conversations,
+      totalCount,
+      totalPages: Math.ceil(totalCount / limit),
+      currentPage: page,
     });
-    return NextResponse.json({ conversations });
   } catch (error) {
     console.error("[Conversations API] Error fetching conversations:", error);
     return NextResponse.json(
       { error: "Failed to fetch conversations" },
+      { status: 500 },
+    );
+  }
+});
+
+export const DELETE: (
+  request: NextRequest,
+  context: { params: Promise<Record<string, string | string[]>> },
+) => Promise<Response> = withAuthAndTenant(async ({ tenantId }, request) => {
+  try {
+    const { ids } = await request.json();
+
+    if (!ids || (!Array.isArray(ids) && ids !== "ALL") || (Array.isArray(ids) && ids.length === 0)) {
+      return NextResponse.json(
+        { error: "Invalid input: ids must be a non-empty array or 'ALL'" },
+        { status: 400 },
+      );
+    }
+
+    const where = ids === "ALL"
+      ? { contact: { tenantId } }
+      : { id: { in: ids }, contact: { tenantId } };
+
+    const { count } = await prisma.crmConversation.deleteMany({
+      where,
+    });
+
+    return NextResponse.json({ count });
+  } catch (error) {
+    console.error("[Conversations API] Batch delete error:", error);
+    return NextResponse.json(
+      { error: "Failed to delete conversations" },
       { status: 500 },
     );
   }
