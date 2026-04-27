@@ -26,13 +26,38 @@ const createContactSchema = z
 export const GET: (
   request: NextRequest,
   context: { params: Promise<Record<string, string | string[]>> },
-) => Promise<Response> = withAuthAndTenant(async ({ tenantId }) => {
+) => Promise<Response> = withAuthAndTenant(async ({ tenantId }, request) => {
   try {
-    const contacts = await prisma.contact.findMany({
-      where: { tenantId },
-      orderBy: { createdAt: "desc" },
+    const searchParams = request.nextUrl.searchParams;
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "50");
+    const skip = (page - 1) * limit;
+
+    const [contacts, totalCount] = await Promise.all([
+      prisma.contact.findMany({
+        where: { tenantId },
+        include: {
+          conversations: {
+            select: { id: true, channel: true, updatedAt: true },
+            orderBy: { updatedAt: "desc" },
+          },
+          identities: { select: { type: true, value: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.contact.count({
+        where: { tenantId },
+      }),
+    ]);
+
+    return NextResponse.json({
+      contacts,
+      totalCount,
+      totalPages: Math.ceil(totalCount / limit),
+      currentPage: page,
     });
-    return NextResponse.json({ contacts });
   } catch (error) {
     console.error("[Contacts API] Error fetching contacts:", error);
     return NextResponse.json(
@@ -87,3 +112,33 @@ export const POST: (
     }
   },
 );
+
+export const DELETE: (
+  request: NextRequest,
+  context: { params: Promise<Record<string, string | string[]>> },
+) => Promise<Response> = withAuthAndTenant(async ({ tenantId }, request) => {
+  try {
+    const { ids } = await request.json();
+
+    if (!ids || (!Array.isArray(ids) && ids !== "ALL") || (Array.isArray(ids) && ids.length === 0)) {
+      return NextResponse.json(
+        { error: "Invalid input: ids must be a non-empty array or 'ALL'" },
+        { status: 400 },
+      );
+    }
+
+    const where = ids === "ALL" ? { tenantId } : { id: { in: ids }, tenantId };
+
+    const { count } = await prisma.contact.deleteMany({
+      where,
+    });
+
+    return NextResponse.json({ count });
+  } catch (error) {
+    console.error("[Contacts API] Batch delete error:", error);
+    return NextResponse.json(
+      { error: "Failed to delete contacts" },
+      { status: 500 },
+    );
+  }
+});
