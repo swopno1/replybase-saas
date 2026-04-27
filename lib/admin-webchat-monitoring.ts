@@ -221,6 +221,134 @@ function asNumber(value: bigint | number | string | null | undefined): number {
   return 0;
 }
 
+export async function getLiveWebchatSessions() {
+  const since = new Date(Date.now() - 60 * 60 * 1000); // last 1 hour for "live"
+
+  const sessions = await prisma.webChatSession.findMany({
+    where: {
+      lastSeenAt: { gte: since }
+    },
+    include: {
+      conversation: {
+        select: {
+          id: true,
+          status: true,
+          botPaused: true,
+          messages: {
+            orderBy: { createdAt: "desc" },
+            take: 1
+          }
+        }
+      },
+      site: {
+        select: {
+          name: true,
+          tenant: {
+            select: { name: true }
+          }
+        }
+      }
+    },
+    orderBy: {
+      lastSeenAt: "desc"
+    },
+    take: 50
+  });
+
+  return sessions.map(session => {
+    const meta = session.metadata as any;
+    return {
+      id: session.id,
+      visitorId: session.visitorId,
+      conversationId: session.conversationId,
+      siteName: session.site.name,
+      tenantName: session.site.tenant.name,
+      status: session.conversation.status,
+      botPaused: session.conversation.botPaused,
+      location: meta?.location || "Unknown",
+      device: meta?.device || "Unknown",
+      lastSeenAt: session.lastSeenAt.toISOString(),
+      createdAt: session.createdAt.toISOString(),
+      durationMs: session.lastSeenAt.getTime() - session.createdAt.getTime(),
+      lastMessage: session.conversation.messages[0]?.content || null
+    };
+  });
+}
+
+export async function getWebchatAnalytics() {
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours
+
+  // Basic hourly bucketing
+  const hourlyData = await prisma.$queryRaw<Array<{ hour: Date, sessionCount: bigint, errorCount: bigint }>>`
+    WITH hours AS (
+      SELECT generate_series(
+        date_trunc('hour', ${since}::timestamp),
+        date_trunc('hour', now()::timestamp),
+        '1 hour'::interval
+      ) AS hour
+    ),
+    session_counts AS (
+      SELECT date_trunc('hour', "createdAt") as hour, count(*) as count
+      FROM "webchat_sessions"
+      WHERE "createdAt" >= ${since}
+      GROUP BY 1
+    ),
+    error_counts AS (
+      SELECT date_trunc('hour', "createdAt") as hour, count(*) as count
+      FROM "webchat_events"
+      WHERE "createdAt" >= ${since} AND "type" = 'ERROR'
+      GROUP BY 1
+    )
+    SELECT h.hour, COALESCE(s.count, 0) as "sessionCount", COALESCE(e.count, 0) as "errorCount"
+    FROM hours h
+    LEFT JOIN session_counts s ON h.hour = s.hour
+    LEFT JOIN error_counts e ON h.hour = e.hour
+    ORDER BY h.hour ASC
+  `;
+
+  return hourlyData.map(d => ({
+    time: d.hour.toISOString(),
+    sessions: Number(d.sessionCount),
+    errors: Number(d.errorCount)
+  }));
+}
+
+export async function getSessionHistory(sessionId: string) {
+  const session = await prisma.webChatSession.findUnique({
+    where: { id: sessionId },
+    include: {
+      conversation: {
+        include: {
+          messages: {
+            orderBy: { createdAt: "asc" }
+          }
+        }
+      },
+      events: {
+        orderBy: { createdAt: "asc" }
+      }
+    }
+  });
+
+  if (!session) return null;
+
+  return {
+    messages: session.conversation.messages.map(m => ({
+      id: m.id,
+      content: m.content,
+      direction: m.direction,
+      createdAt: m.createdAt.toISOString(),
+      source: m.source
+    })),
+    events: session.events.map(e => ({
+      id: e.id,
+      type: e.type,
+      payload: e.payload,
+      createdAt: e.createdAt.toISOString()
+    }))
+  };
+}
+
 export async function getAdminWebchatMonitoringSnapshot(): Promise<WebchatMonitoringSnapshot> {
   const since = new Date(Date.now() - WINDOW_MS);
   const rollout = getWebchatRolloutConfig();
