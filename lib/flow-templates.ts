@@ -17,6 +17,8 @@ export type FlowTemplateCategory =
   | "services"
   | "agencies"
   | "booking"
+  | "ecommerce"
+  | "saas"
   // Fitness
   | "boutique-gym"
   | "personal-training"
@@ -35,7 +37,7 @@ export type FlowTemplateCategory =
   // Personal Services
   | "pet-care"
   | "care-services"
-  // Hospitality & Leisure (New)
+  // Hospitality & Leisure
   | "restaurant"
   | "hotel"
   | "golf-club";
@@ -44,6 +46,8 @@ export interface FlowTemplateDefinition {
   name: string;
   description: string;
   category: FlowTemplateCategory;
+  icon: string;
+  group: string;
   nodes: Array<{
     type: string;
     content: Record<string, unknown>;
@@ -60,6 +64,8 @@ export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
   description:
     "A universal entry flow that greets visitors warmly, captures their intent, and routes them to the right path.",
   category: "welcome",
+  icon: "🌍",
+  group: "Universal",
   nodes: [
     {
       type: "message",
@@ -111,6 +117,7 @@ export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1200,
+        nextNodeOrder: 10,
       },
       order: 3,
     },
@@ -121,6 +128,7 @@ export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
+        nextNodeOrder: 10,
       },
       order: 4,
     },
@@ -131,8 +139,14 @@ export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1200,
+        nextNodeOrder: 10,
       },
       order: 5,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 10,
     },
   ],
 };
@@ -140,8 +154,10 @@ export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
 export const LEAD_GENERATION_TEMPLATE: FlowTemplateDefinition = {
   name: "Lead Generation: Qualification Funnel",
   description:
-    "A conversational way to capture contact details, budget, and timeline while keeping the user engaged.",
+    "A conversational way to capture contact details, business info, and requirements for qualification.",
   category: "lead-generation",
+  icon: "👥",
+  group: "Universal",
   nodes: [
     {
       type: "message",
@@ -166,23 +182,21 @@ export const LEAD_GENERATION_TEMPLATE: FlowTemplateDefinition = {
       order: 1,
     },
     {
-      type: "input",
+      type: "message",
       content: {
-        text: "Great to meet you, {{lead_name}}! What's the best email to reach you on?",
-        variableName: "lead_email",
-        inputType: "email",
-        delayMs: 400,
+        text: "Good to meet you, {{lead_name}}! 👋",
+        delayMs: 200,
         typingEnabled: true,
-        typingDurationMs: 700,
+        typingDurationMs: 600,
       },
       order: 2,
     },
     {
       type: "input",
       content: {
-        text: "And just in case we need to give you a quick ring, what's your phone number?",
-        variableName: "lead_phone",
-        inputType: "phone",
+        text: "What's the best email to reach you on?",
+        variableName: "lead_email",
+        inputType: "email",
         delayMs: 400,
         typingEnabled: true,
         typingDurationMs: 700,
@@ -192,32 +206,32 @@ export const LEAD_GENERATION_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What specifically are you looking for help with today?",
-        variableName: "lead_need",
-        inputType: "text",
+        text: "And a phone number — only if you're happy to share. No worries if not!",
+        variableName: "lead_phone",
+        inputType: "phone",
         delayMs: 400,
         typingEnabled: true,
-        typingDurationMs: 800,
+        typingDurationMs: 700,
       },
       order: 4,
     },
     {
       type: "input",
       content: {
-        text: "Do you have a rough budget in mind for this project?",
-        variableName: "lead_budget",
+        text: "What kind of business do you run? (e.g. e-commerce, agency, SaaS — anything really)",
+        variableName: "lead_business_type",
         inputType: "text",
         delayMs: 400,
         typingEnabled: true,
-        typingDurationMs: 700,
+        typingDurationMs: 800,
       },
       order: 5,
     },
     {
       type: "input",
       content: {
-        text: "When would you ideally like to get things moving?",
-        variableName: "lead_timeline",
+        text: "Roughly how many customer conversations does your team handle per week?",
+        variableName: "lead_volume",
         inputType: "text",
         delayMs: 400,
         typingEnabled: true,
@@ -226,22 +240,47 @@ export const LEAD_GENERATION_TEMPLATE: FlowTemplateDefinition = {
       order: 6,
     },
     {
+      type: "input",
+      content: {
+        text: "Last one — what's your rough monthly budget for tools like this? (e.g. under £50, £50–£100, or flexible)",
+        variableName: "lead_budget",
+        inputType: "text",
+        delayMs: 400,
+        typingEnabled: true,
+        typingDurationMs: 700,
+      },
+      order: 7,
+    },
+    {
       type: "message",
       content: {
-        text: "Perfect! ✅ Thanks for all that. I've passed your details to the team, and someone will be in touch shortly to discuss the next steps.",
+        text: "That's really helpful — thank you! 🙌\n\nI've passed your details to the team, and someone will be in touch at {{lead_email}} within 1 business day. In the meantime, feel free to ask me anything.",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1200,
       },
-      order: 7,
+      order: 8,
     },
     {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["lead", "qualified", "new-inquiry"],
+        tags: ["lead", "qualified", "new-lead"],
       },
-      order: 8,
+      order: 9,
+    },
+    {
+      type: "action",
+      content: {
+        action: "update_status",
+        status: "qualified",
+      },
+      order: 10,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 11,
     },
   ],
 };
@@ -249,8 +288,10 @@ export const LEAD_GENERATION_TEMPLATE: FlowTemplateDefinition = {
 export const LEAD_CAPTURE_TEMPLATE: FlowTemplateDefinition = {
   name: "Lead Capture: Quick Contact Micro-Flow",
   description:
-    "A light and fast way to capture essential lead info without being intrusive.",
+    "A light and fast way to capture essential lead info without being intrusive. Ideal for any business.",
   category: "lead-capture",
+  icon: "⚡",
+  group: "Universal",
   nodes: [
     {
       type: "message",
@@ -328,6 +369,11 @@ export const LEAD_CAPTURE_TEMPLATE: FlowTemplateDefinition = {
       },
       order: 6,
     },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 7,
+    },
   ],
 };
 
@@ -340,6 +386,8 @@ export const REAL_ESTATE_TEMPLATE: FlowTemplateDefinition = {
   description:
     "Tailored for property professionals to help qualify buyer, seller, or rental intent.",
   category: "real-estate",
+  icon: "🏡",
+  group: "Professional & B2B",
   nodes: [
     {
       type: "message",
@@ -397,6 +445,7 @@ export const REAL_ESTATE_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1100,
+        nextNodeOrder: 10,
       },
       order: 3,
     },
@@ -407,6 +456,7 @@ export const REAL_ESTATE_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1100,
+        nextNodeOrder: 10,
       },
       order: 4,
     },
@@ -417,6 +467,7 @@ export const REAL_ESTATE_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1100,
+        nextNodeOrder: 10,
       },
       order: 5,
     },
@@ -427,8 +478,14 @@ export const REAL_ESTATE_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1100,
+        nextNodeOrder: 10,
       },
       order: 6,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 10,
     },
   ],
 };
@@ -436,8 +493,10 @@ export const REAL_ESTATE_TEMPLATE: FlowTemplateDefinition = {
 export const SERVICES_TEMPLATE: FlowTemplateDefinition = {
   name: "Services: Qualification & Booking",
   description:
-    "A friendly way for service providers to qualify and capture new requests.",
+    "Perfect for consultants, plumbers, IT support, and other service providers. Qualifies leads and captures booking requests.",
   category: "services",
+  icon: "🛠️",
+  group: "Professional & B2B",
   nodes: [
     {
       type: "message",
@@ -515,14 +574,29 @@ export const SERVICES_TEMPLATE: FlowTemplateDefinition = {
       },
       order: 6,
     },
+    {
+      type: "action",
+      content: {
+        action: "update_status",
+        status: "qualified",
+      },
+      order: 7,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 8,
+    },
   ],
 };
 
 export const AGENCIES_TEMPLATE: FlowTemplateDefinition = {
   name: "Agencies: Project Discovery",
   description:
-    "A discovery-focused flow for agencies to gather initial project scope and details.",
+    "Built for marketing, digital, and design agencies. Discovers project scope, budget, and timeline before human handoff.",
   category: "agencies",
+  icon: "🚀",
+  group: "Professional & B2B",
   nodes: [
     {
       type: "message",
@@ -600,14 +674,29 @@ export const AGENCIES_TEMPLATE: FlowTemplateDefinition = {
       },
       order: 6,
     },
+    {
+      type: "action",
+      content: {
+        action: "update_status",
+        status: "qualified",
+      },
+      order: 7,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 8,
+    },
   ],
 };
 
 export const BOOKING_TEMPLATE: FlowTemplateDefinition = {
   name: "Booking: Appointments & Reservations",
   description:
-    "A simple, effective way to handle booking requests and confirm details.",
+    "Ideal for any booking-heavy business. Confirms service, collects contact info, and captures preferred time.",
   category: "booking",
+  icon: "📅",
+  group: "Professional & B2B",
   nodes: [
     {
       type: "message",
@@ -685,6 +774,222 @@ export const BOOKING_TEMPLATE: FlowTemplateDefinition = {
       },
       order: 6,
     },
+    {
+      type: "action",
+      content: {
+        action: "update_status",
+        status: "qualified",
+      },
+      order: 7,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 8,
+    },
+  ],
+};
+
+export const ECOMMERCE_TEMPLATE: FlowTemplateDefinition = {
+  name: "E-commerce: Order Support & Sales",
+  description:
+    "Help customers find products, track orders, and get discounts. Built for online stores.",
+  category: "ecommerce",
+  icon: "🛍️",
+  group: "Professional & B2B",
+  nodes: [
+    {
+      type: "message",
+      content: {
+        text: "Hi! 👋 Looking for something special today? I can help you find products, track an order, or get you a cheeky discount.",
+        delayMs: 0,
+        typingEnabled: true,
+        typingDurationMs: 1000,
+      },
+      order: 0,
+    },
+    {
+      type: "input",
+      content: {
+        text: "What brings you here? (e.g., browse products, track order, or get help)",
+        variableName: "ecommerce_intent",
+        inputType: "text",
+        delayMs: 400,
+        typingEnabled: true,
+        typingDurationMs: 800,
+      },
+      order: 1,
+    },
+    {
+      type: "condition",
+      content: {
+        conditions: [
+          {
+            variableName: "ecommerce_intent",
+            operator: "contains",
+            value: "track",
+            nextNodeOrder: 3,
+          },
+          {
+            variableName: "ecommerce_intent",
+            operator: "contains",
+            value: "order",
+            nextNodeOrder: 3,
+          },
+          {
+            variableName: "ecommerce_intent",
+            operator: "contains",
+            value: "browse",
+            nextNodeOrder: 4,
+          },
+          {
+            variableName: "ecommerce_intent",
+            operator: "contains",
+            value: "shop",
+            nextNodeOrder: 4,
+          },
+        ],
+        nextNodeOrder: 5,
+      },
+      order: 2,
+    },
+    {
+      type: "message",
+      content: {
+        text: "I can definitely help with that. 📦 Please share your order number and email, and I'll fetch the latest status for you.",
+        delayMs: 500,
+        typingEnabled: true,
+        typingDurationMs: 1000,
+        nextNodeOrder: 10,
+      },
+      order: 3,
+    },
+    {
+      type: "message",
+      content: {
+        text: "Great! You can browse our full collection right here: [STORE_URL] 🛍️ And here's a little secret: use code WELCOME10 for 10% off!",
+        delayMs: 500,
+        typingEnabled: true,
+        typingDurationMs: 1200,
+        nextNodeOrder: 10,
+      },
+      order: 4,
+    },
+    {
+      type: "message",
+      content: {
+        text: "No problem. Just tell me what you need help with and your email, and one of our support team will get back to you shortly. 😊",
+        delayMs: 500,
+        typingEnabled: true,
+        typingDurationMs: 1000,
+        nextNodeOrder: 10,
+      },
+      order: 5,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 10,
+    },
+  ],
+};
+
+export const SAAS_TEMPLATE: FlowTemplateDefinition = {
+  name: "SaaS: Product Qualification & Demo",
+  description: "Qualify software leads, gather company details, and schedule product demos with ease.",
+  category: "saas",
+  icon: "💻",
+  group: "Professional & B2B",
+  nodes: [
+    {
+      type: "message",
+      content: {
+        text: "Hi there! 🚀 Interested in seeing how [PRODUCT_NAME] can help your team? I'd love to show you around.",
+        delayMs: 0,
+        typingEnabled: true,
+        typingDurationMs: 1100,
+      },
+      order: 0,
+    },
+    {
+      type: "input",
+      content: {
+        text: "To get started, what's your company size? (e.g., 1-10, 11-50, or 50+ employees)",
+        variableName: "company_size",
+        inputType: "text",
+        delayMs: 400,
+        typingEnabled: true,
+        typingDurationMs: 800,
+      },
+      order: 1,
+    },
+    {
+      type: "input",
+      content: {
+        text: "And what's the main challenge you're looking to solve with our tool?",
+        variableName: "main_challenge",
+        inputType: "text",
+        delayMs: 400,
+        typingEnabled: true,
+        typingDurationMs: 900,
+      },
+      order: 2,
+    },
+    {
+      type: "input",
+      content: {
+        text: "Makes sense. Would you like to schedule a quick 15-minute demo with one of our product experts?",
+        variableName: "wants_demo",
+        inputType: "text",
+        delayMs: 400,
+        typingEnabled: true,
+        typingDurationMs: 800,
+      },
+      order: 3,
+    },
+    {
+      type: "input",
+      content: {
+        text: "Perfect. What's your work email address so we can send the invite?",
+        variableName: "work_email",
+        inputType: "email",
+        delayMs: 400,
+        typingEnabled: true,
+        typingDurationMs: 700,
+      },
+      order: 4,
+    },
+    {
+      type: "message",
+      content: {
+        text: "Awesome! ✅ We've sent a calendar link to {{work_email}}. Pick a time that works for you, and we'll see you then!",
+        delayMs: 600,
+        typingEnabled: true,
+        typingDurationMs: 1100,
+      },
+      order: 5,
+    },
+    {
+      type: "action",
+      content: {
+        action: "tag_user",
+        tags: ["saas-lead", "demo-requested"],
+      },
+      order: 6,
+    },
+    {
+      type: "action",
+      content: {
+        action: "update_status",
+        status: "qualified",
+      },
+      order: 7,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 8,
+    },
   ],
 };
 
@@ -695,8 +1000,10 @@ export const BOOKING_TEMPLATE: FlowTemplateDefinition = {
 export const BOUTIQUE_GYM_TEMPLATE: FlowTemplateDefinition = {
   name: "Boutique Gym: Membership Enquiry",
   description:
-    "Engaging flow for boutique gyms to capture membership, class, or tour interest.",
+    "Qualifies new membership, class, or tour enquiries. Captures fitness goal, schedule preference, and contact details.",
   category: "boutique-gym",
+  icon: "🏋️",
+  group: "Fitness",
   nodes: [
     {
       type: "message",
@@ -786,14 +1093,29 @@ export const BOUTIQUE_GYM_TEMPLATE: FlowTemplateDefinition = {
       },
       order: 7,
     },
+    {
+      type: "action",
+      content: {
+        action: "update_status",
+        status: "qualified",
+      },
+      order: 8,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 9,
+    },
   ],
 };
 
 export const PERSONAL_TRAINING_TEMPLATE: FlowTemplateDefinition = {
   name: "Personal Training: Client Intake",
   description:
-    "A personal approach for PTs to understand client goals and preferences.",
+    "Captures fitness goals, experience, health notes, and availability before the first session.",
   category: "personal-training",
+  icon: "👟",
+  group: "Fitness",
   nodes: [
     {
       type: "message",
@@ -895,14 +1217,29 @@ export const PERSONAL_TRAINING_TEMPLATE: FlowTemplateDefinition = {
       },
       order: 8,
     },
+    {
+      type: "action",
+      content: {
+        action: "update_status",
+        status: "qualified",
+      },
+      order: 9,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 10,
+    },
   ],
 };
 
 export const CROSSFIT_GYM_TEMPLATE: FlowTemplateDefinition = {
   name: "CrossFit Gym: Trial & Membership",
   description:
-    "High-energy flow for CrossFit boxes to assess experience and drive trials.",
+    "Warms up new visitors, assesses experience, and drives them toward a free intro session or membership.",
   category: "crossfit-gym",
+  icon: "🔥",
+  group: "Fitness",
   nodes: [
     {
       type: "message",
@@ -992,14 +1329,29 @@ export const CROSSFIT_GYM_TEMPLATE: FlowTemplateDefinition = {
       },
       order: 7,
     },
+    {
+      type: "action",
+      content: {
+        action: "update_status",
+        status: "qualified",
+      },
+      order: 8,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 9,
+    },
   ],
 };
 
 export const BOOT_CAMP_TEMPLATE: FlowTemplateDefinition = {
   name: "Boot Camp: Programme Enquiry",
   description:
-    "Energetic flow for boot camps to gauge fitness level and interest.",
+    "Captures programme interest, fitness level, and contact info for outdoor or indoor boot camp programmes.",
   category: "boot-camp",
+  icon: "🏃",
+  group: "Fitness",
   nodes: [
     {
       type: "message",
@@ -1077,14 +1429,29 @@ export const BOOT_CAMP_TEMPLATE: FlowTemplateDefinition = {
       },
       order: 6,
     },
+    {
+      type: "action",
+      content: {
+        action: "update_status",
+        status: "qualified",
+      },
+      order: 7,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 8,
+    },
   ],
 };
 
 export const YOGA_STUDIO_TEMPLATE: FlowTemplateDefinition = {
   name: "Yoga Studio: Class Booking & Membership",
   description:
-    "A calm and welcoming flow for yoga studios to understand student needs.",
+    "Captures class preferences, yoga experience level, and schedule to confirm bookings or memberships.",
   category: "yoga-studio",
+  icon: "🧘",
+  group: "Fitness",
   nodes: [
     {
       type: "message",
@@ -1174,6 +1541,19 @@ export const YOGA_STUDIO_TEMPLATE: FlowTemplateDefinition = {
       },
       order: 7,
     },
+    {
+      type: "action",
+      content: {
+        action: "update_status",
+        status: "qualified",
+      },
+      order: 8,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 9,
+    },
   ],
 };
 
@@ -1184,8 +1564,10 @@ export const YOGA_STUDIO_TEMPLATE: FlowTemplateDefinition = {
 export const HAIR_SALON_TEMPLATE: FlowTemplateDefinition = {
   name: "Hair Salon: Booking & Service Enquiry",
   description:
-    "Welcoming flow for salons to capture styling and service preferences.",
+    "Captures service type, stylist preference, and booking time to confirm hair appointments.",
   category: "hair-salon",
+  icon: "💇",
+  group: "Beauty & Wellness",
   nodes: [
     {
       type: "message",
@@ -1275,14 +1657,29 @@ export const HAIR_SALON_TEMPLATE: FlowTemplateDefinition = {
       },
       order: 7,
     },
+    {
+      type: "action",
+      content: {
+        action: "update_status",
+        status: "qualified",
+      },
+      order: 8,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 9,
+    },
   ],
 };
 
 export const BARBERSHOP_TEMPLATE: FlowTemplateDefinition = {
   name: "Barbershop: Appointment Booking",
   description:
-    "Sharp and quick flow for barbershops to get clients into the chair.",
+    "Quick booking flow for cuts, beard trims, and shaves. Captures service, barber preference, and time.",
   category: "barbershop",
+  icon: "💈",
+  group: "Beauty & Wellness",
   nodes: [
     {
       type: "message",
@@ -1372,14 +1769,29 @@ export const BARBERSHOP_TEMPLATE: FlowTemplateDefinition = {
       },
       order: 7,
     },
+    {
+      type: "action",
+      content: {
+        action: "update_status",
+        status: "qualified",
+      },
+      order: 8,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 9,
+    },
   ],
 };
 
 export const DAY_SPA_TEMPLATE: FlowTemplateDefinition = {
   name: "Day Spa: Treatment Booking",
   description:
-    "Relaxing flow for spas to understand guest needs and preferences.",
+    "Captures treatment type, booking purpose (self/gift/group), date preference, and special requests.",
   category: "day-spa",
+  icon: "🌸",
+  group: "Beauty & Wellness",
   nodes: [
     {
       type: "message",
@@ -1430,7 +1842,7 @@ export const DAY_SPA_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "And what's the best phone number for us to confirm your details?",
+        text: "And what's your phone number for us to confirm your details?",
         variableName: "guest_phone",
         inputType: "phone",
         delayMs: 400,
@@ -1481,14 +1893,29 @@ export const DAY_SPA_TEMPLATE: FlowTemplateDefinition = {
       },
       order: 8,
     },
+    {
+      type: "action",
+      content: {
+        action: "update_status",
+        status: "qualified",
+      },
+      order: 9,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 10,
+    },
   ],
 };
 
 export const NAIL_SALON_TEMPLATE: FlowTemplateDefinition = {
   name: "Nail Salon: Appointment Booking",
   description:
-    "Fun and friendly flow for nail salons to capture service details.",
+    "Fast appointment booking for gel, acrylic, pedicures, and nail art. Captures service, name, and time.",
   category: "nail-salon",
+  icon: "💅",
+  group: "Beauty & Wellness",
   nodes: [
     {
       type: "message",
@@ -1566,6 +1993,19 @@ export const NAIL_SALON_TEMPLATE: FlowTemplateDefinition = {
       },
       order: 6,
     },
+    {
+      type: "action",
+      content: {
+        action: "update_status",
+        status: "qualified",
+      },
+      order: 7,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 8,
+    },
   ],
 };
 
@@ -1576,8 +2016,10 @@ export const NAIL_SALON_TEMPLATE: FlowTemplateDefinition = {
 export const CLEANING_SERVICES_TEMPLATE: FlowTemplateDefinition = {
   name: "Cleaning Services: Quote & Booking",
   description:
-    "Helpful and efficient flow for cleaning businesses to gather property details.",
+    "Qualifies property type, clean type, and size. Captures location and contact details for a fast quote.",
   category: "cleaning-services",
+  icon: "🧹",
+  group: "Home Services",
   nodes: [
     {
       type: "message",
@@ -1691,14 +2133,29 @@ export const CLEANING_SERVICES_TEMPLATE: FlowTemplateDefinition = {
       },
       order: 9,
     },
+    {
+      type: "action",
+      content: {
+        action: "update_status",
+        status: "qualified",
+      },
+      order: 10,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 11,
+    },
   ],
 };
 
 export const LANDSCAPING_TEMPLATE: FlowTemplateDefinition = {
   name: "Landscaping & Gardening: Quote Request",
   description:
-    "Encouraging flow for landscaping services to capture garden goals and sizes.",
+    "Captures service needed, garden size, postcode, and preferred visit date to prepare a no-obligation quote.",
   category: "landscaping",
+  icon: "🌳",
+  group: "Home Services",
   nodes: [
     {
       type: "message",
@@ -1800,14 +2257,29 @@ export const LANDSCAPING_TEMPLATE: FlowTemplateDefinition = {
       },
       order: 8,
     },
+    {
+      type: "action",
+      content: {
+        action: "update_status",
+        status: "qualified",
+      },
+      order: 9,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 10,
+    },
   ],
 };
 
 export const HANDYMAN_TEMPLATE: FlowTemplateDefinition = {
   name: "Handyman & Repair: Job Booking",
   description:
-    "Fast and helpful flow for handyman services to understand job urgency.",
+    "Quickly captures job description, urgency, address, and contact info for fast dispatch or scheduling.",
   category: "handyman",
+  icon: "🔧",
+  group: "Home Services",
   nodes: [
     {
       type: "message",
@@ -1897,6 +2369,19 @@ export const HANDYMAN_TEMPLATE: FlowTemplateDefinition = {
       },
       order: 7,
     },
+    {
+      type: "action",
+      content: {
+        action: "update_status",
+        status: "qualified",
+      },
+      order: 8,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 9,
+    },
   ],
 };
 
@@ -1907,8 +2392,10 @@ export const HANDYMAN_TEMPLATE: FlowTemplateDefinition = {
 export const PET_CARE_TEMPLATE: FlowTemplateDefinition = {
   name: "Pet Care: Booking & Service Enquiry",
   description:
-    "Warm and enthusiastic flow for pet care services to understand furry friends.",
+    "For dog walkers, groomers, boarders, and pet sitters. Captures pet details, service dates, and owner contact.",
   category: "pet-care",
+  icon: "🐾",
+  group: "Personal Services",
   nodes: [
     {
       type: "message",
@@ -1998,14 +2485,29 @@ export const PET_CARE_TEMPLATE: FlowTemplateDefinition = {
       },
       order: 7,
     },
+    {
+      type: "action",
+      content: {
+        action: "update_status",
+        status: "qualified",
+      },
+      order: 8,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 9,
+    },
   ],
 };
 
 export const CARE_SERVICES_TEMPLATE: FlowTemplateDefinition = {
   name: "Child & Elder Care: Service Enquiry",
   description:
-    "A compassionate and gentle flow for care providers to gather sensitive info.",
+    "Sensitively captures care type, recipient details, schedule needs, and contact info for childcare or eldercare.",
   category: "care-services",
+  icon: "💙",
+  group: "Personal Services",
   nodes: [
     {
       type: "message",
@@ -2095,6 +2597,19 @@ export const CARE_SERVICES_TEMPLATE: FlowTemplateDefinition = {
       },
       order: 7,
     },
+    {
+      type: "action",
+      content: {
+        action: "update_status",
+        status: "qualified",
+      },
+      order: 8,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 9,
+    },
   ],
 };
 
@@ -2105,8 +2620,10 @@ export const CARE_SERVICES_TEMPLATE: FlowTemplateDefinition = {
 export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
   name: "Restaurant: Table Booking & Enquiries",
   description:
-    "A welcoming flow for restaurants to handle reservations, menu requests, and dietary needs.",
+    "Handle reservations, dietary needs, and menu requests. Perfect for any dining establishment.",
   category: "restaurant",
+  icon: "🍴",
+  group: "Hospitality & Leisure",
   nodes: [
     {
       type: "message",
@@ -2232,8 +2749,16 @@ export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
     },
     {
       type: "action",
-      content: { action: "end_flow" },
+      content: {
+        action: "update_status",
+        status: "qualified",
+      },
       order: 9,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 10,
     },
     // Menu Path
     {
@@ -2243,8 +2768,9 @@ export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
+        nextNodeOrder: 13,
       },
-      order: 10,
+      order: 11,
     },
     // Other/Location Path
     {
@@ -2254,8 +2780,14 @@ export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1200,
+        nextNodeOrder: 13,
       },
-      order: 11,
+      order: 12,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 13,
     },
   ],
 };
@@ -2263,8 +2795,10 @@ export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
 export const HOTEL_TEMPLATE: FlowTemplateDefinition = {
   name: "Hotel: Reservations & Guest Services",
   description:
-    "An elegant flow for hotels to handle room bookings, amenity enquiries, and check-in details.",
+    "Manage room bookings and amenity enquiries with an elegant, helpful flow for guests.",
   category: "hotel",
+  icon: "🏨",
+  group: "Hospitality & Leisure",
   nodes: [
     {
       type: "message",
@@ -2372,8 +2906,16 @@ export const HOTEL_TEMPLATE: FlowTemplateDefinition = {
     },
     {
       type: "action",
-      content: { action: "end_flow" },
+      content: {
+        action: "update_status",
+        status: "qualified",
+      },
       order: 8,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 9,
     },
     // Info Path
     {
@@ -2383,8 +2925,14 @@ export const HOTEL_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1300,
+        nextNodeOrder: 11,
       },
       order: 10,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 11,
     },
   ],
 };
@@ -2392,8 +2940,10 @@ export const HOTEL_TEMPLATE: FlowTemplateDefinition = {
 export const GOLF_CLUB_TEMPLATE: FlowTemplateDefinition = {
   name: "Golf Club: Tee Times & Membership",
   description:
-    "A refined flow for golf clubs to handle tee time bookings, membership enquiries, and pro shop details.",
+    "Book tee times, manage membership enquiries, and share pro shop info effortlessly.",
   category: "golf-club",
+  icon: "⛳",
+  group: "Hospitality & Leisure",
   nodes: [
     {
       type: "message",
@@ -2501,8 +3051,16 @@ export const GOLF_CLUB_TEMPLATE: FlowTemplateDefinition = {
     },
     {
       type: "action",
-      content: { action: "end_flow" },
+      content: {
+        action: "update_status",
+        status: "qualified",
+      },
       order: 8,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 9,
     },
     // Membership Path
     {
@@ -2512,6 +3070,7 @@ export const GOLF_CLUB_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1300,
+        nextNodeOrder: 12,
       },
       order: 10,
     },
@@ -2523,8 +3082,14 @@ export const GOLF_CLUB_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1200,
+        nextNodeOrder: 12,
       },
       order: 11,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 12,
     },
   ],
 };
@@ -2544,6 +3109,8 @@ export function getAvailableTemplates(): FlowTemplateDefinition[] {
     SERVICES_TEMPLATE,
     AGENCIES_TEMPLATE,
     BOOKING_TEMPLATE,
+    ECOMMERCE_TEMPLATE,
+    SAAS_TEMPLATE,
     // Fitness
     BOUTIQUE_GYM_TEMPLATE,
     PERSONAL_TRAINING_TEMPLATE,
