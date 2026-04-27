@@ -37,9 +37,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Webhook Error" }, { status: 400 });
   }
 
-  const session = event.data.object as
-    | Stripe.Checkout.Session
-    | Stripe.Subscription;
+  const session = event.data.object;
 
   try {
     switch (event.type) {
@@ -78,13 +76,48 @@ export async function POST(req: NextRequest) {
         break;
       }
 
-      case "invoice.payment_succeeded": {
-        // Can be used to extend access, but usually subscription.updated handles the dates
+      case "invoice.paid": {
+        const invoice = session as any;
+        const stripeCustomerId = invoice.customer as string;
+        const stripeSubscriptionId = invoice.subscription as string;
+
+        const dbSub = await prisma.subscription.findUnique({
+          where: { stripeCustomerId },
+        });
+
+        if (dbSub) {
+          await prisma.revenue.create({
+            data: {
+              stripeInvoiceId: invoice.id,
+              stripeSubscriptionId,
+              tenantId: dbSub.tenantId,
+              amount: invoice.amount_paid / 100, // convert cents to currency units
+              currency: invoice.currency,
+              status: "paid",
+              paidAt: new Date(),
+              metadata: {
+                invoiceUrl: invoice.hosted_invoice_url,
+                invoicePdf: invoice.invoice_pdf,
+              },
+            },
+          });
+          console.log(
+            `[Stripe Webhook] Recorded revenue for tenant ${dbSub.tenantId}: ${invoice.amount_paid / 100} ${invoice.currency}`,
+          );
+        } else {
+          console.warn(
+            `[Stripe Webhook] No database subscription found for customer ${stripeCustomerId} during invoice.paid`,
+          );
+        }
         break;
       }
 
       case "invoice.payment_failed": {
-        // Maybe notify user? subscription.updated usually sends status="past_due"
+        const invoice = session as Stripe.Invoice;
+        console.warn(
+          `[Stripe Webhook] Payment failed for invoice ${invoice.id} (Customer: ${invoice.customer})`,
+        );
+        // We could also record this in Revenue with a "failed" status if desired
         break;
       }
 

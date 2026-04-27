@@ -89,6 +89,10 @@ model Tenant {
   onboardingMilestoneEvents OnboardingMilestoneEvent[]
   channelStatuses TenantChannelStatus[]
   leadNotificationSettings TenantLeadNotificationSettings?
+  revenue       Revenue[]
+  isOnboarded   Boolean        @default(false)
+  onboardingStep Int           @default(0)
+  onboardingData Json          @default("{}")
 
   @@map("tenants")
 }
@@ -220,6 +224,25 @@ model DataDeletionRequest {
   @@index([userId])
   @@index([tenantId])
   @@map("data_deletion_requests")
+}
+
+model Revenue {
+  id                   String   @id @default(cuid())
+  stripeInvoiceId      String   @unique
+  stripeSubscriptionId String?
+  tenantId             String
+  amount               Float
+  currency             String
+  status               String
+  paidAt               DateTime @default(now())
+  metadata             Json?    @default("{}")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  tenant               Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([paidAt])
+  @@map("revenue")
 }
 
 model Plan {

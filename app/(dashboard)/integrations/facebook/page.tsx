@@ -421,7 +421,7 @@ export default function FacebookIntegrationPage() {
               Pages and send messages on your behalf.
             </p>
             <Button
-              onClick={() => signIn("facebook")}
+              onClick={() => signIn("facebook", { callbackUrl: "/integrations/facebook" })}
               size="lg"
               className="w-full sm:w-auto bg-[#1877F2] hover:bg-[#166fe5] text-white"
             >
@@ -511,7 +511,7 @@ export default function FacebookIntegrationPage() {
                     your account. Make sure you&apos;re an admin of at least one
                     Facebook Page.
                   </p>
-                  <Button variant="outline" onClick={() => signIn("facebook")}>
+                  <Button variant="outline" onClick={() => signIn("facebook", { callbackUrl: "/integrations/facebook" })}>
                     Re-connect Facebook Account
                   </Button>
                 </div>
@@ -919,7 +919,7 @@ export default function FacebookIntegrationPage() {
                 <Trash2 className="mr-2 h-4 w-4" />
                 Disconnect All
               </Button>
-              <Button variant="outline" onClick={() => signIn("facebook")}>
+              <Button variant="outline" onClick={() => signIn("facebook", { callbackUrl: "/integrations/facebook" })}>
                 Re-connect Facebook Account
               </Button>
             </div>

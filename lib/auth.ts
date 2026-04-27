@@ -50,7 +50,7 @@ export const authOptions: NextAuthOptions = {
           FacebookProvider({
             clientId: process.env.FACEBOOK_CLIENT_ID as string,
             clientSecret: process.env.FACEBOOK_CLIENT_SECRET as string,
-            allowDangerousEmailAccountLinking: false,
+            allowDangerousEmailAccountLinking: true,
             authorization: {
               params: {
                 scope:
@@ -211,4 +211,25 @@ export const authOptions: NextAuthOptions = {
     signIn: "/auth/login",
   },
   secret: process.env.AUTH_SECRET,
+  cookies: {
+    state: {
+      name: "next-auth.state",
+      options: {
+        httpOnly: true,
+        sameSite: "lax" as const,
+        path: "/",
+        secure: process.env.NEXTAUTH_URL?.startsWith("https://") ?? process.env.NODE_ENV === "production",
+      },
+    },
+    pkceCodeVerifier: {
+      name: "next-auth.pkce.code_verifier",
+      options: {
+        httpOnly: true,
+        sameSite: "lax" as const,
+        path: "/",
+        secure: process.env.NEXTAUTH_URL?.startsWith("https://") ?? process.env.NODE_ENV === "production",
+        maxAge: 900, // 15 minutes
+      },
+    },
+  },
 };

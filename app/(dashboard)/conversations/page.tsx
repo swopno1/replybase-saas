@@ -17,37 +17,6 @@ export const metadata: Metadata = {
   title: "Conversations",
 };
 
-async function getConversations(tenantId: string) {
-  // Step 1: Get all contact IDs for this tenant
-  const contacts = await prisma.contact.findMany({
-    where: { tenantId },
-    select: { id: true },
-  });
-  const contactIds = contacts.map((c) => c.id).filter(Boolean);
-  if (!Array.isArray(contactIds) || contactIds.length === 0) {
-    return [];
-  }
-
-  // Step 2: Get all conversations for those contacts
-  return prisma.crmConversation.findMany({
-    where: {
-      contactId: { in: contactIds },
-    },
-    include: {
-      contact: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-    },
-    orderBy: {
-      updatedAt: "desc",
-    },
-    take: 100,
-  });
-}
-
 export default async function ConversationsPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -63,8 +32,6 @@ export default async function ConversationsPage() {
     return <p>Tenant not found.</p>;
   }
 
-  const conversations = await getConversations(user.tenantId);
-
   return (
     <Card>
       <CardHeader>
@@ -74,17 +41,7 @@ export default async function ConversationsPage() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ConversationsList
-          initialConversations={conversations.map((convo) => ({
-            id: convo.id,
-            channel: convo.channel,
-            updatedAt: convo.updatedAt.toISOString(),
-            contact: {
-              id: convo.contact.id,
-              name: convo.contact.name,
-            },
-          }))}
-        />
+        <ConversationsList />
       </CardContent>
     </Card>
   );
