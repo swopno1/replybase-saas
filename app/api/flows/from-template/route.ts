@@ -115,6 +115,8 @@ export async function GET() {
         category: t.category,
         name: t.name,
         description: t.description,
+        icon: t.icon,
+        group: t.group,
         nodeCount: t.nodes.length,
       })),
       message: `Found ${templates.length} templates`,
