@@ -7,6 +7,7 @@ import {
   isWebchatOriginAllowed,
 } from "@/lib/webchat-cors";
 import { findActiveWebChannel } from "@/lib/webchat";
+import { AI_FALLBACK_MESSAGE } from "@/lib/ai-fallback";
 
 export async function POST(request: NextRequest) {
   if (!isWebchatOriginAllowed(request)) {
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
     const fallbackMode = config.fallbackMode || "ai";
     const customFallbackMessage =
       config.customFallbackMessage ||
-      "Our AI Agent is under development! We'll be up again soon.";
+      AI_FALLBACK_MESSAGE;
 
     if (fallbackMode === "manual") {
       console.warn("[Webchat Message] Manual fallback mode active", {

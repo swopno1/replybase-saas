@@ -2,10 +2,28 @@ import { prisma } from "@/lib/prisma";
 import { streamText, Output } from "ai";
 import { getAiModel, AiProvider } from "@/lib/ai-service";
 
+/**
+ * Centralized fallback message — used across all channels when AI is unavailable.
+ * Professional, reassuring, and brand-consistent.
+ */
+export const AI_FALLBACK_MESSAGE =
+  "Our AI assistant is temporarily unavailable. Please try again shortly — your request is important to us.";
+
+/** Hard ceiling on tokens per AI reply to control costs and prevent runaway responses. */
+const MAX_TOKENS_BY_PLAN: Record<string, number> = {
+  free: 256,
+  starter: 512,
+  pro: 1024,
+  business: 2048,
+};
+
+/** Absolute timeout for any AI call (ms). */
+const AI_CALL_TIMEOUT_MS = 15_000;
+
 export interface AiFallbackOptions {
   botId: string;
   conversationId: string;
-  messages: any[]; // TODO: Need to define a proper type for messages
+  messages: any[];
   planName: string;
   charLimit?: number;
 }
@@ -81,10 +99,21 @@ export async function aiFallback({
     planName,
   });
 
-  const aiStream = await streamText({
+  // Resolve max tokens from plan
+  const maxTokens = MAX_TOKENS_BY_PLAN[plan] || MAX_TOKENS_BY_PLAN.free;
+
+  // Wrap the AI call in a timeout to prevent indefinite hangs
+  const aiPromise = streamText({
     model,
     messages: promptMessages,
     output: Output.text(),
+    maxTokens,
   });
+
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("AI call timed out")), AI_CALL_TIMEOUT_MS),
+  );
+
+  const aiStream = await Promise.race([aiPromise, timeoutPromise]);
   return aiStream;
 }

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 // AI fallback removed April 2026
+import { AI_FALLBACK_MESSAGE } from "@/lib/ai-fallback";
+import { checkLimit, incrementUsage } from "@/lib/subscription";
 import {
   sendFacebookSenderAction,
   sendTextMessage,
@@ -383,6 +385,14 @@ async function handleMessage(
         });
         const plan = subscription?.plan?.name || "free";
 
+        // Enforce usage limits before making paid AI call
+        const usageCheck = await checkLimit("__tenant:" + tenantId, "message");
+        if (!usageCheck.allowed) {
+          console.warn("[Facebook Webhook] AI quota exceeded for tenant", tenantId);
+          await sendTextMessage(accessToken, senderPsid, AI_FALLBACK_MESSAGE);
+          return;
+        }
+
         // Fetch last 10 messages for context
         const lastMessages = await prisma.crmMessage.findMany({
           where: { conversationId: conversation.id },
@@ -430,6 +440,15 @@ async function handleMessage(
             channelType: "facebook",
             source: "ai",
           });
+
+          // Track usage after successful AI response
+          const tenantUsers = await prisma.user.findFirst({
+            where: { tenantId },
+            select: { id: true },
+          });
+          if (tenantUsers) {
+            await incrementUsage(tenantUsers.id, "message", 1).catch(() => {});
+          }
           return;
         }
       }
@@ -442,15 +461,15 @@ async function handleMessage(
     await sendTextMessage(
       accessToken,
       senderPsid,
-      "Our AI Agent is under development! We'll be up again soon.",
+      AI_FALLBACK_MESSAGE,
     );
     if (conversation) {
       await prisma.crmMessage.create({
         data: {
           conversationId: conversation.id,
           direction: "outbound",
-          content: "Our AI Agent is under development! We'll be up again soon.",
-          source: "ai",
+          content: AI_FALLBACK_MESSAGE,
+          source: "system_fallback",
         },
       });
     }

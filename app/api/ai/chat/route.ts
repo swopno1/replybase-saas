@@ -86,12 +86,22 @@ The current workspace is ${tenant?.name || "unknown"}.`;
     ...messages,
   ];
 
+  // Plan-aware token limits
+  const TOKEN_LIMITS: Record<string, number> = {
+    free: 256,
+    starter: 512,
+    pro: 1024,
+    business: 2048,
+  };
+  const maxTokens = TOKEN_LIMITS[planName] || TOKEN_LIMITS.free;
+
   try {
     // Use the Vercel AI SDK to stream AI output
     const aiStream = await streamText({
       model,
       messages: promptMessages as any,
       output: Output.text(),
+      maxTokens,
     });
 
     // Increment AI message usage

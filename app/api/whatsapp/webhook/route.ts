@@ -3,6 +3,8 @@ import { Prisma } from "@prisma/client";
 import { verifyWebhookSignature } from "@/lib/server/facebook-utils";
 import { prisma } from "@/lib/prisma";
 // AI fallback removed April 2026
+import { AI_FALLBACK_MESSAGE } from "@/lib/ai-fallback";
+import { checkLimit, incrementUsage } from "@/lib/subscription";
 import { executeBotEntryFlowFirst } from "@/lib/bot-entry-flow-engine";
 import { recordMilestoneEvent } from "@/lib/milestone-events";
 import { waitForFlowDurationMs } from "@/lib/flow-runtime-utils";
@@ -473,6 +475,18 @@ async function sendAutoReply(params: {
 
   // AI fallback if flow did not return text
   try {
+    // Enforce usage limits before making paid AI call
+    const tenantUsers = await prisma.user.findFirst({
+      where: { tenantId: params.channel.bot.tenantId },
+      select: { id: true },
+    });
+    const usageUserId = tenantUsers?.id || "__tenant:" + params.channel.bot.tenantId;
+    const usageCheck = await checkLimit(usageUserId, "message");
+    if (!usageCheck.allowed) {
+      console.warn("[WhatsApp Webhook] AI quota exceeded", { tenantId: params.channel.bot.tenantId });
+      replyText = AI_FALLBACK_MESSAGE;
+      replySource = "ai";
+    } else {
     const { aiFallback } = await import("@/lib/ai-fallback");
     // Fetch last messages for context
     const lastMessages = await prisma.crmMessage.findMany({
@@ -505,8 +519,14 @@ async function sendAutoReply(params: {
         ? await aiStream.text
         : String(aiStream ?? "");
     replySource = "ai";
+
+    // Track usage after successful AI response
+    if (tenantUsers) {
+      await incrementUsage(tenantUsers.id, "message", 1).catch(() => {});
+    }
+    } // close the else block for usage check
   } catch (aiError) {
-    replyText = "Our AI Agent is under development! We'll be up again soon.";
+    replyText = AI_FALLBACK_MESSAGE;
     replySource = "ai";
   }
 
