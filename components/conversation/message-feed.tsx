@@ -95,10 +95,28 @@ function Message({
 
 function Note({ note }: { note: NoteWithAuthor }) {
   return (
-    <div className="text-center my-4">
-      <div className="text-xs text-gray-500 p-2 bg-gray-100 rounded-md">
-        <strong>{note.author.name || "Unknown"}</strong> left a note:{" "}
-        {note.content}
+    <div className="flex justify-center my-6">
+      <div className="max-w-[80%] bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded shadow-sm relative">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-[10px] font-bold text-yellow-700 uppercase tracking-wider">
+            Internal Note
+          </span>
+          <span className="text-[10px] text-yellow-600">
+            • {new Date(note.createdAt).toLocaleString()}
+          </span>
+        </div>
+        <div className="text-sm text-yellow-900 italic leading-relaxed">
+          "{note.content}"
+        </div>
+        <div className="mt-2 text-xs font-medium text-yellow-700 flex items-center gap-1">
+          <Avatar className="w-4 h-4">
+            <AvatarImage src={note.author.image ?? ""} />
+            <AvatarFallback className="text-[8px] bg-yellow-200">
+              {note.author.name?.charAt(0) ?? "U"}
+            </AvatarFallback>
+          </Avatar>
+          {note.author.name || "Unknown Team Member"}
+        </div>
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ import {
   InternalNote,
   User,
   Contact,
+  Lead,
 } from "@prisma/client";
 import { ConversationHeader } from "@/components/conversation/conversation-header";
 import { MessageFeed } from "@/components/conversation/message-feed";
@@ -19,7 +20,7 @@ type ConversationViewData = CrmConversation & {
   messages: CrmMessage[];
   internalNotes: (InternalNote & { author: Partial<User> })[];
   assignee: Partial<User> | null;
-  contact: Contact;
+  contact: Contact & { leads?: Lead[] };
   webChatSessions?: Array<{
     id: string;
     visitorId: string;

@@ -280,7 +280,7 @@ export default function LeadsPage() {
       case "contacted":
         return "bg-yellow-500";
       case "qualified":
-        return "bg-green-500";
+        return "bg-emerald-500";
       case "converted":
         return "bg-purple-500";
       case "lost":
@@ -465,6 +465,292 @@ export default function LeadsPage() {
           )}
         </CardHeader>
         <CardContent>
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : leads.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              No leads yet. New website enquiries will appear here after a
+              visitor submits your chat widget or lead capture form.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Company</TableHead>
+                    <TableHead>Business Type</TableHead>
+                    <TableHead>Enquiry</TableHead>
+                    {dynamicColumns.map((col) => (
+                      <TableHead key={col.key}>{col.label}</TableHead>
+                    ))}
+                    <TableHead>Plan</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Source</TableHead>
+                    <TableHead>Captured At</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {leads.map((lead) => {
+                    const flowInputs = getFlowInputs(lead);
+                    return (
+                      <TableRow key={lead.id}>
+                        <TableCell className="font-medium whitespace-nowrap">
+                          {lead.name || lead.contact?.name || "—"}
+                        </TableCell>
+                        <TableCell>
+                          {getLeadEmail(lead) ? (
+                            <a
+                              href={`mailto:${getLeadEmail(lead)}`}
+                              className="inline-flex items-center gap-1 text-blue-600 hover:underline whitespace-nowrap"
+                            >
+                              <Mail className="h-3.5 w-3.5 shrink-0" />
+                              {getLeadEmail(lead)}
+                            </a>
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {getLeadPhone(lead) ? (
+                            <a
+                              href={`tel:${getLeadPhone(lead)}`}
+                              className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground hover:underline whitespace-nowrap"
+                            >
+                              <Phone className="h-3.5 w-3.5 shrink-0" />
+                              {getLeadPhone(lead)}
+                            </a>
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {lead.company || "—"}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {lead.businessType || "—"}
+                        </TableCell>
+                        <TableCell className="max-w-xs whitespace-pre-wrap text-sm text-muted-foreground">
+                          {readEnquiry(lead.metadata) || "—"}
+                        </TableCell>
+                        {dynamicColumns.map((col) => (
+                          <TableCell
+                            key={col.key}
+                            className="max-w-xs whitespace-pre-wrap text-sm"
+                          >
+                            {flowInputs[col.key] || "—"}
+                          </TableCell>
+                        ))}
+                        <TableCell>
+                          {lead.interestedInSubscription ? (
+                            getPlanBadge(
+                              lead.selectedPlan,
+                              lead.trialRequested,
+                            )
+                          ) : (
+                            <Badge variant="outline" className="bg-gray-100">
+                              Not Interested
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            className={`${getStatusColor(lead.status)} text-white`}
+                          >
+                            {lead.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{formatLeadSource(lead.source)}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                          {new Date(lead.createdAt).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Lead options"
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {getLeadEmail(lead) ? (
+                                <DropdownMenuItem asChild>
+                                  <a href={`mailto:${getLeadEmail(lead)}`}>
+                                    <Mail className="mr-2 h-4 w-4" />
+                                    Email lead
+                                  </a>
+                                </DropdownMenuItem>
+                              ) : null}
+                              {getLeadPhone(lead) ? (
+                                <DropdownMenuItem asChild>
+                                  <a href={`tel:${getLeadPhone(lead)}`}>
+                                    <Phone className="mr-2 h-4 w-4" />
+                                    Call lead
+                                  </a>
+                                </DropdownMenuItem>
+                              ) : null}
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteLead(lead.id)}
+                                disabled={deletingLeadId === lead.id}
+                                className="text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                {deletingLeadId === lead.id
+                                  ? "Deleting..."
+                                  : "Delete"}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Export CSV dialog ─────────────────────────────────────────── */}
+      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Export Leads as CSV</DialogTitle>
+            <DialogDescription>
+              Choose which columns to include. All columns are selected by
+              default.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-80 overflow-y-auto space-y-3 py-2 pr-1">
+            {allExportColumns.map((col) => (
+              <div key={col.key} className="flex items-center gap-3">
+                <Checkbox
+                  id={`col-${col.key}`}
+                  checked={selectedColumns.has(col.key)}
+                  onCheckedChange={() => toggleColumn(col.key)}
+                />
+                <Label
+                  htmlFor={`col-${col.key}`}
+                  className="cursor-pointer font-normal"
+                >
+                  {col.label}
+                </Label>
+              </div>
+            ))}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setExportDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleExport}>
+              <Download className="mr-2 h-4 w-4" />
+              Download CSV
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Lead Pipeline Summary ───────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        {[
+          { status: "new", label: "New Leads", color: "bg-blue-500" },
+          {
+            status: "contacted",
+            label: "Contacted",
+            color: "bg-yellow-500",
+          },
+          {
+            status: "qualified",
+            label: "Qualified",
+            color: "bg-emerald-500",
+          },
+          {
+            status: "converted",
+            label: "Converted",
+            color: "bg-purple-500",
+          },
+          { status: "lost", label: "Lost", color: "bg-red-500" },
+        ].map((item) => (
+          <Card
+            key={item.status}
+            className={`border-t-4 ${
+              item.status === "new"
+                ? "border-blue-500"
+                : item.status === "contacted"
+                  ? "border-yellow-500"
+                  : item.status === "qualified"
+                    ? "border-emerald-500"
+                    : item.status === "converted"
+                      ? "border-purple-500"
+                      : "border-red-500"
+            }`}
+          >
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                {item.label}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">
+                {leads.filter((l) => l.status === item.status).length}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {leads.length > 0
+                  ? Math.round(
+                      (leads.filter((l) => l.status === item.status).length /
+                        leads.length) *
+                        100,
+                    )
+                  : 0}
+                % of total
+              </p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* ── Lead statistics ───────────────────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Interest & Activation</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="text-center p-4 border rounded-lg">
+              <div className="text-2xl font-bold">{leads.length}</div>
+              <div className="text-sm text-muted-foreground">Total Records</div>
+            </div>
+            <div className="text-center p-4 border rounded-lg">
+              <div className="text-2xl font-bold">
+                {leads.filter((l) => l.interestedInSubscription).length}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Subscription Interest
+              </div>
+            </div>
+            <div className="text-center p-4 border rounded-lg">
+              <div className="text-2xl font-bold">
+                {leads.filter((l) => l.trialRequested).length}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Trial Requests
+              </div>
+            </div>
+          </div>
+          
+          {/* ── Delete this section ───────────────────────────────────────────── */}
           <DataTable
             columns={columns}
             data={leads}
@@ -479,6 +765,8 @@ export default function LeadsPage() {
             onSelectAllMatching={setIsAllMatchingSelected}
             isAllMatchingSelected={isAllMatchingSelected}
           />
+          
+         
         </CardContent>
       </Card>
     </div>

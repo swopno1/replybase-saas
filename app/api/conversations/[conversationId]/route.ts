@@ -13,7 +13,7 @@ const updateConversationSchema = z.object({
 });
 
 async function getConversation(conversationId: string, tenantId: string) {
-  return await prisma.crmConversation.findFirst({
+  const conversation = await prisma.crmConversation.findFirst({
     where: {
       id: conversationId,
       contact: {
@@ -47,7 +47,16 @@ async function getConversation(conversationId: string, tenantId: string) {
           image: true,
         },
       },
-      contact: true,
+      contact: {
+        include: {
+          leads: {
+            orderBy: {
+              createdAt: "desc",
+            },
+            take: 1,
+          },
+        },
+      },
       webChatSessions: {
         orderBy: {
           lastSeenAt: "desc",

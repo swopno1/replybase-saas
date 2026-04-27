@@ -4,6 +4,8 @@ import { CrmConversation } from "@prisma/client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Sparkles, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export function ReplyComposer({
   conversation,
@@ -14,6 +16,7 @@ export function ReplyComposer({
 }) {
   const [content, setContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuggesting, setIsSuggesting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   const submitTo = async (path: string) => {
@@ -54,6 +57,31 @@ export function ReplyComposer({
   const handleNote = () =>
     submitTo(`/api/conversations/${conversation.id}/notes`);
 
+  const handleSuggestReply = async () => {
+    setIsSuggesting(true);
+    try {
+      const response = await fetch(
+        `/api/conversations/${conversation.id}/suggest-reply`,
+        {
+          method: "POST",
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch suggestion");
+      }
+
+      const data = await response.json();
+      setContent(data.suggestion);
+      toast.success("AI suggestion generated");
+    } catch (error) {
+      toast.error("Could not generate suggestion");
+      console.error(error);
+    } finally {
+      setIsSuggesting(false);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -81,20 +109,37 @@ export function ReplyComposer({
       {errorMessage ? (
         <p className="mb-2 text-sm text-red-600">{errorMessage}</p>
       ) : null}
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-between items-center">
         <Button
-          onClick={handleNote}
-          variant="outline"
-          disabled={isSubmitting || !content.trim()}
+          variant="ghost"
+          size="sm"
+          onClick={handleSuggestReply}
+          disabled={isSuggesting || isSubmitting}
+          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
         >
-          Add Note
+          {isSuggesting ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Sparkles className="h-4 w-4 mr-2" />
+          )}
+          Suggest AI Reply
         </Button>
-        <Button
-          onClick={handleReply}
-          disabled={isSubmitting || !content.trim()}
-        >
-          {isSubmitting ? "Sending..." : "Send Reply"}
-        </Button>
+
+        <div className="flex justify-end gap-2">
+          <Button
+            onClick={handleNote}
+            variant="outline"
+            disabled={isSubmitting || !content.trim()}
+          >
+            Add Note
+          </Button>
+          <Button
+            onClick={handleReply}
+            disabled={isSubmitting || !content.trim()}
+          >
+            {isSubmitting ? "Sending..." : "Send Reply"}
+          </Button>
+        </div>
       </div>
     </div>
   );
