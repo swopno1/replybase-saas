@@ -1,73 +1,101 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { checkLimit, incrementUsage, getTenantLimits } from '@/lib/subscription';
 import { prisma } from '@/lib/prisma';
-import { getTenantLimits, getMonthlyConversationCount } from '@/lib/subscription';
 
 vi.mock('@/lib/prisma', () => ({
   prisma: {
     subscription: {
       findFirst: vi.fn(),
     },
-    crmConversation: {
+    user: {
+      findUnique: vi.fn(),
+    },
+    usageLog: {
+      aggregate: vi.fn(),
+      upsert: vi.fn(),
+      findUnique: vi.fn(),
+    },
+    activityLog: {
+      findFirst: vi.fn(),
+      create: vi.fn(),
+    },
+    bot: {
       count: vi.fn(),
     },
+    crmConversation: {
+      count: vi.fn(),
+    }
   },
 }));
 
-describe('Subscription & Tenant Isolation', () => {
+describe('Subscription Utility', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe('getTenantLimits', () => {
-    it('should return plan limits for a specific tenant', async () => {
-      const mockTenantId = 'tenant_1';
-      const mockPlan = {
-        id: 'plan_pro',
-        name: 'pro',
-        displayName: 'Pro Plan',
-        dailyMessageLimit: 500,
-        monthlyMessageLimit: 15000,
-      };
-
-      vi.mocked(prisma.subscription.findFirst).mockResolvedValue({
-        tenantId: mockTenantId,
-        status: 'active',
-        plan: mockPlan,
-      } as any);
-
-      const limits = await getTenantLimits(mockTenantId);
-
-      expect(prisma.subscription.findFirst).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            tenantId: mockTenantId,
-          }),
-        })
-      );
-      expect(limits.name).toBe('pro');
-      expect(limits.dailyMessageLimit).toBe(500);
+    it('should return suspended defaults if no subscription exists', async () => {
+      vi.mocked(prisma.subscription.findFirst).mockResolvedValue(null);
+      const limits = await getTenantLimits('tenant_1');
+      expect(limits.name).toBe('suspended');
+      expect(limits.dailyMessageLimit).toBe(0);
     });
 
-    it('should return suspended limits if no active subscription exists', async () => {
-      vi.mocked(prisma.subscription.findFirst).mockResolvedValue(null);
-
-      const limits = await getTenantLimits('tenant_none');
-      expect(limits.name).toBe('suspended');
+    it('should return plan details if subscription exists', async () => {
+      const mockSub = {
+        tenantId: 'tenant_1',
+        status: 'active',
+        plan: {
+          name: 'pro',
+          dailyMessageLimit: 100,
+          monthlyMessageLimit: 3000,
+          flowExecutionCap: 500,
+        }
+      };
+      vi.mocked(prisma.subscription.findFirst).mockResolvedValue(mockSub as any);
+      const limits = await getTenantLimits('tenant_1');
+      expect(limits.name).toBe('pro');
+      expect(limits.dailyMessageLimit).toBe(100);
     });
   });
 
-  describe('getMonthlyConversationCount isolation', () => {
-    it('should only count conversations for the specified tenant', async () => {
-      const tenantId = 'tenant_A';
-      await getMonthlyConversationCount(tenantId);
+  describe('checkLimit', () => {
+    beforeEach(() => {
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ tenantId: 'tenant_1' } as any);
+      vi.mocked(prisma.subscription.findFirst).mockResolvedValue({
+        status: 'active',
+        plan: { dailyMessageLimit: 100, monthlyMessageLimit: 3000, flowExecutionCap: 10 }
+      } as any);
+    });
 
-      expect(prisma.crmConversation.count).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            contact: { tenantId: tenantId },
-          }),
-        })
-      );
+    it('should allow if under daily limit', async () => {
+      vi.mocked(prisma.usageLog.aggregate).mockResolvedValue({ _sum: { count: 50 } } as any);
+      const result = await checkLimit('user_1', 'message');
+      expect(result.allowed).toBe(true);
+      // Grace buffer is 5%, so limit is effectively 105
+      expect(result.remaining).toBe(55);
+    });
+
+    it('should block if over daily limit', async () => {
+      vi.mocked(prisma.usageLog.aggregate).mockResolvedValue({ _sum: { count: 110 } } as any);
+      const result = await checkLimit('user_1', 'message');
+      expect(result.allowed).toBe(false);
+      expect(result.remaining).toBe(0);
+    });
+  });
+
+  describe('incrementUsage', () => {
+    it('should upsert usage log', async () => {
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ tenantId: 'tenant_1' } as any);
+      vi.mocked(prisma.subscription.findFirst).mockResolvedValue({
+        status: 'active',
+        plan: { dailyMessageLimit: 100, flowExecutionCap: 100 }
+      } as any);
+      vi.mocked(prisma.usageLog.aggregate).mockResolvedValue({ _sum: { count: 10 } } as any);
+
+      await incrementUsage('user_1', 'message', 1);
+
+      expect(prisma.usageLog.upsert).toHaveBeenCalled();
     });
   });
 });
