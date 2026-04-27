@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-// import { checkAiQuota } from "@/lib/ai-quota"; // To be implemented
 import { streamText, Output } from "ai";
-import { getAiModel, AiProvider } from "@/lib/ai-service";
+import { getAiModel, AiProvider, MAX_TOKENS_BY_PLAN } from "@/lib/ai-service";
 import { prisma } from "@/lib/prisma";
 import {
   checkLimit,
@@ -86,14 +85,8 @@ The current workspace is ${tenant?.name || "unknown"}.`;
     ...messages,
   ];
 
-  // Plan-aware token limits
-  const TOKEN_LIMITS: Record<string, number> = {
-    free: 256,
-    starter: 512,
-    pro: 1024,
-    business: 2048,
-  };
-  const maxTokens = TOKEN_LIMITS[planName] || TOKEN_LIMITS.free;
+  // Resolve max tokens from centralized config
+  const maxTokens = MAX_TOKENS_BY_PLAN[planName] || MAX_TOKENS_BY_PLAN.free;
 
   try {
     // Use the Vercel AI SDK to stream AI output

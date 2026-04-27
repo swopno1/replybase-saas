@@ -475,56 +475,53 @@ async function sendAutoReply(params: {
 
   // AI fallback if flow did not return text
   try {
-    // Enforce usage limits before making paid AI call
-    const tenantUsers = await prisma.user.findFirst({
-      where: { tenantId: params.channel.bot.tenantId },
-      select: { id: true },
-    });
-    const usageUserId = tenantUsers?.id || "__tenant:" + params.channel.bot.tenantId;
-    const usageCheck = await checkLimit(usageUserId, "message");
+    // Enforce usage limits before making paid AI call using tenant context
+    const tenantId = params.channel.bot.tenantId;
+    const usageCheck = await checkLimit("__tenant:" + tenantId, "message");
+
     if (!usageCheck.allowed) {
-      console.warn("[WhatsApp Webhook] AI quota exceeded", { tenantId: params.channel.bot.tenantId });
+      console.warn("[WhatsApp Webhook] AI quota exceeded", { tenantId });
       replyText = AI_FALLBACK_MESSAGE;
       replySource = "ai";
     } else {
-    const { aiFallback } = await import("@/lib/ai-fallback");
-    // Fetch last messages for context
-    const lastMessages = await prisma.crmMessage.findMany({
-      where: { conversationId: params.conversation.id },
-      orderBy: { createdAt: "desc" },
-      take: 10,
-      select: { content: true, source: true },
-    });
-    const aiMessages = lastMessages.reverse().map((msg) => ({
-      role: msg.source === "human" ? "user" : "assistant",
-      content: msg.content,
-    }));
-    aiMessages.push({ role: "user", content: params.inboundText });
+      const { aiFallback } = await import("@/lib/ai-fallback");
+      // Fetch last messages for context
+      const lastMessages = await prisma.crmMessage.findMany({
+        where: { conversationId: params.conversation.id },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: { content: true, source: true },
+      });
+      const aiMessages = lastMessages.reverse().map((msg) => ({
+        role: msg.source === "human" ? "user" : "assistant",
+        content: msg.content,
+      }));
+      aiMessages.push({ role: "user", content: params.inboundText });
 
-    // Use tenant subscription plan name (fallback to "free")
-    const subscription = await prisma.subscription.findUnique({
-      where: { tenantId: params.channel.bot.tenantId },
-      select: { plan: { select: { name: true } } },
-    });
-    const planName = subscription?.plan?.name || "free";
+      // Use tenant subscription plan name (fallback to "free")
+      const subscription = await prisma.subscription.findUnique({
+        where: { tenantId },
+        select: { plan: { select: { name: true } } },
+      });
+      const planName = subscription?.plan?.name || "free";
 
-    const aiStream = await aiFallback({
-      botId: params.channel.botId,
-      conversationId: params.conversation.id,
-      messages: aiMessages,
-      planName,
-    });
-    replyText =
-      aiStream && "text" in aiStream
-        ? await aiStream.text
-        : String(aiStream ?? "");
-    replySource = "ai";
+      const aiStream = await aiFallback({
+        botId: params.channel.botId,
+        conversationId: params.conversation.id,
+        messages: aiMessages,
+        planName,
+      });
+      replyText =
+        aiStream && "text" in aiStream
+          ? await aiStream.text
+          : String(aiStream ?? "");
+      replySource = "ai";
 
-    // Track usage after successful AI response
-    if (tenantUsers) {
-      await incrementUsage(tenantUsers.id, "message", 1).catch(() => {});
+      // Track usage after successful AI response
+      if (replyText && replyText !== AI_FALLBACK_MESSAGE) {
+        await incrementUsage("__tenant:" + tenantId, "message", 1).catch(() => {});
+      }
     }
-    } // close the else block for usage check
   } catch (aiError) {
     replyText = AI_FALLBACK_MESSAGE;
     replySource = "ai";

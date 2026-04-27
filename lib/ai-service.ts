@@ -5,6 +5,14 @@ import { LanguageModel } from "ai";
 
 export type AiProvider = "default" | "gemini" | "openai" | "anthropic";
 
+/** Hard ceiling on tokens per AI reply to control costs and prevent runaway responses. */
+export const MAX_TOKENS_BY_PLAN: Record<string, number> = {
+  free: 256,
+  starter: 512,
+  pro: 1024,
+  business: 2048,
+};
+
 export interface GetAiModelOptions {
   provider: AiProvider;
   apiKey?: string;
