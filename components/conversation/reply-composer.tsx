@@ -133,12 +133,13 @@ export function ReplyComposer({
           >
             Add Note
           </Button>
-        <Button
-          onClick={handleReply}
-          disabled={isSubmitting || !content.trim()}
-        >
-          {isSubmitting ? "Sending..." : "Send Reply"}
-        </Button>
+          <Button
+            onClick={handleReply}
+            disabled={isSubmitting || !content.trim()}
+          >
+            {isSubmitting ? "Sending..." : "Send Reply"}
+          </Button>
+        </div>
       </div>
     </div>
   );
