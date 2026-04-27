@@ -392,10 +392,10 @@ async function handleMessage(
         });
         // Build messages array for AI (user/assistant roles)
         const aiMessages = lastMessages.reverse().map((msg) => ({
-          role: msg.source === "human" ? "user" : "assistant",
+          role: (msg.source === "human" ? "user" : "assistant") as any,
           content: msg.content,
         }));
-        aiMessages.push({ role: "user", content: messageText });
+        aiMessages.push({ role: "user" as any, content: messageText });
 
         // Dynamically import aiFallback to avoid circular deps
         const { aiFallback } = await import("@/lib/ai-fallback");

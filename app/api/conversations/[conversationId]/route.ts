@@ -13,7 +13,7 @@ const updateConversationSchema = z.object({
 });
 
 async function getConversation(conversationId: string, tenantId: string) {
-  const conversation = await prisma.crmConversation.findFirst({
+  return await prisma.crmConversation.findFirst({
     where: {
       id: conversationId,
       contact: {

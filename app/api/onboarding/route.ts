@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
     const validatedData = onboardingSchema.parse(body);
 
     // AI Summarization
-    const summary = await summarizeOnboardingData(validatedData);
+    const summary = await summarizeOnboardingData(validatedData as any);
 
     await prisma.tenant.update({
       where: { id: session.user.tenantId },
@@ -113,10 +113,18 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Update all bots for this tenant with the new summary context
+    await prisma.bot.updateMany({
+      where: { tenantId: session.user.tenantId },
+      data: {
+        context: summary as any,
+      },
+    });
+
     return NextResponse.json({ success: true, summary });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Invalid data", details: error.errors }, { status: 400 });
+      return NextResponse.json({ error: "Invalid data", details: error.issues }, { status: 400 });
     }
     console.error("[Onboarding POST] Error:", error);
     return NextResponse.json({ error: "Failed to complete onboarding" }, { status: 500 });

@@ -3,13 +3,21 @@ import crypto from "crypto";
 const DEFAULT_ALGORITHM = "aes-256-gcm";
 
 function getCredentialEncryptionKey(): Buffer {
-  const keyMaterial =
-    process.env.CHANNEL_CREDENTIALS_ENCRYPTION_KEY || process.env.AUTH_SECRET;
+  const keyMaterial = process.env.CHANNEL_CREDENTIALS_ENCRYPTION_KEY;
 
   if (!keyMaterial) {
-    throw new Error(
-      "Missing CHANNEL_CREDENTIALS_ENCRYPTION_KEY (or AUTH_SECRET) for channel credential encryption",
+    // If not set, we fall back to AUTH_SECRET for legacy support but log a warning.
+    // In strict production mode, this should be required.
+    const fallback = process.env.AUTH_SECRET;
+    if (!fallback) {
+      throw new Error(
+        "Missing CHANNEL_CREDENTIALS_ENCRYPTION_KEY for channel credential encryption. AUTH_SECRET fallback also missing.",
+      );
+    }
+    console.warn(
+      "CRITICAL: CHANNEL_CREDENTIALS_ENCRYPTION_KEY is not set. Falling back to AUTH_SECRET. This is not recommended for production.",
     );
+    return crypto.createHash("sha256").update(fallback).digest();
   }
 
   return crypto.createHash("sha256").update(keyMaterial).digest();

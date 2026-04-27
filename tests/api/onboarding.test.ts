@@ -10,6 +10,9 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: vi.fn(),
       update: vi.fn(),
     },
+    bot: {
+      updateMany: vi.fn(),
+    },
   },
 }));
 vi.mock("@/lib/onboarding-ai", () => ({

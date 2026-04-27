@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -33,15 +33,15 @@ export function OnboardingModal({
 }: {
   isOpen: boolean;
   initialStep?: number;
-  initialData?: any;
+  initialData?: Record<string, any>;
 }) {
   const router = useRouter();
   const [step, setStep] = useState(initialStep);
-  const [data, setData] = useState<any>(initialData);
+  const [data, setData] = useState<Record<string, any>>(initialData);
   const [loading, setLoading] = useState(false);
 
   const updateData = (section: string, field: string, value: string) => {
-    setData((prev: any) => ({
+    setData((prev: Record<string, any>) => ({
       ...prev,
       [section]: {
         ...(prev[section] || {}),
@@ -60,7 +60,7 @@ export function OnboardingModal({
           body: JSON.stringify({ step: step + 1, data }),
         });
         setStep(step + 1);
-      } catch (error) {
+      } catch (_error) {
         toast.error("Failed to save progress");
       } finally {
         setLoading(false);
@@ -80,7 +80,7 @@ export function OnboardingModal({
         } else {
           toast.error("Failed to complete onboarding");
         }
-      } catch (error) {
+      } catch (_error) {
         toast.error("An error occurred");
       } finally {
         setLoading(false);
@@ -118,6 +118,7 @@ export function OnboardingModal({
                 value={data.kyc?.contactInfo || ""}
                 onChange={(e) => updateData("kyc", "contactInfo", e.target.value)}
                 placeholder="john@example.com"
+                required
               />
             </div>
             <div className="grid gap-2">
@@ -141,6 +142,7 @@ export function OnboardingModal({
                 value={data.businessBasics?.industry || ""}
                 onChange={(e) => updateData("businessBasics", "industry", e.target.value)}
                 placeholder="Real Estate, SaaS, Retail..."
+                required
               />
             </div>
             <div className="grid gap-2">
@@ -272,7 +274,7 @@ export function OnboardingModal({
               />
             </div>
             <p className="text-sm text-muted-foreground italic">
-              "We collect these details to build your custom chatbot and provide accurate, relevant responses for your business."
+              &quot;We collect these details to build your custom chatbot and provide accurate, relevant responses for your business.&quot;
             </p>
           </div>
         );
