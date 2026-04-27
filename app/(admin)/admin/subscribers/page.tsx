@@ -175,7 +175,7 @@ export default function SubscribersPage() {
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Subscriber Management</h2>
         <p className="text-muted-foreground">
-          View and manage all tenant subscriptions and billing status.
+          View and manage active paid subscriptions and billing status.
         </p>
       </div>
 
@@ -205,11 +205,10 @@ export default function SubscribersPage() {
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="all">All Active/Paid</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="trialing">Trialing</SelectItem>
-                  <SelectItem value="canceled">Canceled</SelectItem>
-                  <SelectItem value="incomplete">Incomplete</SelectItem>
+                  <SelectItem value="past_due">Past Due</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -219,9 +218,9 @@ export default function SubscribersPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>All Subscriptions</CardTitle>
+          <CardTitle>Paid Subscriptions</CardTitle>
           <CardDescription>
-            {pagination ? `Total ${pagination.total} subscriptions managed` : "Loading subscriptions..."}
+            {pagination ? `Total ${pagination.total} paid subscriptions managed` : "Loading subscriptions..."}
           </CardDescription>
         </CardHeader>
         <CardContent>

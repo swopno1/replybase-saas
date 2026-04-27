@@ -23,6 +23,8 @@ export async function GET(request: NextRequest) {
 
     const where: any = {
       AND: [
+        // Ensure only paid subscribers are shown
+        { plan: { price: { gt: 0 } } },
         search ? {
           OR: [
             { tenant: { name: { contains: search, mode: "insensitive" } } },
@@ -30,7 +32,7 @@ export async function GET(request: NextRequest) {
             { tenant: { users: { some: { name: { contains: search, mode: "insensitive" } } } } },
           ],
         } : {},
-        status && status !== "all" ? { status } : {},
+        status && status !== "all" ? { status } : { status: { in: ["active", "trialing", "past_due"] } },
       ],
     };
 
