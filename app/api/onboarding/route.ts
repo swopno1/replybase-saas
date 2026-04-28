@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { summarizeOnboardingData } from "@/lib/onboarding-ai";
+import { summarizeOnboardingData, customizeFlowNodesWithAI } from "@/lib/onboarding-ai";
+import { getTemplateByCategory, FlowTemplateCategory } from "@/lib/flow-templates";
 
 const onboardingSchema = z.object({
   kyc: z.object({
@@ -71,7 +73,7 @@ export async function PATCH(req: NextRequest) {
       select: { onboardingData: true },
     });
 
-    const currentData = (currentTenant?.onboardingData as any) || {};
+    const currentData = (currentTenant?.onboardingData as Record<string, unknown>) || {};
     const newData = { ...currentData, ...data };
 
     await prisma.tenant.update({
@@ -99,21 +101,70 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const validatedData = onboardingSchema.parse(body);
 
-    // TODO: Re-enable AI summarization once the correct model is available
-    // For now, we skip the AI call to avoid 500 errors and return a placeholder summary.
-    // const summary = await summarizeOnboardingData(validatedData as any);
-    const summary = {
-      companyProfile: `${validatedData.kyc.company} is a business in the ${validatedData.businessBasics.industry} industry.`,
-      targetAudience: Array.isArray(validatedData.productDetails.targetCustomers)
-        ? validatedData.productDetails.targetCustomers.join(", ")
-        : validatedData.productDetails.targetCustomers,
-      keyOfferings: validatedData.productSpecifics.mainProducts,
-      pricingStrategy: validatedData.productSpecifics.pricing,
-      competitiveAdvantage: validatedData.productSpecifics.usps,
-      commonQueries: "Refer to support documents.",
-      toneAndVoice: "Professional and helpful",
-      isPlaceholder: true
+    let summary;
+    try {
+      summary = await summarizeOnboardingData(validatedData as unknown as Parameters<typeof summarizeOnboardingData>[0]);
+    } catch (err) {
+      console.error("[Onboarding AI] Failed to summarize data", err);
+      summary = {
+        companyProfile: `${validatedData.kyc.company} is a business in the ${validatedData.businessBasics.industry} industry.`,
+        targetAudience: Array.isArray(validatedData.productDetails.targetCustomers)
+          ? validatedData.productDetails.targetCustomers.join(", ")
+          : validatedData.productDetails.targetCustomers,
+        keyOfferings: validatedData.productSpecifics.mainProducts,
+        pricingStrategy: validatedData.productSpecifics.pricing,
+        competitiveAdvantage: validatedData.productSpecifics.usps,
+        commonQueries: "Refer to support documents.",
+        toneAndVoice: "Professional and helpful",
+        isPlaceholder: true
+      };
+    }
+
+    // Map industry to flow category
+    const mapIndustryToCategory = (industry: string): FlowTemplateCategory => {
+      const lower = industry.toLowerCase();
+      if (lower.includes("saas")) return "saas";
+      if (lower.includes("e-commerce") || lower.includes("retail")) return "ecommerce";
+      if (lower.includes("agency")) return "agencies";
+      if (lower.includes("real estate")) return "real-estate";
+      if (lower.includes("fitness") || lower.includes("gym")) return "boutique-gym";
+      if (lower.includes("beauty") || lower.includes("salon")) return "hair-salon";
+      if (lower.includes("restaurant") || lower.includes("food")) return "restaurant";
+      if (lower.includes("hotel") || lower.includes("hospitality")) return "hotel";
+      if (lower.includes("service")) return "services";
+      return "welcome"; // Fallback to a universal template
     };
+
+    const category = mapIndustryToCategory(validatedData.businessBasics.industry);
+    const template = getTemplateByCategory(category) || getTemplateByCategory("welcome")!;
+
+    const customizedNodes = await customizeFlowNodesWithAI(template.nodes, summary);
+
+    // Create flow from template
+    const flow = await prisma.flow.create({
+      data: {
+        name: `${validatedData.kyc.company} Main Flow`,
+        description: `Automated flow generated during onboarding from ${template.name} template`,
+        tenantId: session.user.tenantId,
+        ownerId: session.user.id,
+        isGlobal: false,
+        isActive: true,
+        version: 1,
+        language: "en",
+        fallbackMessage: summary.isPlaceholder ? "Sorry, I didn't understand that." : `I'm not quite sure about that. Our ${validatedData.businessBasics.industry} team will get back to you soon.`,
+        maxTimeout: 300,
+        nodes: {
+          create: customizedNodes.map(
+            (node) =>
+              ({
+                type: node.type,
+                content: node.content as Prisma.InputJsonValue,
+                order: node.order,
+              }) as Prisma.FlowNodeCreateWithoutFlowInput,
+          ),
+        },
+      },
+    });
 
     await prisma.tenant.update({
       where: { id: session.user.tenantId },
@@ -130,11 +181,12 @@ export async function POST(req: NextRequest) {
     await prisma.bot.updateMany({
       where: { tenantId: session.user.tenantId },
       data: {
-        context: summary as any,
+        context: summary as Record<string, unknown>,
+        entryFlow: flow.id,
       },
     });
 
-    return NextResponse.json({ success: true, summary });
+    return NextResponse.json({ success: true, summary, flowId: flow.id });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid data", details: error.issues }, { status: 400 });
