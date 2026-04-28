@@ -52,7 +52,7 @@ describe('Subscription Utility', () => {
           flowExecutionCap: 500,
         }
       };
-      vi.mocked(prisma.subscription.findFirst).mockResolvedValue(mockSub as any);
+      vi.mocked(prisma.subscription.findFirst).mockResolvedValue(mockSub as unknown as NonNullable<Awaited<ReturnType<typeof prisma.subscription.findFirst>>>);
       const limits = await getTenantLimits('tenant_1');
       expect(limits.name).toBe('pro');
       expect(limits.dailyMessageLimit).toBe(100);
@@ -61,15 +61,15 @@ describe('Subscription Utility', () => {
 
   describe('checkLimit', () => {
     beforeEach(() => {
-      vi.mocked(prisma.user.findUnique).mockResolvedValue({ tenantId: 'tenant_1' } as any);
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ tenantId: 'tenant_1' } as unknown as NonNullable<Awaited<ReturnType<typeof prisma.user.findUnique>>>);
       vi.mocked(prisma.subscription.findFirst).mockResolvedValue({
         status: 'active',
         plan: { dailyMessageLimit: 100, monthlyMessageLimit: 3000, flowExecutionCap: 10 }
-      } as any);
+      } as unknown as NonNullable<Awaited<ReturnType<typeof prisma.subscription.findFirst>>>);
     });
 
     it('should allow if under daily limit', async () => {
-      vi.mocked(prisma.usageLog.aggregate).mockResolvedValue({ _sum: { count: 50 } } as any);
+      vi.mocked(prisma.usageLog.aggregate).mockResolvedValue({ _sum: { count: 50 } } as unknown as Awaited<ReturnType<typeof prisma.usageLog.aggregate>>);
       const result = await checkLimit('user_1', 'message');
       expect(result.allowed).toBe(true);
       // Grace buffer is 5%, so limit is effectively 105
@@ -77,7 +77,7 @@ describe('Subscription Utility', () => {
     });
 
     it('should block if over daily limit', async () => {
-      vi.mocked(prisma.usageLog.aggregate).mockResolvedValue({ _sum: { count: 110 } } as any);
+      vi.mocked(prisma.usageLog.aggregate).mockResolvedValue({ _sum: { count: 110 } } as unknown as Awaited<ReturnType<typeof prisma.usageLog.aggregate>>);
       const result = await checkLimit('user_1', 'message');
       expect(result.allowed).toBe(false);
       expect(result.remaining).toBe(0);
@@ -86,12 +86,12 @@ describe('Subscription Utility', () => {
 
   describe('incrementUsage', () => {
     it('should upsert usage log', async () => {
-      vi.mocked(prisma.user.findUnique).mockResolvedValue({ tenantId: 'tenant_1' } as any);
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ tenantId: 'tenant_1' } as unknown as NonNullable<Awaited<ReturnType<typeof prisma.user.findUnique>>>);
       vi.mocked(prisma.subscription.findFirst).mockResolvedValue({
         status: 'active',
         plan: { dailyMessageLimit: 100, flowExecutionCap: 100 }
-      } as any);
-      vi.mocked(prisma.usageLog.aggregate).mockResolvedValue({ _sum: { count: 10 } } as any);
+      } as unknown as NonNullable<Awaited<ReturnType<typeof prisma.subscription.findFirst>>>);
+      vi.mocked(prisma.usageLog.aggregate).mockResolvedValue({ _sum: { count: 10 } } as unknown as Awaited<ReturnType<typeof prisma.usageLog.aggregate>>);
 
       await incrementUsage('user_1', 'message', 1);
 

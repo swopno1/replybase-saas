@@ -9,7 +9,7 @@ if (!stripeSecret) {
 }
 
 const stripe = new Stripe(stripeSecret, {
-  apiVersion: "2026-01-28.clover" as any,
+  apiVersion: "2026-01-28.clover" as Stripe.LatestApiVersion,
 });
 
 const PLANS = [

@@ -60,6 +60,26 @@ const CUSTOMER_TYPES = [
   "Other",
 ];
 
+export interface OnboardingKYC {
+  name?: string;
+  company?: string;
+  contactInfo?: string;
+  location?: string;
+}
+
+export interface OnboardingBusinessBasics {
+  industry?: string;
+  companySize?: string;
+  website?: string;
+  businessModel?: string;
+}
+
+export interface OnboardingData {
+  kyc?: OnboardingKYC;
+  businessBasics?: OnboardingBusinessBasics;
+  [key: string]: unknown;
+}
+
 export function OnboardingModal({
   isOpen,
   initialStep = 0,
@@ -67,19 +87,19 @@ export function OnboardingModal({
 }: {
   isOpen: boolean;
   initialStep?: number;
-  initialData?: Record<string, any>;
+  initialData?: OnboardingData;
 }) {
   const router = useRouter();
   const [step, setStep] = useState(initialStep);
-  const [data, setData] = useState<Record<string, any>>(initialData);
+  const [data, setData] = useState<OnboardingData>(initialData);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(isOpen);
 
-  const updateData = (section: string, field: string, value: any) => {
-    setData((prev: Record<string, any>) => ({
+  const updateData = <K extends keyof OnboardingData>(section: K, field: string, value: unknown) => {
+    setData((prev) => ({
       ...prev,
       [section]: {
-        ...(prev[section] || {}),
+        ...((prev[section] as Record<string, unknown>) || {}),
         [field]: value,
       },
     }));

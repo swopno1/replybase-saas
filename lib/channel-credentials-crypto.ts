@@ -6,18 +6,9 @@ function getCredentialEncryptionKey(): Buffer {
   const keyMaterial = process.env.CHANNEL_CREDENTIALS_ENCRYPTION_KEY;
 
   if (!keyMaterial) {
-    // If not set, we fall back to AUTH_SECRET for legacy support but log a warning.
-    // In strict production mode, this should be required.
-    const fallback = process.env.AUTH_SECRET;
-    if (!fallback) {
-      throw new Error(
-        "Missing CHANNEL_CREDENTIALS_ENCRYPTION_KEY for channel credential encryption. AUTH_SECRET fallback also missing.",
-      );
-    }
-    console.warn(
-      "CRITICAL: CHANNEL_CREDENTIALS_ENCRYPTION_KEY is not set. Falling back to AUTH_SECRET. This is not recommended for production.",
+    throw new Error(
+      "CRITICAL: Missing CHANNEL_CREDENTIALS_ENCRYPTION_KEY for channel credential encryption. This is required for production.",
     );
-    return crypto.createHash("sha256").update(fallback).digest();
   }
 
   return crypto.createHash("sha256").update(keyMaterial).digest();

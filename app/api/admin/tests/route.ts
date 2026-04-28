@@ -22,7 +22,7 @@ export async function GET(req: Request) {
 
   if (format === "csv") {
     const headers = "ID,Type,Name,Status,Duration,Date\n";
-    const escapeCsv = (str: any) => {
+    const escapeCsv = (str: unknown) => {
       const stringified = String(str);
       if (stringified.includes(',') || stringified.includes('"') || stringified.includes('\n')) {
         return `"${stringified.replace(/"/g, '""')}"`;

@@ -262,10 +262,19 @@ export class FlowExecutionEngine {
     pageAccessToken: string,
     context: FlowExecutionContext,
   ): Promise<{ success: boolean; waiting_for_response: boolean }> {
-    // For now, send text only. TODO: Add support for quick_replies/buttons
     const messageText = content.text || "";
+    let formattedQuickReplies: Array<{ content_type: string; title: string; payload: string; image_url?: string }> | undefined = undefined;
 
-    await sendTextMessage(pageAccessToken, context.userId, messageText);
+    if (content.quick_replies && content.quick_replies.length > 0) {
+      formattedQuickReplies = content.quick_replies.map(qr => ({
+        content_type: "text",
+        title: qr.title,
+        payload: qr.payload,
+        image_url: qr.image_url
+      }));
+    }
+
+    await sendTextMessage(pageAccessToken, context.userId, messageText, formattedQuickReplies);
 
     return { success: true, waiting_for_response: true };
   }
