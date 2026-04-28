@@ -67,16 +67,16 @@ export function OnboardingModal({
 }: {
   isOpen: boolean;
   initialStep?: number;
-  initialData?: Record<string, any>;
+  initialData?: Record<string, unknown>;
 }) {
   const router = useRouter();
   const [step, setStep] = useState(initialStep);
-  const [data, setData] = useState<Record<string, any>>(initialData);
+  const [data, setData] = useState<Record<string, unknown>>(initialData);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(isOpen);
 
-  const updateData = (section: string, field: string, value: any) => {
-    setData((prev: Record<string, any>) => ({
+  const updateData = (section: string, field: string, value: unknown) => {
+    setData((prev: Record<string, unknown>) => ({
       ...prev,
       [section]: {
         ...(prev[section] || {}),
@@ -535,13 +535,13 @@ export function OnboardingModal({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         className={cn(
-          "sm:max-w-[800px] border-primary/20 bg-background/95 backdrop-blur-xl shadow-[0_0_50px_-12px_rgba(var(--primary),0.3)]",
-          "after:absolute after:inset-0 after:z-[-1] after:bg-[radial-gradient(circle_at_50%_-20%,rgba(var(--primary),0.15),transparent_70%)]",
+          "sm:max-w-[800px] lg:min-h-[650px] lg:h-[650px] border-primary/20 bg-background/95 backdrop-blur-xl shadow-[0_0_50px_-12px_rgba(var(--primary),0.3)]",
+          "after:absolute after:inset-0 after:z-[-1] after:bg-[radial-gradient(circle_at_50%_-20%,rgba(var(--primary),0.15),transparent_70%)] transition-all duration-300",
         )}
         onPointerDownOutside={(e) => e.preventDefault()}
       >
-        <div className="relative z-10">
-          <DialogHeader className="mb-8">
+        <div className="relative z-10 h-full flex flex-col">
+          <DialogHeader className="mb-8 shrink-0">
             <div className="flex items-center gap-2 mb-2">
               <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20">
                 <Sparkles className="h-4 w-4 text-primary" />
@@ -556,7 +556,7 @@ export function OnboardingModal({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr] gap-10">
+          <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr] gap-10 flex-1 overflow-hidden">
             <div className="space-y-8 lg:border-r lg:border-primary/10 lg:pr-10">
               <OnboardingProgress
                 currentStep={step + 1}
@@ -593,12 +593,12 @@ export function OnboardingModal({
               </div>
             </div>
 
-            <div className="flex flex-col min-h-[400px]">
-              <div className="flex-1 overflow-y-auto pr-2 max-h-[500px]">
+            <div className="flex flex-col h-full overflow-hidden">
+              <div className="flex-1 overflow-y-auto pr-2">
                 {renderStage()}
               </div>
 
-              <div className="flex justify-between items-center gap-4 mt-10 pt-6 border-t border-primary/10">
+              <div className="flex justify-between items-center gap-4 mt-auto pt-6 border-t border-primary/10 shrink-0">
                 <Button
                   variant="ghost"
                   onClick={() => setStep(Math.max(0, step - 1))}
