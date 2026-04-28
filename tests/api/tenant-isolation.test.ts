@@ -57,8 +57,24 @@ describe('Multi-tenant Isolation Security', () => {
 
     vi.mocked(prisma.lead.findUnique).mockResolvedValue({
       id: leadId,
-      tenantId: tenantB // Lead belongs to Tenant B
-    } as any);
+      tenantId: tenantB, // Lead belongs to Tenant B
+      name: "Test Lead",
+      email: null,
+      phone: null,
+      source: "facebook",
+      status: "new",
+      interestedInSubscription: false,
+      selectedPlan: null,
+      trialRequested: false,
+      converted: false,
+      convertedAt: null,
+      metadata: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      contactId: null,
+      flowId: null,
+      pageId: null,
+    });
 
     const lead = await prisma.lead.findUnique({ where: { id: leadId } });
 

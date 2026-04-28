@@ -42,15 +42,26 @@ export async function sendFacebookSenderAction(
  * @param pageAccessToken - Page Access Token for the Facebook Page
  * @param recipientPsid - Facebook User PSID (Page-Scoped ID)
  * @param text - Message text to send
+ * @param quickReplies - Optional quick replies
  * @returns Result indicating success or failure
  */
 export async function sendTextMessage(
   pageAccessToken: string,
   recipientPsid: string,
   text: string,
+  quickReplies?: Array<{ content_type: string; title: string; payload: string; image_url?: string }>,
 ): Promise<SendMessageResult> {
   try {
     const url = getFacebookGraphUrl("me/messages", pageAccessToken);
+
+    const messagePayload: {
+      text: string;
+      quick_replies?: Array<{ content_type: string; title: string; payload: string; image_url?: string }>;
+    } = { text };
+
+    if (quickReplies && quickReplies.length > 0) {
+      messagePayload.quick_replies = quickReplies.slice(0, 13); // Facebook allows up to 13 quick replies
+    }
 
     const response = await fetch(url, {
       method: "POST",
@@ -59,7 +70,7 @@ export async function sendTextMessage(
       },
       body: JSON.stringify({
         recipient: { id: recipientPsid },
-        message: { text },
+        message: messagePayload,
         messaging_type: "RESPONSE",
       }),
     });

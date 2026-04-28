@@ -488,7 +488,7 @@ function SettingsTabsInner() {
       onValueChange={handleTabChange}
       className="space-y-6"
     >
-      <TabsList className="w-full flex justify-start overflow-x-auto overflow-y-hidden no-scrollbar">
+      <TabsList className="w-full flex justify-start overflow-x-auto overflow-y-hidden no-scrollbar flex-nowrap whitespace-nowrap">
         <TabsTrigger value="profile">
           <User className="mr-2 h-4 w-4" />
           Profile

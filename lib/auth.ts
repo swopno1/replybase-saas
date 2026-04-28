@@ -180,12 +180,12 @@ export const authOptions: NextAuthOptions = {
           token.subscriptionStatus = "inactive";
         }
       } else {
-        // Refresh subscription status if token is more than 1 hour old
+        // Refresh subscription status if token is more than 15 minutes old
         const now = Date.now();
         const lastCheck = (token.lastSubscriptionCheck as number) || 0;
-        const ONE_HOUR = 60 * 60 * 1000;
+        const FIFTEEN_MINUTES = 15 * 60 * 1000;
 
-        if (now - lastCheck > ONE_HOUR && token.tenantId) {
+        if (now - lastCheck > FIFTEEN_MINUTES && token.tenantId) {
           const tenantSub = await prisma.subscription.findFirst({
             where: { tenantId: token.tenantId as string },
             orderBy: { createdAt: "desc" },

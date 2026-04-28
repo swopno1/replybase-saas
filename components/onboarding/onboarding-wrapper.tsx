@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { OnboardingModal } from "./onboarding-modal";
 import { OnboardingBanner } from "./onboarding-banner";
 
+import type { OnboardingData } from "./onboarding-modal";
+
 export function OnboardingWrapper() {
   const [status, setStatus] = useState<{
     isOnboarded: boolean;
     onboardingStep: number;
-    onboardingData: any;
+    onboardingData: OnboardingData;
   } | null>(null);
 
   useEffect(() => {

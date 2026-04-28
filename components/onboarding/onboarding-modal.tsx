@@ -60,6 +60,51 @@ const CUSTOMER_TYPES = [
   "Other",
 ];
 
+export interface OnboardingKYC {
+  name?: string;
+  company?: string;
+  contactInfo?: string;
+  location?: string;
+}
+
+export interface OnboardingBusinessBasics {
+  industry?: string;
+  companySize?: string;
+  website?: string;
+  businessModel?: string;
+}
+
+export interface OnboardingProductDetails {
+  offer?: string;
+  targetCustomers?: string[] | string;
+}
+
+export interface OnboardingProductSpecifics {
+  mainProducts?: string;
+  pricing?: string;
+  usps?: string;
+}
+
+export interface OnboardingSupportSales {
+  commonQuestions?: string;
+  painPoints?: string;
+  salesProcess?: string;
+}
+
+export interface OnboardingAdditionalContext {
+  otherInfo?: string;
+}
+
+export interface OnboardingData {
+  kyc?: OnboardingKYC;
+  businessBasics?: OnboardingBusinessBasics;
+  productDetails?: OnboardingProductDetails;
+  productSpecifics?: OnboardingProductSpecifics;
+  supportSales?: OnboardingSupportSales;
+  additionalContext?: OnboardingAdditionalContext;
+  [key: string]: unknown;
+}
+
 export function OnboardingModal({
   isOpen,
   initialStep = 0,
@@ -79,7 +124,7 @@ export function OnboardingModal({
     setData((prev: Record<string, unknown>) => ({
       ...prev,
       [section]: {
-        ...(prev[section] || {}),
+        ...((prev[section] as Record<string, unknown>) || {}),
         [field]: value,
       },
     }));

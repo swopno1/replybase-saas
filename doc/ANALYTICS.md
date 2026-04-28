@@ -1,59 +1,76 @@
 # Replybase Analytics Documentation
 
-This document outlines the analytics setup for Replybase, specifically focusing on the integration of Plausible Analytics for secure, privacy-first, and reliable tracking.
+This document outlines the analytics setup for Replybase, specifically focusing on the integration of **Plausible Analytics** for secure, privacy-first, and reliable tracking.
 
-## Configuration
+## Configuration & Deployment
 
-Analytics are strictly loaded only in the **production** environment (`process.env.NODE_ENV === 'production'`).
+Analytics are strictly loaded **only in the production environment** (`process.env.NODE_ENV === 'production'`) and exclusively on the official production domain (`app.replybase.co.uk`).
 
-The following environment variables are used for configuration:
+The implementation uses a self-hosted instance to avoid exposing API keys or secrets to the client. The following environment variables are required for configuration:
 
 - `NEXT_PUBLIC_PLAUSIBLE_DOMAIN`: The domain name registered in Plausible (e.g., `app.replybase.co.uk`).
 - `NEXT_PUBLIC_PLAUSIBLE_SCRIPT_SRC`: The URL of the Plausible script (defaults to `https://engine.replybase.co.uk/js/script.js`).
 
-## Tracked Events
-
-All custom events are tracked using the `trackEvent` utility in `lib/client-analytics.ts`.
-
-### Event List
-
-| Event ID | Plausible Goal Name | Description | Properties |
-|----------|---------------------|-------------|------------|
-| `signup_completed` | `signup` | Triggered when a user successfully completes signup. | `path`, `method`, `source`, `plan` |
-| `onboarding_completed` | `onboarding_completed` | Triggered when all 4 major activation milestones are completed on the dashboard. | `path`, `tenant_id` |
-| `first_message_sent` | `first_message_sent` | Triggered the first time a user sends a message via the Webchat widget in a session. | `url` |
-| `subscription_started` | `subscription_started` | Triggered after a successful Stripe checkout redirect back to the dashboard. | `path`, `tenant_id`, `status` |
-
-*Note: Other events like `signup_started` and `onboarding_step_completed` are tracked via Clarity/PostHog (if enabled) but are currently skipped for Plausible to focus on core conversion goals.*
-
-## Technical Details
-
 ### Script Loading
+The Plausible script is integrated using the Next.js `<Script>` component within `app/layout.tsx` (via the `components/analytics/analytics-scripts.tsx` wrapper). To ensure application performance is unimpacted, the script uses the `strategy="afterInteractive"` approach for non-blocking execution alongside the `defer` attribute.
 
-The Plausible script is loaded using the Next.js `<Script>` component in `app/layout.tsx` (via `components/analytics/analytics-scripts.tsx`). It uses `async` and `defer` (via `strategy="afterInteractive"`) to avoid blocking the page rendering.
+## Privacy & Compliance
 
-### Privacy & Compliance
+Our analytics approach strictly adheres to a **Privacy-First** philosophy and is fully **GDPR-compliant**:
 
-- **Strict Production Check**: Analytics scripts only load when the hostname exactly matches `app.replybase.co.uk` and `NODE_ENV` is `production`.
-- **GDPR Compliance**: Plausible Analytics is GDPR-compliant by design as it does not use cookies and does not track personal data.
-- **Anonymization**: All data is anonymized. No IP addresses or personal identifiers are stored.
-- **Client-Side Safety**: No API keys or secrets are exposed to the client. The self-hosted instance at `engine.replybase.co.uk` is used.
+- **No Cookies:** Plausible operates without using tracking cookies.
+- **No Personal Data:** Analytics tracking strictly excludes personally identifiable information (PII).
+- **No IP Address Storage:** User IP addresses are not stored or persisted in any form.
+- **Anonymization:** All custom event properties are sanitized and anonymized before dispatch (e.g., `tenant_id` instead of emails).
+- **Client-Side Safety:** API keys or secrets are never exposed on the client. All event tracking endpoints use the self-hosted instance (`engine.replybase.co.uk`).
 
-### Error Handling
+## Event Tracking
 
-The `trackEvent` utility includes `try...catch` blocks for each analytics provider (Plausible, Clarity, PostHog) to ensure that a failure in one does not affect the application's functionality or other tracking. Failed script loads are also logged to the console in production.
+All custom application events are recorded using the unified `trackEvent` utility imported from `@/lib/client-analytics`.
+
+### Core Tracked Events
+
+The following core business objectives are tracked and mapped directly to Plausible Goals:
+
+| Event ID | Plausible Goal Name | Description | Example Properties |
+|----------|---------------------|-------------|---------------------|
+| `signup_completed` | `signup` | Triggered when a user successfully completes signup (e.g., via OAuth). | `method`, `source`, `plan`, `path` |
+| `onboarding_completed` | `onboarding_completed` | Triggered when all major activation milestones are completed on the dashboard. | `tenant_id`, `path` |
+| `first_message_sent` | `first_message_sent` | Triggered the first time a user sends a message in a session. | `url`, `path` |
+| `subscription_started` | `subscription_started` | Triggered after a successful Stripe checkout redirect back to the dashboard. | `status`, `tenant_id`, `path` |
+
+*Note: Other secondary events (like `signup_started` and `onboarding_step_completed`) are processed by the tracker utility but are currently filtered out for Plausible to maintain focus purely on core conversion metrics.*
+
+## Error Handling
+
+The application is resilient against analytics failures:
+- **Provider Isolation**: Within `trackEvent`, each analytics provider (including Plausible) is enclosed in a dedicated `try...catch` block. This guarantees that an integration failure will **never block or crash** the core application functionality.
+- **Non-blocking failures**: Script load failures trigger the `onError` handler on the Next.js `<Script>` tag, which gracefully logs the error to the console in production without disrupting the user experience.
 
 ## Implementation Example
 
-To track a new event, use the `trackEvent` function from `@/lib/client-analytics`:
+To track an event within a React Client Component, import and use the `trackEvent` utility:
 
 ```typescript
+"use client";
+
 import { trackEvent } from "@/lib/client-analytics";
 
-// ... inside a client component
-trackEvent("newsletter_signup", {
-  properties: {
-    source: "footer",
-  },
-});
+export function UpgradeButton() {
+  const handleUpgrade = () => {
+    trackEvent("subscription_started", {
+      properties: {
+        plan: "pro",
+        source: "dashboard_banner"
+      },
+      // Optional: Prevent duplicate tracking across a session or locally
+      onceKey: "subscription_started_pro",
+      onceScope: "session",
+    });
+
+    // Proceed with business logic...
+  };
+
+  return <button onClick={handleUpgrade}>Upgrade Now</button>;
+}
 ```

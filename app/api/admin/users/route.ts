@@ -14,6 +14,8 @@ async function requireAdmin() {
   return session;
 }
 
+import { Prisma } from "@prisma/client";
+
 export async function GET(request: NextRequest) {
   const session = await requireAdmin();
   if (!session) {
@@ -27,7 +29,7 @@ export async function GET(request: NextRequest) {
   const limit = parseInt(searchParams.get("limit") || "10");
   const skip = (page - 1) * limit;
 
-  const where: any = {
+  const where: Prisma.UserWhereInput = {
     AND: [
       search ? {
         OR: [
@@ -35,7 +37,7 @@ export async function GET(request: NextRequest) {
           { email: { contains: search, mode: "insensitive" } },
         ],
       } : {},
-      role ? { role: role as any } : {},
+      role ? { role: role as Prisma.EnumUserRoleFilter } : {},
     ],
   };
 
@@ -70,13 +72,13 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / limit),
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Admin Users GET error:", error);
     return NextResponse.json(
       { 
         error: "Failed to fetch users",
         code: "FETCH_USERS_ERROR",
-        message: error.message 
+        message: error instanceof Error ? error.message : "Unknown error"
       },
       { status: 500 }
     );
