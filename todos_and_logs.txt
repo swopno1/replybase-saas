@@ -1,0 +1,101 @@
+app/api/webchat/message/route.ts:27:    console.log("[Webchat Message] Incoming request", body);
+app/api/webchat/message/route.ts:145:        console.log("[Webchat Message] Responding from flow", {
+app/api/webchat/message/route.ts:216:      console.log("[Webchat Message] Responding", {
+app/api/billing/webhook/route.ts:104:          console.log(
+app/api/billing/webhook/route.ts:125:        console.log(`[Stripe Webhook] Unhandled event type ${event.type}`);
+app/api/billing/webhook/route.ts:198:  console.log(
+app/api/cron/prune-logs/route.ts:85:  console.log("[prune-logs]", JSON.stringify(summary));
+app/api/cron/expired-trials/route.ts:99:  console.log(
+app/api/cron/trial-reminders/route.ts:210:  console.log(
+app/api/cron/prune-sessions/route.ts:41:  console.log(`[prune-sessions] deleted=${count}`);
+app/api/admin/webhook-logs/route.ts:60:    console.log(`[Webhook Logs API] Deleted ${result?.count || 0} logs`);
+components/Logo.tsx:22:        {/* TODO: Replace with actual logo image path */}
+lib/flow-execution-engine.ts:475:        // TODO: In the future, emit an event here to trigger external API webhooks
+lib/webchat-metrics.ts:47:    console.log(JSON.stringify(entry));
+lib/subscription.ts:230:      // TODO: Integrate with sendEmail once tenant admin email is easily accessible here
+lib/subscription.ts:231:      console.log(`[Usage Alert] Tenant ${tenantId} reached ${threshold * 100}% of ${type}`);
+scripts/test-telegram.ts:37:  console.log(`  ✓  ${label}`);
+scripts/test-telegram.ts:77:  console.log("\n[1] Health endpoint");
+scripts/test-telegram.ts:93:  console.log(
+scripts/test-telegram.ts:119:  console.log("\n[3] Webhook endpoint behavior");
+scripts/test-telegram.ts:194:    console.log(
+scripts/test-telegram.ts:201:  console.log("\n[4] Token encryption round-trip");
+scripts/test-telegram.ts:208:    console.log(
+scripts/test-telegram.ts:251:    console.log(
+scripts/test-telegram.ts:257:  console.log("\n[5] Live Telegram API (requires real bot token)");
+scripts/test-telegram.ts:299:    console.log(
+scripts/test-telegram.ts:307:    console.log(
+scripts/test-telegram.ts:313:  console.log("\n[6] Authenticated status endpoint");
+scripts/test-telegram.ts:332:  console.log("═══════════════════════════════════════════════════════");
+scripts/test-telegram.ts:333:  console.log("  Telegram Integration — E2E Test Suite");
+scripts/test-telegram.ts:334:  console.log(`  Target: ${BASE_URL}`);
+scripts/test-telegram.ts:335:  console.log("═══════════════════════════════════════════════════════");
+scripts/test-telegram.ts:344:  console.log("\n═══════════════════════════════════════════════════════");
+scripts/test-telegram.ts:345:  console.log(`  Results: ${passed} passed, ${failed} failed`);
+scripts/test-telegram.ts:350:  console.log("═══════════════════════════════════════════════════════\n");
+scripts/test-chatbot.js:70:    console.log(chalk.green(`✓ [${timestamp}] ${title}`), message);
+scripts/test-chatbot.js:72:    console.log(chalk.red(`✗ [${timestamp}] ${title}`), message);
+scripts/test-chatbot.js:74:    console.log(chalk.blue(`ℹ [${timestamp}] ${title}`), message);
+scripts/test-chatbot.js:76:    console.log(chalk.yellow(`● [${timestamp}] ${title}`), message);
+scripts/test-chatbot.js:83:  console.log();
+scripts/test-chatbot.js:104:  console.log();
+scripts/test-chatbot.js:110:  console.log();
+scripts/test-chatbot.js:133:  console.log();
+scripts/test-chatbot.js:139:  console.log();
+scripts/test-chatbot.js:184:  console.log();
+scripts/test-chatbot.js:190:  console.log();
+scripts/test-chatbot.js:216:  console.log();
+scripts/test-chatbot.js:222:  console.log();
+scripts/test-chatbot.js:268:  console.log();
+scripts/test-chatbot.js:274:  console.log();
+scripts/test-chatbot.js:294:  console.log();
+scripts/test-chatbot.js:300:  console.log();
+scripts/test-chatbot.js:304:    console.log();
+scripts/test-chatbot.js:328:  console.log();
+scripts/test-chatbot.js:334:  console.log();
+scripts/test-chatbot.js:355:  console.log();
+scripts/test-chatbot.js:361:  console.log(chalk.bold.blue("\n🤖 Chatbot Integration Test Suite\n"));
+scripts/test-chatbot.js:362:  console.log(`Base URL: ${BASE_URL}\n`);
+scripts/test-chatbot.js:363:  console.log(chalk.dim("Starting comprehensive chatbot tests...\n"));
+scripts/test-chatbot.js:390:      console.log();
+scripts/test-chatbot.js:395:  console.log(chalk.bold("\n📋 Test Summary\n"));
+scripts/test-chatbot.js:396:  console.log(chalk.green(`✓ Passed: ${passed}`));
+scripts/test-chatbot.js:397:  console.log(chalk.red(`✗ Failed: ${failed}`));
+scripts/test-chatbot.js:398:  console.log(chalk.blue(`◆ Total: ${tests.length}\n`));
+scripts/test-chatbot.js:401:    console.log(
+scripts/test-chatbot.js:406:    console.log(
+scripts/check-webhook-logs.ts:10:    console.log(`\n📊 Recent Webhook Logs (${logs.length} found):\n`);
+scripts/check-webhook-logs.ts:13:      console.log("❌ No webhook logs found!");
+scripts/check-webhook-logs.ts:14:      console.log("This means events were not logged to the database.");
+scripts/check-webhook-logs.ts:17:        console.log(
+scripts/check-webhook-logs.ts:20:        console.log(`   Created: ${log.createdAt}`);
+scripts/check-webhook-logs.ts:21:        console.log(`   Data: ${JSON.stringify(log.data, null, 2)}`);
+scripts/check-webhook-logs.ts:22:        console.log("");
+scripts/run-load-tests.ts:7:  console.log(`Starting load test: ${name}...`);
+scripts/run-load-tests.ts:18:    console.log(`Executing: k6 run --summary-export=${reportPath} -e BASE_URL=${baseUrl} ${scriptPath}`);
+scripts/run-load-tests.ts:48:      console.log(`Load test ${name} finished and results saved.`);
+scripts/delete-user-flows.ts:45:      console.log(`ℹ️ No flows found for tenant ${user.tenantId} (User: ${user.email || user.id}).`);
+scripts/delete-user-flows.ts:49:    console.log(`🗑️  Found ${flows.length} flow(s) for tenant ${user.tenantId}. Deleting...`);
+scripts/delete-user-flows.ts:53:      console.log(`   ✅ Deleted flow: ${flow.name} (${flow.id})`);
+scripts/delete-user-flows.ts:56:    console.log("\n✨ All tenant flows have been removed.");
+scripts/seed-stripe.ts:71:  console.log("🌱 Seeding Stripe products and plans...");
+scripts/seed-stripe.ts:78:      console.log(`\nProcessing Stripe product for ${plan.displayName}...`);
+scripts/seed-stripe.ts:87:        console.log(`   Creating product: ReplyBase ${plan.displayName}`);
+scripts/seed-stripe.ts:95:        console.log(`   Product existing: ${product.id}`);
+scripts/seed-stripe.ts:107:        console.log(
+scripts/seed-stripe.ts:122:        console.log(`   Price existing: ${price.id}`);
+scripts/seed-stripe.ts:128:    console.log(`   Upserting DB Plan: ${plan.name}`);
+scripts/seed-stripe.ts:147:      console.log(`   --> Stripe Price ID for ${plan.name}: ${priceId}`);
+scripts/seed-stripe.ts:151:  console.log("\n✅ Seeding complete.");
+scripts/test-stripe-webhook.ts:5:  console.log("🚀 Starting revenue system validation...");
+scripts/test-stripe-webhook.ts:33:  console.log(`✅ Created test tenant and subscription: ${tenant.id}`);
+scripts/test-stripe-webhook.ts:39:  console.log("📡 Simulating invoice.paid event...");
+scripts/test-stripe-webhook.ts:53:  console.log(`✅ Recorded revenue record: ${recordedRevenue.id}`);
+scripts/test-stripe-webhook.ts:67:  console.log(`📊 Total revenue in last 30 days: $${revenueSum._sum.amount}`);
+scripts/test-stripe-webhook.ts:70:    console.log("✨ Validation SUCCESS: Revenue correctly tracked.");
+scripts/test-stripe-webhook.ts:80:  console.log("🧹 Cleanup complete.");
+scripts/verify-subflow-links.ts:31:  console.log(JSON.stringify(rows, null, 2));
+scripts/add-user-flow.ts:55:        console.log("Available categories:", templates.map(t => t.category).join(", "));
+scripts/add-user-flow.ts:62:      console.log(`📝 Using template: ${template.name}`);
+scripts/add-user-flow.ts:101:    console.log(`✅ Flow created successfully: ${flow.name} (${flow.id})`);
+scripts/add-user-flow.ts:102:    console.log(`🔗 Assigned to tenant: ${user.tenantId}`);
