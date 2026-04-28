@@ -20,6 +20,7 @@ export type FlowCondition = {
 
 export type FlowNodeContent = {
   text?: string;
+  quick_replies?: Array<{ title: string; payload: string; image_url?: string }>;
   inputType?: "text" | "email" | "phone" | "number";
   variableName?: string;
   validationMessage?: string;

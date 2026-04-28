@@ -59,7 +59,25 @@ export default function BillingTabContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCanceling, setIsCanceling] = useState(false);
 
-  const fetchBillingData = async () => {
+  useEffect(() => {
+    const fetchBillingData = async () => {
+      try {
+        const response = await fetch("/api/billing/subscription");
+        if (!response.ok) throw new Error("Failed to fetch billing data");
+        const data = await response.json();
+        setSubscription(data.subscription);
+        setInvoices(data.invoices || []);
+      } catch (error) {
+        console.error("Error fetching billing data:", error);
+        toast.error("Failed to load billing information");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchBillingData();
+  }, []);
+
+  const refreshBillingData = async () => {
     try {
       setIsLoading(true);
       const response = await fetch("/api/billing/subscription");
@@ -75,10 +93,6 @@ export default function BillingTabContent() {
     }
   };
 
-  useEffect(() => {
-    fetchBillingData();
-  }, []);
-
   const handleUpgrade = () => {
     router.push("/pricing");
   };
@@ -93,7 +107,7 @@ export default function BillingTabContent() {
       );
       if (!response.ok) throw new Error("Failed to cancel subscription");
       toast.success("Subscription canceled successfully");
-      fetchBillingData();
+      refreshBillingData();
     } catch (error) {
       console.error("Error canceling subscription:", error);
       toast.error("Failed to cancel subscription");
