@@ -559,7 +559,7 @@ export const SERVICES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Perfect. ✅ I've sent your details to the team. They'll review everything and get back to you with the next steps very soon.",
+        text: "Perfect. ✅ Let's schedule a quick call to go over the details: [SCHEDULE_LINK]",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -569,7 +569,8 @@ export const SERVICES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "action",
       content: {
-        action: "tag_user",
+        action: "schedule",
+        scheduleLink: "[SCHEDULE_LINK]",
         tags: ["service-request", "new-enquiry"],
       },
       order: 6,
@@ -701,7 +702,7 @@ export const BOOKING_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Hi there! 📅 We'd love to get you booked in. Let's sort out the details.",
+        text: "Hi there! 📅 Ready to book your spot? Let's sort out the details.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1100,
@@ -759,7 +760,7 @@ export const BOOKING_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Thanks! ✅ We've received your request. Our team will check the schedule and get back to you shortly to confirm.",
+        text: "Thanks! ✅ We've received your request. Let's get you booked in right away: [BOOKING_LINK]",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -769,7 +770,8 @@ export const BOOKING_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "action",
       content: {
-        action: "tag_user",
+        action: "booking",
+        bookingService: "general",
         tags: ["booking-request", "new-appointment"],
       },
       order: 6,
@@ -867,11 +869,11 @@ export const ECOMMERCE_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Great! You can browse our full collection right here: [STORE_URL] 🛍️ And here's a little secret: use code WELCOME10 for 10% off!",
+        text: "Great! You can browse our full collection right here. Want to check out now? Let's complete your purchase! [STORE_URL]/checkout 🛍️ And here's a little secret: use code WELCOME10 for 10% off!",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1200,
-        nextNodeOrder: 10,
+        nextNodeOrder: 9,
       },
       order: 4,
     },
@@ -885,6 +887,14 @@ export const ECOMMERCE_TEMPLATE: FlowTemplateDefinition = {
         nextNodeOrder: 10,
       },
       order: 5,
+    },
+    {
+      type: "action",
+      content: {
+        action: "checkout",
+        checkoutUrl: "[STORE_URL]/checkout",
+      },
+      order: 9,
     },
     {
       type: "action",
@@ -2684,7 +2694,7 @@ export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Fantastic! 📅 For how many people would you like to book, and on what date and time?",
+        text: "Fantastic! 📅 Let's get you scheduled! For how many people would you like to book, and on what date and time?",
         variableName: "booking_details",
         inputType: "text",
         delayMs: 500,
@@ -2732,7 +2742,7 @@ export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Excellent! 🥂 We've received your request. We'll check our tables and send your confirmation shortly. See you soon!",
+        text: "Excellent! 🥂 Your reservation request is set. Want to secure your table now? [RESERVATION_LINK]",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -2742,7 +2752,8 @@ export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "action",
       content: {
-        action: "tag_user",
+        action: "booking",
+        bookingService: "table",
         tags: ["restaurant-booking", "reservation-request"],
       },
       order: 8,
