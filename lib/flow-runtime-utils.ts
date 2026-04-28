@@ -29,9 +29,15 @@ export type FlowNodeContent = {
     | "update_status"
     | "send_email"
     | "call_flow"
-    | "end_flow";
+    | "end_flow"
+    | "booking"
+    | "checkout"
+    | "schedule";
   targetFlowId?: string;
   targetFlowName?: string;
+  bookingService?: string;
+  checkoutUrl?: string;
+  scheduleLink?: string;
   delayMs?: number;
   waitMs?: number;
   typingDurationMs?: number;
