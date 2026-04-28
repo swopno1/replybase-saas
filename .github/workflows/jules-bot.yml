@@ -1,0 +1,36 @@
+name: Jules Bot Automation
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  jules_respond:
+    # Only run if the comment starts with "@jules"
+    if: startsWith(github.event.comment.body, '@jules')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Parse Command
+        id: parse
+        run: |
+          COMMENT="${{ github.event.comment.body }}"
+          if [[ "$COMMENT" == *"assign"* ]]; then echo "cmd=assign" >> $GITHUB_OUTPUT; fi
+          if [[ "$COMMENT" == *"fix"* ]]; then echo "cmd=fix" >> $GITHUB_OUTPUT; fi
+
+      - name: Action - Assign Task
+        if: steps.parse.outputs.cmd == 'assign'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.addAssignees({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              assignees: [context.payload.comment.user.login]
+            })
+
+      - name: Action - Fix Attempt (Integration)
+        if: steps.parse.outputs.cmd == 'fix'
+        run: |
+          echo "Jules is now analyzing the issue to propose a code fix..."
+          # Here is where you would link to an AI API or an Antigravity IDE webhook
