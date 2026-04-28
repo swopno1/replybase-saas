@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { trackEvent } from "@/lib/client-analytics";
 
 export function ReplyComposer({
   conversation,
@@ -51,8 +52,13 @@ export function ReplyComposer({
     }
   };
 
-  const handleReply = () =>
+  const handleReply = () => {
+    trackEvent("first_message_sent", {
+      onceKey: "first_message_sent",
+      onceScope: "local",
+    });
     submitTo(`/api/conversations/${conversation.id}/messages`);
+  };
 
   const handleNote = () =>
     submitTo(`/api/conversations/${conversation.id}/notes`);
