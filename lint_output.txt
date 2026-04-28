@@ -1,86 +1,109 @@
 
-> replybase-saas@0.1.0 lint /Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas
+> replybase-saas@0.1.0 lint /app
 > eslint
 
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(admin)/admin/page.tsx
-   12:3   warning  'ArrowDownRight' is defined but never used                                                                                                                               @typescript-eslint/no-unused-vars
-  274:17  error    Do not use an `<a>` element to navigate to `/admin/subscribers/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages  @next/next/no-html-link-for-pages
+/app/app/(admin)/admin/flows/[id]/edit/page.tsx
+    8:3   warning  'CardDescription' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+   13:10  warning  'Input' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 @typescript-eslint/no-unused-vars
+   60:11  warning  'FlowReference' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+  139:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(admin)/admin/subscribers/[id]/page.tsx
-   38:3  warning  'Activity' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
-   40:3  warning  'History' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
-  142:5  error    Error: Cannot access variable before it is declared
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/app/app/(admin)/admin/flows/[id]/edit/page.tsx:139:5
+  137 |
+  138 |   useEffect(() => {
+> 139 |     fetchFlow();
+      |     ^^^^^^^^^ Avoid calling setState() directly within an effect
+  140 |   }, [fetchFlow]);
+  141 |
+  142 |   const handleSaveFlow = async () => {  react-hooks/set-state-in-effect
+  228:62  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   react/no-unescaped-entities
+  401:30  warning  'err' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   @typescript-eslint/no-unused-vars
+
+/app/app/(admin)/admin/page.tsx
+   12:3   warning  'ArrowDownRight' is defined but never used                                                                                                                               @typescript-eslint/no-unused-vars
+  350:17  error    Do not use an `<a>` element to navigate to `/admin/subscribers/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages  @next/next/no-html-link-for-pages
+
+/app/app/(admin)/admin/subscribers/[id]/page.tsx
+   38:3  warning  'Activity' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-unused-vars
+   40:3  warning  'History' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+  146:5  error    Error: Cannot access variable before it is declared
 
 `fetchData` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(admin)/admin/subscribers/[id]/page.tsx:142:5
-  140 |
-  141 |   useEffect(() => {
-> 142 |     fetchData();
+/app/app/(admin)/admin/subscribers/[id]/page.tsx:146:5
+  144 |
+  145 |   useEffect(() => {
+> 146 |     fetchData();
       |     ^^^^^^^^^ `fetchData` accessed before it is declared
-  143 |     fetchPlans();
-  144 |   }, [id]);
-  145 |
+  147 |     fetchPlans();
+  148 |   }, [id]);
+  149 |
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(admin)/admin/subscribers/[id]/page.tsx:146:3
-  144 |   }, [id]);
-  145 |
-> 146 |   const fetchData = async () => {
+/app/app/(admin)/admin/subscribers/[id]/page.tsx:150:3
+  148 |   }, [id]);
+  149 |
+> 150 |   const fetchData = async () => {
       |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-> 147 |     try {
+> 151 |     try {
       | ^^^^^^^^^
-> 148 |       const response = await fetch(`/api/admin/subscribers/${id}`);
+> 152 |       const response = await fetch(`/api/admin/subscribers/${id}`);
       …
       | ^^^^^^^^^
-> 169 |     }
+> 173 |     }
       | ^^^^^^^^^
-> 170 |   };
+> 174 |   };
       | ^^^^^ `fetchData` is declared here
-  171 |
-  172 |   const fetchPlans = async () => {
-  173 |     try {                                                react-hooks/immutability
-  143:5  error    Error: Cannot access variable before it is declared
+  175 |
+  176 |   const fetchPlans = async () => {
+  177 |     try {                                                react-hooks/immutability
+  147:5  error    Error: Cannot access variable before it is declared
 
 `fetchPlans` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(admin)/admin/subscribers/[id]/page.tsx:143:5
-  141 |   useEffect(() => {
-  142 |     fetchData();
-> 143 |     fetchPlans();
+/app/app/(admin)/admin/subscribers/[id]/page.tsx:147:5
+  145 |   useEffect(() => {
+  146 |     fetchData();
+> 147 |     fetchPlans();
       |     ^^^^^^^^^^ `fetchPlans` accessed before it is declared
-  144 |   }, [id]);
-  145 |
-  146 |   const fetchData = async () => {
+  148 |   }, [id]);
+  149 |
+  150 |   const fetchData = async () => {
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(admin)/admin/subscribers/[id]/page.tsx:172:3
-  170 |   };
-  171 |
-> 172 |   const fetchPlans = async () => {
+/app/app/(admin)/admin/subscribers/[id]/page.tsx:176:3
+  174 |   };
+  175 |
+> 176 |   const fetchPlans = async () => {
       |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-> 173 |     try {
+> 177 |     try {
       | ^^^^^^^^^
-> 174 |       const response = await fetch("/api/admin/plans");
+> 178 |       const response = await fetch("/api/admin/plans");
       …
       | ^^^^^^^^^
-> 181 |     }
+> 185 |     }
       | ^^^^^^^^^
-> 182 |   };
+> 186 |   };
       | ^^^^^ `fetchPlans` is declared here
-  183 |
-  184 |   const handleUpdateSubscription = async () => {
-  185 |     setSaving(true);  react-hooks/immutability
-  144:6  warning  React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   react-hooks/exhaustive-deps
+  187 |
+  188 |   const handleUpdateSubscription = async () => {
+  189 |     setSaving(true);  react-hooks/immutability
+  148:6  warning  React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     react-hooks/exhaustive-deps
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(admin)/admin/subscribers/page.tsx
+/app/app/(admin)/admin/subscribers/page.tsx
    30:3   warning  'Loader2' is defined but never used       @typescript-eslint/no-unused-vars
   113:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   152:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(admin)/admin/tests/page.tsx
-  25:12  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          @typescript-eslint/no-explicit-any
-  31:10  warning  'loading' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
-  38:14  warning  'e' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+/app/app/(admin)/admin/tests/page.tsx
+  25:12  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   @typescript-eslint/no-explicit-any
+  31:10  warning  'loading' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+  38:14  warning  'e' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
   46:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
 
 Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
@@ -89,7 +112,7 @@ Effects are intended to synchronize state between React and external systems suc
 
 Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(admin)/admin/tests/page.tsx:46:5
+/app/app/(admin)/admin/tests/page.tsx:46:5
   44 |
   45 |   useEffect(() => {
 > 46 |     fetchResults();
@@ -98,11 +121,11 @@ Calling setState synchronously within an effect body causes cascading renders th
   48 |
   49 |   const runSmokeTest = async () => {  react-hooks/set-state-in-effect
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(admin)/admin/users/page.tsx
+/app/app/(admin)/admin/users/page.tsx
   105:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   144:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(admin)/admin/webchat-rollout/page.tsx
+/app/app/(admin)/admin/webchat-rollout/page.tsx
   93:10  error  Error: Calling setState synchronously within an effect can trigger cascading renders
 
 Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
@@ -111,7 +134,7 @@ Effects are intended to synchronize state between React and external systems suc
 
 Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(admin)/admin/webchat-rollout/page.tsx:93:10
+/app/app/(admin)/admin/webchat-rollout/page.tsx:93:10
   91 |
   92 |   useEffect(() => {
 > 93 |     void loadConfig();
@@ -120,7 +143,7 @@ Calling setState synchronously within an effect body causes cascading renders th
   95 |
   96 |   const saveConfig = async () => {  react-hooks/set-state-in-effect
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(admin)/admin/webhook-logs/page.tsx
+/app/app/(admin)/admin/webhook-logs/page.tsx
   45:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
 
 Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
@@ -129,7 +152,7 @@ Effects are intended to synchronize state between React and external systems suc
 
 Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(admin)/admin/webhook-logs/page.tsx:45:5
+/app/app/(admin)/admin/webhook-logs/page.tsx:45:5
   43 |
   44 |   useEffect(() => {
 > 45 |     fetchLogs();
@@ -138,7 +161,7 @@ Calling setState synchronously within an effect body causes cascading renders th
   47 |
   48 |   useEffect(() => {  react-hooks/set-state-in-effect
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/bots/[botId]/page.tsx
+/app/app/(dashboard)/bots/[botId]/page.tsx
   140:10  error  Error: Calling setState synchronously within an effect can trigger cascading renders
 
 Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
@@ -147,7 +170,7 @@ Effects are intended to synchronize state between React and external systems suc
 
 Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/bots/[botId]/page.tsx:140:10
+/app/app/(dashboard)/bots/[botId]/page.tsx:140:10
   138 |
   139 |   useEffect(() => {
 > 140 |     void fetchBot();
@@ -156,12 +179,8 @@ Calling setState synchronously within an effect body causes cascading renders th
   142 |     // eslint-disable-next-line react-hooks/exhaustive-deps
   143 |   }, [botId]);  react-hooks/set-state-in-effect
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/contacts/page.tsx
-  69:51  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-  76:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/conversations/[conversationId]/page.tsx
-  62:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+/app/app/(dashboard)/conversations/[conversationId]/page.tsx
+  63:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
 
 Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
 * Update external systems with the latest state from React.
@@ -169,16 +188,16 @@ Effects are intended to synchronize state between React and external systems suc
 
 Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/conversations/[conversationId]/page.tsx:62:5
-  60 |     }
-  61 |
-> 62 |     setLoading(true);
+/app/app/(dashboard)/conversations/[conversationId]/page.tsx:63:5
+  61 |     }
+  62 |
+> 63 |     setLoading(true);
      |     ^^^^^^^^^^ Avoid calling setState() directly within an effect
-  63 |     refreshConversation();
-  64 |
-  65 |     const intervalId = window.setInterval(() => {  react-hooks/set-state-in-effect
+  64 |     refreshConversation();
+  65 |
+  66 |     const intervalId = window.setInterval(() => {  react-hooks/set-state-in-effect
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/flows/[id]/edit/page.tsx
+/app/app/(dashboard)/flows/[id]/edit/page.tsx
   134:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
 
 Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
@@ -187,7 +206,7 @@ Effects are intended to synchronize state between React and external systems suc
 
 Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/flows/[id]/edit/page.tsx:134:5
+/app/app/(dashboard)/flows/[id]/edit/page.tsx:134:5
   132 |
   133 |   useEffect(() => {
 > 134 |     fetchFlow();
@@ -196,7 +215,7 @@ Calling setState synchronously within an effect body causes cascading renders th
   136 |
   137 |   useEffect(() => {  react-hooks/set-state-in-effect
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/flows/[id]/settings/page.tsx
+/app/app/(dashboard)/flows/[id]/settings/page.tsx
   215:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
 
 Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
@@ -205,7 +224,7 @@ Effects are intended to synchronize state between React and external systems suc
 
 Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/flows/[id]/settings/page.tsx:215:5
+/app/app/(dashboard)/flows/[id]/settings/page.tsx:215:5
   213 |
   214 |   useEffect(() => {
 > 215 |     fetchData();
@@ -214,46 +233,89 @@ Calling setState synchronously within an effect body causes cascading renders th
   217 |
   218 |   const handleSaveSettings = async () => {  react-hooks/set-state-in-effect
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/flows/page.tsx
-  138:5  error  Error: Cannot access variable before it is declared
+/app/app/(dashboard)/flows/page.tsx
+   53:3  warning  'Users' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+   54:3  warning  'Calendar' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+   55:3  warning  'UtensilsCrossed' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+   56:3  warning  'Hotel' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+   57:3  warning  'Trophy' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+   58:3  warning  'ShoppingBag' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+   59:3  warning  'Cpu' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+   60:3  warning  'Activity' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+   61:3  warning  'Scissors' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+   62:3  warning  'Sparkles' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+   63:3  warning  'Home' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-unused-vars
+   64:3  warning  'Dog' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+   65:3  warning  'Heart' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+  136:5  error    Error: Cannot access variable before it is declared
 
 `fetchFlows` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/flows/page.tsx:138:5
-  136 |
-  137 |   useEffect(() => {
-> 138 |     fetchFlows();
+/app/app/(dashboard)/flows/page.tsx:136:5
+  134 |
+  135 |   useEffect(() => {
+> 136 |     fetchFlows();
       |     ^^^^^^^^^^ `fetchFlows` accessed before it is declared
-  139 |   }, []);
-  140 |
-  141 |   const fetchFlows = async () => {
+  137 |     fetchTemplates();
+  138 |   }, []);
+  139 |
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/flows/page.tsx:141:3
-  139 |   }, []);
-  140 |
-> 141 |   const fetchFlows = async () => {
+/app/app/(dashboard)/flows/page.tsx:140:3
+  138 |   }, []);
+  139 |
+> 140 |   const fetchFlows = async () => {
       |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-> 142 |     try {
+> 141 |     try {
       | ^^^^^^^^^
-> 143 |       setLoading(true);
+> 142 |       setLoading(true);
       …
       | ^^^^^^^^^
-> 163 |     }
+> 162 |     }
       | ^^^^^^^^^
-> 164 |   };
+> 163 |   };
       | ^^^^^ `fetchFlows` is declared here
-  165 |
-  166 |   const handleCreateFlow = async () => {
-  167 |     if (!newFlowName.trim()) {  react-hooks/immutability
+  164 |
+  165 |   const fetchTemplates = async () => {
+  166 |     try {                                                                                                                       react-hooks/immutability
+  137:5  error    Error: Cannot access variable before it is declared
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/integrations/facebook/page.tsx
-   22:3   warning  'MessageSquare' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
-   88:75  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                @typescript-eslint/no-explicit-any
+`fetchTemplates` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+/app/app/(dashboard)/flows/page.tsx:137:5
+  135 |   useEffect(() => {
+  136 |     fetchFlows();
+> 137 |     fetchTemplates();
+      |     ^^^^^^^^^^^^^^ `fetchTemplates` accessed before it is declared
+  138 |   }, []);
+  139 |
+  140 |   const fetchFlows = async () => {
+
+/app/app/(dashboard)/flows/page.tsx:165:3
+  163 |   };
+  164 |
+> 165 |   const fetchTemplates = async () => {
+      |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 166 |     try {
+      | ^^^^^^^^^
+> 167 |       const response = await fetch("/api/flows/from-template");
+      …
+      | ^^^^^^^^^
+> 174 |     }
+      | ^^^^^^^^^
+> 175 |   };
+      | ^^^^^ `fetchTemplates` is declared here
+  176 |
+  177 |   const handleCreateFlow = async () => {
+  178 |     if (!newFlowName.trim()) {  react-hooks/immutability
+
+/app/app/(dashboard)/integrations/facebook/page.tsx
+   22:3   warning  'MessageSquare' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 @typescript-eslint/no-unused-vars
+   88:75  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @typescript-eslint/no-explicit-any
    97:5   error    Error: Cannot access variable before it is declared
 
 `fetchPages` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/integrations/facebook/page.tsx:97:5
+/app/app/(dashboard)/integrations/facebook/page.tsx:97:5
    95 |       return;
    96 |     }
 >  97 |     fetchPages();
@@ -262,7 +324,7 @@ Calling setState synchronously within an effect body causes cascading renders th
    99 |
   100 |   if (!channelVisible) {
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/integrations/facebook/page.tsx:104:3
+/app/app/(dashboard)/integrations/facebook/page.tsx:104:3
   102 |   }
   103 |
 > 104 |   const fetchPages = async () => {
@@ -279,134 +341,103 @@ Calling setState synchronously within an effect body causes cascading renders th
   150 |
   151 |   const loadFlows = async () => {
   152 |     setIsFlowsLoading(true);  react-hooks/immutability
-   98:6   warning  React Hook useEffect has a missing dependency: 'fetchPages'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           react-hooks/exhaustive-deps
-  901:47  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         react/no-unescaped-entities
+   98:6   warning  React Hook useEffect has a missing dependency: 'fetchPages'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             react-hooks/exhaustive-deps
+  901:47  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           react/no-unescaped-entities
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/integrations/telegram/page.tsx
-  134:5   error  Error: Cannot access variable before it is declared
+/app/app/(dashboard)/integrations/telegram/page.tsx
+  146:5   error    Error: Cannot access variable before it is declared
 
 `loadBots` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/integrations/telegram/page.tsx:134:5
-  132 |
-  133 |   useEffect(() => {
-> 134 |     loadBots();
+/app/app/(dashboard)/integrations/telegram/page.tsx:146:5
+  144 |
+  145 |   useEffect(() => {
+> 146 |     loadBots();
       |     ^^^^^^^^ `loadBots` accessed before it is declared
-  135 |   }, []);
-  136 |
-  137 |   useEffect(() => {
+  147 |   }, []);
+  148 |
+  149 |   useEffect(() => {
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/integrations/telegram/page.tsx:186:3
-  184 |   }, [selectedBotId]);
-  185 |
-> 186 |   const loadBots = async () => {
+/app/app/(dashboard)/integrations/telegram/page.tsx:184:3
+  182 |   }, [selectedBotId]);
+  183 |
+> 184 |   const loadBots = async () => {
       |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-> 187 |     setIsBotsLoading(true);
+> 185 |     setIsBotsLoading(true);
       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-> 188 |     try {
+> 186 |     try {
       …
       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-> 206 |     }
+> 204 |     }
       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-> 207 |   };
+> 205 |   };
       | ^^^^^ `loadBots` is declared here
-  208 |
-  209 |   const loadStatus = async (botId: string) => {
-  210 |     setIsStatusLoading(true);                                                                                                                                                          react-hooks/immutability
-  139:7   error  Error: Calling setState synchronously within an effect can trigger cascading renders
-
-Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
-* Update external systems with the latest state from React.
-* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
-
-Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
-
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/integrations/telegram/page.tsx:139:7
-  137 |   useEffect(() => {
-  138 |     if (!selectedBotId) {
-> 139 |       setStatus(null);
-      |       ^^^^^^^^^ Avoid calling setState() directly within an effect
-  140 |       setLogs([]);
-  141 |       return;
-  142 |     }                                                                                                                                                                                        react-hooks/set-state-in-effect
-  175:7   error  Error: Calling setState synchronously within an effect can trigger cascading renders
-
-Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
-* Update external systems with the latest state from React.
-* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
-
-Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
-
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/integrations/telegram/page.tsx:175:7
-  173 |   useEffect(() => {
-  174 |     if (!selectedBotId) {
-> 175 |       setFlows([]);
-      |       ^^^^^^^^ Avoid calling setState() directly within an effect
-  176 |       setTelegramChannel(null);
-  177 |       setAssignedFlow(null);
-  178 |       setSelectedFlowId("");                                                                                                                                         react-hooks/set-state-in-effect
-  182:10  error  Error: Cannot access variable before it is declared
+  206 |
+  207 |   const loadStatus = async (botId: string) => {
+  208 |     setIsStatusLoading(true);                                                                                                                                                        react-hooks/immutability
+  147:6   warning  React Hook useEffect has a missing dependency: 'loadBots'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       react-hooks/exhaustive-deps
+  176:10  error    Error: Cannot access variable before it is declared
 
 `loadFlows` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/integrations/telegram/page.tsx:182:10
-  180 |     }
-  181 |
-> 182 |     void loadFlows();
+/app/app/(dashboard)/integrations/telegram/page.tsx:176:10
+  174 |
+  175 |     run();
+> 176 |     void loadFlows();
       |          ^^^^^^^^^ `loadFlows` accessed before it is declared
-  183 |     void loadTelegramChannel(selectedBotId);
-  184 |   }, [selectedBotId]);
-  185 |
+  177 |     void loadTelegramChannel(selectedBotId);
+  178 |
+  179 |     return () => {
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/integrations/telegram/page.tsx:225:3
-  223 |   };
-  224 |
-> 225 |   const loadFlows = async () => {
+/app/app/(dashboard)/integrations/telegram/page.tsx:223:3
+  221 |   };
+  222 |
+> 223 |   const loadFlows = async () => {
       |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-> 226 |     setIsFlowsLoading(true);
+> 224 |     setIsFlowsLoading(true);
       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-> 227 |     try {
+> 225 |     try {
       …
       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-> 248 |     }
+> 246 |     }
       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-> 249 |   };
+> 247 |   };
       | ^^^^^ `loadFlows` is declared here
-  250 |
-  251 |   const loadTelegramChannel = async (botId: string) => {
-  252 |     try {                                                                                                                                         react-hooks/immutability
-  183:10  error  Error: Cannot access variable before it is declared
+  248 |
+  249 |   const loadTelegramChannel = async (botId: string) => {
+  250 |     try {                                                                                                                                      react-hooks/immutability
+  177:10  error    Error: Cannot access variable before it is declared
 
 `loadTelegramChannel` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/integrations/telegram/page.tsx:183:10
-  181 |
-  182 |     void loadFlows();
-> 183 |     void loadTelegramChannel(selectedBotId);
+/app/app/(dashboard)/integrations/telegram/page.tsx:177:10
+  175 |     run();
+  176 |     void loadFlows();
+> 177 |     void loadTelegramChannel(selectedBotId);
       |          ^^^^^^^^^^^^^^^^^^^ `loadTelegramChannel` accessed before it is declared
-  184 |   }, [selectedBotId]);
-  185 |
-  186 |   const loadBots = async () => {
+  178 |
+  179 |     return () => {
+  180 |       cancelled = true;
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/integrations/telegram/page.tsx:251:3
-  249 |   };
-  250 |
-> 251 |   const loadTelegramChannel = async (botId: string) => {
+/app/app/(dashboard)/integrations/telegram/page.tsx:249:3
+  247 |   };
+  248 |
+> 249 |   const loadTelegramChannel = async (botId: string) => {
       |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-> 252 |     try {
+> 250 |     try {
       | ^^^^^^^^^
-> 253 |       const res = await fetch(`/api/bots/${botId}/channels`);
+> 251 |       const res = await fetch(`/api/bots/${botId}/channels`);
       …
       | ^^^^^^^^^
-> 284 |     }
+> 282 |     }
       | ^^^^^^^^^
-> 285 |   };
+> 283 |   };
       | ^^^^^ `loadTelegramChannel` is declared here
-  286 |
-  287 |   const handleAssignFlow = async () => {
-  288 |     const targetChannelId = status?.channel?.id || telegramChannel?.id;  react-hooks/immutability
+  284 |
+  285 |   const handleAssignFlow = async () => {
+  286 |     const targetChannelId = status?.channel?.id || telegramChannel?.id;  react-hooks/immutability
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/integrations/webchat/page.tsx
+/app/app/(dashboard)/integrations/webchat/page.tsx
    229:7   error    Error: Calling setState synchronously within an effect can trigger cascading renders
 
 Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
@@ -415,15 +446,16 @@ Effects are intended to synchronize state between React and external systems suc
 
 Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/integrations/webchat/page.tsx:229:7
+/app/app/(dashboard)/integrations/webchat/page.tsx:229:7
   227 |   useEffect(() => {
   228 |     if (typeof window !== "undefined") {
 > 229 |       setOrigin(window.location.origin);
       |       ^^^^^^^^^ Avoid calling setState() directly within an effect
   230 |     }
   231 |   }, []);
-  232 |                                                              react-hooks/set-state-in-effect
-   247:7   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+  232 |                                                                                          react-hooks/set-state-in-effect
+   301:6   warning  React Hook useEffect has a missing dependency: 'loadBots'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           react-hooks/exhaustive-deps
+   310:30  error    Error: Calling setState synchronously within an effect can trigger cascading renders
 
 Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
 * Update external systems with the latest state from React.
@@ -431,63 +463,16 @@ Effects are intended to synchronize state between React and external systems suc
 
 Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/integrations/webchat/page.tsx:247:7
-  245 |   useEffect(() => {
-  246 |     if (!selectedBotId) {
-> 247 |       setChannels([]);
-      |       ^^^^^^^^^^^ Avoid calling setState() directly within an effect
-  248 |       setSelectedChannelId("");
-  249 |       setSite(null);
-  250 |       setDiagnostics(null);                            react-hooks/set-state-in-effect
-   275:7   error    Error: Calling setState synchronously within an effect can trigger cascading renders
-
-Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
-* Update external systems with the latest state from React.
-* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
-
-Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
-
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/integrations/webchat/page.tsx:275:7
-  273 |   useEffect(() => {
-  274 |     if (!webChannels.length) {
-> 275 |       setSelectedChannelId("");
-      |       ^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
-  276 |       return;
-  277 |     }
-  278 |                                                                  react-hooks/set-state-in-effect
-   306:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
-
-Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
-* Update external systems with the latest state from React.
-* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
-
-Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
-
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/integrations/webchat/page.tsx:306:5
-  304 |
-  305 |   useEffect(() => {
-> 306 |     setSelectedFlowId(assignedChannelFlow?.id || "");
-      |     ^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
-  307 |   }, [assignedChannelFlow?.id]);
-  308 |
-  309 |   useEffect(() => {                                               react-hooks/set-state-in-effect
-   314:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
-
-Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
-* Update external systems with the latest state from React.
-* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
-
-Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
-
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/integrations/webchat/page.tsx:314:5
+/app/app/(dashboard)/integrations/webchat/page.tsx:310:30
+  308 |   useEffect(() => {
+  309 |     if (!webChannels.length) {
+> 310 |       if (selectedChannelId) setSelectedChannelId("");
+      |                              ^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  311 |       return;
   312 |     }
-  313 |
-> 314 |     setChannelName(selectedChannel.name || "Website Chat");
-      |     ^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
-  315 |     setTitle(
-  316 |       typeof selectedChannel.config?.title === "string"
-  317 |         ? selectedChannel.config.title  react-hooks/set-state-in-effect
-   335:7   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+  313 |                                               react-hooks/set-state-in-effect
+   320:6   warning  React Hook useEffect has missing dependencies: 'handleSelectChannel' and 'selectedChannelId'. Either include them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      react-hooks/exhaustive-deps
+   323:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
 
 Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
 * Update external systems with the latest state from React.
@@ -495,53 +480,25 @@ Effects are intended to synchronize state between React and external systems suc
 
 Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/integrations/webchat/page.tsx:335:7
-  333 |   useEffect(() => {
-  334 |     if (!selectedBotId || !selectedChannelId) {
-> 335 |       setSite(null);
-      |       ^^^^^^^ Avoid calling setState() directly within an effect
-  336 |       setDiagnostics(null);
-  337 |       setIsSecretVisible(false);
-  338 |       setAllowedDomains([]);   react-hooks/set-state-in-effect
-   348:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
-
-Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
-* Update external systems with the latest state from React.
-* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
-
-Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
-
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/integrations/webchat/page.tsx:348:5
-  346 |
-  347 |   useEffect(() => {
-> 348 |     setAllowedDomains(site?.allowedDomains || []);
+/app/app/(dashboard)/integrations/webchat/page.tsx:323:5
+  321 |
+  322 |   useEffect(() => {
+> 323 |     setAllowedDomains(site?.allowedDomains || []);
       |     ^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
-  349 |     setAllowedDomainsDraft("");
-  350 |     setIsSecretVisible(false);
-  351 |   }, [site]);                          react-hooks/set-state-in-effect
-  1231:18  warning  'copyLeadFormSnippet' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+  324 |     setAllowedDomainsDraft("");
+  325 |     setIsSecretVisible(false);
+  326 |   }, [site?.id]); // Only reset when site object actually changes  react-hooks/set-state-in-effect
+   326:6   warning  React Hook useEffect has a missing dependency: 'site?.allowedDomains'. Either include it or remove the dependency array. You can also replace multiple useState variables with useReducer if 'setAllowedDomains' needs the current value of 'site.allowedDomains'                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     react-hooks/exhaustive-deps
+  1225:18  warning  'copyLeadFormSnippet' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/integrations/webchat/test/page.tsx
-  31:5  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+/app/app/(dashboard)/integrations/webchat/test/page.tsx
+  29:25  warning  'setCurrentOrigin' is assigned a value but never used  @typescript-eslint/no-unused-vars
 
-Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
-* Update external systems with the latest state from React.
-* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+/app/app/(dashboard)/integrations/whatsapp/page.tsx
+  170:6  warning  React Hook useEffect has a missing dependency: 'loadBots'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
 
-Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
-
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/integrations/webchat/test/page.tsx:31:5
-  29 |   const [currentOrigin, setCurrentOrigin] = useState<string>("");
-  30 |   useEffect(() => {
-> 31 |     setCurrentOrigin(window.location.origin);
-     |     ^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
-  32 |     // eslint-disable-next-line react-hooks/exhaustive-deps
-  33 |   }, []);
-  34 |  react-hooks/set-state-in-effect
-  32:5  warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
-
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/integrations/whatsapp/page.tsx
-  162:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+/app/app/(dashboard)/leads/page.tsx
+  157:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
 
 Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
 * Update external systems with the latest state from React.
@@ -549,37 +506,63 @@ Effects are intended to synchronize state between React and external systems suc
 
 Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/integrations/whatsapp/page.tsx:162:7
-  160 |   useEffect(() => {
-  161 |     if (!selectedBotId) {
-> 162 |       setStatus(null);
-      |       ^^^^^^^^^ Avoid calling setState() directly within an effect
-  163 |       setLogs([]);
-  164 |       return;
-  165 |     }                                                 react-hooks/set-state-in-effect
-  200:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+/app/app/(dashboard)/leads/page.tsx:157:5
+  155 |
+  156 |   useEffect(() => {
+> 157 |     fetchLeads();
+      |     ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  158 |   }, [fetchLeads]);
+  159 |
+  160 |   const dynamicColumns = useMemo(() => {  react-hooks/set-state-in-effect
+  173:11  warning  'message' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+  197:14  warning  'error' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+  271:14  warning  'error' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+  359:32  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   @typescript-eslint/no-explicit-any
+  404:6   warning  React Hook useMemo has a missing dependency: 'handleDeleteLeads'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         react-hooks/exhaustive-deps
+  470:16  error    'Loader2' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   react/jsx-no-undef
+  479:16  error    'Table' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     react/jsx-no-undef
+  480:18  error    'TableHeader' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               react/jsx-no-undef
+  481:20  error    'TableRow' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  react/jsx-no-undef
+  482:22  error    'TableHead' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/jsx-no-undef
+  483:22  error    'TableHead' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/jsx-no-undef
+  484:22  error    'TableHead' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/jsx-no-undef
+  485:22  error    'TableHead' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/jsx-no-undef
+  486:22  error    'TableHead' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/jsx-no-undef
+  487:22  error    'TableHead' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/jsx-no-undef
+  489:24  error    'TableHead' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/jsx-no-undef
+  491:22  error    'TableHead' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/jsx-no-undef
+  492:22  error    'TableHead' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/jsx-no-undef
+  493:22  error    'TableHead' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/jsx-no-undef
+  494:22  error    'TableHead' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/jsx-no-undef
+  495:22  error    'TableHead' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/jsx-no-undef
+  498:18  error    'TableBody' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/jsx-no-undef
+  502:24  error    'TableRow' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  react/jsx-no-undef
+  503:26  error    'TableCell' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/jsx-no-undef
+  506:26  error    'TableCell' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/jsx-no-undef
+  519:26  error    'TableCell' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/jsx-no-undef
+  532:26  error    'TableCell' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/jsx-no-undef
+  535:26  error    'TableCell' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/jsx-no-undef
+  538:26  error    'TableCell' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/jsx-no-undef
+  542:28  error    'TableCell' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/jsx-no-undef
+  549:26  error    'TableCell' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/jsx-no-undef
+  561:26  error    'TableCell' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/jsx-no-undef
+  568:26  error    'TableCell' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/jsx-no-undef
+  569:26  error    'TableCell' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/jsx-no-undef
+  572:26  error    'TableCell' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/jsx-no-undef
+  624:8   error    'Dialog' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    react/jsx-no-undef
+  625:10  error    'DialogContent' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             react/jsx-no-undef
+  626:12  error    'DialogHeader' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              react/jsx-no-undef
+  627:14  error    'DialogTitle' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               react/jsx-no-undef
+  628:14  error    'DialogDescription' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         react/jsx-no-undef
+  641:18  error    'Label' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     react/jsx-no-undef
+  650:12  error    'DialogFooter' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              react/jsx-no-undef
 
-Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
-* Update external systems with the latest state from React.
-* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
-
-Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
-
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/integrations/whatsapp/page.tsx:200:7
-  198 |   useEffect(() => {
-  199 |     if (!selectedBotId) {
-> 200 |       setFlows([]);
-      |       ^^^^^^^^ Avoid calling setState() directly within an effect
-  201 |       setWhatsappChannel(null);
-  202 |       setAssignedFlow(null);
-  203 |       setSelectedFlowId("");  react-hooks/set-state-in-effect
-
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/pricing/page.tsx
+/app/app/(dashboard)/pricing/page.tsx
   165:9  error  Error: This value cannot be modified
 
 Modifying a variable defined outside a component or hook is not allowed. Consider using an effect.
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/(dashboard)/pricing/page.tsx:165:9
+/app/app/(dashboard)/pricing/page.tsx:165:9
   163 |       const data = await response.json();
   164 |       if (data.url) {
 > 165 |         window.location.href = data.url;
@@ -588,47 +571,62 @@ Modifying a variable defined outside a component or hook is not allowed. Conside
   167 |     } catch (error) {
   168 |       toast.error("Something went wrong. Please try again.");  react-hooks/immutability
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/api/admin/subscribers/route.ts
+/app/app/api/admin/subscribers/route.ts
   24:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   78:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/api/admin/users/route.ts
+/app/app/api/admin/users/route.ts
   30:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   38:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   73:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/api/bots/route.ts
+/app/app/api/ai/chat/route.ts
+  93:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/app/app/api/billing/webhook/route.ts
+  80:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/app/app/api/bots/route.ts
   100:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/api/cron/process-data-deletions/route.ts
+/app/app/api/conversations/[conversationId]/route.ts
+  16:9  warning  'conversation' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/app/app/api/cron/process-data-deletions/route.ts
   156:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/api/tenant/ai-settings/route.ts
+/app/app/api/onboarding/route.ts
+  74:59  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/app/app/api/tenant/ai-settings/route.ts
    6:27  warning  'req' is defined but never used           @typescript-eslint/no-unused-vars
   64:17  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/api/webchat/message/route.ts
+/app/app/api/user/data-export/route.ts
+  6:27  warning  'req' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/app/api/webchat/message/route.ts
    61:61  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   122:63  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/api/whatsapp/webhook/route.ts
+/app/app/api/whatsapp/webhook/route.ts
   508:12  warning  'aiError' is defined but never used  @typescript-eslint/no-unused-vars
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/auth/login-form.tsx
+/app/app/auth/login-form.tsx
    25:10  warning  'FacebookLogo' is defined but never used                  @typescript-eslint/no-unused-vars
   200:9   warning  'handleFacebookLogin' is assigned a value but never used  @typescript-eslint/no-unused-vars
   483:9   warning  'handleFacebookLogin' is assigned a value but never used  @typescript-eslint/no-unused-vars
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/data-deletion-status/page.tsx
+/app/app/data-deletion-status/page.tsx
   169:39  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/app/webchat-e2e/page.tsx
+/app/app/webchat-e2e/page.tsx
   65:6  warning  React Hook useEffect has a missing dependency: 'isNotAvailable'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/components/app-sidebar.tsx
+/app/components/app-sidebar.tsx
   5:3  warning  'MessageSquare' is defined but never used  @typescript-eslint/no-unused-vars
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/components/chart-area-interactive.tsx
+/app/components/chart-area-interactive.tsx
   149:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
 
 Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
@@ -637,7 +635,7 @@ Effects are intended to synchronize state between React and external systems suc
 
 Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/components/chart-area-interactive.tsx:149:7
+/app/components/chart-area-interactive.tsx:149:7
   147 |   React.useEffect(() => {
   148 |     if (isMobile) {
 > 149 |       setTimeRange("7d")
@@ -646,8 +644,9 @@ Calling setState synchronously within an effect body causes cascading renders th
   151 |   }, [isMobile])
   152 |  react-hooks/set-state-in-effect
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/components/conversation/conversation-header.tsx
-  45:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+/app/components/contacts/contacts-list.tsx
+    5:40  warning  'Phone' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+   97:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
 
 Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
 * Update external systems with the latest state from React.
@@ -655,36 +654,81 @@ Effects are intended to synchronize state between React and external systems suc
 
 Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/components/conversation/conversation-header.tsx:45:5
-  43 |
-  44 |   useEffect(() => {
-> 45 |     setConversation(initialConversation);
-     |     ^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
-  46 |   }, [initialConversation]);
-  47 |
-  48 |   useEffect(() => {  react-hooks/set-state-in-effect
-  74:7  error  Error: Cannot call impure function during render
+/app/components/contacts/contacts-list.tsx:97:5
+   95 |
+   96 |   useEffect(() => {
+>  97 |     fetchContacts();
+      |     ^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+   98 |   }, [fetchContacts]);
+   99 |
+  100 |   const handleDeleteContacts = async (ids: string[], allMatching = false) => {  react-hooks/set-state-in-effect
+  126:14  warning  'error' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+  240:6   warning  React Hook useMemo has a missing dependency: 'handleDeleteContacts'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           react-hooks/exhaustive-deps
+
+/app/components/conversation/conversation-header.tsx
+  95:7  error  Error: Cannot call impure function during render
 
 `Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/components/conversation/conversation-header.tsx:74:7
-  72 |     : null;
-  73 |   const isVisitorOnline = latestWebSeenAt
-> 74 |     ? Date.now() - latestWebSeenAt.getTime() < 5 * 60 * 1000
+/app/components/conversation/conversation-header.tsx:95:7
+  93 |     : null;
+  94 |   const isVisitorOnline = latestWebSeenAt
+> 95 |     ? Date.now() - latestWebSeenAt.getTime() < 5 * 60 * 1000
      |       ^^^^^^^^^^ Cannot call impure function
-  75 |     : false;
-  76 |   const contactDisplayName =
-  77 |     conversation.contact.name ||                                                                                                                                                                                                                                                                                                                                 react-hooks/purity
+  96 |     : false;
+  97 |   const contactDisplayName =
+  98 |     conversation.contact.name ||  react-hooks/purity
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/components/dashboard/status-cards.tsx
+/app/components/conversation/conversations-list.tsx
+   84:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/app/components/conversation/conversations-list.tsx:84:5
+  82 |
+  83 |   useEffect(() => {
+> 84 |     fetchConversations();
+     |     ^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  85 |   }, [fetchConversations]);
+  86 |
+  87 |   const handleCopyConversationId = async (conversationId: string) => {  react-hooks/set-state-in-effect
+  122:14  warning  'error' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+  207:6   warning  React Hook useMemo has a missing dependency: 'handleDeleteConversations'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               react-hooks/exhaustive-deps
+
+/app/components/conversation/message-feed.tsx
+  109:11  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  109:26  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+/app/components/dashboard/status-cards.tsx
   7:3  warning  'Activity' is defined but never used  @typescript-eslint/no-unused-vars
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/components/edit-subscriber-dialog.tsx
+/app/components/data-table.tsx
+    9:17  warning  'ReactTable' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   @typescript-eslint/no-unused-vars
+   47:10  warning  'Label' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+  109:17  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+/app/components/data-table.tsx:109:17
+  107 |   }, [columnVisibility, persistenceKey]);
+  108 |
+> 109 |   const table = useReactTable({
+      |                 ^^^^^^^^^^^^^ TanStack Table's `useReactTable()` API returns functions that cannot be memoized safely
+  110 |     data,
+  111 |     columns,
+  112 |     pageCount,  react-hooks/incompatible-library
+  124:34  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+
+/app/components/edit-subscriber-dialog.tsx
   61:5  error  Error: Cannot access variable before it is declared
 
 `fetchPlans` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/components/edit-subscriber-dialog.tsx:61:5
+/app/components/edit-subscriber-dialog.tsx:61:5
   59 |
   60 |   useEffect(() => {
 > 61 |     fetchPlans();
@@ -693,7 +737,7 @@ Calling setState synchronously within an effect body causes cascading renders th
   63 |
   64 |   const fetchPlans = async () => {
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/components/edit-subscriber-dialog.tsx:64:3
+/app/components/edit-subscriber-dialog.tsx:64:3
   62 |   }, []);
   63 |
 > 64 |   const fetchPlans = async () => {
@@ -711,12 +755,25 @@ Calling setState synchronously within an effect body causes cascading renders th
   76 |   const handleSubmit = async (e: React.FormEvent) => {
   77 |     e.preventDefault();  react-hooks/immutability
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/components/settings/billing-tab.tsx
+/app/components/onboarding/onboarding-modal.tsx
+    3:10   warning  'useEffect' is defined but never used                            @typescript-eslint/no-unused-vars
+   36:17   error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+   40:36   error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+   44:20   error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+   63:16   warning  'error' is defined but never used                                @typescript-eslint/no-unused-vars
+   83:16   warning  'error' is defined but never used                                @typescript-eslint/no-unused-vars
+  275:15   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  275:129  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+/app/components/onboarding/onboarding-wrapper.tsx
+  11:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/app/components/settings/billing-tab.tsx
   63:5  error  Error: Cannot access variable before it is declared
 
 `fetchBillingData` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/components/settings/billing-tab.tsx:63:5
+/app/components/settings/billing-tab.tsx:63:5
   61 |
   62 |   useEffect(() => {
 > 63 |     fetchBillingData();
@@ -725,7 +782,7 @@ Calling setState synchronously within an effect body causes cascading renders th
   65 |
   66 |   const fetchBillingData = async () => {
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/components/settings/billing-tab.tsx:66:3
+/app/components/settings/billing-tab.tsx:66:3
   64 |   }, []);
   65 |
 > 66 |   const fetchBillingData = async () => {
@@ -743,56 +800,45 @@ Calling setState synchronously within an effect body causes cascading renders th
   82 |   const handleUpgrade = () => {
   83 |     router.push("/pricing");  react-hooks/immutability
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/hooks/use-mobile.ts
-  14:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
-
-Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
-* Update external systems with the latest state from React.
-* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
-
-Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
-
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/hooks/use-mobile.ts:14:5
-  12 |     }
-  13 |     mql.addEventListener("change", onChange)
-> 14 |     setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-     |     ^^^^^^^^^^^ Avoid calling setState() directly within an effect
-  15 |     return () => mql.removeEventListener("change", onChange)
-  16 |   }, [])
-  17 |  react-hooks/set-state-in-effect
-
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/lib/admin-audit.ts
+/app/lib/admin-audit.ts
   19:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/lib/ai-fallback.ts
+/app/lib/ai-fallback.ts
   8:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/lib/ai-service.ts
+/app/lib/ai-service.ts
   1:10  warning  'google' is defined but never used     @typescript-eslint/no-unused-vars
   2:10  warning  'openai' is defined but never used     @typescript-eslint/no-unused-vars
   3:10  warning  'anthropic' is defined but never used  @typescript-eslint/no-unused-vars
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/lib/stripe.ts
+/app/lib/onboarding-ai.ts
+  78:12  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/lib/stripe.ts
   5:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/load-tests/webchat-load.js
+/app/load-tests/webchat-load.js
    2:17  warning  'sleep' is defined but never used                @typescript-eslint/no-unused-vars
   12:1   warning  Unexpected default export of anonymous function  import/no-anonymous-default-export
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/public/embed/replybase-webchat.js
+/app/public/embed/replybase-webchat.js
   407:18  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
   417:20  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/scripts/run-load-tests.ts
+/app/scripts/add-user-flow.ts
+  18:33  warning  'FlowTemplateCategory' is defined but never used  @typescript-eslint/no-unused-vars
+  47:16  error    Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
+
+/app/scripts/run-load-tests.ts
   73:10  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/scripts/seed-stripe.ts
+/app/scripts/seed-stripe.ts
   12:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/tests/admin/audit-logging.test.ts
+/app/tests/admin/audit-logging.test.ts
   65:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/tests/analytics/analytics-scripts.test.tsx
+/app/tests/analytics/analytics-scripts.test.tsx
   11:62  error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
   13:7   error    Synchronous scripts should not be used. See: https://nextjs.org/docs/messages/no-sync-scripts                        @next/next/no-sync-scripts
   30:5   error    Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
@@ -804,25 +850,54 @@ Calling setState synchronously within an effect body causes cascading renders th
   74:5   error    Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
   77:11  warning  'consoleSpy' is assigned a value but never used                                                                      @typescript-eslint/no-unused-vars
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/tests/analytics/client-analytics.test.ts
+/app/tests/analytics/client-analytics.test.ts
   41:5  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
   47:5  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/tests/e2e/flows.spec.ts
+/app/tests/api/contacts-conversations-batch.test.ts
+   2:17  warning  'getContacts' is defined but never used       @typescript-eslint/no-unused-vars
+   3:17  warning  'getConversations' is defined but never used  @typescript-eslint/no-unused-vars
+  23:27  error    Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+  23:51  error    Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+  23:65  error    Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+  38:35  error    Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+  56:43  error    Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+
+/app/tests/api/leads-batch.test.ts
+  21:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  21:51  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  21:65  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  33:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  34:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  35:39  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  54:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  73:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  91:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/app/tests/api/onboarding.test.ts
+  24:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  30:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  47:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  59:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  87:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/app/tests/e2e/flows.spec.ts
   9:11  warning  'heading' is assigned a value but never used  @typescript-eslint/no-unused-vars
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/tests/facebook-hardening.test.ts
+/app/tests/facebook-hardening.test.ts
    1:32  warning  'vi' is defined but never used           @typescript-eslint/no-unused-vars
   12:22  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/tests/lib/subscription.test.ts
+/app/tests/flow-templates.test.ts
+  2:33  warning  'WELCOME_TEMPLATE' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/tests/lib/subscription.test.ts
   36:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-saas/tests/webchat/webchat-conversation-engine.test.ts
+/app/tests/webchat/webchat-conversation-engine.test.ts
    62:72  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   109:72  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-✖ 104 problems (74 errors, 30 warnings)
-  0 errors and 1 warning potentially fixable with the `--fix` option.
+✖ 211 problems (137 errors, 74 warnings)
 
  ELIFECYCLE  Command failed with exit code 1.
