@@ -8,7 +8,7 @@ test.describe('Dashboard & Navigation E2E', () => {
     // Check for dashboard elements
     const heading = page.getByRole('heading', { name: /dashboard/i });
     // This is a smoke test for the UI shell
-    await expect(page).toHaveTitle(/Replybase/);
+    await expect(page).toHaveTitle(/ReplyBase/i);
   });
 });
 
