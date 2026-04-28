@@ -25,6 +25,11 @@ export interface FlowNodeContent {
     payload?: string;
     url?: string;
   }>;
+  quick_replies?: Array<{
+    title: string;
+    payload: string;
+    image_url?: string;
+  }>;
 
   // For input nodes
   inputType?: "text" | "email" | "phone" | "number";

@@ -74,9 +74,34 @@ export interface OnboardingBusinessBasics {
   businessModel?: string;
 }
 
+export interface OnboardingProductDetails {
+  offer?: string;
+  targetCustomers?: string[] | string;
+}
+
+export interface OnboardingProductSpecifics {
+  mainProducts?: string;
+  pricing?: string;
+  usps?: string;
+}
+
+export interface OnboardingSupportSales {
+  commonQuestions?: string;
+  painPoints?: string;
+  salesProcess?: string;
+}
+
+export interface OnboardingAdditionalContext {
+  otherInfo?: string;
+}
+
 export interface OnboardingData {
   kyc?: OnboardingKYC;
   businessBasics?: OnboardingBusinessBasics;
+  productDetails?: OnboardingProductDetails;
+  productSpecifics?: OnboardingProductSpecifics;
+  supportSales?: OnboardingSupportSales;
+  additionalContext?: OnboardingAdditionalContext;
   [key: string]: unknown;
 }
 
