@@ -58,9 +58,9 @@ async function getBusinessStats() {
         paidAt: { gte: thirtyDaysAgo },
       },
     }),
-    prisma.onboardingSession.aggregate({
+    prisma.tenant.aggregate({
       _count: { id: true },
-      where: { status: "COMPLETED" },
+      where: { isOnboarded: true },
     }),
     prisma.tenant.findMany({
       include: {
@@ -81,7 +81,14 @@ async function getBusinessStats() {
     }),
   ]);
 
-  const totalOnboarding = await prisma.onboardingSession.count();
+  const totalOnboarding = await prisma.tenant.count({
+    where: {
+      OR: [
+        { isOnboarded: true },
+        { onboardingStep: { gt: 0 } },
+      ],
+    },
+  });
 
   const formattedRevenueDetails = revenueDetails.map((tenant) => {
     const totalPaid = tenant.revenue.reduce((sum, rev) => sum + rev.amount, 0);
