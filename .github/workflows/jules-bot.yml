@@ -3,19 +3,47 @@ name: Jules Bot Automation
 on:
   issue_comment:
     types: [created]
+  issues:
+    types: [opened, edited, labeled]
 
 jobs:
   jules_respond:
-    # Only run if the comment starts with "@jules"
-    if: startsWith(github.event.comment.body, '@jules')
+    # Run if it's a comment starting with @jules OR an issue with the "jules" label
+    if: >
+      (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '@jules')) ||
+      (github.event_name == 'issues' && contains(github.event.issue.labels.*.name, 'jules'))
     runs-on: ubuntu-latest
     steps:
-      - name: Parse Command
+      - name: Parse Command and Branch
         id: parse
         run: |
-          COMMENT="${{ github.event.comment.body }}"
-          if [[ "$COMMENT" == *"assign"* ]]; then echo "cmd=assign" >> $GITHUB_OUTPUT; fi
-          if [[ "$COMMENT" == *"fix"* ]]; then echo "cmd=fix" >> $GITHUB_OUTPUT; fi
+          CMD=""
+          BRANCH="main" # default branch
+          
+          if [[ "${{ github.event_name }}" == "issues" ]]; then
+            CMD="fix"
+            # Extract branch from "Branch: <branch_name>" in issue body
+            BODY="${{ github.event.issue.body || '' }}"
+            EXTRACTED_BRANCH=$(echo "$BODY" | grep -i '^Branch:' | awk '{print $2}' | tr -d '\r' | xargs)
+            
+            if [[ -n "$EXTRACTED_BRANCH" ]]; then
+              BRANCH="$EXTRACTED_BRANCH"
+            else
+              # Fallback: check title for branch (e.g. branch: feature-name)
+              TITLE="${{ github.event.issue.title || '' }}"
+              EXTRACTED_BRANCH_TITLE=$(echo "$TITLE" | grep -ioP 'branch:\s*\K[a-zA-Z0-9_/-]+') || true
+              if [[ -n "$EXTRACTED_BRANCH_TITLE" ]]; then
+                BRANCH="$EXTRACTED_BRANCH_TITLE"
+              fi
+            fi
+          else
+            COMMENT="${{ github.event.comment.body }}"
+            if [[ "$COMMENT" == *"assign"* ]]; then CMD="assign"; fi
+            if [[ "$COMMENT" == *"fix"* ]]; then CMD="fix"; fi
+          fi
+          
+          echo "cmd=$CMD" >> $GITHUB_OUTPUT
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
 
       - name: Action - Assign Task
         if: steps.parse.outputs.cmd == 'assign'
@@ -29,8 +57,14 @@ jobs:
               assignees: [context.payload.comment.user.login]
             })
 
+      - name: Checkout Target Branch
+        if: steps.parse.outputs.cmd == 'fix'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.parse.outputs.branch }}
+
       - name: Action - Fix Attempt (Integration)
         if: steps.parse.outputs.cmd == 'fix'
         run: |
-          echo "Jules is now analyzing the issue to propose a code fix..."
+          echo "Jules is now analyzing the issue to propose a code fix on branch: ${{ steps.parse.outputs.branch }}..."
           # Here is where you would link to an AI API or an Antigravity IDE webhook
