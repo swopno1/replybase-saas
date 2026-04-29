@@ -74,7 +74,8 @@ export function ReplyComposer({
       );
 
       if (!response.ok) {
-        throw new Error("Failed to fetch suggestion");
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error || "Failed to fetch suggestion");
       }
 
       const data = await response.json();
