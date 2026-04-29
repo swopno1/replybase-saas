@@ -20,7 +20,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 vi.mock("@/lib/route-helpers", () => ({
-  withAuthAndTenant: (fn: any) => async (request: any, context: any) => {
+  withAuthAndTenant: (fn: (...args: unknown[]) => unknown) => async (request: unknown, context: unknown) => {
     return fn({ tenantId: "test-tenant", id: "test-user" }, request, context);
   },
 }));
@@ -35,7 +35,7 @@ describe("Contacts & Conversations API Batch Actions", () => {
       method: "DELETE",
       body: JSON.stringify({ ids: "ALL" }),
     });
-    (prisma.contact.deleteMany as any).mockResolvedValue({ count: 50 });
+    vi.mocked(prisma.contact.deleteMany).mockResolvedValue({ count: 50 });
 
     const res = await deleteContacts(req, { params: Promise.resolve({}) });
     const data = await res.json();
@@ -53,7 +53,7 @@ describe("Contacts & Conversations API Batch Actions", () => {
       method: "DELETE",
       body: JSON.stringify({ ids: "ALL" }),
     });
-    (prisma.crmConversation.deleteMany as any).mockResolvedValue({ count: 30 });
+    vi.mocked(prisma.crmConversation.deleteMany).mockResolvedValue({ count: 30 });
 
     const res = await deleteConversations(req, { params: Promise.resolve({}) });
     const data = await res.json();

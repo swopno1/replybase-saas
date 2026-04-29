@@ -3,12 +3,12 @@
 This document outlines the testing strategy, tools, and procedures for ensuring the reliability and performance of the Replybase SaaS platform.
 
 ## 1. Overview
-Our testing strategy follows the "Testing Pyramid" and includes:
-- **Unit Tests**: Business logic and utility functions (`vitest`).
+Our testing strategy follows the "Testing Pyramid":
+- **Unit Tests**: Business logic and utility functions (`vitest`). Target: 90%+ coverage.
 - **Integration Tests**: API routes and database interactions (`vitest`).
-- **End-to-End (E2E) Tests**: Major user flows and UI regression (`Playwright`).
+- **End-to-End (E2E) Tests**: Major user flows, accessibility (`axe-playwright`), and UI shell (`Playwright`).
 - **Load Testing**: Performance under stress (`k6`).
-- **Accessibility & Security**: Compliance and data isolation.
+- **Security**: Multi-tenant isolation and authentication hardening.
 
 ## 2. Automated Tests
 ### Running Locally
@@ -24,37 +24,42 @@ pnpm test:coverage
 ```
 
 ### Key Test Locations
-- `tests/lib/`: Unit tests for core logic.
-- `tests/api/`: Integration tests for API endpoints.
-- `tests/e2e/`: Playwright specs for user journeys.
-- `tests/analytics/`: Tracking and telemetry verification.
+- `tests/lib/`: Unit tests for core logic (Subscription, AI, Webchat).
+- `tests/api/`: Integration tests for API endpoints and tenant isolation.
+- `tests/e2e/`: Playwright specs for user journeys (Auth, Onboarding, Bots, Billing).
+- `tests/webchat/`: Specific tests for the webchat widget and engine.
 
 ## 3. Load Testing
 We use **k6** for realistic traffic simulation.
-- **Scripts**: Located in `load-tests/`.
-- **Runner**: `scripts/run-load-tests.ts`.
+- **Scripts**: `load-tests/webchat-load.js` simulates a full user journey (Init -> Message -> Poll).
+- **Runner**: `scripts/run-load-tests.ts` captures metrics and saves them to the DB.
 
 ### Triggering a Load Test
-```bash
-# Default webchat load test
-pnpm tsx scripts/run-load-tests.ts
+- **CLI**: `pnpm tsx scripts/run-load-tests.ts`
+- **Admin Panel**: Go to `/admin/tests` and click **Trigger Load Test**.
 
-# Custom script
-pnpm tsx scripts/run-load-tests.ts load-tests/my-test.js "My Custom Test"
-```
+## 4. Admin Test Dashboard (/admin/tests)
+The dashboard provides a centralized view for super-admins:
+- **Run Health Checks**: Triggers safe production checks for DB and system connectivity.
+- **Trigger Load Test**: Runs a background performance test.
+- **Performance Trends**: Visualization of p95 latency, throughput (req/s), and error rates.
+- **Export CSV**: Download historical test results for audit and compliance.
 
-## 4. Admin Test Dashboard
-The `/admin/tests` page provides a centralized view for super-admins:
-- **Smoke Tests**: Quick, safe production checks (e.g., DB connectivity).
-- **Performance Trends**: Visualization of load test metrics (p50, p95, throughput).
-- **History**: Log of all automated and manual test runs.
+### Interpreting Metrics
+- **p95 Latency**: 95% of requests are faster than this value. Should be < 500ms.
+- **Throughput**: Number of successful requests per second.
+- **Error Rate %**: Percentage of failed requests. Should be < 1% in normal operation.
 
-## 5. Maintenance
-- **Adding Tests**: New features MUST include unit and/or integration tests.
-- **CI/CD**: All tests run in the CI pipeline; failures block deployment.
-- **Data Isolation**: Always use `withAuthAndTenant` or equivalent to ensure tenant data safety.
+## 5. Security & Isolation
+Multi-tenant isolation is verified in `tests/api/tenant-isolation.test.ts`.
+All API routes MUST use `tenantId` scoping in every database query.
 
-## 6. Troubleshooting Failures
-1. Check `test-results/` for detailed logs and k6 reports.
-2. Review Activity Logs for related system events.
-3. Use `pnpm test:watch` for iterative debugging.
+## 6. DigitalOcean & Coolify Considerations
+- **Environment Variables**: Ensure `NEXT_PUBLIC_APP_URL` and `ALLOW_PRODUCTION_LOAD_TESTS=true` are set in Coolify for production testing.
+- **Resources**: Load tests are configured with ramp-up periods to avoid CPU spikes on smaller droplets.
+- **Monitoring**: Integration with `ActivityLog` ensures that failed production tests trigger administrative alerts.
+
+## 7. Maintenance
+- **Adding Tests**: New features MUST include unit and integration tests.
+- **CI/CD**: All tests run in the pipeline; failures block deployment.
+- **Data Safety**: Load tests against production use the `pk_test` public key to avoid polluting real tenant data.

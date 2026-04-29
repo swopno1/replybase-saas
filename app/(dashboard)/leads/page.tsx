@@ -40,8 +40,6 @@ import { useConfirmation } from "@/components/ui/confirmation-provider";
 import { DataTable } from "@/components/data-table";
 import { ColumnDef, PaginationState, RowSelectionState } from "@tanstack/react-table";
 
-export const dynamic = "force-dynamic";
-
 interface Lead {
   id: string;
   name: string | null;
@@ -124,13 +122,23 @@ function getFlowInputs(lead: Lead): Record<string, string> {
   return fi as Record<string, string>;
 }
 
+function getPlanBadge(plan: string | null, trial: boolean) {
+  if (!plan) return <Badge variant="outline">None</Badge>;
+  const label = plan.charAt(0).toUpperCase() + plan.slice(1);
+  return (
+    <div className="flex items-center gap-2">
+      <Badge variant="secondary">{label}</Badge>
+      {trial && <Badge variant="outline" className="text-[10px] h-4 px-1">Trial</Badge>}
+    </div>
+  );
+}
+
 export default function LeadsPage() {
   const { confirm } = useConfirmation();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [pageCount, setPageCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [canExport, setCanExport] = useState(false);
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 20,
@@ -193,7 +201,6 @@ export default function LeadsPage() {
         setLeads(data.leads);
         setTotalCount(data.totalCount);
         setPageCount(data.totalPages);
-        setCanExport(data.canExport ?? false);
         setIsAllMatchingSelected(false);
       }
     } catch (error) {
@@ -375,7 +382,11 @@ export default function LeadsPage() {
       {
         accessorKey: "name",
         header: "Name",
-        cell: ({ row }) => row.original.name || row.original.contact?.name || "—",
+        cell: ({ row }) => (
+          <div className="font-medium whitespace-nowrap">
+            {row.original.name || row.original.contact?.name || "—"}
+          </div>
+        ),
       },
       {
         accessorKey: "email",
@@ -383,7 +394,7 @@ export default function LeadsPage() {
         cell: ({ row }) => {
           const email = getLeadEmail(row.original);
           return email ? (
-            <a href={`mailto:${email}`} className="text-blue-600 hover:underline inline-flex items-center gap-1">
+            <a href={`mailto:${email}`} className="text-blue-600 hover:underline inline-flex items-center gap-1 whitespace-nowrap">
               <Mail className="h-3 w-3" />
               {email}
             </a>
@@ -396,15 +407,15 @@ export default function LeadsPage() {
         cell: ({ row }) => {
           const phone = getLeadPhone(row.original);
           return phone ? (
-            <a href={`tel:${phone}`} className="text-muted-foreground hover:underline inline-flex items-center gap-1">
+            <a href={`tel:${phone}`} className="text-muted-foreground hover:underline inline-flex items-center gap-1 whitespace-nowrap">
               <Phone className="h-3 w-3" />
               {phone}
             </a>
           ) : "—";
         },
       },
-      { accessorKey: "company", header: "Company", cell: ({ row }) => row.original.company || "—" },
-      { accessorKey: "businessType", header: "Business Type", cell: ({ row }) => row.original.businessType || "—" },
+      { accessorKey: "company", header: "Company", cell: ({ row }) => <span className="whitespace-nowrap">{row.original.company || "—"}</span> },
+      { accessorKey: "businessType", header: "Business Type", cell: ({ row }) => <span className="whitespace-nowrap">{row.original.businessType || "—"}</span> },
       {
         id: "enquiry",
         header: "Enquiry",
@@ -417,7 +428,7 @@ export default function LeadsPage() {
       ...dynamicColumns.map((dcol) => ({
         id: dcol.key,
         header: dcol.label,
-        cell: ({ row }: { row: any }) => getFlowInputs(row.original)[dcol.key] || "—",
+        cell: ({ row }: { row: any }) => <span className="max-w-xs truncate block">{getFlowInputs(row.original)[dcol.key] || "—"}</span>,
       })),
       {
         id: "plan",
@@ -445,7 +456,7 @@ export default function LeadsPage() {
       {
         accessorKey: "createdAt",
         header: "Captured At",
-        cell: ({ row }) => new Date(row.original.createdAt).toLocaleString(),
+        cell: ({ row }) => <span className="whitespace-nowrap">{new Date(row.original.createdAt).toLocaleString()}</span>,
       },
       {
         id: "actions",
@@ -494,7 +505,7 @@ export default function LeadsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col md:flex-row justify-between items-start gap-4">
         <div>
           <h1 className="text-3xl font-bold">Leads</h1>
           <p className="text-muted-foreground mt-2">
@@ -613,66 +624,34 @@ export default function LeadsPage() {
       {/* ── Lead Pipeline Summary ───────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         {[
-          { status: "new", label: "New Leads", color: "bg-blue-500" },
-          {
-            status: "contacted",
-            label: "Contacted",
-            color: "bg-yellow-500",
-          },
-          {
-            status: "qualified",
-            label: "Qualified",
-            color: "bg-emerald-500",
-          },
-          {
-            status: "converted",
-            label: "Converted",
-            color: "bg-purple-500",
-          },
+          { status: "new", label: "New", color: "bg-blue-500" },
+          { status: "contacted", label: "Contacted", color: "bg-yellow-500" },
+          { status: "qualified", label: "Qualified", color: "bg-emerald-500" },
+          { status: "converted", label: "Converted", color: "bg-purple-500" },
           { status: "lost", label: "Lost", color: "bg-red-500" },
-        ].map((item) => (
-          <Card
-            key={item.status}
-            className={`border-t-4 ${
-              item.status === "new"
-                ? "border-blue-500"
-                : item.status === "contacted"
-                  ? "border-yellow-500"
-                  : item.status === "qualified"
-                    ? "border-emerald-500"
-                    : item.status === "converted"
-                      ? "border-purple-500"
-                      : "border-red-500"
-            }`}
-          >
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                {item.label}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">
-                {leads.filter((l) => l.status === item.status).length}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {leads.length > 0
-                  ? Math.round(
-                      (leads.filter((l) => l.status === item.status).length /
-                        leads.length) *
-                        100,
-                    )
-                  : 0}
-                % of total
-              </p>
-            </CardContent>
-          </Card>
-        ))}
+        ].map((item) => {
+          const count = leads.filter((l) => l.status === item.status).length;
+          const percentage = leads.length > 0 ? Math.round((count / leads.length) * 100) : 0;
+          return (
+            <Card key={item.status} className="border-l-4" style={{ borderLeftColor: item.color.replace('bg-', '') }}>
+              <CardHeader className="p-4 pb-0">
+                <CardTitle className="text-xs font-medium text-muted-foreground uppercase">{item.label}</CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 pt-2">
+                <div className="text-2xl font-bold">{count}</div>
+                <div className="text-[10px] text-muted-foreground mt-1">{percentage}% of total</div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
-      {/* ── Lead statistics ───────────────────────────────────────────── */}
       <Card>
         <CardHeader>
-          <CardTitle>Interest & Activation</CardTitle>
+          <CardTitle>All Leads</CardTitle>
+          <CardDescription>
+            View and manage your leads with advanced filtering and batch actions.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -699,6 +678,37 @@ export default function LeadsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Total Records</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalCount}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Subscription Interest</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {leads.filter((l) => l.interestedInSubscription).length}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Trial Requests</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {leads.filter((l) => l.trialRequested).length}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

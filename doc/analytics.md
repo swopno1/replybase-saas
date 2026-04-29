@@ -1,6 +1,6 @@
 # Replybase Analytics Documentation
 
-This document outlines the analytics setup for Replybase, specifically focusing on the integration of Plausible Analytics for secure, privacy-first, and reliable tracking.
+This document outlines the analytics setup for Replybase, specifically focusing on the integration of Plausible Analytics for secure, privacy-first, and reliable tracking
 
 ## Configuration
 

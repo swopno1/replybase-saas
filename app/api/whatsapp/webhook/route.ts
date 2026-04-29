@@ -482,10 +482,10 @@ async function sendAutoReply(params: {
       select: { content: true, source: true },
     });
     const aiMessages = lastMessages.reverse().map((msg) => ({
-      role: msg.source === "human" ? "user" : "assistant",
+      role: (msg.source === "human" ? "user" : "assistant") as any,
       content: msg.content,
     }));
-    aiMessages.push({ role: "user", content: params.inboundText });
+    aiMessages.push({ role: "user" as any, content: params.inboundText });
 
     // Use tenant subscription plan name (fallback to "free")
     const subscription = await prisma.subscription.findUnique({

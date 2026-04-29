@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+import { Prisma } from "@prisma/client";
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -21,8 +23,10 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "10");
     const skip = (page - 1) * limit;
 
-    const where: any = {
+    const where: Prisma.SubscriptionWhereInput = {
       AND: [
+        // Ensure only paid subscribers are shown
+        { plan: { price: { gt: 0 } } },
         search ? {
           OR: [
             { tenant: { name: { contains: search, mode: "insensitive" } } },
@@ -30,7 +34,7 @@ export async function GET(request: NextRequest) {
             { tenant: { users: { some: { name: { contains: search, mode: "insensitive" } } } } },
           ],
         } : {},
-        status && status !== "all" ? { status } : {},
+        status && status !== "all" ? { status } : { status: { in: ["active", "trialing", "past_due"] } },
       ],
     };
 
@@ -75,13 +79,13 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / limit),
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[Admin API] Error fetching subscribers:", error);
     return NextResponse.json(
       { 
         error: "Failed to fetch subscribers",
         code: "FETCH_SUBSCRIBERS_ERROR",
-        message: error.message 
+        message: error instanceof Error ? error.message : "Unknown error"
       },
       { status: 500 },
     );
