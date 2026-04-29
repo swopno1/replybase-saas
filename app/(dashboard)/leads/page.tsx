@@ -549,7 +549,7 @@ export default function LeadsPage() {
               View and manage your leads with advanced filtering and batch actions.
             </CardDescription>
           </div>
-          {canExport && leads.length > 0 && (
+          {leads.length > 0 && (
              <Button
                variant="outline"
                size="sm"
