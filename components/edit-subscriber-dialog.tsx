@@ -57,10 +57,6 @@ export function EditSubscriberDialog({
       : "",
   });
 
-  useEffect(() => {
-    fetchPlans();
-  }, []);
-
   const fetchPlans = async () => {
     try {
       const response = await fetch("/api/admin/plans");
@@ -72,6 +68,10 @@ export function EditSubscriberDialog({
       console.error("Error fetching plans:", error);
     }
   };
+
+  useEffect(() => {
+    fetchPlans();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

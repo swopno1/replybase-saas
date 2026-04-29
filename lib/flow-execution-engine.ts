@@ -25,6 +25,11 @@ export interface FlowNodeContent {
     payload?: string;
     url?: string;
   }>;
+  quick_replies?: Array<{
+    title: string;
+    payload: string;
+    image_url?: string;
+  }>;
 
   // For input nodes
   inputType?: "text" | "email" | "phone" | "number";
@@ -40,9 +45,12 @@ export interface FlowNodeContent {
   }>;
 
   // For action nodes
-  action?: "tag_user" | "update_status" | "send_email" | "end_flow";
+  action?: "tag_user" | "update_status" | "send_email" | "end_flow" | "booking" | "checkout" | "schedule";
   tags?: string[];
   status?: string;
+  bookingService?: string;
+  checkoutUrl?: string;
+  scheduleLink?: string;
 
   // General
   nextNodeOrder?: number;
@@ -259,10 +267,19 @@ export class FlowExecutionEngine {
     pageAccessToken: string,
     context: FlowExecutionContext,
   ): Promise<{ success: boolean; waiting_for_response: boolean }> {
-    // For now, send text only. TODO: Add support for quick_replies/buttons
     const messageText = content.text || "";
+    let formattedQuickReplies: Array<{ content_type: string; title: string; payload: string; image_url?: string }> | undefined = undefined;
 
-    await sendTextMessage(pageAccessToken, context.userId, messageText);
+    if (content.quick_replies && content.quick_replies.length > 0) {
+      formattedQuickReplies = content.quick_replies.map(qr => ({
+        content_type: "text",
+        title: qr.title,
+        payload: qr.payload,
+        image_url: qr.image_url
+      }));
+    }
+
+    await sendTextMessage(pageAccessToken, context.userId, messageText, formattedQuickReplies);
 
     return { success: true, waiting_for_response: true };
   }
@@ -413,10 +430,57 @@ export class FlowExecutionEngine {
         });
 
         return { success: true, completed: true };
+
+      case "booking":
+      case "checkout":
+      case "schedule": {
+        // Find lead across all channels, not just facebook
+        const lead = await prisma.lead.findFirst({
+          where: {
+            pageId: context.pageId,
+            // Match the user ID in the appropriate source path
+            OR: [
+              {
+                source: "facebook",
+                metadata: { path: ["facebookUserId"], equals: context.userId },
+              },
+              {
+                source: "whatsapp",
+                metadata: { path: ["whatsappUserId"], equals: context.userId },
+              },
+              {
+                source: "website",
+                contactId: context.userId, // for webchat
+              },
+            ],
+          },
+        });
+
+        if (lead) {
+          const currentTags = (lead.tags as string[]) || [];
+          const actionTag = `${content.action}-initiated`;
+          // Preserve any tags specified on the node plus the action tag
+          const nodeTags = content.tags || [];
+          const newTags = Array.from(new Set([...currentTags, actionTag, ...nodeTags]));
+
+          await prisma.lead.update({
+            where: { id: lead.id },
+            data: {
+              tags: newTags,
+              status: "contacted"
+            },
+          });
+        }
+
+        // TODO: In the future, emit an event here to trigger external API webhooks
+        // (Stripe for checkout, Calendly for schedule, etc.)
+
+        return { success: true, nextNodeOrder: content.nextNodeOrder ?? node.order + 1 };
+      }
     }
 
     // Move to next node
-    return { success: true, nextNodeOrder: node.order + 1 };
+    return { success: true, nextNodeOrder: content.nextNodeOrder ?? node.order + 1 };
   }
 
   /**

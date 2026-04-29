@@ -78,18 +78,30 @@ export function OnboardingProgress({
   totalSteps,
   stepName,
 }: OnboardingProgressProps) {
+  const percentage = (currentStep / totalSteps) * 100;
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium">{stepName}</span>
-        <span className="text-xs text-muted-foreground">
-          {currentStep} of {totalSteps}
-        </span>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between px-1">
+        <div className="flex flex-col">
+          <span className="text-[10px] uppercase tracking-[0.2em] text-primary/70 font-bold">Current Phase</span>
+          <span className="text-sm font-semibold tracking-wide text-foreground">{stepName}</span>
+        </div>
+        <div className="flex flex-col items-end">
+          <span className="text-[10px] uppercase tracking-[0.2em] text-primary/70 font-bold">Progress</span>
+          <span className="text-sm font-mono font-medium">
+            {currentStep.toString().padStart(2, '0')} / {totalSteps.toString().padStart(2, '0')}
+          </span>
+        </div>
       </div>
-      <div className="w-full bg-muted rounded-full h-2">
+      <div className="relative w-full bg-muted/30 rounded-full h-1.5 overflow-hidden border border-primary/10">
         <div
-          className="bg-primary h-2 rounded-full transition-all"
-          style={{ width: `${(currentStep / totalSteps) * 100}%` }}
+          className="absolute top-0 left-0 bg-primary h-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(var(--primary),0.5)]"
+          style={{ width: `${percentage}%` }}
+        />
+        {/* Decorative scanline effect */}
+        <div
+          className="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.3)_50%,transparent_100%)] animate-[shimmer_2s_infinite]"
+          style={{ backgroundSize: '200% 100%' }}
         />
       </div>
     </div>

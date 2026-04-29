@@ -609,7 +609,7 @@ export const SERVICES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Perfect. ✅ I've prioritized your request. Our team will review your project details and get back to you with the next steps very soon. Anything else you'd like to add?",
+        text: "Perfect. ✅ Let's schedule a quick call to go over the details: [SCHEDULE_LINK]",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -619,8 +619,9 @@ export const SERVICES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "action",
       content: {
-        action: "tag_user",
-        tags: ["service-lead", "quote-requested", "high-intent"],
+        action: "schedule",
+        scheduleLink: "[SCHEDULE_LINK]",
+        tags: ["service-request", "new-enquiry"],
       },
       order: 6,
     },
@@ -751,7 +752,7 @@ export const BOOKING_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Hi there! 📅 I'm here to help you secure your preferred slot. Let's sort out the details in under a minute.",
+        text: "Hi there! 📅 Ready to book your spot? Let's sort out the details.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1100,
@@ -809,7 +810,7 @@ export const BOOKING_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Perfect! ✅ I've reserved that interest for you. Our team will verify the final schedule and text you at {{client_phone}} within the hour. Speak soon!",
+        text: "Thanks! ✅ We've received your request. Let's get you booked in right away: [BOOKING_LINK]",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -819,8 +820,9 @@ export const BOOKING_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "action",
       content: {
-        action: "tag_user",
-        tags: ["booking-initiated", "appointment-enquiry", "high-intent"],
+        action: "booking",
+        bookingService: "general",
+        tags: ["booking-request", "new-appointment"],
       },
       order: 6,
     },
@@ -925,11 +927,11 @@ export const ECOMMERCE_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Great taste! You can explore our new arrivals right here: [STORE_URL] 🛍️ And here's a little secret: use code REFRESH15 for 15% off your next order. Ready to see what's trending?",
+        text: "Great! You can browse our full collection right here. Want to check out now? Let's complete your purchase! [STORE_URL]/checkout 🛍️ And here's a little secret: use code WELCOME10 for 10% off!",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1200,
-        nextNodeOrder: 10,
+        nextNodeOrder: 9,
       },
       order: 4,
     },
@@ -961,9 +963,14 @@ export const ECOMMERCE_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "action",
       content: {
-        action: "tag_user",
-        tags: ["ecommerce-lead", "checkout-initiated", "browsing-session"],
+        action: "checkout",
+        checkoutUrl: "[STORE_URL]/checkout",
       },
+      order: 9,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
       order: 10,
     },
     {
@@ -2776,8 +2783,8 @@ export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Fantastic! 📅 For how many guests should I reserve a space, and on what date and time?",
-        variableName: "booking_details_raw",
+        text: "Fantastic! 📅 Let's get you scheduled! For how many people would you like to book, and on what date and time?",
+        variableName: "booking_details",
         inputType: "text",
         delayMs: 500,
         typingEnabled: true,
@@ -2824,7 +2831,7 @@ export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Excellent! 🥂 I've secured your request. Our host will check the table availability and text your confirmation to {{guest_phone}} shortly. We look forward to seeing you!",
+        text: "Excellent! 🥂 Your reservation request is set. Want to secure your table now? [RESERVATION_LINK]",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -2834,8 +2841,9 @@ export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "action",
       content: {
-        action: "tag_user",
-        tags: ["restaurant-booking", "reservation-initiated", "dining-intent-high"],
+        action: "booking",
+        bookingService: "table",
+        tags: ["restaurant-booking", "reservation-request"],
       },
       order: 8,
     },

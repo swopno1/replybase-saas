@@ -88,7 +88,9 @@ cd replybase-saas
 # Install dependencies
 pnpm install
 
-# Generate environment template
+# Generate environment template.
+# The .env.example file lists all required and optional environment variables
+# with descriptions and placeholders. Be sure to reference it when onboarding.
 cp .env.example .env
 
 # Edit .env with your configuration

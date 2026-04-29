@@ -74,14 +74,22 @@ ${messageHistory}
 
 Suggest the next reply:`;
 
-      // 4. Generate suggestion
-      const { text } = await generateText({
-        model,
-        system: systemPrompt,
-        prompt: userPrompt,
-      });
+      // 4. Generate suggestion with 15s timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-      return NextResponse.json({ suggestion: text.trim() });
+      try {
+        const { text } = await generateText({
+          model,
+          system: systemPrompt,
+          prompt: userPrompt,
+          abortSignal: controller.signal,
+        });
+
+        return NextResponse.json({ suggestion: text.trim() });
+      } finally {
+        clearTimeout(timeoutId);
+      }
     } catch (error) {
       console.error("[Suggest Reply API] Error:", error);
       return NextResponse.json(

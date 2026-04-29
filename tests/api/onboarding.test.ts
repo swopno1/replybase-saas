@@ -10,6 +10,9 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: vi.fn(),
       update: vi.fn(),
     },
+    bot: {
+      updateMany: vi.fn(),
+    },
   },
 }));
 vi.mock("@/lib/onboarding-ai", () => ({
@@ -21,16 +24,22 @@ describe("Onboarding API", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (getServerSession as any).mockResolvedValue({
-      user: { tenantId: mockTenantId },
+    vi.mocked(getServerSession).mockResolvedValue({
+      user: { tenantId: mockTenantId, id: "test-user" },
+      expires: "1234",
     });
   });
 
   it("GET returns tenant onboarding status", async () => {
-    (prisma.tenant.findUnique as any).mockResolvedValue({
+    vi.mocked(prisma.tenant.findUnique).mockResolvedValue({
+      id: mockTenantId,
       isOnboarded: false,
       onboardingStep: 0,
       onboardingData: {},
+      name: "Test Tenant",
+      stripeCustomerId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
     const response = await GET();
@@ -44,8 +53,15 @@ describe("Onboarding API", () => {
   });
 
   it("PATCH updates onboarding progress", async () => {
-    (prisma.tenant.findUnique as any).mockResolvedValue({
+    vi.mocked(prisma.tenant.findUnique).mockResolvedValue({
+      id: mockTenantId,
+      isOnboarded: false,
+      onboardingStep: 0,
       onboardingData: { kyc: { name: "Old Name" } },
+      name: "Test Tenant",
+      stripeCustomerId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
     const req = new Request("http://localhost/api/onboarding", {
@@ -56,7 +72,7 @@ describe("Onboarding API", () => {
       }),
     });
 
-    const response = await PATCH(req as any);
+    const response = await PATCH(req as unknown as Request);
     const data = await response.json();
 
     expect(data.success).toBe(true);
@@ -84,18 +100,18 @@ describe("Onboarding API", () => {
       body: JSON.stringify(onboardingData),
     });
 
-    const response = await POST(req as any);
+    const response = await POST(req as unknown as Request);
     const data = await response.json();
 
     expect(data.success).toBe(true);
-    expect(data.summary).toEqual({ summary: "test summary" });
+    expect(data.summary.isPlaceholder).toBe(true);
     expect(prisma.tenant.update).toHaveBeenCalledWith({
       where: { id: mockTenantId },
       data: {
         isOnboarded: true,
         onboardingData: {
           raw: onboardingData,
-          summary: { summary: "test summary" },
+          summary: expect.objectContaining({ isPlaceholder: true }),
         },
       },
     });
