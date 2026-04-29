@@ -13,10 +13,14 @@ vi.mock("@/lib/prisma", () => ({
     bot: {
       updateMany: vi.fn(),
     },
+    flow: {
+      create: vi.fn().mockResolvedValue({ id: "mock-flow-id" }),
+    },
   },
 }));
 vi.mock("@/lib/onboarding-ai", () => ({
-  summarizeOnboardingData: vi.fn().mockResolvedValue({ summary: "test summary" }),
+  summarizeOnboardingData: vi.fn().mockResolvedValue({ isPlaceholder: true, summary: "test summary" }),
+  customizeFlowNodesWithAI: vi.fn().mockResolvedValue([{ id: "test-node" }]),
 }));
 
 describe("Onboarding API", () => {
