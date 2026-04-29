@@ -14,6 +14,18 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
+    // Safely try to parse body if it exists (for feedback)
+    let feedback = "";
+    try {
+      const body = await req.json();
+      feedback = body.feedback || "";
+    } catch (e) {
+      // Body might be empty
+    }
+
+    if (feedback) {
+      console.log(`[Subscription Cancel] Feedback from user: ${feedback}`);
+    }
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

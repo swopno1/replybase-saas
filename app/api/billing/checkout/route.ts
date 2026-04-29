@@ -140,6 +140,7 @@ export async function POST(req: NextRequest) {
       metadata,
       subscription_data: {
         metadata,
+        trial_period_days: 14,
       },
     });
 

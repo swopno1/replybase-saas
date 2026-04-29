@@ -18,8 +18,27 @@ import {
   RotateCw,
   AlertCircle,
   CheckCircle2,
+  Zap,
+  Shield,
+  MessageSquare,
+  HelpCircle,
+  Info,
+  ChevronRight,
+  Loader2,
+  Trash2,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Progress } from "@/components/ui/progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Subscription {
   id: string;
@@ -29,6 +48,7 @@ interface Subscription {
   currentPeriodEnd: string;
   cancelAtPeriodEnd: boolean;
   trialEndsAt: string | null;
+  trialDaysRemaining?: number;
   plan: {
     id: string;
     name: string;
@@ -39,6 +59,17 @@ interface Subscription {
     monthlyMessageLimit: number;
     maxBots: number;
     features: Record<string, unknown>;
+  };
+}
+
+interface UsageData {
+  monthlyMessages: number;
+  monthlyMessageLimit: number;
+  dailyFlowExecutions: number;
+  flowExecutionCap: number;
+  usage: {
+    bots: number;
+    messages: number;
   };
 }
 
@@ -55,35 +86,24 @@ interface Invoice {
 export default function BillingTabContent() {
   const router = useRouter();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [usage, setUsage] = useState<UsageData | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCanceling, setIsCanceling] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancelFeedback, setCancelFeedback] = useState("");
 
   useEffect(() => {
-    const fetchBillingData = async () => {
-      try {
-        const response = await fetch("/api/billing/subscription");
-        if (!response.ok) throw new Error("Failed to fetch billing data");
-        const data = await response.json();
-        setSubscription(data.subscription);
-        setInvoices(data.invoices || []);
-      } catch (error) {
-        console.error("Error fetching billing data:", error);
-        toast.error("Failed to load billing information");
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchBillingData();
   }, []);
 
-  const refreshBillingData = async () => {
+  const fetchBillingData = async () => {
     try {
-      setIsLoading(true);
       const response = await fetch("/api/billing/subscription");
       if (!response.ok) throw new Error("Failed to fetch billing data");
       const data = await response.json();
       setSubscription(data.subscription);
+      setUsage(data.usage);
       setInvoices(data.invoices || []);
     } catch (error) {
       console.error("Error fetching billing data:", error);
@@ -103,11 +123,16 @@ export default function BillingTabContent() {
     try {
       const response = await fetch(
         `/api/billing/subscription/${subscription.id}`,
-        { method: "DELETE" },
+        { 
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ feedback: cancelFeedback })
+        },
       );
       if (!response.ok) throw new Error("Failed to cancel subscription");
       toast.success("Subscription canceled successfully");
-      refreshBillingData();
+      setShowCancelDialog(false);
+      fetchBillingData();
     } catch (error) {
       console.error("Error canceling subscription:", error);
       toast.error("Failed to cancel subscription");
@@ -125,286 +150,354 @@ export default function BillingTabContent() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="h-40 bg-muted rounded-lg animate-pulse" />
-        <div className="h-60 bg-muted rounded-lg animate-pulse" />
+        <div className="h-64 bg-muted/50 rounded-2xl animate-pulse" />
+        <div className="h-48 bg-muted/50 rounded-2xl animate-pulse" />
+        <div className="h-64 bg-muted/50 rounded-2xl animate-pulse" />
       </div>
     );
   }
 
+  const isTrial = subscription?.status === "trialing";
+  const isCanceled = subscription?.cancelAtPeriodEnd;
+  const trialDays = subscription?.trialDaysRemaining ?? 0;
+
   return (
-    <div className="space-y-6">
-      {/* Current Subscription Card */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between">
+    <div className="max-w-5xl space-y-8 pb-12">
+      {/* Trial Banner */}
+      {isTrial && !isCanceled && (
+        <div className="bg-primary/10 border border-primary/20 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="bg-primary/20 p-3 rounded-xl">
+              <Zap className="h-6 w-6 text-primary" />
+            </div>
             <div>
-              <CardTitle>Current Plan</CardTitle>
-              <CardDescription>
-                Your active subscription details
-              </CardDescription>
+              <h3 className="font-bold text-lg">You&apos;re currently on a 14-day free trial</h3>
+              <p className="text-muted-foreground text-sm">
+                You have <span className="font-bold text-primary">{trialDays} days</span> left in your trial. 
+                Upgrade now to ensure uninterrupted service.
+              </p>
             </div>
-            {subscription && (
-              <Badge
-                variant={
-                  subscription.status === "active" ? "default" : "secondary"
-                }
-              >
-                {subscription.status.charAt(0).toUpperCase() +
-                  subscription.status.slice(1)}
-              </Badge>
-            )}
           </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {subscription ? (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Plan Details */}
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="font-semibold text-lg">
-                      {subscription.plan.displayName}
-                    </h3>
-                    <p className="text-2xl font-bold mt-2">
-                      £{subscription.plan.price}
-                      <span className="text-sm font-normal text-muted-foreground">
-                        /month
-                      </span>
-                    </p>
-                  </div>
+          <Button onClick={handleUpgrade} className="shadow-lg shadow-primary/20 whitespace-nowrap">
+            Choose Paid Plan
+            <ChevronRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+      )}
 
-                  <Separator />
+      {/* Canceled Banner */}
+      {isCanceled && (
+        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-6 flex items-center gap-4 shadow-sm">
+          <div className="bg-yellow-500/20 p-3 rounded-xl">
+            <AlertCircle className="h-6 w-6 text-yellow-600" />
+          </div>
+          <div>
+            <h3 className="font-bold text-lg text-yellow-900">Subscription Canceled</h3>
+            <p className="text-yellow-800 text-sm">
+              Your access will continue until <span className="font-bold">{new Date(subscription.currentPeriodEnd).toLocaleDateString()}</span>. 
+              After this date, you will be moved to the Free plan.
+            </p>
+          </div>
+        </div>
+      )}
 
-                  <div className="space-y-2 text-sm">
-                    <p>
-                      <span className="text-muted-foreground">
-                        Daily Messages:
-                      </span>
-                      <span className="float-right font-medium">
-                        {subscription.plan.dailyMessageLimit === 999999999
-                          ? "Unlimited"
-                          : subscription.plan.dailyMessageLimit.toLocaleString()}
-                      </span>
-                    </p>
-                    <p>
-                      <span className="text-muted-foreground">
-                        Monthly Messages:
-                      </span>
-                      <span className="float-right font-medium">
-                        {subscription.plan.monthlyMessageLimit === 999999999
-                          ? "Unlimited"
-                          : subscription.plan.monthlyMessageLimit.toLocaleString()}
-                      </span>
-                    </p>
-                    <p>
-                      <span className="text-muted-foreground">Bots:</span>
-                      <span className="float-right font-medium">
-                        {subscription.plan.maxBots === 999999999
-                          ? "Unlimited"
-                          : subscription.plan.maxBots}
-                      </span>
-                    </p>
-                  </div>
-                </div>
-
-                {/* Billing Period */}
-                <div className="space-y-4 bg-muted p-4 rounded-lg">
-                  <h4 className="font-semibold">Billing Period</h4>
-                  <div className="space-y-3 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Period Start</p>
-                      <p className="font-medium">
-                        {new Date(
-                          subscription.currentPeriodStart,
-                        ).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Period End</p>
-                      <p className="font-medium">
-                        {new Date(
-                          subscription.currentPeriodEnd,
-                        ).toLocaleDateString()}
-                      </p>
-                    </div>
-                    {subscription.trialEndsAt && (
-                      <div className="pt-3 border-t">
-                        <p className="text-muted-foreground">Trial Ends</p>
-                        <p className="font-medium">
-                          {new Date(
-                            subscription.trialEndsAt,
-                          ).toLocaleDateString()}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Action Buttons */}
-              <div className="flex flex-wrap gap-3">
-                <Button
-                  variant="outline"
-                  onClick={handleUpgrade}
-                  className="gap-2"
+      {/* Current Plan Overview */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <Card className="lg:col-span-1 shadow-sm border-border/50 rounded-2xl overflow-hidden ring-1 ring-border/5">
+          <CardHeader className="bg-muted/30 pb-8">
+            <div className="flex items-center justify-between mb-4">
+              <Badge variant="outline" className="font-bold border-primary/20 text-primary bg-primary/5 uppercase tracking-wider text-[10px]">Current Plan</Badge>
+              {subscription && (
+                <Badge 
+                  className={subscription.status === "active" ? "bg-green-500/10 text-green-600 border-green-200" : "bg-muted text-muted-foreground"}
                 >
-                  <RotateCw className="h-4 w-4" />
-                  Change Plan
+                  {subscription.status}
+                </Badge>
+              )}
+            </div>
+            <CardTitle className="text-3xl font-black">{subscription?.plan.displayName || "Free"}</CardTitle>
+            <CardDescription className="text-base font-medium">
+              {subscription?.plan.price === 0 ? "Forever free" : `£${subscription?.plan.price}/month`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-8 space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 text-sm font-medium">
+                <CheckCircle2 className="h-4 w-4 text-primary" />
+                <span>{subscription?.plan.maxBots} Active Bots</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm font-medium">
+                <CheckCircle2 className="h-4 w-4 text-primary" />
+                <span>Priority Support</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm font-medium">
+                <CheckCircle2 className="h-4 w-4 text-primary" />
+                <span>Unlimited Lead Capture</span>
+              </div>
+            </div>
+            
+            <Separator className="bg-border/50" />
+            
+            <div className="space-y-4">
+              <Button onClick={handleUpgrade} className="w-full bg-foreground text-background hover:bg-foreground/90 font-bold h-11 rounded-xl shadow-md">
+                Change Plan
+              </Button>
+              {subscription?.status !== "free" && !isCanceled && (
+                <Button 
+                  variant="ghost" 
+                  onClick={() => setShowCancelDialog(true)}
+                  className="w-full text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors h-11 rounded-xl"
+                >
+                  Cancel Subscription
                 </Button>
-                {subscription.status === "active" && (
-                  <Button
-                    variant="outline"
-                    onClick={handleCancelSubscription}
-                    disabled={isCanceling}
-                    className="gap-2 text-red-600 hover:text-red-700"
-                  >
-                    Cancel Subscription
-                  </Button>
-                )}
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Usage Stats */}
+        <div className="lg:col-span-2 space-y-6">
+          <Card className="shadow-sm border-border/50 rounded-2xl ring-1 ring-border/5">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-xl">Plan Usage</CardTitle>
+                  <CardDescription>Usage for the current billing cycle</CardDescription>
+                </div>
+                <Badge variant="secondary" className="font-mono text-[10px]">
+                  {new Date(subscription?.currentPeriodStart || "").toLocaleDateString()} — {new Date(subscription?.currentPeriodEnd || "").toLocaleDateString()}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-8">
+              {/* Messages Usage */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-end">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-primary" />
+                    <span className="font-bold text-sm">Monthly AI Responses</span>
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground">
+                    <span className="text-foreground font-bold">{usage?.monthlyMessages.toLocaleString()}</span> / {usage?.monthlyMessageLimit === 999999999 ? "∞" : usage?.monthlyMessageLimit.toLocaleString()}
+                  </span>
+                </div>
+                <Progress 
+                  value={usage ? (usage.monthlyMessages / (usage.monthlyMessageLimit || 1)) * 100 : 0} 
+                  className="h-2.5 bg-muted/50"
+                />
+                <p className="text-[11px] text-muted-foreground">Reset on {new Date(subscription?.currentPeriodEnd || "").toLocaleDateString()}</p>
               </div>
 
-              {subscription.cancelAtPeriodEnd && (
-                <div className="flex items-start gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                  <AlertCircle className="h-5 w-5 text-yellow-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-sm text-yellow-900">
-                      Subscription canceled
-                    </p>
-                    <p className="text-xs text-yellow-800 mt-1">
-                      Your subscription will end on{" "}
-                      {new Date(
-                        subscription.currentPeriodEnd,
-                      ).toLocaleDateString()}
-                    </p>
+              {/* Automation Usage */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-end">
+                  <div className="flex items-center gap-2">
+                    <RotateCw className="h-4 w-4 text-primary" />
+                    <span className="font-bold text-sm">Flow Executions (Daily)</span>
                   </div>
+                  <span className="text-xs font-medium text-muted-foreground">
+                    <span className="text-foreground font-bold">{usage?.dailyFlowExecutions.toLocaleString()}</span> / {usage?.flowExecutionCap === 999999999 ? "∞" : usage?.flowExecutionCap.toLocaleString()}
+                  </span>
                 </div>
-              )}
-            </>
-          ) : (
-            <div className="text-center py-8 space-y-4">
-              <p className="text-muted-foreground">No active subscription</p>
-              <Button onClick={handleUpgrade}>Choose a Plan</Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                <Progress 
+                  value={usage ? (usage.dailyFlowExecutions / (usage.flowExecutionCap || 1)) * 100 : 0} 
+                  className="h-2.5 bg-muted/50"
+                />
+                <p className="text-[11px] text-muted-foreground">Resets at midnight UTC</p>
+              </div>
 
-      {/* Invoice History Card */}
-      <Card>
+              <div className="bg-primary/5 rounded-xl p-4 border border-primary/10 flex items-start gap-3">
+                <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Usage resets at the beginning of each billing cycle. If you reach your limit, your bots will continue to work but AI responses may be paused until the next cycle or an upgrade.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Billing Details */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Card className="shadow-sm border-border/50 rounded-2xl p-5 ring-1 ring-border/5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="bg-muted p-2 rounded-lg">
+                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <h4 className="font-bold text-sm">Payment Method</h4>
+              </div>
+              <p className="text-xs text-muted-foreground mb-4">Your default payment method is processed via Stripe.</p>
+              <Button variant="outline" size="sm" className="w-full text-xs font-bold rounded-lg h-9">Update Method</Button>
+            </Card>
+            <Card className="shadow-sm border-border/50 rounded-2xl p-5 ring-1 ring-border/5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="bg-muted p-2 rounded-lg">
+                  <Shield className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <h4 className="font-bold text-sm">Billing Cycle</h4>
+              </div>
+              <p className="text-xs text-muted-foreground mb-4">You are currently on a monthly billing cycle.</p>
+              <Button variant="outline" size="sm" className="w-full text-xs font-bold rounded-lg h-9">Switch to Annual (-20%)</Button>
+            </Card>
+          </div>
+        </div>
+      </div>
+
+      {/* Invoice History */}
+      <Card className="shadow-sm border-border/50 rounded-2xl ring-1 ring-border/5">
         <CardHeader>
-          <CardTitle>Invoice History</CardTitle>
-          <CardDescription>
-            Download your invoices and payment history
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-xl">Invoice History</CardTitle>
+              <CardDescription>Download and manage your past invoices</CardDescription>
+            </div>
+            <Download className="h-5 w-5 text-muted-foreground/30" />
+          </div>
         </CardHeader>
         <CardContent>
           {invoices.length > 0 ? (
-            <div className="space-y-3">
+            <div className="divide-y border rounded-xl overflow-hidden">
               {invoices.map((invoice) => (
                 <div
                   key={invoice.id}
-                  className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/50 transition"
+                  className="flex items-center justify-between p-4 bg-card hover:bg-muted/30 transition-colors"
                 >
                   <div className="flex-1">
-                    <p className="font-medium text-sm">
+                    <p className="font-bold text-sm">
                       Invoice {invoice.invoiceNumber}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-[11px] text-muted-foreground">
                       {new Date(invoice.dueDate).toLocaleDateString()}
                     </p>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-6">
                     <div className="text-right">
-                      <p className="font-medium">
-                        ${(invoice.amount / 100).toFixed(2)}
+                      <p className="font-black text-sm">
+                        £{(invoice.amount / 100).toFixed(2)}
                       </p>
-                      <div className="flex items-center gap-1 mt-1">
+                      <div className="flex items-center justify-end gap-1.5 mt-1">
                         {invoice.status === "paid" ? (
-                          <>
-                            <CheckCircle2 className="h-3 w-3 text-green-600" />
-                            <span className="text-xs text-green-600">Paid</span>
-                          </>
+                          <span className="text-[10px] font-bold text-green-600 bg-green-500/10 px-2 py-0.5 rounded-full border border-green-200">Paid</span>
                         ) : (
-                          <Badge variant="outline">{invoice.status}</Badge>
+                          <Badge variant="outline" className="text-[10px]">{invoice.status}</Badge>
                         )}
                       </div>
                     </div>
                     <Button
-                      size="sm"
+                      size="icon"
                       variant="ghost"
                       onClick={() => handleDownloadInvoice(invoice)}
                       disabled={!invoice.downloadUrl}
-                      className="gap-2"
+                      className="h-9 w-9 rounded-full"
                     >
                       <Download className="h-4 w-4" />
-                      Download
                     </Button>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-8">
-              <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-              <p className="text-muted-foreground">No invoices yet</p>
+            <div className="text-center py-12 bg-muted/20 rounded-2xl border border-dashed">
+              <CreditCard className="h-10 w-10 text-muted-foreground mx-auto mb-4 opacity-20" />
+              <p className="text-muted-foreground text-sm font-medium">No billing history found</p>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Payment Method Card */}
-      <Card className="border-dashed">
-        <CardHeader>
-          <CardTitle>Payment Method</CardTitle>
-          <CardDescription>Update your payment information</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-            Payment method management is coming soon. Your payments are securely
-            processed through Stripe.
+      {/* Billing FAQ */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <h4 className="font-bold flex items-center gap-2">
+            <HelpCircle className="h-4 w-4 text-primary" />
+            Common Questions
+          </h4>
+          <div className="space-y-4 pt-2">
+            <div className="group">
+              <p className="text-sm font-bold group-hover:text-primary transition-colors">How do I change my billing cycle?</p>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                You can switch between monthly and annual billing in the Billing Cycle card above. 
+                Annual plans come with a 20% discount.
+              </p>
+            </div>
+            <div className="group">
+              <p className="text-sm font-bold group-hover:text-primary transition-colors">What happens if I cancel?</p>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Your plan features will remain active until the end of your current period. 
+                After that, you&apos;ll be moved to the Free tier and some features may be disabled.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-muted/30 rounded-2xl p-6 border border-border/50 flex flex-col justify-center">
+          <h4 className="font-bold text-base mb-2">Need a custom enterprise plan?</h4>
+          <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+            If your business requires higher limits, custom integrations, or dedicated support, 
+            our enterprise team is here to help.
           </p>
-          <Button disabled>Update Payment Method</Button>
-        </CardContent>
-      </Card>
+          <Button variant="link" className="p-0 h-auto text-primary font-bold text-sm w-fit group">
+            Talk to an expert
+            <ChevronRight className="ml-1 h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
+          </Button>
+        </div>
+      </div>
 
-      {/* Billing FAQ Card */}
-      <Card className="border-dashed">
-        <CardHeader>
-          <CardTitle>Need Help?</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div>
-            <p className="font-medium text-sm">How do I upgrade my plan?</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Go to the pricing page to upgrade to a higher tier. Changes take
-              effect immediately.
-            </p>
+      {/* Cancellation Dialog */}
+      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-red-500" />
+              Cancel Subscription?
+            </DialogTitle>
+            <DialogDescription className="text-base">
+              We&apos;re sorry to see you go. Your subscription will remain active until the end of this billing cycle.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="bg-red-50 border border-red-100 rounded-xl p-4">
+              <h5 className="font-bold text-red-900 text-sm mb-2">What you&apos;ll lose:</h5>
+              <ul className="space-y-2">
+                <li className="text-xs text-red-800 flex items-center gap-2">
+                  <X className="h-3 w-3" />
+                  Telegram & WhatsApp channel access
+                </li>
+                <li className="text-xs text-red-800 flex items-center gap-2">
+                  <X className="h-3 w-3" />
+                  Advanced AI Co-pilot features
+                </li>
+                <li className="text-xs text-red-800 flex items-center gap-2">
+                  <X className="h-3 w-3" />
+                  Extended automation limits
+                </li>
+              </ul>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-bold">How can we improve? (Optional)</label>
+              <Textarea 
+                placeholder="Tell us why you're canceling..."
+                value={cancelFeedback}
+                onChange={(e) => setCancelFeedback(e.target.value)}
+                className="min-h-[100px] rounded-xl resize-none"
+              />
+            </div>
           </div>
-          <Separator />
-          <div>
-            <p className="font-medium text-sm">
-              How do I cancel my subscription?
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Click &quot;Cancel Subscription&quot; on this page. Your access
-              continues until the end of your billing period.
-            </p>
-          </div>
-          <Separator />
-          <div>
-            <p className="font-medium text-sm">
-              Can I change my plan mid-month?
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Yes! Upgrade anytime and we&apos;ll prorate your charges.
-              Downgrade requests are processed at the end of your billing
-              period.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={() => setShowCancelDialog(false)} className="flex-1 rounded-xl">
+              Keep my plan
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleCancelSubscription} 
+              disabled={isCanceling}
+              className="flex-1 rounded-xl font-bold"
+            >
+              {isCanceling ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm Cancellation"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

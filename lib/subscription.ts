@@ -100,6 +100,18 @@ export async function getTenantLimits(tenantId: string) {
   const subscription = await getActiveSubscriptionWithPlan(tenantId);
 
   if (!subscription) {
+    // Return default Free plan if no subscription found
+    const freePlan = await prisma.plan.findUnique({
+      where: { name: "free" },
+    });
+
+    if (freePlan) {
+      return {
+        ...freePlan,
+        planName: freePlan.displayName,
+      };
+    }
+
     return {
       maxBots: 0,
       dailyMessageLimit: 0,
@@ -121,6 +133,7 @@ export async function getTenantLimits(tenantId: string) {
 
   return {
     ...subscription.plan,
+    planName: subscription.plan.displayName,
   };
 }
 

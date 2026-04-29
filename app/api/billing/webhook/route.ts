@@ -181,6 +181,7 @@ async function syncSubscription(
       currentPeriodStart: new Date(sub.current_period_start * 1000),
       currentPeriodEnd: new Date(sub.current_period_end * 1000),
       cancelAtPeriodEnd: sub.cancel_at_period_end,
+      trialEndsAt: sub.trial_end ? new Date(sub.trial_end * 1000) : null,
       planId: dbPlan.id,
     },
     create: {
@@ -191,6 +192,7 @@ async function syncSubscription(
       currentPeriodStart: new Date(sub.current_period_start * 1000),
       currentPeriodEnd: new Date(sub.current_period_end * 1000),
       cancelAtPeriodEnd: sub.cancel_at_period_end,
+      trialEndsAt: sub.trial_end ? new Date(sub.trial_end * 1000) : null,
       planId: dbPlan.id,
     },
   });
