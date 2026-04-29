@@ -131,16 +131,14 @@ export async function POST(request: NextRequest) {
           .filter((r) => r.type === "text")
           .map((r) => (r as { type: "text"; text: string }).text);
 
-        if (outMessages.length > 0) {
-          await prisma.crmMessage.createMany({
-            data: outMessages.map((outMsg) => ({
-              conversationId,
-              direction: "outbound",
-              content: outMsg,
-              source: "flow",
-            })),
-          });
-        }
+        await prisma.crmMessage.createMany({
+          data: outMessages.map((outMsg) => ({
+            conversationId,
+            direction: "outbound",
+            content: outMsg,
+            source: "flow",
+          })),
+        });
 
         console.log("[Webchat Message] Responding from flow", {
           responses: flowResult.responses,
