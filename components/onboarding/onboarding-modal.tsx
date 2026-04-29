@@ -116,12 +116,12 @@ export function OnboardingModal({
 }) {
   const router = useRouter();
   const [step, setStep] = useState(initialStep);
-  const [data, setData] = useState<Record<string, unknown>>(initialData);
+  const [data, setData] = useState<OnboardingData>(initialData as OnboardingData);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(isOpen);
 
-  const updateData = (section: string, field: string, value: unknown) => {
-    setData((prev: Record<string, unknown>) => ({
+  const updateData = (section: keyof OnboardingData, field: string, value: unknown) => {
+    setData((prev) => ({
       ...prev,
       [section]: {
         ...((prev[section] as Record<string, unknown>) || {}),

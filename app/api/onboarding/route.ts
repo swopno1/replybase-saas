@@ -181,7 +181,7 @@ export async function POST(req: NextRequest) {
     await prisma.bot.updateMany({
       where: { tenantId: session.user.tenantId },
       data: {
-        context: summary as Record<string, unknown>,
+        context: summary as Prisma.InputJsonValue,
         entryFlow: flow.id,
       },
     });
