@@ -75,12 +75,60 @@ export async function summarizeOnboardingData(data: OnboardingData) {
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     const jsonString = jsonMatch ? jsonMatch[0] : text;
     return JSON.parse(jsonString);
-  } catch (error) {
-    console.error("Failed to parse AI summary:", text);
+  } catch (err) {
+    console.error("Failed to parse AI summary:", err, text);
     // Fallback to a basic structure if AI fails
     return {
       companyProfile: `${data.kyc.company} is in the ${data.businessBasics.industry} industry.`,
       raw: data,
     };
+  }
+}
+
+/**
+ * Customizes flow template nodes using AI based on the onboarding summary.
+ */
+export async function customizeFlowNodesWithAI(
+  nodes: Array<{ type: string; content: Record<string, unknown>; order: number }>,
+  summary: Record<string, unknown>
+): Promise<Array<{ type: string; content: Record<string, unknown>; order: number }>> {
+  if (summary.isPlaceholder) return nodes;
+
+  const model = getAiModel({ provider: "default", planName: "pro" });
+
+  const prompt = `
+    You are an expert conversational designer. I have a standard chatbot flow template for a new business.
+    Your task is to customize the text of the message and input nodes to better fit the specific business based on their summary.
+    Keep the structure of the nodes exactly the same, only modify the 'text' fields inside 'content' where appropriate.
+    Make the tone match: ${summary.toneAndVoice || "Professional and helpful"}.
+    Ensure placeholders like [COMPANY NAME] are replaced with actual names, and general greetings are tailored to their offerings: ${summary.keyOfferings}.
+
+    Company Profile: ${summary.companyProfile}
+
+    Here are the current nodes in JSON format:
+    ${JSON.stringify(nodes, null, 2)}
+
+    Return ONLY a JSON array containing the customized nodes. Ensure the output is valid JSON.
+  `;
+
+  try {
+    const { text } = await generateText({
+      model,
+      prompt,
+    });
+
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    const jsonString = jsonMatch ? jsonMatch[0] : text;
+    const customizedNodes = JSON.parse(jsonString);
+
+    // Ensure the structure is roughly correct
+    if (Array.isArray(customizedNodes) && customizedNodes.length === nodes.length) {
+      return customizedNodes;
+    }
+
+    return nodes;
+  } catch (error) {
+    console.error("Failed to customize nodes with AI:", error);
+    return nodes; // Fallback to original nodes
   }
 }

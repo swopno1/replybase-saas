@@ -459,6 +459,7 @@ model CrmMessage {
   conversation   CrmConversation @relation(fields: [conversationId], references: [id])
 
   @@index([conversationId])
+  @@index([createdAt])
   @@map("crm_messages")
 }
 

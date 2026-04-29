@@ -16,7 +16,7 @@ interface LogParams {
   entityType: string;
   entityId?: string;
   description: string;
-  metadata?: any;
+  metadata?: Record<string, unknown> | null;
   ipAddress?: string;
   userAgent?: string;
 }

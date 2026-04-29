@@ -20,6 +20,7 @@ export type FlowCondition = {
 
 export type FlowNodeContent = {
   text?: string;
+  quick_replies?: Array<{ title: string; payload: string; image_url?: string }>;
   inputType?: "text" | "email" | "phone" | "number";
   variableName?: string;
   validationMessage?: string;
@@ -29,9 +30,15 @@ export type FlowNodeContent = {
     | "update_status"
     | "send_email"
     | "call_flow"
-    | "end_flow";
+    | "end_flow"
+    | "booking"
+    | "checkout"
+    | "schedule";
   targetFlowId?: string;
   targetFlowName?: string;
+  bookingService?: string;
+  checkoutUrl?: string;
+  scheduleLink?: string;
   delayMs?: number;
   waitMs?: number;
   typingDurationMs?: number;

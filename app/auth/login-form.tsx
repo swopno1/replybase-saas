@@ -205,8 +205,8 @@ export function LoginForm() {
   return (
     <Card>
       <CardHeader className="text-center">
-        <CardTitle className="text-xl">Welcome back</CardTitle>
-        <CardDescription>Sign in to your account to continue.</CardDescription>
+        <h1 className="text-2xl font-semibold leading-none tracking-tight">Welcome back</h1>
+        <CardDescription className="mt-2">Sign in to your account to continue.</CardDescription>
       </CardHeader>
 
       <CardContent>
@@ -506,8 +506,8 @@ export function RegisterForm() {
             onboarding.
           </p>
         ) : null}
-        <CardTitle className="text-xl">Create your free account</CardTitle>
-        <CardDescription>
+        <h1 className="text-2xl font-semibold leading-none tracking-tight">Create your free account</h1>
+        <CardDescription className="mt-2">
           Start capturing leads and replying instantly — setup takes under 5
           minutes.
         </CardDescription>

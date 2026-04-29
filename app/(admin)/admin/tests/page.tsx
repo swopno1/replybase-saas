@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { Download, Play, Activity } from "lucide-react";
 
 interface TestHistory {
   id: string;
@@ -50,17 +51,35 @@ export default function AdminTestsPage() {
     toast.promise(
       fetch("/api/admin/tests", {
         method: "POST",
-        body: JSON.stringify({ type: "smoke", name: "Manual Smoke Test" }),
+        body: JSON.stringify({ type: "smoke", name: "System Health Check" }),
       }),
       {
-        loading: "Running smoke test...",
+        loading: "Running health checks...",
         success: () => {
           fetchResults();
-          return "Smoke test completed";
+          return "Health checks passed";
         },
-        error: "Smoke test failed",
+        error: "Health check failed",
       }
     );
+  };
+
+  const triggerLoadTest = async () => {
+    toast.promise(
+      fetch("/api/admin/tests", {
+        method: "POST",
+        body: JSON.stringify({ type: "load" }),
+      }),
+      {
+        loading: "Triggering load test...",
+        success: "Load test started in background",
+        error: (err) => `Failed to trigger: ${err.message}`,
+      }
+    );
+  };
+
+  const exportCSV = () => {
+    window.open("/api/admin/tests?format=csv", "_blank");
   };
 
   const loadTestData = results
@@ -70,17 +89,26 @@ export default function AdminTestsPage() {
       p50: r.metrics.p50,
       p95: r.metrics.p95,
       throughput: r.metrics.throughput,
+      errorRate: r.metrics.errorRate * 100,
     }))
     .reverse();
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">System Testing & Performance</h1>
-        <div className="space-x-2">
-          <Button onClick={runSmokeTest}>Run Smoke Test</Button>
-          <Button variant="outline" onClick={fetchResults}>
-            Refresh
+        <div>
+          <h1 className="text-3xl font-bold">System Testing & Performance</h1>
+          <p className="text-muted-foreground">Monitor system health and load test metrics.</p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={runSmokeTest} className="flex gap-2">
+            <Activity className="h-4 w-4" /> Run Health Checks
+          </Button>
+          <Button onClick={triggerLoadTest} variant="secondary" className="flex gap-2">
+            <Play className="h-4 w-4" /> Trigger Load Test
+          </Button>
+          <Button onClick={exportCSV} variant="outline" className="flex gap-2">
+            <Download className="h-4 w-4" /> Export CSV
           </Button>
         </div>
       </div>
@@ -88,7 +116,7 @@ export default function AdminTestsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Performance Trends (Latency p95)</CardTitle>
+            <CardTitle>Latency Trends (ms)</CardTitle>
           </CardHeader>
           <CardContent className="h-80">
             <ResponsiveContainer width="100%" height="100%">
@@ -102,13 +130,14 @@ export default function AdminTestsPage() {
                   type="monotone"
                   dataKey="p95"
                   stroke="#ef4444"
-                  name="p95 Latency"
+                  strokeWidth={2}
+                  name="p95"
                 />
                 <Line
                   type="monotone"
                   dataKey="p50"
                   stroke="#3b82f6"
-                  name="p50 Latency"
+                  name="p50"
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -117,21 +146,31 @@ export default function AdminTestsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Throughput (req/s)</CardTitle>
+            <CardTitle>Throughput & Error Rate</CardTitle>
           </CardHeader>
           <CardContent className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={loadTestData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
-                <YAxis />
+                <YAxis yAxisId="left" orientation="left" stroke="#10b981" />
+                <YAxis yAxisId="right" orientation="right" unit="%" stroke="#f59e0b" />
                 <Tooltip />
                 <Legend />
                 <Line
+                  yAxisId="left"
                   type="monotone"
                   dataKey="throughput"
                   stroke="#10b981"
+                  strokeWidth={2}
                   name="Req/s"
+                />
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="errorRate"
+                  stroke="#f59e0b"
+                  name="Error %"
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -158,7 +197,7 @@ export default function AdminTestsPage() {
               <tbody>
                 {results.map((r) => (
                   <tr key={r.id} className="border-b hover:bg-muted/50">
-                    <td className="py-2 capitalize">{r.type}</td>
+                    <td className="py-2 capitalize font-medium">{r.type}</td>
                     <td className="py-2">{r.name}</td>
                     <td className="py-2">
                       <Badge
@@ -170,11 +209,18 @@ export default function AdminTestsPage() {
                       </Badge>
                     </td>
                     <td className="py-2">{r.duration}ms</td>
-                    <td className="py-2">
+                    <td className="py-2 text-muted-foreground text-sm">
                       {new Date(r.createdAt).toLocaleString()}
                     </td>
                   </tr>
                 ))}
+                {results.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-muted-foreground">
+                      No test history found.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

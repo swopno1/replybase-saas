@@ -44,7 +44,7 @@ async function main() {
 
     let flowName = customName || "New Flow";
     let flowDescription = "A new conversational flow.";
-    let nodes: any[] = [];
+    let nodes: Record<string, unknown>[] = [];
 
     if (templateKey) {
       const templates = getAvailableTemplates();

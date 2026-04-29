@@ -13,6 +13,8 @@ export const activityLogTypes = [
   "settings_updated",
   "subscription_updated",
   "system_event",
+  "SYSTEM_HEALTH_FAILURE",
+  "LOAD_TEST_FAILURE",
 ] as const;
 
 export type ActivityLogType = (typeof activityLogTypes)[number];

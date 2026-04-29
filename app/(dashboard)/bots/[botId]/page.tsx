@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { isChannelVisibleInUi, type ChannelId } from "@/lib/channel-config";
+import { isChannelVisibleInUi } from "@/lib/channel-config";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
 
 export const dynamic = "force-dynamic";
@@ -80,7 +80,7 @@ function isBotChannelVisible(channelType: string): boolean {
     channelType === "facebook" ||
     channelType === "whatsapp"
   ) {
-    return isChannelVisibleInUi(channelType as ChannelId);
+    return isChannelVisibleInUi(channelType);
   }
 
   return true;

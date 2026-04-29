@@ -30,8 +30,6 @@ import { useConfirmation } from "@/components/ui/confirmation-provider";
 import { DataTable } from "@/components/data-table";
 import { ColumnDef, PaginationState, RowSelectionState } from "@tanstack/react-table";
 
-export const dynamic = "force-dynamic";
-
 interface Lead {
   id: string;
   name: string | null;
@@ -114,13 +112,23 @@ function getFlowInputs(lead: Lead): Record<string, string> {
   return fi as Record<string, string>;
 }
 
+function getPlanBadge(plan: string | null, trial: boolean) {
+  if (!plan) return <Badge variant="outline">None</Badge>;
+  const label = plan.charAt(0).toUpperCase() + plan.slice(1);
+  return (
+    <div className="flex items-center gap-2">
+      <Badge variant="secondary">{label}</Badge>
+      {trial && <Badge variant="outline" className="text-[10px] h-4 px-1">Trial</Badge>}
+    </div>
+  );
+}
+
 export default function LeadsPage() {
   const { confirm } = useConfirmation();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [pageCount, setPageCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [canExport, setCanExport] = useState(false);
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 20,
@@ -142,7 +150,6 @@ export default function LeadsPage() {
         setLeads(data.leads);
         setTotalCount(data.totalCount);
         setPageCount(data.totalPages);
-        setCanExport(data.canExport ?? false);
         setIsAllMatchingSelected(false);
       }
     } catch (error) {
@@ -176,7 +183,7 @@ export default function LeadsPage() {
 
     const confirmed = await confirm({
       title: "Delete Leads",
-      description: `Are you sure you want to delete ${ids.length} lead(s)? This action cannot be undone.`,
+      description: message,
       confirmText: "Delete",
       variant: "destructive",
     });
@@ -191,7 +198,7 @@ export default function LeadsPage() {
 
       if (!response.ok) throw new Error("Failed to delete leads");
 
-      toast.success(`${ids.length} lead(s) deleted`);
+      toast.success(`${allMatching ? totalCount : ids.length} lead(s) deleted`);
       setRowSelection({});
       fetchLeads();
     } catch (error) {
@@ -202,12 +209,10 @@ export default function LeadsPage() {
   const handleExport = async (ids?: string[]) => {
     setIsExporting(true);
     try {
-      let leadsToExport = [];
+      let leadsToExport: Lead[] = [];
       if (ids && ids.length > 0) {
-        // Export only selected
         leadsToExport = leads.filter(l => ids.includes(l.id));
       } else {
-        // Export all matching current filters (matching page 1 size 1000 for simplicity)
         const response = await fetch(`/api/leads?limit=1000`);
         if (response.ok) {
           const data = await response.json();
@@ -265,7 +270,7 @@ export default function LeadsPage() {
 
       if (!response.ok) throw new Error("Failed to update status");
 
-      toast.success(`Status updated for ${ids.length} lead(s)`);
+      toast.success(`Status updated`);
       setRowSelection({});
       fetchLeads();
     } catch (error) {
@@ -314,7 +319,11 @@ export default function LeadsPage() {
       {
         accessorKey: "name",
         header: "Name",
-        cell: ({ row }) => row.original.name || row.original.contact?.name || "—",
+        cell: ({ row }) => (
+          <div className="font-medium whitespace-nowrap">
+            {row.original.name || row.original.contact?.name || "—"}
+          </div>
+        ),
       },
       {
         accessorKey: "email",
@@ -322,7 +331,7 @@ export default function LeadsPage() {
         cell: ({ row }) => {
           const email = getLeadEmail(row.original);
           return email ? (
-            <a href={`mailto:${email}`} className="text-blue-600 hover:underline inline-flex items-center gap-1">
+            <a href={`mailto:${email}`} className="text-blue-600 hover:underline inline-flex items-center gap-1 whitespace-nowrap">
               <Mail className="h-3 w-3" />
               {email}
             </a>
@@ -335,15 +344,15 @@ export default function LeadsPage() {
         cell: ({ row }) => {
           const phone = getLeadPhone(row.original);
           return phone ? (
-            <a href={`tel:${phone}`} className="text-muted-foreground hover:underline inline-flex items-center gap-1">
+            <a href={`tel:${phone}`} className="text-muted-foreground hover:underline inline-flex items-center gap-1 whitespace-nowrap">
               <Phone className="h-3 w-3" />
               {phone}
             </a>
           ) : "—";
         },
       },
-      { accessorKey: "company", header: "Company", cell: ({ row }) => row.original.company || "—" },
-      { accessorKey: "businessType", header: "Business Type", cell: ({ row }) => row.original.businessType || "—" },
+      { accessorKey: "company", header: "Company", cell: ({ row }) => <span className="whitespace-nowrap">{row.original.company || "—"}</span> },
+      { accessorKey: "businessType", header: "Business Type", cell: ({ row }) => <span className="whitespace-nowrap">{row.original.businessType || "—"}</span> },
       {
         id: "enquiry",
         header: "Enquiry",
@@ -356,8 +365,17 @@ export default function LeadsPage() {
       ...dynamicColumns.map((dcol) => ({
         id: dcol.key,
         header: dcol.label,
-        cell: ({ row }: { row: any }) => getFlowInputs(row.original)[dcol.key] || "—",
+        cell: ({ row }: { row: any }) => <span className="max-w-xs truncate block">{getFlowInputs(row.original)[dcol.key] || "—"}</span>,
       })),
+      {
+        id: "plan",
+        header: "Plan",
+        cell: ({ row }) => row.original.interestedInSubscription ? (
+          getPlanBadge(row.original.selectedPlan, row.original.trialRequested)
+        ) : (
+          <Badge variant="outline" className="bg-gray-100">Not Interested</Badge>
+        ),
+      },
       {
         accessorKey: "status",
         header: "Status",
@@ -375,7 +393,7 @@ export default function LeadsPage() {
       {
         accessorKey: "createdAt",
         header: "Captured At",
-        cell: ({ row }) => new Date(row.original.createdAt).toLocaleString(),
+        cell: ({ row }) => <span className="whitespace-nowrap">{new Date(row.original.createdAt).toLocaleString()}</span>,
       },
       {
         id: "actions",
@@ -390,6 +408,22 @@ export default function LeadsPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {getLeadEmail(row.original) && (
+                  <DropdownMenuItem asChild>
+                    <a href={`mailto:${getLeadEmail(row.original)}`}>
+                      <Mail className="mr-2 h-4 w-4" />
+                      Email lead
+                    </a>
+                  </DropdownMenuItem>
+                )}
+                {getLeadPhone(row.original) && (
+                  <DropdownMenuItem asChild>
+                    <a href={`tel:${getLeadPhone(row.original)}`}>
+                      <Phone className="mr-2 h-4 w-4" />
+                      Call lead
+                    </a>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={() => handleDeleteLeads([row.original.id])} className="text-destructive">
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete
@@ -408,349 +442,81 @@ export default function LeadsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col md:flex-row justify-between items-start gap-4">
         <div>
           <h1 className="text-3xl font-bold">Leads</h1>
           <p className="text-muted-foreground mt-2">
             Review website enquiries captured through your chat widget and lead forms
           </p>
         </div>
-        {selectedIds.length > 0 && (
-          <div className="flex gap-2 animate-in fade-in slide-in-from-top-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                  Update Status ({currentSelectionCount})
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                {["new", "contacted", "qualified", "converted", "lost"].map((s) => (
-                  <DropdownMenuItem key={s} onClick={() => handleUpdateStatus(selectedIds, s, isAllMatchingSelected)}>
-                    Mark as {s.charAt(0).toUpperCase() + s.slice(1)}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button variant="outline" size="sm" onClick={() => handleExport(isAllMatchingSelected ? undefined : selectedIds)} disabled={isExporting}>
-              <Download className="mr-2 h-4 w-4" />
-              Export {isAllMatchingSelected ? "All" : "Selected"} ({currentSelectionCount})
-            </Button>
-            <Button variant="destructive" size="sm" onClick={() => handleDeleteLeads(selectedIds, isAllMatchingSelected)}>
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete ({currentSelectionCount})
-            </Button>
-          </div>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {selectedIds.length > 0 && (
+            <div className="flex gap-2 animate-in fade-in slide-in-from-top-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Update Status ({currentSelectionCount})
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  {["new", "contacted", "qualified", "converted", "lost"].map((s) => (
+                    <DropdownMenuItem key={s} onClick={() => handleUpdateStatus(selectedIds, s, isAllMatchingSelected)}>
+                      Mark as {s.charAt(0).toUpperCase() + s.slice(1)}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button variant="outline" size="sm" onClick={() => handleExport(isAllMatchingSelected ? undefined : selectedIds)} disabled={isExporting}>
+                <Download className="mr-2 h-4 w-4" />
+                Export {isAllMatchingSelected ? "All" : "Selected"} ({currentSelectionCount})
+              </Button>
+              <Button variant="destructive" size="sm" onClick={() => handleDeleteLeads(selectedIds, isAllMatchingSelected)}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete ({currentSelectionCount})
+              </Button>
+            </div>
+          )}
+          <Button variant="outline" size="sm" onClick={() => handleExport()} disabled={isExporting || leads.length === 0}>
+             {isExporting ? <span className="animate-spin mr-2">◌</span> : <Download className="mr-2 h-4 w-4" />}
+             Export All
+          </Button>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>All Leads</CardTitle>
-            <CardDescription>
-              View and manage your leads with advanced filtering and batch actions.
-            </CardDescription>
-          </div>
-          {canExport && leads.length > 0 && (
-             <Button
-               variant="outline"
-               size="sm"
-               onClick={() => handleExport()}
-               disabled={isExporting}
-             >
-               {isExporting ? <span className="animate-spin mr-2">◌</span> : <Download className="mr-2 h-4 w-4" />}
-               Export All
-             </Button>
-          )}
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : leads.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              No leads yet. New website enquiries will appear here after a
-              visitor submits your chat widget or lead capture form.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Business Type</TableHead>
-                    <TableHead>Enquiry</TableHead>
-                    {dynamicColumns.map((col) => (
-                      <TableHead key={col.key}>{col.label}</TableHead>
-                    ))}
-                    <TableHead>Plan</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Source</TableHead>
-                    <TableHead>Captured At</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {leads.map((lead) => {
-                    const flowInputs = getFlowInputs(lead);
-                    return (
-                      <TableRow key={lead.id}>
-                        <TableCell className="font-medium whitespace-nowrap">
-                          {lead.name || lead.contact?.name || "—"}
-                        </TableCell>
-                        <TableCell>
-                          {getLeadEmail(lead) ? (
-                            <a
-                              href={`mailto:${getLeadEmail(lead)}`}
-                              className="inline-flex items-center gap-1 text-blue-600 hover:underline whitespace-nowrap"
-                            >
-                              <Mail className="h-3.5 w-3.5 shrink-0" />
-                              {getLeadEmail(lead)}
-                            </a>
-                          ) : (
-                            "—"
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {getLeadPhone(lead) ? (
-                            <a
-                              href={`tel:${getLeadPhone(lead)}`}
-                              className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground hover:underline whitespace-nowrap"
-                            >
-                              <Phone className="h-3.5 w-3.5 shrink-0" />
-                              {getLeadPhone(lead)}
-                            </a>
-                          ) : (
-                            "—"
-                          )}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          {lead.company || "—"}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          {lead.businessType || "—"}
-                        </TableCell>
-                        <TableCell className="max-w-xs whitespace-pre-wrap text-sm text-muted-foreground">
-                          {readEnquiry(lead.metadata) || "—"}
-                        </TableCell>
-                        {dynamicColumns.map((col) => (
-                          <TableCell
-                            key={col.key}
-                            className="max-w-xs whitespace-pre-wrap text-sm"
-                          >
-                            {flowInputs[col.key] || "—"}
-                          </TableCell>
-                        ))}
-                        <TableCell>
-                          {lead.interestedInSubscription ? (
-                            getPlanBadge(
-                              lead.selectedPlan,
-                              lead.trialRequested,
-                            )
-                          ) : (
-                            <Badge variant="outline" className="bg-gray-100">
-                              Not Interested
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            className={`${getStatusColor(lead.status)} text-white`}
-                          >
-                            {lead.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{formatLeadSource(lead.source)}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                          {new Date(lead.createdAt).toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                aria-label="Lead options"
-                              >
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {getLeadEmail(lead) ? (
-                                <DropdownMenuItem asChild>
-                                  <a href={`mailto:${getLeadEmail(lead)}`}>
-                                    <Mail className="mr-2 h-4 w-4" />
-                                    Email lead
-                                  </a>
-                                </DropdownMenuItem>
-                              ) : null}
-                              {getLeadPhone(lead) ? (
-                                <DropdownMenuItem asChild>
-                                  <a href={`tel:${getLeadPhone(lead)}`}>
-                                    <Phone className="mr-2 h-4 w-4" />
-                                    Call lead
-                                  </a>
-                                </DropdownMenuItem>
-                              ) : null}
-                              <DropdownMenuItem
-                                onClick={() => handleDeleteLead(lead.id)}
-                                disabled={deletingLeadId === lead.id}
-                                className="text-destructive"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                {deletingLeadId === lead.id
-                                  ? "Deleting..."
-                                  : "Delete"}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ── Export CSV dialog ─────────────────────────────────────────── */}
-      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Export Leads as CSV</DialogTitle>
-            <DialogDescription>
-              Choose which columns to include. All columns are selected by
-              default.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="max-h-80 overflow-y-auto space-y-3 py-2 pr-1">
-            {allExportColumns.map((col) => (
-              <div key={col.key} className="flex items-center gap-3">
-                <Checkbox
-                  id={`col-${col.key}`}
-                  checked={selectedColumns.has(col.key)}
-                  onCheckedChange={() => toggleColumn(col.key)}
-                />
-                <Label
-                  htmlFor={`col-${col.key}`}
-                  className="cursor-pointer font-normal"
-                >
-                  {col.label}
-                </Label>
-              </div>
-            ))}
-          </div>
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setExportDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleExport}>
-              <Download className="mr-2 h-4 w-4" />
-              Download CSV
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Lead Pipeline Summary ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      {/* Pipeline Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {[
-          { status: "new", label: "New Leads", color: "bg-blue-500" },
-          {
-            status: "contacted",
-            label: "Contacted",
-            color: "bg-yellow-500",
-          },
-          {
-            status: "qualified",
-            label: "Qualified",
-            color: "bg-emerald-500",
-          },
-          {
-            status: "converted",
-            label: "Converted",
-            color: "bg-purple-500",
-          },
+          { status: "new", label: "New", color: "bg-blue-500" },
+          { status: "contacted", label: "Contacted", color: "bg-yellow-500" },
+          { status: "qualified", label: "Qualified", color: "bg-emerald-500" },
+          { status: "converted", label: "Converted", color: "bg-purple-500" },
           { status: "lost", label: "Lost", color: "bg-red-500" },
-        ].map((item) => (
-          <Card
-            key={item.status}
-            className={`border-t-4 ${
-              item.status === "new"
-                ? "border-blue-500"
-                : item.status === "contacted"
-                  ? "border-yellow-500"
-                  : item.status === "qualified"
-                    ? "border-emerald-500"
-                    : item.status === "converted"
-                      ? "border-purple-500"
-                      : "border-red-500"
-            }`}
-          >
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                {item.label}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">
-                {leads.filter((l) => l.status === item.status).length}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {leads.length > 0
-                  ? Math.round(
-                      (leads.filter((l) => l.status === item.status).length /
-                        leads.length) *
-                        100,
-                    )
-                  : 0}
-                % of total
-              </p>
-            </CardContent>
-          </Card>
-        ))}
+        ].map((item) => {
+          const count = leads.filter((l) => l.status === item.status).length;
+          const percentage = leads.length > 0 ? Math.round((count / leads.length) * 100) : 0;
+          return (
+            <Card key={item.status} className="border-l-4" style={{ borderLeftColor: item.color.replace('bg-', '') }}>
+              <CardHeader className="p-4 pb-0">
+                <CardTitle className="text-xs font-medium text-muted-foreground uppercase">{item.label}</CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 pt-2">
+                <div className="text-2xl font-bold">{count}</div>
+                <div className="text-[10px] text-muted-foreground mt-1">{percentage}% of total</div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
-      {/* ── Lead statistics ───────────────────────────────────────────── */}
       <Card>
         <CardHeader>
-          <CardTitle>Interest & Activation</CardTitle>
+          <CardTitle>All Leads</CardTitle>
+          <CardDescription>
+            View and manage your leads with advanced filtering and batch actions.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold">{leads.length}</div>
-              <div className="text-sm text-muted-foreground">Total Records</div>
-            </div>
-            <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold">
-                {leads.filter((l) => l.interestedInSubscription).length}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Subscription Interest
-              </div>
-            </div>
-            <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold">
-                {leads.filter((l) => l.trialRequested).length}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Trial Requests
-              </div>
-            </div>
-          </div>
-          
-          {/* ── Delete this section ───────────────────────────────────────────── */}
           <DataTable
             columns={columns}
             data={leads}
@@ -765,10 +531,39 @@ export default function LeadsPage() {
             onSelectAllMatching={setIsAllMatchingSelected}
             isAllMatchingSelected={isAllMatchingSelected}
           />
-          
-         
         </CardContent>
       </Card>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Total Records</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalCount}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Subscription Interest</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {leads.filter((l) => l.interestedInSubscription).length}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Trial Requests</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {leads.filter((l) => l.trialRequested).length}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

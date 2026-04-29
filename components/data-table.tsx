@@ -121,7 +121,7 @@ export function DataTable<TData, TValue>({
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
     enableRowSelection: true,
-    getRowId: getRowId || ((row: any) => row.id),
+    getRowId: getRowId || ((row: TData) => (row as { id?: string }).id || ""),
   });
 
   const handleKeyDown = React.useCallback(
