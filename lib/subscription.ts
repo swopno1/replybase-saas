@@ -1,27 +1,28 @@
-// Count unique conversations created in the current month for Automations / Month
-export async function getMonthlyConversationCount(
-  tenantId: string,
-): Promise<number> {
-  const monthStart = startOfUtcMonth();
-  const monthEnd = startOfNextUtcMonth(monthStart);
-  return prisma.crmConversation.count({
-    where: {
-      contact: { tenantId },
-      createdAt: {
-        gte: monthStart,
-        lt: monthEnd,
-      },
-    },
-  });
-}
 import { prisma } from "@/lib/prisma";
 
 const AGGREGATE_BOT_ID = "__aggregate_bot__";
 const AGGREGATE_CHANNEL_ID = "__aggregate_channel__";
 
 // Industry standards for usage management
-const NOTIFICATION_THRESHOLD = 0.8; // 80% usage
-const GRACE_BUFFER_PERCENT = 0.05;  // 5% grace period
+const WARNING_THRESHOLD = 0.9;  // 90% usage
+const GRACE_THRESHOLD = 1.0;    // 100% usage
+const HARD_LIMIT_THRESHOLD = 1.1; // 110% usage
+
+export enum UsageZone {
+  SAFE = "SAFE",
+  WARNING = "WARNING",
+  GRACE = "GRACE",
+  HARD = "HARD",
+}
+
+export interface UsageStatus {
+  zone: UsageZone;
+  ratio: number;
+  message: string;
+  allowed: boolean;
+}
+
+// --- Date Utilities ---
 
 function startOfUtcDay(date = new Date()): Date {
   const value = new Date(date);
@@ -46,6 +47,8 @@ function startOfNextUtcMonth(date = new Date()): Date {
 function secondsUntil(target: Date, from = new Date()): number {
   return Math.max(1, Math.ceil((target.getTime() - from.getTime()) / 1000));
 }
+
+// --- Helper Functions ---
 
 function normalizeUsageDimension(
   value: string | undefined,
@@ -81,6 +84,24 @@ async function getUsageCount(input: {
   return result._sum.count ?? 0;
 }
 
+export async function getMonthlyConversationCount(
+  tenantId: string,
+): Promise<number> {
+  const monthStart = startOfUtcMonth();
+  const monthEnd = startOfNextUtcMonth(monthStart);
+  return prisma.crmConversation.count({
+    where: {
+      contact: { tenantId },
+      createdAt: {
+        gte: monthStart,
+        lt: monthEnd,
+      },
+    },
+  });
+}
+
+// --- Subscription Logic ---
+
 async function getActiveSubscriptionWithPlan(tenantId: string) {
   return prisma.subscription.findFirst({
     where: {
@@ -100,7 +121,6 @@ export async function getTenantLimits(tenantId: string) {
   const subscription = await getActiveSubscriptionWithPlan(tenantId);
 
   if (!subscription) {
-    // Return default Free plan if no subscription found
     const freePlan = await prisma.plan.findUnique({
       where: { name: "free" },
     });
@@ -117,7 +137,7 @@ export async function getTenantLimits(tenantId: string) {
       dailyMessageLimit: 0,
       name: "suspended",
       displayName: "Suspended",
-      planName: "Suspended", // Legacy/Extra
+      planName: "Suspended",
       id: "suspended",
       currency: "GBP",
       price: 0,
@@ -125,6 +145,9 @@ export async function getTenantLimits(tenantId: string) {
       flowExecutionCap: 0,
       maxChannelsPerBot: 0,
       maxConversations: 0,
+      maxContacts: 0,
+      maxIntegrations: 0,
+      maxFlows: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
       features: [],
@@ -137,30 +160,66 @@ export async function getTenantLimits(tenantId: string) {
   };
 }
 
-export async function checkBotLimit(tenantId: string) {
-  const limits = await getTenantLimits(tenantId);
+export function getUsageStatus(current: number, limit: number): UsageStatus {
+  if (limit <= 0) {
+    return {
+      zone: UsageZone.HARD,
+      ratio: 1,
+      message: "Limit reached. Please upgrade your plan.",
+      allowed: false,
+    };
+  }
 
-  const botCount = await prisma.bot.count({
-    where: { tenantId },
-  });
+  const ratio = current / limit;
+
+  if (ratio >= HARD_LIMIT_THRESHOLD) {
+    return {
+      zone: UsageZone.HARD,
+      ratio,
+      message: "Hard limit exceeded. Action blocked.",
+      allowed: false,
+    };
+  }
+
+  if (ratio >= GRACE_THRESHOLD) {
+    return {
+      zone: UsageZone.GRACE,
+      ratio,
+      message: "You've exceeded your limit. Upgrade recommended to avoid service interruption.",
+      allowed: true,
+    };
+  }
+
+  if (ratio >= WARNING_THRESHOLD) {
+    return {
+      zone: UsageZone.WARNING,
+      ratio,
+      message: "You're nearing your limit. Consider upgrading soon.",
+      allowed: true,
+    };
+  }
 
   return {
-    allowed: botCount < limits.maxBots,
-    limit: limits.maxBots,
-    current: botCount,
-    planName: limits.displayName || limits.name,
+    zone: UsageZone.SAFE,
+    ratio,
+    message: "",
+    allowed: true,
   };
 }
 
-// Added missing export
+// --- Usage Monitoring ---
+
 export async function getTenantUsage(tenantId: string) {
   const limits = await getTenantLimits(tenantId);
   const today = startOfUtcDay();
   const monthStart = startOfUtcMonth();
 
-  const [botCount, dailyMessages, monthlyMessages, dailyFlowExecutions] =
+  const [botCount, contactCount, dailyMessages, monthlyMessages, dailyFlowExecutions] =
     await Promise.all([
       prisma.bot.count({
+        where: { tenantId },
+      }),
+      prisma.contact.count({
         where: { tenantId },
       }),
       getUsageCount({
@@ -190,69 +249,77 @@ export async function getTenantUsage(tenantId: string) {
     dailyFlowExecutions,
     usage: {
       bots: botCount,
+      contacts: contactCount,
       messages: monthlyMessages,
     },
   };
 }
-// Alias for legacy support
-export const getTenantSubscription = getTenantLimits;
 
-/**
- * Sends notifications if usage crosses thresholds (80%, 100%)
- */
-async function notifyUsageIfNeeded(tenantId: string, type: string, current: number, limit: number) {
-  if (limit <= 0) return;
-  
-  const usageRatio = current / limit;
-  let threshold = 0;
+export async function checkBotLimit(tenantId: string) {
+  const limits = await getTenantLimits(tenantId);
+  const botCount = await prisma.bot.count({
+    where: { tenantId },
+  });
 
-  if (usageRatio >= 1.0) {
-    threshold = 1.0;
-  } else if (usageRatio >= NOTIFICATION_THRESHOLD) {
-    threshold = NOTIFICATION_THRESHOLD;
-  }
+  const status = getUsageStatus(botCount, limits.maxBots);
 
-  if (threshold === 0) return;
+  return {
+    allowed: status.allowed,
+    limit: limits.maxBots,
+    current: botCount,
+    planName: limits.displayName || limits.name,
+    status,
+  };
+}
 
-  // For 1.0 (100%), we always notify if it's the first time today
-  // For 0.8 (80%), we only notify once per period
-  const logType = threshold === 1.0 ? "USAGE_LIMIT_EXCEEDED" : "USAGE_LIMIT_WARNING";
-  
-  try {
-    // Check if we already logged this today to avoid noise
-    const today = startOfUtcDay();
-    const existing = await prisma.activityLog.findFirst({
-      where: {
+// --- Downgrade Handling ---
+
+export async function handlePlanDowngrade(tenantId: string, newPlanId: string) {
+  const newPlan = await prisma.plan.findUnique({ where: { id: newPlanId } });
+  if (!newPlan) return;
+
+  // 1. Check Bot/Integration limits
+  const bots = await prisma.bot.findMany({
+    where: { tenantId },
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (bots.length > newPlan.maxBots) {
+    const botsToDeactivate = bots.slice(newPlan.maxBots);
+    await prisma.bot.updateMany({
+      where: { id: { in: botsToDeactivate.map((b) => b.id) } },
+      data: { enabled: false },
+    });
+    
+    await prisma.activityLog.create({
+      data: {
         tenantId,
-        type: logType,
-        createdAt: { gte: today }
+        type: "PLAN_DOWNGRADE_ADJUSTMENT",
+        title: "Integration Limits Adjusted",
+        description: `Downgraded to ${newPlan.displayName}. ${botsToDeactivate.length} bot(s) were deactivated but your data is preserved.`,
       }
     });
+  }
 
-    if (!existing) {
-      await prisma.activityLog.create({
-        data: {
-          tenantId,
-          type: logType,
-          title: threshold === 1.0 ? "Usage Limit Reached" : "Usage Warning (80%)",
-          description: `Your ${type.replace('_', ' ')} usage has reached ${Math.floor(usageRatio * 100)}% of your plan limit (${current}/${limit}).`,
-          metadata: { threshold, current, limit, type }
-        }
+  // 2. Check Channels per bot
+  for (const bot of bots) {
+    const channels = await prisma.channel.findMany({
+      where: { botId: bot.id },
+      orderBy: { createdAt: "asc" },
+    });
+
+    if (channels.length > newPlan.maxChannelsPerBot) {
+      const channelsToDeactivate = channels.slice(newPlan.maxChannelsPerBot);
+      await prisma.channel.updateMany({
+        where: { id: { in: channelsToDeactivate.map((c) => c.id) } },
+        data: { enabled: false },
       });
-      
-      // TODO: Integrate with sendEmail once tenant admin email is easily accessible here
-      console.log(`[Usage Alert] Tenant ${tenantId} reached ${threshold * 100}% of ${type}`);
     }
-  } catch (err) {
-    console.error("Failed to process usage notification:", err);
   }
 }
 
-/**
- * Rate limiting helpers (used by `lib/rate-limit.ts`)
- *
- * Enforces persisted usage limits using the `usage_logs` table.
- */
+// --- Rate Limiting Enforcement ---
+
 export async function checkLimit(
   userId: string,
   type: "message" | "flow_execution",
@@ -261,6 +328,7 @@ export async function checkLimit(
   remaining: number;
   limit: number;
   retryAfter?: number;
+  status: UsageStatus;
 }> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -268,7 +336,12 @@ export async function checkLimit(
   });
 
   if (!user?.tenantId) {
-    return { allowed: false, remaining: 0, limit: 0 };
+    return { 
+      allowed: false, 
+      remaining: 0, 
+      limit: 0,
+      status: { zone: UsageZone.HARD, ratio: 1, message: "Unauthorized", allowed: false }
+    };
   }
 
   const limits = await getTenantLimits(user.tenantId);
@@ -280,7 +353,8 @@ export async function checkLimit(
     const monthlyLimit = limits.monthlyMessageLimit;
 
     if (!dailyLimit || dailyLimit <= 0 || !monthlyLimit || monthlyLimit <= 0) {
-      return { allowed: false, remaining: 0, limit: 0 };
+      const status = { zone: UsageZone.HARD, ratio: 1, message: "No active plan limits found.", allowed: false };
+      return { allowed: false, remaining: 0, limit: 0, status };
     }
 
     const [dailyUsage, monthlyUsage] = await Promise.all([
@@ -298,41 +372,33 @@ export async function checkLimit(
       }),
     ]);
 
-    const dailyRemaining = Math.max(dailyLimit * (1 + GRACE_BUFFER_PERCENT) - dailyUsage, 0);
-    const monthlyRemaining = Math.max(monthlyLimit * (1 + GRACE_BUFFER_PERCENT) - monthlyUsage, 0);
+    const dailyStatus = getUsageStatus(dailyUsage, dailyLimit);
+    const monthlyStatus = getUsageStatus(monthlyUsage, monthlyLimit);
 
-    if (dailyRemaining <= 0) {
-      return {
-        allowed: false,
-        remaining: 0,
-        limit: dailyLimit,
-        retryAfter: secondsUntil(startOfNextUtcDay(now), now),
-      };
-    }
+    const status = monthlyStatus.zone === UsageZone.HARD || dailyStatus.zone === UsageZone.HARD
+      ? (monthlyStatus.zone === UsageZone.HARD ? monthlyStatus : dailyStatus)
+      : (monthlyStatus.ratio > dailyStatus.ratio ? monthlyStatus : dailyStatus);
 
-    if (monthlyRemaining <= 0) {
-      return {
-        allowed: false,
-        remaining: 0,
-        limit: monthlyLimit,
-        retryAfter: secondsUntil(startOfNextUtcMonth(now), now),
-      };
-    }
+    const dailyRemaining = Math.max(dailyLimit * HARD_LIMIT_THRESHOLD - dailyUsage, 0);
+    const monthlyRemaining = Math.max(monthlyLimit * HARD_LIMIT_THRESHOLD - monthlyUsage, 0);
 
     const monthlyIsTighter = monthlyRemaining < dailyRemaining;
+    
     return {
-      allowed: true,
+      allowed: status.allowed,
       remaining: Math.floor(monthlyIsTighter ? monthlyRemaining : dailyRemaining),
       limit: monthlyIsTighter ? monthlyLimit : dailyLimit,
       retryAfter: monthlyIsTighter
         ? secondsUntil(startOfNextUtcMonth(now), now)
         : secondsUntil(startOfNextUtcDay(now), now),
+      status,
     };
   }
 
   const limit = limits.flowExecutionCap;
   if (!limit || limit <= 0) {
-    return { allowed: false, remaining: 0, limit: 0 };
+    const status = { zone: UsageZone.HARD, ratio: 1, message: "Limit reached.", allowed: false };
+    return { allowed: false, remaining: 0, limit: 0, status };
   }
 
   const dailyUsage = await getUsageCount({
@@ -342,21 +408,15 @@ export async function checkLimit(
     endDate: startOfNextUtcDay(today),
   });
 
-  const remaining = Math.max(limit * (1 + GRACE_BUFFER_PERCENT) - dailyUsage, 0);
-  if (remaining <= 0) {
-    return {
-      allowed: false,
-      remaining: 0,
-      limit,
-      retryAfter: secondsUntil(startOfNextUtcDay(now), now),
-    };
-  }
+  const status = getUsageStatus(dailyUsage, limit);
+  const remaining = Math.max(limit * HARD_LIMIT_THRESHOLD - dailyUsage, 0);
 
   return {
-    allowed: true,
+    allowed: status.allowed,
     remaining: Math.floor(remaining),
     limit,
     retryAfter: secondsUntil(startOfNextUtcDay(now), now),
+    status,
   };
 }
 
@@ -410,7 +470,6 @@ export async function incrementUsage(
   });
 
   // Check for notifications after incrementing
-  // We fetch total usage to be accurate
   const limits = await getTenantLimits(user.tenantId);
   const now = new Date();
   
@@ -432,3 +491,49 @@ export async function incrementUsage(
     await notifyUsageIfNeeded(user.tenantId, "flow_executions", dailyUsage, limits.flowExecutionCap);
   }
 }
+
+async function notifyUsageIfNeeded(tenantId: string, type: string, current: number, limit: number) {
+  if (limit <= 0) return;
+  
+  const usageRatio = current / limit;
+  let threshold = 0;
+
+  if (usageRatio >= 1.0) {
+    threshold = 1.0;
+  } else if (usageRatio >= WARNING_THRESHOLD) {
+    threshold = WARNING_THRESHOLD;
+  }
+
+  if (threshold === 0) return;
+
+  const logType = threshold === 1.0 ? "USAGE_LIMIT_EXCEEDED" : "USAGE_LIMIT_WARNING";
+  
+  try {
+    const today = startOfUtcDay();
+    const existing = await prisma.activityLog.findFirst({
+      where: {
+        tenantId,
+        type: logType,
+        createdAt: { gte: today }
+      }
+    });
+
+    if (!existing) {
+      await prisma.activityLog.create({
+        data: {
+          tenantId,
+          type: logType,
+          title: threshold === 1.0 ? "Usage Limit Reached" : `Usage Warning (${Math.floor(threshold * 100)}%)`,
+          description: `Your ${type.replace('_', ' ')} usage has reached ${Math.floor(usageRatio * 100)}% of your plan limit (${current}/${limit}).`,
+          metadata: { threshold, current, limit, type }
+        }
+      });
+      console.log(`[Usage Alert] Tenant ${tenantId} reached ${threshold * 100}% of ${type}`);
+    }
+  } catch (err) {
+    console.error("Failed to process usage notification:", err);
+  }
+}
+
+// Alias for legacy support
+export const getTenantSubscription = getTenantLimits;
