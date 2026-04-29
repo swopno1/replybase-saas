@@ -220,12 +220,12 @@ async function cleanupFacebookUserData(psid: string) {
     },
   });
 
-  for (const identity of identities) {
-    const contactId = identity.contactId;
+  const contactIds = identities.map((i) => i.contactId);
 
+  if (contactIds.length > 0) {
     // Meta's "Data Deletion" requires complete removal of data received from them.
     const conversations = await prisma.crmConversation.findMany({
-      where: { contactId },
+      where: { contactId: { in: contactIds } },
       select: { id: true },
     });
     const conversationIds = conversations.map((c) => c.id);
@@ -238,28 +238,28 @@ async function cleanupFacebookUserData(psid: string) {
         where: { conversationId: { in: conversationIds } },
       }),
       prisma.lead.deleteMany({
-        where: { contactId },
+        where: { contactId: { in: contactIds } },
       }),
       prisma.onboardingSession.deleteMany({
-        where: { contactId },
+        where: { contactId: { in: contactIds } },
       }),
       prisma.flowSession.deleteMany({
         where: { userId: psid },
       }),
       prisma.crmConversation.deleteMany({
-        where: { contactId },
+        where: { contactId: { in: contactIds } },
       }),
       prisma.contactIdentity.deleteMany({
-        where: { contactId },
+        where: { contactId: { in: contactIds } },
       }),
-      prisma.contact.delete({
-        where: { id: contactId },
+      prisma.contact.deleteMany({
+        where: { id: { in: contactIds } },
       }),
     ]);
+  } else {
+    // Also catch any FlowSessions that might not be linked to a contact yet
+    await prisma.flowSession.deleteMany({
+      where: { userId: psid },
+    });
   }
-
-  // Also catch any FlowSessions that might not be linked to a contact yet
-  await prisma.flowSession.deleteMany({
-    where: { userId: psid },
-  });
 }

@@ -45,6 +45,7 @@ vi.mock('@/lib/prisma', () => ({
     },
     contact: {
       delete: vi.fn(),
+      deleteMany: vi.fn(),
     },
     channel: {
       deleteMany: vi.fn(),
