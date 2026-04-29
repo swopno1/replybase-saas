@@ -60,9 +60,9 @@ export interface FlowTemplateDefinition {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
-  name: "Welcome Flow: Triage & Routing",
+  name: "Orchestra Welcome: Intent-Driven Greeting",
   description:
-    "A universal entry flow that greets visitors warmly, captures their intent, and routes them to the right path.",
+    "A sophisticated orchestrator flow that uses conversational intelligence to detect user intent and route them to the right consultant module.",
   category: "welcome",
   icon: "🌍",
   group: "Universal",
@@ -70,7 +70,7 @@ export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Hi there! 👋 Thanks for stopping by. I'm here to make things easy for you.",
+        text: "Hi there! 👋 I'm your ReplyBase assistant. I noticed you landed on our page—super excited to have you here! 🚀",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1000,
@@ -80,12 +80,12 @@ export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What's on your mind today? Whether it's pricing, booking, or just a quick question, I'm ready to help.",
-        variableName: "last_request",
+        text: "A quick question before we dive in: Are you here to explore how AI chatbots can transform your support, or are you curious about how ReplyBase specifically works for your team?",
+        variableName: "user_intent_raw",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 600,
         typingEnabled: true,
-        typingDurationMs: 800,
+        typingDurationMs: 1200,
       },
       order: 1,
     },
@@ -94,26 +94,50 @@ export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
       content: {
         conditions: [
           {
-            variableName: "last_request",
+            variableName: "user_intent_raw",
             operator: "contains",
             value: "price",
             nextNodeOrder: 3,
           },
           {
-            variableName: "last_request",
+            variableName: "user_intent_raw",
             operator: "contains",
-            value: "book",
+            value: "cost",
+            nextNodeOrder: 3,
+          },
+          {
+            variableName: "user_intent_raw",
+            operator: "contains",
+            value: "feature",
             nextNodeOrder: 4,
           },
+          {
+            variableName: "user_intent_raw",
+            operator: "contains",
+            value: "work",
+            nextNodeOrder: 4,
+          },
+          {
+            variableName: "user_intent_raw",
+            operator: "contains",
+            value: "business",
+            nextNodeOrder: 5,
+          },
+          {
+            variableName: "user_intent_raw",
+            operator: "contains",
+            value: "team",
+            nextNodeOrder: 5,
+          },
         ],
-        nextNodeOrder: 5,
+        nextNodeOrder: 6,
       },
       order: 2,
     },
     {
       type: "message",
       content: {
-        text: "I'd love to get some pricing options over to you. 💰 If you could just share your name and email, our team will send a tailored package your way shortly.",
+        text: "Smart question. 💰 ReplyBase pricing is based on conversation volume, not seats, which usually saves teams 30-50%. Before I give you the numbers, what's your rough monthly conversation volume?",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -124,10 +148,10 @@ export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Exciting! 📅 Tell me roughly when you were thinking, and we'll check our availability for you right away.",
+        text: "I'd love to show you the magic! ✨ From Smart Intent Recognition to seamless Human Handoff, we've got you covered. What's the biggest support challenge you're looking to solve right now?",
         delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 1000,
+        typingDurationMs: 1200,
         nextNodeOrder: 10,
       },
       order: 4,
@@ -135,13 +159,24 @@ export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "No problem at all. If you leave your question and the best way to reach you, I'll make sure one of the team gets back to you personally. 🙌",
+        text: "That helps a ton! 🏢 Business users usually care most about ROI and reliability. To give you the most relevant info, what industry are you in? (e.g. SaaS, E-commerce, Agency)",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1200,
         nextNodeOrder: 10,
       },
       order: 5,
+    },
+    {
+      type: "message",
+      content: {
+        text: "Got it. No matter what brought you here, we're ready to help. 🙌 What would moving the needle on your customer experience actually look like for your bottom line?",
+        delayMs: 500,
+        typingEnabled: true,
+        typingDurationMs: 1200,
+        nextNodeOrder: 10,
+      },
+      order: 6,
     },
     {
       type: "action",
@@ -152,9 +187,9 @@ export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
 };
 
 export const LEAD_GENERATION_TEMPLATE: FlowTemplateDefinition = {
-  name: "Lead Generation: Qualification Funnel",
+  name: "Orchestra Lead-Gen: Stealth Consultant",
   description:
-    "A conversational way to capture contact details, business info, and requirements for qualification.",
+    "A non-linear, consultant-style flow that captures high-value lead data through conversational bridges rather than rigid forms.",
   category: "lead-generation",
   icon: "👥",
   group: "Universal",
@@ -162,7 +197,7 @@ export const LEAD_GENERATION_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Thanks for reaching out! 🚀 I'd love to help you get started. Let's gather a few bits of info so we can give you the best experience.",
+        text: "Love it! 🚀 Understanding your specific needs helps me recommend the right fit, because enterprise teams need something totally different than solo creators.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -172,189 +207,55 @@ export const LEAD_GENERATION_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "First things first, who am I speaking with? 😊",
+        text: "Quick question to frame this—are you looking at this for personal projects or to empower your whole team? 😊",
+        variableName: "lead_segment",
+        inputType: "text",
+        delayMs: 600,
+        typingEnabled: true,
+        typingDurationMs: 1000,
+      },
+      order: 1,
+    },
+    {
+      type: "message",
+      content: {
+        text: "That makes total sense. [Acknowledge context]. SaaS and E-commerce teams usually find that ReplyBase cuts repetitive support time by 70%.",
+        delayMs: 400,
+        typingEnabled: true,
+        typingDurationMs: 800,
+      },
+      order: 2,
+    },
+    {
+      type: "input",
+      content: {
+        text: "By the way, I'm speaking with...?",
         variableName: "lead_name",
         inputType: "text",
         delayMs: 400,
         typingEnabled: true,
         typingDurationMs: 700,
       },
-      order: 1,
-    },
-    {
-      type: "message",
-      content: {
-        text: "Good to meet you, {{lead_name}}! 👋",
-        delayMs: 200,
-        typingEnabled: true,
-        typingDurationMs: 600,
-      },
-      order: 2,
+      order: 3,
     },
     {
       type: "input",
       content: {
-        text: "What's the best email to reach you on?",
+        text: "Nice to meet you, {{lead_name}}! What's the best work email to send an ROI breakdown to? 📧",
         variableName: "lead_email",
         inputType: "email",
         delayMs: 400,
         typingEnabled: true,
-        typingDurationMs: 700,
-      },
-      order: 3,
-    },
-    {
-      type: "input",
-      content: {
-        text: "And a phone number — only if you're happy to share. No worries if not!",
-        variableName: "lead_phone",
-        inputType: "phone",
-        delayMs: 400,
-        typingEnabled: true,
-        typingDurationMs: 700,
-      },
-      order: 4,
-    },
-    {
-      type: "input",
-      content: {
-        text: "What kind of business do you run? (e.g. e-commerce, agency, SaaS — anything really)",
-        variableName: "lead_business_type",
-        inputType: "text",
-        delayMs: 400,
-        typingEnabled: true,
         typingDurationMs: 800,
       },
-      order: 5,
-    },
-    {
-      type: "input",
-      content: {
-        text: "Roughly how many customer conversations does your team handle per week?",
-        variableName: "lead_volume",
-        inputType: "text",
-        delayMs: 400,
-        typingEnabled: true,
-        typingDurationMs: 700,
-      },
-      order: 6,
-    },
-    {
-      type: "input",
-      content: {
-        text: "Last one — what's your rough monthly budget for tools like this? (e.g. under £50, £50–£100, or flexible)",
-        variableName: "lead_budget",
-        inputType: "text",
-        delayMs: 400,
-        typingEnabled: true,
-        typingDurationMs: 700,
-      },
-      order: 7,
-    },
-    {
-      type: "message",
-      content: {
-        text: "That's really helpful — thank you! 🙌\n\nI've passed your details to the team, and someone will be in touch at {{lead_email}} within 1 business day. In the meantime, feel free to ask me anything.",
-        delayMs: 600,
-        typingEnabled: true,
-        typingDurationMs: 1200,
-      },
-      order: 8,
-    },
-    {
-      type: "action",
-      content: {
-        action: "tag_user",
-        tags: ["lead", "qualified", "new-lead"],
-      },
-      order: 9,
-    },
-    {
-      type: "action",
-      content: {
-        action: "update_status",
-        status: "qualified",
-      },
-      order: 10,
-    },
-    {
-      type: "action",
-      content: { action: "end_flow" },
-      order: 11,
-    },
-  ],
-};
-
-export const LEAD_CAPTURE_TEMPLATE: FlowTemplateDefinition = {
-  name: "Lead Capture: Quick Contact Micro-Flow",
-  description:
-    "A light and fast way to capture essential lead info without being intrusive. Ideal for any business.",
-  category: "lead-capture",
-  icon: "⚡",
-  group: "Universal",
-  nodes: [
-    {
-      type: "message",
-      content: {
-        text: "Hi! 👋 I'll keep this quick so we can get you the help you need.",
-        delayMs: 0,
-        typingEnabled: true,
-        typingDurationMs: 1000,
-      },
-      order: 0,
-    },
-    {
-      type: "input",
-      content: {
-        text: "What's your name?",
-        variableName: "contact_name",
-        inputType: "text",
-        delayMs: 300,
-        typingEnabled: true,
-        typingDurationMs: 600,
-      },
-      order: 1,
-    },
-    {
-      type: "input",
-      content: {
-        text: "And your email address?",
-        variableName: "contact_email",
-        inputType: "email",
-        delayMs: 300,
-        typingEnabled: true,
-        typingDurationMs: 600,
-      },
-      order: 2,
-    },
-    {
-      type: "input",
-      content: {
-        text: "What's the best phone number to reach you?",
-        variableName: "contact_phone",
-        inputType: "phone",
-        delayMs: 300,
-        typingEnabled: true,
-        typingDurationMs: 600,
-      },
-      order: 3,
-    },
-    {
-      type: "input",
-      content: {
-        text: "Briefly, how can we help you today?",
-        variableName: "contact_reason",
-        inputType: "text",
-        delayMs: 300,
-        typingEnabled: true,
-        typingDurationMs: 700,
-      },
       order: 4,
     },
     {
-      type: "message",
+      type: "input",
       content: {
-        text: "Thanks so much! 🙏 We've got your details and we'll be in touch very soon.",
+        text: "And just ballpark—how many support conversations is your team handling per day? 10? 100? 1000+?",
+        variableName: "lead_volume_daily",
+        inputType: "text",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 900,
@@ -362,17 +263,103 @@ export const LEAD_CAPTURE_TEMPLATE: FlowTemplateDefinition = {
       order: 5,
     },
     {
-      type: "action",
+      type: "message",
       content: {
-        action: "tag_user",
-        tags: ["lead", "quick-capture"],
+        text: "Got it! That volume is a sweet spot for automation. 🎯 I've passed your details to our senior strategists, and they'll reach out to {{lead_email}} within 1 business day with a tailored plan.",
+        delayMs: 600,
+        typingEnabled: true,
+        typingDurationMs: 1200,
       },
       order: 6,
     },
     {
       type: "action",
-      content: { action: "end_flow" },
+      content: {
+        action: "tag_user",
+        tags: ["lead", "orchestra-qualified", "consultant-vetted"],
+      },
       order: 7,
+    },
+    {
+      type: "action",
+      content: {
+        action: "update_status",
+        status: "qualified",
+      },
+      order: 8,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 9,
+    },
+  ],
+};
+
+export const LEAD_CAPTURE_TEMPLATE: FlowTemplateDefinition = {
+  name: "Lead Capture: High-Speed Engagement",
+  description:
+    "A ultra-fast engagement flow designed to capture essential contact details while the lead's intent is highest.",
+  category: "lead-capture",
+  icon: "⚡",
+  group: "Universal",
+  nodes: [
+    {
+      type: "message",
+      content: {
+        text: "Hey! 👋 I'll keep this fast so you can get back to what matters.",
+        delayMs: 0,
+        typingEnabled: true,
+        typingDurationMs: 800,
+      },
+      order: 0,
+    },
+    {
+      type: "input",
+      content: {
+        text: "What's the best email for us to send the info you requested? 📧",
+        variableName: "contact_email",
+        inputType: "email",
+        delayMs: 300,
+        typingEnabled: true,
+        typingDurationMs: 600,
+      },
+      order: 1,
+    },
+    {
+      type: "input",
+      content: {
+        text: "And who should we address the message to? 😊",
+        variableName: "contact_name",
+        inputType: "text",
+        delayMs: 300,
+        typingEnabled: true,
+        typingDurationMs: 600,
+      },
+      order: 2,
+    },
+    {
+      type: "message",
+      content: {
+        text: "Thanks, {{contact_name}}! 🙏 We're on it. Check your inbox at {{contact_email}} in the next few minutes. Anything else I can help with while you wait?",
+        delayMs: 500,
+        typingEnabled: true,
+        typingDurationMs: 1000,
+      },
+      order: 3,
+    },
+    {
+      type: "action",
+      content: {
+        action: "tag_user",
+        tags: ["lead", "high-speed-capture", "intent-captured"],
+      },
+      order: 4,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 5,
     },
   ],
 };
@@ -382,9 +369,9 @@ export const LEAD_CAPTURE_TEMPLATE: FlowTemplateDefinition = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const REAL_ESTATE_TEMPLATE: FlowTemplateDefinition = {
-  name: "Real Estate: Buyer & Seller Leads",
+  name: "Real Estate: Buyer & Seller Consultant",
   description:
-    "Tailored for property professionals to help qualify buyer, seller, or rental intent.",
+    "A sophisticated real estate flow that qualifies buyer and seller intent with high-intent tagging and viewing-request actions.",
   category: "real-estate",
   icon: "🏡",
   group: "Professional & B2B",
@@ -392,7 +379,7 @@ export const REAL_ESTATE_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Welcome! 🏡 Whether you're looking for a new home or thinking of moving on, I'm here to help.",
+        text: "Welcome! 🏡 Whether you're hunting for your dream home or looking to make a strategic move, I'm here to ensure the process is seamless.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -402,12 +389,12 @@ export const REAL_ESTATE_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Are you looking to buy, sell, or rent? Or perhaps you'd like to book a viewing?",
+        text: "To get started, are you primarily looking to buy a new property, sell your current home, or perhaps arrange a viewing for a listing that caught your eye?",
         variableName: "property_goal",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 800,
+        typingDurationMs: 1000,
       },
       order: 1,
     },
@@ -424,76 +411,139 @@ export const REAL_ESTATE_TEMPLATE: FlowTemplateDefinition = {
           {
             variableName: "property_goal",
             operator: "contains",
-            value: "buy",
-            nextNodeOrder: 4,
+            value: "valuation",
+            nextNodeOrder: 3,
           },
           {
             variableName: "property_goal",
             operator: "contains",
-            value: "rent",
+            value: "buy",
             nextNodeOrder: 5,
           },
+          {
+            variableName: "property_goal",
+            operator: "contains",
+            value: "viewing",
+            nextNodeOrder: 7,
+          },
         ],
-        nextNodeOrder: 6,
+        nextNodeOrder: 9,
       },
       order: 2,
     },
+    // Seller Path
     {
-      type: "message",
+      type: "input",
       content: {
-        text: "Excellent. If you share your property's postcode and a callback number, we can arrange a free, no-obligation valuation. 📞",
+        text: "Excellent choice. Strategic sellers always get the best results. 📈 What's the postcode of the property you're thinking of selling?",
+        variableName: "seller_postcode",
+        inputType: "text",
         delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 1100,
-        nextNodeOrder: 10,
+        typingDurationMs: 1000,
       },
       order: 3,
     },
     {
       type: "message",
       content: {
-        text: "Fantastic! 🏘️ Let us know your preferred area, budget, and number of bedrooms, and we'll send some matching properties your way.",
+        text: "Got it. We'll prepare a preliminary market report for {{seller_postcode}}. What's the best number for our valuation expert to reach you on? 📞",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1100,
-        nextNodeOrder: 10,
+        nextNodeOrder: 11,
       },
       order: 4,
     },
+    // Buyer Path
     {
-      type: "message",
+      type: "input",
       content: {
-        text: "We can certainly help with that. 🔑 Just tell us your target area, monthly budget, and when you're looking to move.",
+        text: "Fantastic! 🏘️ To find the perfect match, what's your preferred area and rough budget range?",
+        variableName: "buyer_preferences",
+        inputType: "text",
         delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 1100,
-        nextNodeOrder: 10,
+        typingDurationMs: 1000,
       },
       order: 5,
     },
     {
       type: "message",
       content: {
-        text: "Of course! Tell me which property caught your eye and how we can best reach you, and we'll get that viewing sorted. 📋",
+        text: "That helps a lot. We have several off-market listings in that range. What email should we send these exclusive properties to? 📧",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1100,
-        nextNodeOrder: 10,
+        nextNodeOrder: 11,
       },
       order: 6,
+    },
+    // Viewing Path
+    {
+      type: "input",
+      content: {
+        text: "Of course! Nothing beats seeing a property in person. 🔑 Which listing are you interested in, and what's your name?",
+        variableName: "viewing_request_info",
+        inputType: "text",
+        delayMs: 500,
+        typingEnabled: true,
+        typingDurationMs: 1100,
+      },
+      order: 7,
+    },
+    {
+      type: "message",
+      content: {
+        text: "Great to meet you! We'll coordinate with the owners right away. What's the best phone number to confirm your viewing time? 📱",
+        delayMs: 500,
+        typingEnabled: true,
+        typingDurationMs: 1000,
+        nextNodeOrder: 11,
+      },
+      order: 8,
+    },
+    // Default/Other
+    {
+      type: "message",
+      content: {
+        text: "No problem at all. If you share what's on your mind and the best way to reach you, I'll make sure one of our senior agents gets back to you personally. 🙌",
+        delayMs: 500,
+        typingEnabled: true,
+        typingDurationMs: 1200,
+        nextNodeOrder: 15,
+      },
+      order: 9,
+    },
+    // Finalization
+    {
+      type: "action",
+      content: {
+        action: "tag_user",
+        tags: ["real-estate-lead", "intent-qualified", "agent-handoff-requested"],
+      },
+      order: 11,
+    },
+    {
+      type: "action",
+      content: {
+        action: "update_status",
+        status: "qualified",
+      },
+      order: 12,
     },
     {
       type: "action",
       content: { action: "end_flow" },
-      order: 10,
+      order: 15,
     },
   ],
 };
 
 export const SERVICES_TEMPLATE: FlowTemplateDefinition = {
-  name: "Services: Qualification & Booking",
+  name: "Services: Expert Consultation & Quote",
   description:
-    "Perfect for consultants, plumbers, IT support, and other service providers. Qualifies leads and captures booking requests.",
+    "Perfect for service providers. Qualifies project urgency and scope while capturing high-intent lead data with automated tagging.",
   category: "services",
   icon: "🛠️",
   group: "Professional & B2B",
@@ -501,7 +551,7 @@ export const SERVICES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Hi there! 👋 Thanks for thinking of us. We're ready to help with your project or any maintenance you need.",
+        text: "Hi there! 👋 Thanks for reaching out. We pride ourselves on delivering high-quality solutions for projects exactly like yours.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -511,31 +561,31 @@ export const SERVICES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Tell us a bit about what you're looking for help with today.",
+        text: "To make sure I connect you with the right specialist, tell me a bit about the main challenge you're looking to solve today. 🛠️",
         variableName: "service_description",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 600,
         typingEnabled: true,
-        typingDurationMs: 800,
+        typingDurationMs: 1000,
       },
       order: 1,
     },
     {
       type: "input",
       content: {
-        text: "Is this something urgent, or are you looking to schedule it for a later date?",
-        variableName: "urgency",
+        text: "Makes sense. Is this something you need resolved urgently, or are you in the planning phase for a later date? 📅",
+        variableName: "urgency_status",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 800,
+        typingDurationMs: 900,
       },
       order: 2,
     },
     {
       type: "input",
       content: {
-        text: "Great. And who should we ask for when we follow up?",
+        text: "Got it. And who should our team ask for when they reach out with your personalized quote? 😊",
         variableName: "customer_name",
         inputType: "text",
         delayMs: 400,
@@ -547,19 +597,19 @@ export const SERVICES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What's the best phone number to reach you on?",
+        text: "Nice to meet you, {{customer_name}}! What's the best phone number to reach you on for a quick 5-minute discovery chat? 📞",
         variableName: "phone_number",
         inputType: "phone",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 700,
+        typingDurationMs: 800,
       },
       order: 4,
     },
     {
       type: "message",
       content: {
-        text: "Perfect. ✅ I've sent your details to the team. They'll review everything and get back to you with the next steps very soon.",
+        text: "Perfect. ✅ I've prioritized your request. Our team will review your project details and get back to you with the next steps very soon. Anything else you'd like to add?",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -570,7 +620,7 @@ export const SERVICES_TEMPLATE: FlowTemplateDefinition = {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["service-request", "new-enquiry"],
+        tags: ["service-lead", "quote-requested", "high-intent"],
       },
       order: 6,
     },
@@ -591,9 +641,9 @@ export const SERVICES_TEMPLATE: FlowTemplateDefinition = {
 };
 
 export const AGENCIES_TEMPLATE: FlowTemplateDefinition = {
-  name: "Agencies: Project Discovery",
+  name: "Agencies: Project Discovery & Strategy",
   description:
-    "Built for marketing, digital, and design agencies. Discovers project scope, budget, and timeline before human handoff.",
+    "Built for digital agencies. Discovers project scope, goals, and budget using the Orchestra System's non-linear consultative approach.",
   category: "agencies",
   icon: "🚀",
   group: "Professional & B2B",
@@ -601,7 +651,7 @@ export const AGENCIES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Welcome! 🚀 We're excited to hear about your project. Let's get the basics down so we can connect you with the right person.",
+        text: "Welcome! 🚀 We're excited to hear about your vision. Let's get the core strategy down so we can connect you with the right strategist.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -611,44 +661,44 @@ export const AGENCIES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "In a nutshell, what are your main goals for this project?",
-        variableName: "project_brief",
+        text: "In a nutshell, what are the primary goals you're looking to achieve with this project? (e.g. Lead gen, Brand refresh, or full Digital Transformation?)",
+        variableName: "project_goals",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 600,
         typingEnabled: true,
-        typingDurationMs: 800,
+        typingDurationMs: 1000,
       },
       order: 1,
     },
     {
       type: "input",
       content: {
-        text: "Do you have a rough budget range in mind for this work?",
+        text: "Got it—visionary goals! ✨ To help our strategists scope this accurately, do you have a rough budget range in mind? (e.g. Under £10k, £10k-£50k, or £50k+)",
         variableName: "budget_range",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 700,
+        typingDurationMs: 900,
       },
       order: 2,
     },
     {
       type: "input",
       content: {
-        text: "What's your ideal timeline for getting this off the ground?",
-        variableName: "timeline",
+        text: "Makes total sense. And what's your ideal timeline for hitting those milestones?",
+        variableName: "project_timeline",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 700,
+        typingDurationMs: 800,
       },
       order: 3,
     },
     {
       type: "input",
       content: {
-        text: "And where should we send our initial thoughts or a proposal?",
-        variableName: "email",
+        text: "Perfect. Where should we send our initial thoughts and a preliminary strategy outline? 📧",
+        variableName: "contact_email",
         inputType: "email",
         delayMs: 400,
         typingEnabled: true,
@@ -659,7 +709,7 @@ export const AGENCIES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Got it! 🎯 One of our strategists will take a look at your brief and follow up with some tailored next steps. Speak soon!",
+        text: "Fantastic! 🎯 One of our senior strategists will review your brief and follow up at {{contact_email}} within 1 business day. Ready to see some of our previous success stories while you wait?",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -670,7 +720,7 @@ export const AGENCIES_TEMPLATE: FlowTemplateDefinition = {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["agency-lead", "project-brief"],
+        tags: ["agency-lead", "discovery-complete", "high-intent"],
       },
       order: 6,
     },
@@ -691,9 +741,9 @@ export const AGENCIES_TEMPLATE: FlowTemplateDefinition = {
 };
 
 export const BOOKING_TEMPLATE: FlowTemplateDefinition = {
-  name: "Booking: Appointments & Reservations",
+  name: "Booking: Concierge Appointment Scheduler",
   description:
-    "Ideal for any booking-heavy business. Confirms service, collects contact info, and captures preferred time.",
+    "A high-conversion booking flow that qualifies needs before securing a slot. Includes 'booking-initiated' actionable tagging.",
   category: "booking",
   icon: "📅",
   group: "Professional & B2B",
@@ -701,7 +751,7 @@ export const BOOKING_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Hi there! 📅 We'd love to get you booked in. Let's sort out the details.",
+        text: "Hi there! 📅 I'm here to help you secure your preferred slot. Let's sort out the details in under a minute.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1100,
@@ -711,20 +761,20 @@ export const BOOKING_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What service or appointment are you looking to book today?",
+        text: "Which service or specialist are you looking to book with today? 😊",
         variableName: "service_type",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 800,
+        typingDurationMs: 900,
       },
       order: 1,
     },
     {
       type: "input",
       content: {
-        text: "Great choice. And who am I speaking with?",
-        variableName: "name",
+        text: "Excellent. And who am I looking forward to seeing? (Just your name is fine!)",
+        variableName: "client_name",
         inputType: "text",
         delayMs: 400,
         typingEnabled: true,
@@ -735,8 +785,8 @@ export const BOOKING_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Nice to meet you, {{name}}! What's the best phone number for us to confirm your booking?",
-        variableName: "phone",
+        text: "Nice to meet you, {{client_name}}! What's the best phone number for us to send your booking confirmation to? 📱",
+        variableName: "client_phone",
         inputType: "phone",
         delayMs: 400,
         typingEnabled: true,
@@ -747,19 +797,19 @@ export const BOOKING_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What date or time works best for you? We'll do our best to accommodate.",
-        variableName: "preferred_time",
+        text: "Got it. Finally, what's your preferred date and time? We'll do our absolute best to prioritize you. 🕒",
+        variableName: "preferred_datetime",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 800,
+        typingDurationMs: 900,
       },
       order: 4,
     },
     {
       type: "message",
       content: {
-        text: "Thanks! ✅ We've received your request. Our team will check the schedule and get back to you shortly to confirm.",
+        text: "Perfect! ✅ I've reserved that interest for you. Our team will verify the final schedule and text you at {{client_phone}} within the hour. Speak soon!",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -770,7 +820,7 @@ export const BOOKING_TEMPLATE: FlowTemplateDefinition = {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["booking-request", "new-appointment"],
+        tags: ["booking-initiated", "appointment-enquiry", "high-intent"],
       },
       order: 6,
     },
@@ -791,9 +841,9 @@ export const BOOKING_TEMPLATE: FlowTemplateDefinition = {
 };
 
 export const ECOMMERCE_TEMPLATE: FlowTemplateDefinition = {
-  name: "E-commerce: Order Support & Sales",
+  name: "E-commerce: Order Concierge & Sales",
   description:
-    "Help customers find products, track orders, and get discounts. Built for online stores.",
+    "A retail-optimized flow that handles order tracking, shopping assistance, and dynamic discount offerings with high-intent tagging.",
   category: "ecommerce",
   icon: "🛍️",
   group: "Professional & B2B",
@@ -801,7 +851,7 @@ export const ECOMMERCE_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Hi! 👋 Looking for something special today? I can help you find products, track an order, or get you a cheeky discount.",
+        text: "Hi! 👋 Looking for something special today? I'm your personal shopping concierge, here to help you find the perfect fit or track your latest haul.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1000,
@@ -811,12 +861,12 @@ export const ECOMMERCE_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What brings you here? (e.g., browse products, track order, or get help)",
+        text: "What can I do for you right now? (e.g., browse products, track an order, or grab a discount code) 🛍️",
         variableName: "ecommerce_intent",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 800,
+        typingDurationMs: 900,
       },
       order: 1,
     },
@@ -848,15 +898,22 @@ export const ECOMMERCE_TEMPLATE: FlowTemplateDefinition = {
             value: "shop",
             nextNodeOrder: 4,
           },
+          {
+            variableName: "ecommerce_intent",
+            operator: "contains",
+            value: "discount",
+            nextNodeOrder: 6,
+          },
         ],
-        nextNodeOrder: 5,
+        nextNodeOrder: 7,
       },
       order: 2,
     },
+    // Tracking Path
     {
       type: "message",
       content: {
-        text: "I can definitely help with that. 📦 Please share your order number and email, and I'll fetch the latest status for you.",
+        text: "I'll fetch that for you! 📦 Just share your order number and email, and I'll pull the latest status from our warehouse in seconds.",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
@@ -864,10 +921,11 @@ export const ECOMMERCE_TEMPLATE: FlowTemplateDefinition = {
       },
       order: 3,
     },
+    // Browsing Path
     {
       type: "message",
       content: {
-        text: "Great! You can browse our full collection right here: [STORE_URL] 🛍️ And here's a little secret: use code WELCOME10 for 10% off!",
+        text: "Great taste! You can explore our new arrivals right here: [STORE_URL] 🛍️ And here's a little secret: use code REFRESH15 for 15% off your next order. Ready to see what's trending?",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -875,28 +933,51 @@ export const ECOMMERCE_TEMPLATE: FlowTemplateDefinition = {
       },
       order: 4,
     },
+    // Discount Path
     {
       type: "message",
       content: {
-        text: "No problem. Just tell me what you need help with and your email, and one of our support team will get back to you shortly. 😊",
+        text: "Who doesn't love a deal? 🎁 Use WELCOME20 for 20% off your first purchase! What kind of products are you hoping to use that on?",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
         nextNodeOrder: 10,
       },
-      order: 5,
+      order: 6,
+    },
+    // Default Path
+    {
+      type: "message",
+      content: {
+        text: "No problem. Just share what's on your mind and your email, and one of our dedicated support team will get back to you personally. 😊",
+        delayMs: 500,
+        typingEnabled: true,
+        typingDurationMs: 1000,
+        nextNodeOrder: 15,
+      },
+      order: 7,
+    },
+    // Actionable Node
+    {
+      type: "action",
+      content: {
+        action: "tag_user",
+        tags: ["ecommerce-lead", "checkout-initiated", "browsing-session"],
+      },
+      order: 10,
     },
     {
       type: "action",
       content: { action: "end_flow" },
-      order: 10,
+      order: 15,
     },
   ],
 };
 
 export const SAAS_TEMPLATE: FlowTemplateDefinition = {
-  name: "SaaS: Product Qualification & Demo",
-  description: "Qualify software leads, gather company details, and schedule product demos with ease.",
+  name: "SaaS: ROI & Product Consultant",
+  description:
+    "A sophisticated SaaS qualification flow that reframes features into ROI and business value. Includes 'demo-scheduled' intent tagging.",
   category: "saas",
   icon: "💻",
   group: "Professional & B2B",
@@ -904,7 +985,7 @@ export const SAAS_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Hi there! 🚀 Interested in seeing how [PRODUCT_NAME] can help your team? I'd love to show you around.",
+        text: "Hi there! 🚀 Interested in seeing how [PRODUCT_NAME] can specifically move the needle for your team? I'm here to show you the path to ROI.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1100,
@@ -914,68 +995,78 @@ export const SAAS_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "To get started, what's your company size? (e.g., 1-10, 11-50, or 50+ employees)",
+        text: "To give you the most relevant context, what's your current team size? (e.g., 1-10, 11-50, or 50+ employees) 🏢",
         variableName: "company_size",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 600,
         typingEnabled: true,
-        typingDurationMs: 800,
+        typingDurationMs: 900,
       },
       order: 1,
     },
     {
       type: "input",
       content: {
-        text: "And what's the main challenge you're looking to solve with our tool?",
-        variableName: "main_challenge",
+        text: "Got it. Enterprise teams and small squads have different priorities. What's the #1 friction point you're hoping our tool will solve for you?",
+        variableName: "primary_pain_point",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 900,
+        typingDurationMs: 1000,
       },
       order: 2,
     },
     {
-      type: "input",
+      type: "message",
       content: {
-        text: "Makes sense. Would you like to schedule a quick 15-minute demo with one of our product experts?",
-        variableName: "wants_demo",
-        inputType: "text",
-        delayMs: 400,
+        text: "That's exactly what we excel at. 🎯 Many teams like yours report a 40%+ increase in efficiency within the first 60 days of solving that exact challenge.",
+        delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 800,
+        typingDurationMs: 1000,
       },
       order: 3,
     },
     {
       type: "input",
       content: {
-        text: "Perfect. What's your work email address so we can send the invite?",
+        text: "Would you like to jump into a 15-minute high-level walkthrough with one of our product experts to see the ROI in action?",
+        variableName: "demo_requested",
+        inputType: "text",
+        delayMs: 500,
+        typingEnabled: true,
+        typingDurationMs: 900,
+      },
+      order: 4,
+    },
+    {
+      type: "input",
+      content: {
+        text: "Excellent. What's your work email address so we can send the priority invite? 📧",
         variableName: "work_email",
         inputType: "email",
         delayMs: 400,
         typingEnabled: true,
         typingDurationMs: 700,
       },
-      order: 4,
+      order: 5,
     },
     {
       type: "message",
       content: {
-        text: "Awesome! ✅ We've sent a calendar link to {{work_email}}. Pick a time that works for you, and we'll see you then!",
+        text: "Perfect choice! ✅ I've sent a priority link to {{work_email}}. Pick a time that works for you, and we'll see you then. Ready to explore our case studies while you wait?",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1100,
       },
-      order: 5,
+      order: 6,
     },
     {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["saas-lead", "demo-requested"],
+        tags: ["saas-lead", "demo-requested", "roi-qualified"],
       },
-      order: 6,
+      order: 7,
     },
     {
       type: "action",
@@ -983,12 +1074,12 @@ export const SAAS_TEMPLATE: FlowTemplateDefinition = {
         action: "update_status",
         status: "qualified",
       },
-      order: 7,
+      order: 8,
     },
     {
       type: "action",
       content: { action: "end_flow" },
-      order: 8,
+      order: 9,
     },
   ],
 };
@@ -998,9 +1089,9 @@ export const SAAS_TEMPLATE: FlowTemplateDefinition = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const BOUTIQUE_GYM_TEMPLATE: FlowTemplateDefinition = {
-  name: "Boutique Gym: Membership Enquiry",
+  name: "Boutique Gym: Transformation Discovery",
   description:
-    "Qualifies new membership, class, or tour enquiries. Captures fitness goal, schedule preference, and contact details.",
+    "A fitness-focused flow that assesses goals and availability to drive gym tours and membership conversions. Includes high-intent tagging.",
   category: "boutique-gym",
   icon: "🏋️",
   group: "Fitness",
@@ -1008,7 +1099,7 @@ export const BOUTIQUE_GYM_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Hey! 💪 Welcome to our community. We're excited to help you on your fitness journey.",
+        text: "Hey! 💪 Welcome to our community. We're not just a gym—we're here to help you rewrite your fitness story.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -1018,31 +1109,31 @@ export const BOUTIQUE_GYM_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What brings you here today? Are you thinking about joining, trying a class, or just want a tour?",
+        text: "To get started on the right foot, what brings you here today? Are you thinking about joining a new tribe, trying a specialized class, or just want a personal tour? 😊",
         variableName: "gym_interest",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 900,
+        typingDurationMs: 1000,
       },
       order: 1,
     },
     {
       type: "input",
       content: {
-        text: "That sounds great. What's your main fitness goal at the moment?",
+        text: "That sounds like a great start. What's your #1 fitness goal right now? Whether it's strength, feeling better, or a total transformation, we're all ears.",
         variableName: "fitness_goal",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 800,
+        typingDurationMs: 900,
       },
       order: 2,
     },
     {
       type: "input",
       content: {
-        text: "I'd love to get you started. What's your name?",
+        text: "I'd love to help you hit that milestone. By the way, I'm speaking with...?",
         variableName: "member_name",
         inputType: "text",
         delayMs: 400,
@@ -1054,10 +1145,10 @@ export const BOUTIQUE_GYM_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Nice to meet you! What's the best number to reach you on for a quick chat about your goals?",
+        text: "Nice to meet you, {{member_name}}! What's the best number to reach you on for a quick 2-minute chat about your goals? 📞",
         variableName: "member_phone",
         inputType: "phone",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 800,
       },
@@ -1066,19 +1157,19 @@ export const BOUTIQUE_GYM_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What days or times usually work best for your workouts?",
+        text: "Got it. Finally, what days or times usually work best for your workouts? We'll check our peak times for you.",
         variableName: "preferred_schedule",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 700,
+        typingDurationMs: 800,
       },
       order: 5,
     },
     {
       type: "message",
       content: {
-        text: "Awesome! 🙌 I've passed your info to our team. We'll be in touch very soon to get you moving. Can't wait to see you in the gym!",
+        text: "Awesome! 🙌 I've prioritized your info for our head coach. They'll reach out to {{member_phone}} very soon to get you moving. Ready to see our success stories while you wait?",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -1089,7 +1180,7 @@ export const BOUTIQUE_GYM_TEMPLATE: FlowTemplateDefinition = {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["gym-lead", "membership-enquiry"],
+        tags: ["gym-lead", "membership-intent-high", "goal-captured"],
       },
       order: 7,
     },
@@ -1110,9 +1201,9 @@ export const BOUTIQUE_GYM_TEMPLATE: FlowTemplateDefinition = {
 };
 
 export const PERSONAL_TRAINING_TEMPLATE: FlowTemplateDefinition = {
-  name: "Personal Training: Client Intake",
+  name: "Personal Training: Performance Intake",
   description:
-    "Captures fitness goals, experience, health notes, and availability before the first session.",
+    "A high-level client intake flow that assesses level, health history, and availability to match clients with the right coach.",
   category: "personal-training",
   icon: "👟",
   group: "Fitness",
@@ -1120,7 +1211,7 @@ export const PERSONAL_TRAINING_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Hi! 🏋️ I'm here to help you smash your goals. Let's see how we can best work together.",
+        text: "Hi! 🏋️ I'm here to help you smash your personal records. Let's see how we can build a plan that works for you.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -1130,10 +1221,10 @@ export const PERSONAL_TRAINING_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What's your number one fitness goal right now? Whether it's strength, fat loss, or just feeling better, I want to know.",
-        variableName: "fitness_goal",
+        text: "What's your primary focus right now? Strength, fat loss, athletic performance, or longevity? I want to know exactly what moves you.",
+        variableName: "pt_focus",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
       },
@@ -1142,22 +1233,22 @@ export const PERSONAL_TRAINING_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "How would you describe your current fitness level? Be honest! (Beginner, Intermediate, or Advanced)",
-        variableName: "fitness_level",
+        text: "Love that focus. 💥 How would you describe your current experience level? (e.g. Beginner, Intermediate, or Advanced Athlete)",
+        variableName: "pt_experience",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 800,
+        typingDurationMs: 900,
       },
       order: 2,
     },
     {
       type: "input",
       content: {
-        text: "Are there any injuries or health bits I should keep in mind?",
-        variableName: "health_notes",
+        text: "Safety first—any previous injuries or health notes I should pass on to your coach? 🩹",
+        variableName: "pt_health_notes",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 800,
       },
@@ -1178,22 +1269,22 @@ export const PERSONAL_TRAINING_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What's the best phone number for me to reach you on?",
+        text: "Nice to meet you, {{client_name}}! What's the best phone number for me to reach you on? 📞",
         variableName: "client_phone",
         inputType: "phone",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 700,
+        typingDurationMs: 800,
       },
       order: 5,
     },
     {
       type: "input",
       content: {
-        text: "What times of the week are you usually free for our sessions?",
-        variableName: "availability",
+        text: "What times of the week are you usually free for our power sessions? 🕒",
+        variableName: "pt_availability",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 800,
       },
@@ -1202,7 +1293,7 @@ export const PERSONAL_TRAINING_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Brilliant! 💥 I'll take a look at your details and get back to you with a plan to get you started. Talk soon!",
+        text: "Brilliant! 💥 I'll review your profile and match you with the best coach for {{pt_focus}}. We'll reach out to {{client_phone}} shortly with a game plan. Ready to work?",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1100,
@@ -1213,7 +1304,7 @@ export const PERSONAL_TRAINING_TEMPLATE: FlowTemplateDefinition = {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["pt-enquiry", "new-client"],
+        tags: ["pt-lead", "intake-complete", "high-performance-intent"],
       },
       order: 8,
     },
@@ -1234,9 +1325,9 @@ export const PERSONAL_TRAINING_TEMPLATE: FlowTemplateDefinition = {
 };
 
 export const CROSSFIT_GYM_TEMPLATE: FlowTemplateDefinition = {
-  name: "CrossFit Gym: Trial & Membership",
+  name: "CrossFit Gym: Trial & Performance Assessing",
   description:
-    "Warms up new visitors, assesses experience, and drives them toward a free intro session or membership.",
+    "A high-energy flow that assess athlete experience and drives them toward a trial session with 'trial-request' tagging.",
   category: "crossfit-gym",
   icon: "🔥",
   group: "Fitness",
@@ -1244,7 +1335,7 @@ export const CROSSFIT_GYM_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Hey! 🔥 Welcome to the box. Ready to see what you're made of?",
+        text: "Hey! 🔥 Welcome to the arena. Ready to see what you're truly made of?",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1100,
@@ -1254,10 +1345,10 @@ export const CROSSFIT_GYM_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Have you done CrossFit before, or is this your first time stepping into the arena?",
+        text: "Have you faced the whiteboard before, or is this your first time stepping into a CrossFit box? 🏋️",
         variableName: "cf_experience",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 900,
       },
@@ -1266,10 +1357,10 @@ export const CROSSFIT_GYM_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What's the main thing you want to achieve here? (e.g., strength, endurance, competition)",
+        text: "Respect! 👊 What's the main goal you're chasing here? (e.g., RAW strength, unbreakable endurance, or pure competition?)",
         variableName: "cf_goal",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 800,
       },
@@ -1278,7 +1369,7 @@ export const CROSSFIT_GYM_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Awesome. What's your name, athlete?",
+        text: "Ready to work. What's your name, athlete?",
         variableName: "athlete_name",
         inputType: "text",
         delayMs: 400,
@@ -1290,7 +1381,7 @@ export const CROSSFIT_GYM_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "And what's your email so we can send you some info about our classes?",
+        text: "Welcome to the team, {{athlete_name}}! What's the best email for us to send your intro pack and safety waiver? 📧",
         variableName: "athlete_email",
         inputType: "email",
         delayMs: 400,
@@ -1302,10 +1393,10 @@ export const CROSSFIT_GYM_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "When would you like to come in for your first free intro session?",
+        text: "When would you like to come in for your first free intro session and get your first score on the board? 🕒",
         variableName: "intro_date",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 800,
       },
@@ -1314,7 +1405,7 @@ export const CROSSFIT_GYM_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Let's go! 🏆 We'll confirm your intro session shortly. Get ready for the grind!",
+        text: "Let's go! 🏆 I've prioritized your session. Our head coach will confirm your slot shortly. Get ready for the grind—it's worth it!",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1100,
@@ -1325,7 +1416,7 @@ export const CROSSFIT_GYM_TEMPLATE: FlowTemplateDefinition = {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["crossfit-lead", "trial-request"],
+        tags: ["crossfit-lead", "trial-requested", "athlete-onboarding"],
       },
       order: 7,
     },
@@ -1346,9 +1437,9 @@ export const CROSSFIT_GYM_TEMPLATE: FlowTemplateDefinition = {
 };
 
 export const BOOT_CAMP_TEMPLATE: FlowTemplateDefinition = {
-  name: "Boot Camp: Programme Enquiry",
+  name: "Boot Camp: Elite Programme Discovery",
   description:
-    "Captures programme interest, fitness level, and contact info for outdoor or indoor boot camp programmes.",
+    "A results-oriented flow that qualifies fitness level and interest for boot camp programmes with 'programme-enquiry' tagging.",
   category: "boot-camp",
   icon: "🏃",
   group: "Fitness",
@@ -1356,7 +1447,7 @@ export const BOOT_CAMP_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Welcome! 🏃 Ready to take your fitness to the next level? I'm here to help you get started.",
+        text: "Welcome! 🏃 Ready to take your fitness to the next level? I'm here to help you find the perfect challenge.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1100,
@@ -1366,10 +1457,10 @@ export const BOOT_CAMP_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Which of our programmes caught your eye? (e.g., Morning Boot Camp, HIIT, or Outdoor Fitness)",
+        text: "Which of our elite programmes caught your eye? (e.g., Morning Warrior Boot Camp, High-Intensity HIIT, or Outdoor Power Sessions) 🔥",
         variableName: "programme_interest",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 900,
       },
@@ -1378,10 +1469,10 @@ export const BOOT_CAMP_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "How would you rate your fitness right now? (Beginner, Intermediate, or Advanced)",
+        text: "Love that choice. 💥 To match you with the right squad, how would you rate your current fitness? (e.g. Just starting, regular mover, or advanced athlete)",
         variableName: "fitness_level",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 800,
       },
@@ -1402,10 +1493,10 @@ export const BOOT_CAMP_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What's the best number to reach you on so we can chat about our upcoming sessions?",
+        text: "Nice to meet you, {{participant_name}}! What's the best number to reach you on so we can chat about our upcoming sessions and securing your spot? 📱",
         variableName: "participant_phone",
         inputType: "phone",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 800,
       },
@@ -1414,7 +1505,7 @@ export const BOOT_CAMP_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Brilliant! 💪 Our coaches will be in touch shortly to help you get started. See you out there!",
+        text: "Brilliant! 💪 Our lead coaches will be in touch shortly to help you get started. Ready to see the results our latest squad achieved?",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1100,
@@ -1425,7 +1516,7 @@ export const BOOT_CAMP_TEMPLATE: FlowTemplateDefinition = {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["bootcamp-lead", "programme-enquiry"],
+        tags: ["bootcamp-lead", "programme-enquiry", "high-intent"],
       },
       order: 6,
     },
@@ -1446,9 +1537,9 @@ export const BOOT_CAMP_TEMPLATE: FlowTemplateDefinition = {
 };
 
 export const YOGA_STUDIO_TEMPLATE: FlowTemplateDefinition = {
-  name: "Yoga Studio: Class Booking & Membership",
+  name: "Yoga Studio: Wellness Path Discovery",
   description:
-    "Captures class preferences, yoga experience level, and schedule to confirm bookings or memberships.",
+    "A mindful flow that captures practice preferences and level to guide students toward their ideal class or membership.",
   category: "yoga-studio",
   icon: "🧘",
   group: "Fitness",
@@ -1456,7 +1547,7 @@ export const YOGA_STUDIO_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Namaste! 🧘 Welcome to our space. We're so happy you've reached out.",
+        text: "Namaste! 🧘 Welcome to our space. We're so happy you've reached out to explore your wellness journey with us.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -1466,10 +1557,10 @@ export const YOGA_STUDIO_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What kind of practice are you looking for today? Whether it's a calm Yin class or an energetic Vinyasa flow, we have something for everyone.",
-        variableName: "class_preference",
+        text: "What kind of practice calls to you today? Whether it's a restorative Yin class for deep relaxation or an energetic Vinyasa flow, we have a space for you. ✨",
+        variableName: "practice_preference",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
       },
@@ -1478,10 +1569,10 @@ export const YOGA_STUDIO_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "How much experience do you have with yoga? We welcome all levels, from complete beginners to regular practitioners.",
+        text: "Beautiful. How much experience do you have on the mat? We welcome everyone, from curious beginners to regular practitioners. 🙏",
         variableName: "yoga_experience",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 900,
       },
@@ -1490,7 +1581,7 @@ export const YOGA_STUDIO_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "I'd love to help you find the right class. What's your name?",
+        text: "I'd love to help you find the right session. By the way, I'm speaking with...?",
         variableName: "student_name",
         inputType: "text",
         delayMs: 400,
@@ -1502,7 +1593,7 @@ export const YOGA_STUDIO_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "And what's your email address so we can send you our latest schedule?",
+        text: "Welcome, {{student_name}}! What's the best email address for us to send our latest mindful schedule and a special intro offer? 📧",
         variableName: "student_email",
         inputType: "email",
         delayMs: 400,
@@ -1514,10 +1605,10 @@ export const YOGA_STUDIO_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What times of day usually work best for your practice?",
-        variableName: "preferred_schedule",
+        text: "Finally, what times of day usually work best for your practice? We'll recommend sessions that fit your rhythm. 🌿",
+        variableName: "preferred_rhythm",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 800,
       },
@@ -1526,7 +1617,7 @@ export const YOGA_STUDIO_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Wonderful! 🌿 We'll be in touch very soon with class options and how to get on the mat. Peace and light.",
+        text: "Wonderful! 🌿 I've passed your preferences to our studio team. We'll be in touch at {{student_email}} very soon with class options and how to get on the mat. Peace and light.",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -1537,7 +1628,7 @@ export const YOGA_STUDIO_TEMPLATE: FlowTemplateDefinition = {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["yoga-enquiry", "class-booking"],
+        tags: ["yoga-enquiry", "class-booking-intent", "wellness-lead"],
       },
       order: 7,
     },
@@ -1562,9 +1653,9 @@ export const YOGA_STUDIO_TEMPLATE: FlowTemplateDefinition = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const HAIR_SALON_TEMPLATE: FlowTemplateDefinition = {
-  name: "Hair Salon: Booking & Service Enquiry",
+  name: "Hair Salon: Style & Booking Consultant",
   description:
-    "Captures service type, stylist preference, and booking time to confirm hair appointments.",
+    "A sophisticated salon flow that captures style preferences and stylist choices to drive high-value appointments.",
   category: "hair-salon",
   icon: "💇",
   group: "Beauty & Wellness",
@@ -1572,7 +1663,7 @@ export const HAIR_SALON_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Hi there! ✂️ Welcome to our salon. We're here to help you look and feel amazing.",
+        text: "Hi there! ✂️ Welcome to our studio. We're here to help you look and feel your absolute best.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1100,
@@ -1582,10 +1673,10 @@ export const HAIR_SALON_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What can we do for you today? Whether it's a fresh cut, a new colour, or a bit of pampering, we've got you covered.",
-        variableName: "service_type",
+        text: "What can we do for you today? Whether it's a fresh cut, a bold new color, or a specialized treatment, we've got the expertise you need. ✨",
+        variableName: "style_service_type",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
       },
@@ -1594,10 +1685,10 @@ export const HAIR_SALON_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Do you have a regular stylist you'd like to see, or are you happy for us to find the best match for you?",
+        text: "Fabulous choice. Do you have a preferred stylist you'd like to work with, or should I recommend our best match for your requested style? 💇‍♀️",
         variableName: "stylist_preference",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 900,
       },
@@ -1606,7 +1697,7 @@ export const HAIR_SALON_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Fantastic. And who should we get booked in?",
+        text: "Got it. And who should we get booked in for this transformation?",
         variableName: "client_name",
         inputType: "text",
         delayMs: 400,
@@ -1618,7 +1709,7 @@ export const HAIR_SALON_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Nice to meet you! What's the best phone number for us to confirm your appointment?",
+        text: "Nice to meet you, {{client_name}}! What's the best phone number for us to confirm your appointment and send style prep tips? 📱",
         variableName: "client_phone",
         inputType: "phone",
         delayMs: 400,
@@ -1630,10 +1721,10 @@ export const HAIR_SALON_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What date and time would work best for your visit?",
+        text: "What date and time would work best for your visit? We'll prioritize your request in our diary. 🕒",
         variableName: "preferred_datetime",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 800,
       },
@@ -1642,7 +1733,7 @@ export const HAIR_SALON_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Lovely! 💇 We've got your request. Our team will check the diary and be in touch shortly to confirm everything. See you soon!",
+        text: "Lovely! 💇 I've secured your request. Our concierge will check the diary and text you at {{client_phone}} within the hour to confirm everything. See you soon!",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -1653,7 +1744,7 @@ export const HAIR_SALON_TEMPLATE: FlowTemplateDefinition = {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["salon-booking", "hair-appointment"],
+        tags: ["salon-booking", "hair-appointment", "style-intent-captured"],
       },
       order: 7,
     },
@@ -1674,9 +1765,9 @@ export const HAIR_SALON_TEMPLATE: FlowTemplateDefinition = {
 };
 
 export const BARBERSHOP_TEMPLATE: FlowTemplateDefinition = {
-  name: "Barbershop: Appointment Booking",
+  name: "Barbershop: Precision Booking",
   description:
-    "Quick booking flow for cuts, beard trims, and shaves. Captures service, barber preference, and time.",
+    "A fast-paced barbershop flow that captures service types and barber preferences to secure slots quickly.",
   category: "barbershop",
   icon: "💈",
   group: "Beauty & Wellness",
@@ -1684,7 +1775,7 @@ export const BARBERSHOP_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Hey! 💈 Welcome to the shop. What can we get done for you today?",
+        text: "Hey! 💈 Welcome to the shop. Looking for a fresh fade, a classic trim, or the full treatment?",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1000,
@@ -1694,10 +1785,10 @@ export const BARBERSHOP_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What service are you looking for? (e.g., Haircut, Beard Trim, or the full works)",
-        variableName: "service_type",
+        text: "What service can we get done for you today? (e.g. Skin Fade, Beard Sculpt, or the Full Service) ✂️",
+        variableName: "barber_service",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 800,
       },
@@ -1706,10 +1797,10 @@ export const BARBERSHOP_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Do you have a preferred barber, or should we just find the next available chair?",
+        text: "Got it. Do you have a preferred barber you usually see, or should we find the next available chair for you? 💺",
         variableName: "barber_preference",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 800,
       },
@@ -1718,7 +1809,7 @@ export const BARBERSHOP_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Got it. What's your name?",
+        text: "Ready to work. What's your name?",
         variableName: "client_name",
         inputType: "text",
         delayMs: 400,
@@ -1730,7 +1821,7 @@ export const BARBERSHOP_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "And what's the best phone number for us to confirm your slot?",
+        text: "Nice to meet you! What's the best phone number for us to text your confirmation and arrival time? 📱",
         variableName: "client_phone",
         inputType: "phone",
         delayMs: 400,
@@ -1742,10 +1833,10 @@ export const BARBERSHOP_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "When would you like to come in?",
-        variableName: "preferred_time",
+        text: "When would you like to come in? Let us know your preferred slot and we'll lock it in. 🕒",
+        variableName: "preferred_slot",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 700,
       },
@@ -1754,7 +1845,7 @@ export const BARBERSHOP_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Sorted! ✅ We'll check the schedule and confirm your slot very soon. See you in the chair!",
+        text: "Sorted! ✅ I've prioritized your request. We'll check the schedule and text you at {{client_phone}} shortly to confirm your chair. See you soon!",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1000,
@@ -1765,7 +1856,7 @@ export const BARBERSHOP_TEMPLATE: FlowTemplateDefinition = {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["barbershop-booking", "new-appointment"],
+        tags: ["barbershop-booking", "appointment-enquiry", "service-intent-high"],
       },
       order: 7,
     },
@@ -1786,9 +1877,9 @@ export const BARBERSHOP_TEMPLATE: FlowTemplateDefinition = {
 };
 
 export const DAY_SPA_TEMPLATE: FlowTemplateDefinition = {
-  name: "Day Spa: Treatment Booking",
+  name: "Day Spa: Luxury Wellness Booking",
   description:
-    "Captures treatment type, booking purpose (self/gift/group), date preference, and special requests.",
+    "An elegant spa flow that captures treatment goals and special requests for a tailored relaxation experience.",
   category: "day-spa",
   icon: "🌸",
   group: "Beauty & Wellness",
@@ -1796,7 +1887,7 @@ export const DAY_SPA_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Welcome! 🌸 We're delighted you've chosen to relax with us. Let's find the perfect experience for you.",
+        text: "Welcome! 🌸 We're delighted you've chosen to unwind with us. Let's find the perfect ritual for your relaxation.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1300,
@@ -1806,10 +1897,10 @@ export const DAY_SPA_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What kind of treatment interests you today? From soothing massages to revitalising facials, we're here to help you unwind.",
-        variableName: "treatment_type",
+        text: "What kind of experience calls to you today? From restorative massages to advanced skincare facials, we're here to revitalize you. ✨",
+        variableName: "spa_treatment_goal",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
       },
@@ -1818,10 +1909,10 @@ export const DAY_SPA_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Is this a treat for yourself, or are you booking for a group or as a special gift?",
-        variableName: "booking_for",
+        text: "Beautiful choice. Is this a mindful treat for yourself, or are you arranging a group ritual or a special gift? 🎁",
+        variableName: "booking_context",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 900,
       },
@@ -1830,7 +1921,7 @@ export const DAY_SPA_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "I'd love to get this sorted for you. What's your name?",
+        text: "I'd love to arrange this for you. By the way, I'm speaking with...?",
         variableName: "guest_name",
         inputType: "text",
         delayMs: 400,
@@ -1842,7 +1933,7 @@ export const DAY_SPA_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "And what's your phone number for us to confirm your details?",
+        text: "Welcome, {{guest_name}}! What's the best phone number for us to confirm your details and share our pre-treatment guide? 📱",
         variableName: "guest_phone",
         inputType: "phone",
         delayMs: 400,
@@ -1854,10 +1945,10 @@ export const DAY_SPA_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "When would you like to visit us? Let us know your preferred date and time.",
+        text: "When would you like to visit us? Let us know your preferred date and time. 🕒",
         variableName: "preferred_datetime",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 800,
       },
@@ -1866,10 +1957,10 @@ export const DAY_SPA_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Are there any allergies or special requests I should let the therapists know about?",
-        variableName: "special_requests",
+        text: "Finally, to ensure your comfort, are there any allergies or special requests I should let our therapists know about? 🌿",
+        variableName: "spa_special_requests",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 800,
       },
@@ -1878,7 +1969,7 @@ export const DAY_SPA_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Wonderful! 🛁 We've received your request. Our team will be in touch shortly to confirm your visit and share everything you need to know for a relaxing stay.",
+        text: "Wonderful! 🛁 I've secured your request. Our spa concierge will be in touch shortly to confirm your ritual and share everything you need for a restorative stay.",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1300,
@@ -1889,7 +1980,7 @@ export const DAY_SPA_TEMPLATE: FlowTemplateDefinition = {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["spa-booking", "treatment-enquiry"],
+        tags: ["spa-booking", "treatment-qualified", "wellness-intent-high"],
       },
       order: 8,
     },
@@ -1910,9 +2001,9 @@ export const DAY_SPA_TEMPLATE: FlowTemplateDefinition = {
 };
 
 export const NAIL_SALON_TEMPLATE: FlowTemplateDefinition = {
-  name: "Nail Salon: Appointment Booking",
+  name: "Nail Salon: Art & Booking Concierge",
   description:
-    "Fast appointment booking for gel, acrylic, pedicures, and nail art. Captures service, name, and time.",
+    "A stylish nail salon flow that captures service types and art preferences to secure high-value appointments.",
   category: "nail-salon",
   icon: "💅",
   group: "Beauty & Wellness",
@@ -1920,7 +2011,7 @@ export const NAIL_SALON_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Hi! 💅 Welcome to our nail studio. Let's get you booked in for some stunning nails!",
+        text: "Hi! 💅 Welcome to our studio. Ready to transform your nails into a work of art?",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1100,
@@ -1930,10 +2021,10 @@ export const NAIL_SALON_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What service are you looking for? (e.g., Gel Mani, Acrylics, or some custom nail art?)",
-        variableName: "nail_service",
+        text: "What service are you looking for today? Whether it's a flawless Gel Mani, professional Acrylics, or some custom-designed nail art, we've got you. ✨",
+        variableName: "nail_service_intent",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 900,
       },
@@ -1942,7 +2033,7 @@ export const NAIL_SALON_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Exciting! And who am I looking forward to seeing?",
+        text: "Exciting choice! And who am I looking forward to seeing for this transformation?",
         variableName: "client_name",
         inputType: "text",
         delayMs: 400,
@@ -1954,7 +2045,7 @@ export const NAIL_SALON_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Great to meet you! What's the best phone number for us to confirm your appointment?",
+        text: "Great to meet you, {{client_name}}! What's the best phone number for us to confirm your appointment and send color inspiration? 📱",
         variableName: "client_phone",
         inputType: "phone",
         delayMs: 400,
@@ -1966,10 +2057,10 @@ export const NAIL_SALON_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "When would you like to come in? Let us know your preferred time.",
+        text: "Finally, when would you like to come in? Let us know your preferred time and we'll secure your slot. 🕒",
         variableName: "preferred_time",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 800,
       },
@@ -1978,7 +2069,7 @@ export const NAIL_SALON_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Fabulous! 💖 We've got your request. Our team will check the diary and confirm your appointment very soon. Can't wait to see you!",
+        text: "Fabulous! 💖 I've secured your interest. Our team will check the diary and text you at {{client_phone}} within the hour to confirm your session. Can't wait to see you!",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -1989,7 +2080,7 @@ export const NAIL_SALON_TEMPLATE: FlowTemplateDefinition = {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["nail-booking", "beauty-appointment"],
+        tags: ["nail-booking", "beauty-appointment-high-intent", "art-qualified"],
       },
       order: 6,
     },
@@ -2014,9 +2105,9 @@ export const NAIL_SALON_TEMPLATE: FlowTemplateDefinition = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const CLEANING_SERVICES_TEMPLATE: FlowTemplateDefinition = {
-  name: "Cleaning Services: Quote & Booking",
+  name: "Cleaning Services: Instant Quote Request",
   description:
-    "Qualifies property type, clean type, and size. Captures location and contact details for a fast quote.",
+    "A property-focused flow that qualifies cleaning needs and size to provide fast, accurate quotes with 'quote-requested' tagging.",
   category: "cleaning-services",
   icon: "🧹",
   group: "Home Services",
@@ -2024,7 +2115,7 @@ export const CLEANING_SERVICES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Hi! 🧹 We'd love to help make your space sparkle. Let's gather a few details for your quote.",
+        text: "Hi! 🧹 We'd love to help make your space sparkle. Let's gather a few details so we can get you an accurate quote in seconds.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1100,
@@ -2034,34 +2125,34 @@ export const CLEANING_SERVICES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Is this for your home or a commercial property?",
+        text: "To get started, is this for your home or a commercial property? (e.g. Apartment, House, or Office space)",
         variableName: "property_type",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 700,
+        typingDurationMs: 800,
       },
       order: 1,
     },
     {
       type: "input",
       content: {
-        text: "What kind of clean do you need? (e.g., Regular Weekly, a deep spring clean, or an End of Tenancy clean?)",
-        variableName: "clean_type",
+        text: "Got it. What kind of clean do you need? (e.g., a deep Spring clean, regular weekly maintenance, or an End of Tenancy service?) ✨",
+        variableName: "clean_type_intent",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 900,
+        typingDurationMs: 1000,
       },
       order: 2,
     },
     {
       type: "input",
       content: {
-        text: "How many bedrooms or main rooms are we looking at?",
-        variableName: "property_size",
+        text: "Understood. How many bedrooms or main rooms should we factor into the quote?",
+        variableName: "property_size_rooms",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 800,
       },
@@ -2070,10 +2161,10 @@ export const CLEANING_SERVICES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What's the postcode or area for the property?",
-        variableName: "postcode",
+        text: "What's the postcode of the property so we can check our local team's availability? 📍",
+        variableName: "property_postcode",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 700,
       },
@@ -2082,7 +2173,7 @@ export const CLEANING_SERVICES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Got it. And what's your name?",
+        text: "Great. And who should we address the quote to?",
         variableName: "customer_name",
         inputType: "text",
         delayMs: 400,
@@ -2094,7 +2185,7 @@ export const CLEANING_SERVICES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What's the best phone number to reach you on for your quote?",
+        text: "Nice to meet you, {{customer_name}}! What's the best phone number for us to text your quote and check-in details to? 📱",
         variableName: "customer_phone",
         inputType: "phone",
         delayMs: 400,
@@ -2106,10 +2197,10 @@ export const CLEANING_SERVICES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "When were you hoping for the clean to happen?",
+        text: "Finally, when were you hoping for the sparkle to happen? We'll prioritize your preferred date. 🕒",
         variableName: "preferred_date",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 800,
       },
@@ -2118,7 +2209,7 @@ export const CLEANING_SERVICES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Perfect! ✨ Thanks for those details. We'll prepare your quote and be in touch very soon to confirm everything.",
+        text: "Perfect! ✨ I've secured your request. Our estimating team will review the details for {{property_postcode}} and text your quote to {{customer_phone}} very soon. Ready for a cleaner space?",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -2129,7 +2220,7 @@ export const CLEANING_SERVICES_TEMPLATE: FlowTemplateDefinition = {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["cleaning-lead", "quote-request"],
+        tags: ["cleaning-lead", "quote-requested", "property-vetted"],
       },
       order: 9,
     },
@@ -2150,9 +2241,9 @@ export const CLEANING_SERVICES_TEMPLATE: FlowTemplateDefinition = {
 };
 
 export const LANDSCAPING_TEMPLATE: FlowTemplateDefinition = {
-  name: "Landscaping & Gardening: Quote Request",
+  name: "Landscaping & Gardening: Transformation Quote",
   description:
-    "Captures service needed, garden size, postcode, and preferred visit date to prepare a no-obligation quote.",
+    "A garden-focused flow that captures project scope and visit preferences to drive site assessments and quote conversions.",
   category: "landscaping",
   icon: "🌳",
   group: "Home Services",
@@ -2160,7 +2251,7 @@ export const LANDSCAPING_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Hi! 🌿 Thanks for thinking of us. We're excited to help you transform your outdoor space.",
+        text: "Hi! 🌿 Thanks for thinking of us. We're excited to help you transform your outdoor space into something extraordinary.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -2170,10 +2261,10 @@ export const LANDSCAPING_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What kind of project do you have in mind? Whether it's a new patio, regular maintenance, or a full garden redesign, we're all ears.",
-        variableName: "service_needed",
+        text: "What kind of project do you have in mind today? Whether it's a new designer patio, regular seasonal maintenance, or a total garden redesign, we're all ears. 🌳",
+        variableName: "garden_project_intent",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1000,
       },
@@ -2182,22 +2273,22 @@ export const LANDSCAPING_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "How would you describe the size of your garden? (e.g., Small, Medium, or Large?)",
+        text: "Love that vision. To help us scope the visit, how would you describe the size of your garden? (e.g., Small urban space, Medium family garden, or Large estate?) 🏡",
         variableName: "garden_size",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 800,
+        typingDurationMs: 900,
       },
       order: 2,
     },
     {
       type: "input",
       content: {
-        text: "What's the postcode or area for the garden?",
-        variableName: "postcode",
+        text: "What's the postcode of the property so we can check our local surveyor's schedule? 📍",
+        variableName: "property_postcode",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 700,
       },
@@ -2206,7 +2297,7 @@ export const LANDSCAPING_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Great. And what's your name?",
+        text: "Great. And who should we ask for when we reach out?",
         variableName: "customer_name",
         inputType: "text",
         delayMs: 400,
@@ -2218,7 +2309,7 @@ export const LANDSCAPING_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What's the best phone number for us to get in touch about your quote?",
+        text: "Nice to meet you, {{customer_name}}! What's the best phone number for us to call and arrange your free assessment? 📱",
         variableName: "customer_phone",
         inputType: "phone",
         delayMs: 400,
@@ -2230,10 +2321,10 @@ export const LANDSCAPING_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "When would you like us to come by for a free assessment of your space?",
+        text: "Finally, when would you like us to come by for your free, no-obligation assessment? 🕒",
         variableName: "visit_preference",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 800,
       },
@@ -2242,10 +2333,11 @@ export const LANDSCAPING_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Excellent! 🌳 I've passed your info to the team. They'll be in touch shortly to arrange a visit and provide a free, no-obligation quote.",
+        text: "Excellent! 🌳 I've secured your request for {{property_postcode}}. Our project team will be in touch at {{customer_phone}} shortly to confirm your visit. Ready to see some of our recent transformations?",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1200,
+        nextNodeOrder: 8,
       },
       order: 7,
     },
@@ -2253,7 +2345,7 @@ export const LANDSCAPING_TEMPLATE: FlowTemplateDefinition = {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["landscaping-lead", "quote-request"],
+        tags: ["landscaping-lead", "assessment-requested", "outdoor-intent-high"],
       },
       order: 8,
     },
@@ -2274,9 +2366,9 @@ export const LANDSCAPING_TEMPLATE: FlowTemplateDefinition = {
 };
 
 export const HANDYMAN_TEMPLATE: FlowTemplateDefinition = {
-  name: "Handyman & Repair: Job Booking",
+  name: "Handyman & Repair: Priority Job Booking",
   description:
-    "Quickly captures job description, urgency, address, and contact info for fast dispatch or scheduling.",
+    "A fast-response repair flow that captures job urgency and location to provide quick dispatch or quotes.",
   category: "handyman",
   icon: "🔧",
   group: "Home Services",
@@ -2284,7 +2376,7 @@ export const HANDYMAN_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Hi! 🔧 Got something that needs fixing? You're in the right place.",
+        text: "Hi! 🔧 Got something that needs fixing? You're in the right place. I'll help you get this resolved quickly.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1000,
@@ -2294,34 +2386,34 @@ export const HANDYMAN_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Tell me a bit about the job that needs doing. The more detail the better!",
-        variableName: "job_description",
+        text: "Tell me a bit about the job that needs doing. The more detail the better so I can match you with the right specialist! 🛠️",
+        variableName: "job_description_raw",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 600,
         typingEnabled: true,
-        typingDurationMs: 900,
+        typingDurationMs: 1000,
       },
       order: 1,
     },
     {
       type: "input",
       content: {
-        text: "Is this something urgent, or are you happy to schedule it for a convenient time?",
-        variableName: "urgency",
+        text: "Understood. Is this a priority repair that needs immediate attention, or are you looking to schedule it for a convenient time? 🕒",
+        variableName: "job_urgency",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 800,
+        typingDurationMs: 900,
       },
       order: 2,
     },
     {
       type: "input",
       content: {
-        text: "What's the postcode or address where the work needs to be done?",
-        variableName: "job_address",
+        text: "What's the postcode or address where the work needs to be carried out? 📍",
+        variableName: "job_location",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 800,
       },
@@ -2330,7 +2422,7 @@ export const HANDYMAN_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Got it. And what's your name?",
+        text: "Got it. And who should our team ask for when they reach out?",
         variableName: "customer_name",
         inputType: "text",
         delayMs: 400,
@@ -2342,7 +2434,7 @@ export const HANDYMAN_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What's the best phone number for us to call or text you with a quote?",
+        text: "Nice to meet you, {{customer_name}}! What's the best phone number for us to call or text you with your priority quote? 📱",
         variableName: "customer_phone",
         inputType: "phone",
         delayMs: 400,
@@ -2354,7 +2446,7 @@ export const HANDYMAN_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Got it! 🛠️ We'll take a look at the job and be in touch very shortly with our availability and pricing. Speak soon!",
+        text: "Got it! 🛠️ I've prioritized your repair for {{job_location}}. Our team will review the job and text you at {{customer_phone}} shortly with availability and pricing. Speak soon!",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1100,
@@ -2365,7 +2457,7 @@ export const HANDYMAN_TEMPLATE: FlowTemplateDefinition = {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["handyman-job", "repair-request"],
+        tags: ["handyman-lead", "repair-requested", "priority-dispatch"],
       },
       order: 7,
     },
@@ -2390,9 +2482,9 @@ export const HANDYMAN_TEMPLATE: FlowTemplateDefinition = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const PET_CARE_TEMPLATE: FlowTemplateDefinition = {
-  name: "Pet Care: Booking & Service Enquiry",
+  name: "Pet Care: Tailored Booking & Enquiry",
   description:
-    "For dog walkers, groomers, boarders, and pet sitters. Captures pet details, service dates, and owner contact.",
+    "A pet-centric flow for services that captures animal details and care needs to drive high-value bookings.",
   category: "pet-care",
   icon: "🐾",
   group: "Personal Services",
@@ -2400,7 +2492,7 @@ export const PET_CARE_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Hi! 🐾 Welcome. We'd love to help look after your furry family members.",
+        text: "Hi! 🐾 Welcome. We'd love to help look after your furry family members and ensure they have the best experience.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1100,
@@ -2410,10 +2502,10 @@ export const PET_CARE_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What can we help you with? Whether it's dog walking, grooming, or some overnight boarding, we're ready to help.",
-        variableName: "pet_service",
+        text: "What can we help you with today? Whether it's expert dog walking, professional grooming, or cozy overnight boarding, we're ready to help. 🐶",
+        variableName: "pet_service_intent",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1000,
       },
@@ -2422,10 +2514,10 @@ export const PET_CARE_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Tell us a bit about your pet! What kind of animal are they, and what's their name?",
+        text: "Tell us a bit about your pet! What kind of animal are they, and what's their name? We love getting to know our guests. 😊",
         variableName: "pet_details",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 900,
       },
@@ -2434,10 +2526,10 @@ export const PET_CARE_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "When were you thinking you'd need our help? Let us know the dates or how often you're looking for.",
-        variableName: "service_dates",
+        text: "Lovely. When were you thinking you'd need our help? Let us know the dates or how often you're looking for care. 🕒",
+        variableName: "care_schedule",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 900,
       },
@@ -2446,7 +2538,7 @@ export const PET_CARE_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Lovely. And who should we get in touch with?",
+        text: "And who should we get in touch with to finalize the details?",
         variableName: "owner_name",
         inputType: "text",
         delayMs: 400,
@@ -2458,7 +2550,7 @@ export const PET_CARE_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What's the best phone number to reach you on for a quick chat?",
+        text: "Nice to meet you! What's the best phone number to reach you on for a quick chat about {{pet_details}}? 📱",
         variableName: "owner_phone",
         inputType: "phone",
         delayMs: 400,
@@ -2470,7 +2562,7 @@ export const PET_CARE_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Paw-some! 🐶 We've got your info. We'll be in touch very soon to confirm everything and answer any questions you have. Can't wait to meet you and {{pet_details}}!",
+        text: "Paw-some! 🐶 I've secured your interest. Our care team will reach out to {{owner_phone}} very soon to confirm everything and answer any questions you have. Can't wait to meet you and {{pet_details}}!",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1300,
@@ -2481,7 +2573,7 @@ export const PET_CARE_TEMPLATE: FlowTemplateDefinition = {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["pet-care-enquiry", "service-booking"],
+        tags: ["pet-care-lead", "service-enquiry", "pet-details-captured"],
       },
       order: 7,
     },
@@ -2502,9 +2594,9 @@ export const PET_CARE_TEMPLATE: FlowTemplateDefinition = {
 };
 
 export const CARE_SERVICES_TEMPLATE: FlowTemplateDefinition = {
-  name: "Child & Elder Care: Service Enquiry",
+  name: "Child & Elder Care: Compassionate Discovery",
   description:
-    "Sensitively captures care type, recipient details, schedule needs, and contact info for childcare or eldercare.",
+    "A sensitive flow for care services that captures recipient needs and schedule preferences to match families with the right care coordinator.",
   category: "care-services",
   icon: "💙",
   group: "Personal Services",
@@ -2512,7 +2604,7 @@ export const CARE_SERVICES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Hello! 👋 Thank you for reaching out. We're here to help you find the most compassionate and professional care for your family. Take your time.",
+        text: "Hello! 👋 Thank you for reaching out. We're here to help you find the most compassionate and professional care for your family. Take your time—we're here to listen.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1400,
@@ -2522,10 +2614,10 @@ export const CARE_SERVICES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What kind of care are you looking for? Whether it's childcare, support for an elder, or a bit of respite care, we're here to listen.",
-        variableName: "care_type",
+        text: "To help me guide you, what kind of care are you looking for? Whether it's specialized childcare, support for an elder, or a bit of respite care for yourself. 💙",
+        variableName: "care_type_intent",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1100,
       },
@@ -2534,10 +2626,10 @@ export const CARE_SERVICES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "If you're comfortable sharing, could you tell us a bit about who the care is for and any specific needs they might have?",
-        variableName: "care_recipient",
+        text: "I understand. If you're comfortable sharing, could you tell us a bit about who the care is for and any specific needs or preferences they might have? 😊",
+        variableName: "care_recipient_details",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1100,
       },
@@ -2546,10 +2638,10 @@ export const CARE_SERVICES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What kind of schedule are you hoping for? We're very flexible.",
-        variableName: "care_schedule",
+        text: "Thank you. What kind of schedule or frequency are you hoping for? We pride ourselves on being very flexible to fit your family's rhythm. 🕒",
+        variableName: "care_schedule_pref",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 800,
       },
@@ -2558,7 +2650,7 @@ export const CARE_SERVICES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Thank you. And who should we ask for when we follow up?",
+        text: "We appreciate you sharing that. And who should our care coordinator ask for when they follow up?",
         variableName: "contact_name",
         inputType: "text",
         delayMs: 400,
@@ -2570,10 +2662,10 @@ export const CARE_SERVICES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What's the best phone number for us to reach you on for a sensitive chat about your needs?",
+        text: "Nice to meet you, {{contact_name}}. What's the best phone number for us to reach you on for a sensitive, 5-minute chat about your family's needs? 📱",
         variableName: "contact_phone",
         inputType: "phone",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 900,
       },
@@ -2582,7 +2674,7 @@ export const CARE_SERVICES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Thank you for sharing that with us. 💙 One of our care coordinators will be in touch personally very soon to discuss how we can best support your family.",
+        text: "Thank you for sharing your journey with us. 💙 One of our senior care coordinators will reach out to {{contact_phone}} personally very soon to discuss how we can best support your family. We're on this path with you.",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1400,
@@ -2593,7 +2685,7 @@ export const CARE_SERVICES_TEMPLATE: FlowTemplateDefinition = {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["care-enquiry", "new-family"],
+        tags: ["care-lead", "family-discovery-complete", "high-sensitivity-qualified"],
       },
       order: 7,
     },
@@ -2618,9 +2710,9 @@ export const CARE_SERVICES_TEMPLATE: FlowTemplateDefinition = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
-  name: "Restaurant: Table Booking & Enquiries",
+  name: "Restaurant: Table Concierge & Reservations",
   description:
-    "Handle reservations, dietary needs, and menu requests. Perfect for any dining establishment.",
+    "A dining-optimized flow that handles reservations, dietary needs, and menu requests with 'reservation-initiated' tagging.",
   category: "restaurant",
   icon: "🍴",
   group: "Hospitality & Leisure",
@@ -2628,7 +2720,7 @@ export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Hello! 🍴 Welcome to our restaurant. We're excited to have you dine with us.",
+        text: "Hello! 🍴 Welcome to our restaurant. We're delighted you've chosen to dine with us. I'm your digital concierge for the evening.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1100,
@@ -2638,10 +2730,10 @@ export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "How can I help you today? Would you like to book a table, see our latest menu, or do you have a question about our location?",
-        variableName: "restaurant_request",
+        text: "How can I help you today? Would you like to secure a table, explore our latest seasonal menu, or do you have a question about our location? 🍷",
+        variableName: "restaurant_request_intent",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
       },
@@ -2652,31 +2744,31 @@ export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
       content: {
         conditions: [
           {
-            variableName: "restaurant_request",
+            variableName: "restaurant_request_intent",
             operator: "contains",
             value: "book",
             nextNodeOrder: 3,
           },
           {
-            variableName: "restaurant_request",
+            variableName: "restaurant_request_intent",
             operator: "contains",
             value: "reserv",
             nextNodeOrder: 3,
           },
           {
-            variableName: "restaurant_request",
+            variableName: "restaurant_request_intent",
             operator: "contains",
             value: "table",
             nextNodeOrder: 3,
           },
           {
-            variableName: "restaurant_request",
+            variableName: "restaurant_request_intent",
             operator: "contains",
             value: "menu",
-            nextNodeOrder: 10,
+            nextNodeOrder: 11,
           },
         ],
-        nextNodeOrder: 11,
+        nextNodeOrder: 12,
       },
       order: 2,
     },
@@ -2684,8 +2776,8 @@ export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Fantastic! 📅 For how many people would you like to book, and on what date and time?",
-        variableName: "booking_details",
+        text: "Fantastic! 📅 For how many guests should I reserve a space, and on what date and time?",
+        variableName: "booking_details_raw",
         inputType: "text",
         delayMs: 500,
         typingEnabled: true,
@@ -2696,10 +2788,10 @@ export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Got it. Are there any dietary requirements or special occasions we should know about? 🎂",
-        variableName: "dietary_requests",
+        text: "Understood. Are there any dietary requirements or special occasions (like a birthday or anniversary) we should prepare for? 🎂",
+        variableName: "special_requests_info",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 900,
       },
@@ -2708,8 +2800,8 @@ export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Perfect. And what's your name so we can put the booking under?",
-        variableName: "customer_name",
+        text: "Perfect. And what's your name so we can secure the reservation for you?",
+        variableName: "guest_name",
         inputType: "text",
         delayMs: 400,
         typingEnabled: true,
@@ -2720,10 +2812,10 @@ export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "And finally, what's the best phone number to send your confirmation to?",
-        variableName: "customer_phone",
+        text: "Welcome, {{guest_name}}! What's the best phone number to text your reservation confirmation to? 📱",
+        variableName: "guest_phone",
         inputType: "phone",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 800,
       },
@@ -2732,7 +2824,7 @@ export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Excellent! 🥂 We've received your request. We'll check our tables and send your confirmation shortly. See you soon!",
+        text: "Excellent! 🥂 I've secured your request. Our host will check the table availability and text your confirmation to {{guest_phone}} shortly. We look forward to seeing you!",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -2743,7 +2835,7 @@ export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["restaurant-booking", "reservation-request"],
+        tags: ["restaurant-booking", "reservation-initiated", "dining-intent-high"],
       },
       order: 8,
     },
@@ -2764,11 +2856,11 @@ export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "You can find our latest seasonal menu right here: [MENU_URL] 🥗 Hope you find something you love!",
+        text: "You can find our latest seasonal menu and chef's specials right here: [MENU_URL] 🥗 Hope you find something you love! Ready to book once you've had a look?",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
-        nextNodeOrder: 13,
+        nextNodeOrder: 15,
       },
       order: 11,
     },
@@ -2776,26 +2868,26 @@ export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "No problem. If you leave your question and a way to reach you, one of our team will get back to you personally. We're located at [LOCATION_ADDRESS]. 📍",
+        text: "No problem. If you share what's on your mind and the best way to reach you, I'll make sure one of our team gets back to you personally. We're located at [LOCATION_ADDRESS]. 📍",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1200,
-        nextNodeOrder: 13,
+        nextNodeOrder: 15,
       },
       order: 12,
     },
     {
       type: "action",
       content: { action: "end_flow" },
-      order: 13,
+      order: 15,
     },
   ],
 };
 
 export const HOTEL_TEMPLATE: FlowTemplateDefinition = {
-  name: "Hotel: Reservations & Guest Services",
+  name: "Hotel: Reservation & Guest Concierge",
   description:
-    "Manage room bookings and amenity enquiries with an elegant, helpful flow for guests.",
+    "An elegant hotel flow that manages room bookings, amenity enquiries, and check-in details with 'reservation-enquiry' tagging.",
   category: "hotel",
   icon: "🏨",
   group: "Hospitality & Leisure",
@@ -2803,7 +2895,7 @@ export const HOTEL_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Welcome! 🏨 We're delighted you're considering a stay with us. How can we make your visit perfect?",
+        text: "Welcome! 🏨 We're delighted you're considering a stay with us. I'm here to ensure your visit is perfect from the very first moment.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -2813,10 +2905,10 @@ export const HOTEL_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Would you like to book a room, or are you looking for information about our amenities or check-in times?",
-        variableName: "hotel_request",
+        text: "How can I assist you today? Would you like to secure a room, or are you looking for information about our luxury amenities and check-in times? ✨",
+        variableName: "hotel_request_intent",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
       },
@@ -2827,19 +2919,19 @@ export const HOTEL_TEMPLATE: FlowTemplateDefinition = {
       content: {
         conditions: [
           {
-            variableName: "hotel_request",
+            variableName: "hotel_request_intent",
             operator: "contains",
             value: "book",
             nextNodeOrder: 3,
           },
           {
-            variableName: "hotel_request",
+            variableName: "hotel_request_intent",
             operator: "contains",
             value: "reserv",
             nextNodeOrder: 3,
           },
           {
-            variableName: "hotel_request",
+            variableName: "hotel_request_intent",
             operator: "contains",
             value: "stay",
             nextNodeOrder: 3,
@@ -2853,8 +2945,8 @@ export const HOTEL_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Excellent! 🛌 What dates were you thinking of, and for how many guests?",
-        variableName: "stay_details",
+        text: "Excellent choice. 🛌 What dates were you thinking of for your stay, and for how many guests should I prepare for?",
+        variableName: "stay_details_raw",
         inputType: "text",
         delayMs: 500,
         typingEnabled: true,
@@ -2865,8 +2957,8 @@ export const HOTEL_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "And what's your full name, please?",
-        variableName: "customer_name",
+        text: "Understood. And what's your full name, please? We'll use this for your priority reservation enquiry.",
+        variableName: "guest_name",
         inputType: "text",
         delayMs: 400,
         typingEnabled: true,
@@ -2877,8 +2969,8 @@ export const HOTEL_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What's the best email to send your reservation options to?",
-        variableName: "customer_email",
+        text: "Welcome, {{guest_name}}! What's the best email to send your personalized reservation options and exclusive offers to? 📧",
+        variableName: "guest_email",
         inputType: "email",
         delayMs: 400,
         typingEnabled: true,
@@ -2889,10 +2981,11 @@ export const HOTEL_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Perfect. 🥂 Our reservations team will check our availability and send your options to {{customer_email}} shortly. We look forward to welcoming you!",
+        text: "Perfect. 🥂 Our reservations team will check our availability and send your options to {{guest_email}} shortly. We look forward to welcoming you soon! Ready to see our room gallery?",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1300,
+        nextNodeOrder: 7,
       },
       order: 6,
     },
@@ -2900,7 +2993,7 @@ export const HOTEL_TEMPLATE: FlowTemplateDefinition = {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["hotel-booking", "reservation-enquiry"],
+        tags: ["hotel-booking", "reservation-enquiry", "high-intent-traveler"],
       },
       order: 7,
     },
@@ -2921,26 +3014,26 @@ export const HOTEL_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Of course. You can find all about our spa, gym, and dining at [AMENITIES_URL]. 🧖 Check-in is from 3pm and check-out is by 11am. Let us know if you have any other questions!",
+        text: "Of course. You can explore our spa rituals, fitness center, and fine dining options right here: [AMENITIES_URL]. 🧖 Check-in begins at 3pm and check-out is by 11am. Do you have any other specific questions for our concierge?",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1300,
-        nextNodeOrder: 11,
+        nextNodeOrder: 15,
       },
       order: 10,
     },
     {
       type: "action",
       content: { action: "end_flow" },
-      order: 11,
+      order: 15,
     },
   ],
 };
 
 export const GOLF_CLUB_TEMPLATE: FlowTemplateDefinition = {
-  name: "Golf Club: Tee Times & Membership",
+  name: "Golf Club: Tee Time & Membership Concierge",
   description:
-    "Book tee times, manage membership enquiries, and share pro shop info effortlessly.",
+    "A premium club flow that handles tee time bookings and membership enquiries with 'tee-time-request' tagging.",
   category: "golf-club",
   icon: "⛳",
   group: "Hospitality & Leisure",
@@ -2948,7 +3041,7 @@ export const GOLF_CLUB_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Welcome to the club! ⛳ We're looking forward to seeing you on the green.",
+        text: "Welcome to the club! ⛳ We're looking forward to seeing you on the green. I'm here to help you coordinate your perfect round.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1100,
@@ -2958,10 +3051,10 @@ export const GOLF_CLUB_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "How can we help you today? Would you like to book a tee time, enquire about membership, or find out about our pro shop?",
-        variableName: "golf_request",
+        text: "How can I assist you today? Would you like to secure a tee time, enquire about our exclusive membership tiers, or find out about our pro shop? 🏌️",
+        variableName: "golf_request_intent",
         inputType: "text",
-        delayMs: 400,
+        delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
       },
@@ -2972,19 +3065,19 @@ export const GOLF_CLUB_TEMPLATE: FlowTemplateDefinition = {
       content: {
         conditions: [
           {
-            variableName: "golf_request",
+            variableName: "golf_request_intent",
             operator: "contains",
             value: "tee",
             nextNodeOrder: 3,
           },
           {
-            variableName: "golf_request",
+            variableName: "golf_request_intent",
             operator: "contains",
             value: "book",
             nextNodeOrder: 3,
           },
           {
-            variableName: "golf_request",
+            variableName: "golf_request_intent",
             operator: "contains",
             value: "member",
             nextNodeOrder: 10,
@@ -2998,8 +3091,8 @@ export const GOLF_CLUB_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Great! 🏌️ What date and time were you hoping for, and for how many players?",
-        variableName: "tee_time_details",
+        text: "Great! 🏌️ What date and time were you hoping to tee off, and for how many players in your group?",
+        variableName: "tee_time_details_raw",
         inputType: "text",
         delayMs: 500,
         typingEnabled: true,
@@ -3010,8 +3103,8 @@ export const GOLF_CLUB_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "And what's your name, please?",
-        variableName: "customer_name",
+        text: "Understood. And what's your full name, please? We'll use this for your priority tee time enquiry.",
+        variableName: "guest_name",
         inputType: "text",
         delayMs: 400,
         typingEnabled: true,
@@ -3022,8 +3115,8 @@ export const GOLF_CLUB_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What's the best phone number for us to confirm your tee time?",
-        variableName: "customer_phone",
+        text: "Welcome, {{guest_name}}! What's the best phone number for us to text your tee time confirmation and course conditions to? 📱",
+        variableName: "guest_phone",
         inputType: "phone",
         delayMs: 400,
         typingEnabled: true,
@@ -3034,10 +3127,11 @@ export const GOLF_CLUB_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Perfect! 🏆 We'll check the course schedule and get back to you shortly to confirm. Happy golfing!",
+        text: "Perfect! 🏆 I've secured your request. Our course manager will check the schedule and text you at {{guest_phone}} shortly to confirm. Happy golfing! Ready to see the course layout?",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1200,
+        nextNodeOrder: 7,
       },
       order: 6,
     },
@@ -3045,7 +3139,7 @@ export const GOLF_CLUB_TEMPLATE: FlowTemplateDefinition = {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["golf-booking", "tee-time-request"],
+        tags: ["golf-booking", "tee-time-request", "player-intent-high"],
       },
       order: 7,
     },
@@ -3066,11 +3160,11 @@ export const GOLF_CLUB_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "We'd love to have you as a member! 🤝 You can find all our membership tiers and benefits here: [MEMBERSHIP_URL]. Let us know if you'd like a tour of the clubhouse!",
+        text: "We'd love to have you join our community! 🤝 You can explore all our premium membership tiers and benefits right here: [MEMBERSHIP_URL]. Would you like me to arrange a personal tour of the clubhouse?",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1300,
-        nextNodeOrder: 12,
+        nextNodeOrder: 15,
       },
       order: 10,
     },
@@ -3078,18 +3172,18 @@ export const GOLF_CLUB_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "No problem. If you leave your question and a way to reach you, one of our team will get back to you personally. Our pro shop is open daily from 7am. 🛍️",
+        text: "No problem. If you share what's on your mind and the best way to reach you, I'll make sure one of our club team gets back to you personally. Our pro shop is open daily from 7am. 🛍️",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1200,
-        nextNodeOrder: 12,
+        nextNodeOrder: 15,
       },
       order: 11,
     },
     {
       type: "action",
       content: { action: "end_flow" },
-      order: 12,
+      order: 15,
     },
   ],
 };
