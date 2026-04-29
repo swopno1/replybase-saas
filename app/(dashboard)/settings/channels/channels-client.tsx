@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { isChannelVisibleInUi, type ChannelId } from "@/lib/channel-config";
 
 interface ChannelConfig {
-  id: string;
+  id: ChannelId;
   displayName: string;
   description: string;
   enabled: boolean;
@@ -22,7 +22,7 @@ interface ChannelStatus {
   whatsapp: boolean;
 }
 
-const CHANNEL_INFO: Record<string, { icon: string; color: string }> = {
+const CHANNEL_INFO: Record<ChannelId, { icon: string; color: string }> = {
   facebook: { icon: "f", color: "bg-blue-500" },
   telegram: { icon: "✈", color: "bg-cyan-500" },
   webchat: { icon: "◆", color: "bg-green-500" },
@@ -87,9 +87,7 @@ export function ChannelsClient() {
         ];
 
         setChannels(
-          channelList.filter((channel) =>
-            isChannelVisibleInUi(channel.id as ChannelId),
-          ),
+          channelList.filter((channel) => isChannelVisibleInUi(channel.id)),
         );
         setStatus({
           facebook: data.tenantOnly.facebook,
