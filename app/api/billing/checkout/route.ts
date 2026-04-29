@@ -108,6 +108,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Create Checkout Session
+    // Redesign: Use /billing/success with session_id for reliable sync (Step 3)
     const checkoutSession = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
       line_items: [
@@ -118,8 +119,9 @@ export async function POST(req: NextRequest) {
       ],
       mode: "subscription",
       allow_promotion_codes: true,
-      success_url: `${appUrl}/dashboard?checkout=success`,
-      cancel_url: `${appUrl}/pricing?checkout=canceled`,
+      // Pass CHECKOUT_SESSION_ID to our success page for verification
+      success_url: `${appUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${appUrl}/pricing?canceled=true`,
       metadata,
       subscription_data: {
         metadata,
