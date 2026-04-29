@@ -11,7 +11,7 @@ export interface OnboardingData {
   businessBasics: {
     industry: string;
     companySize: string;
-    website: string;
+    website?: string;
     businessModel: string;
   };
   productDetails: {
@@ -29,7 +29,7 @@ export interface OnboardingData {
     salesProcess: string;
   };
   additionalContext: {
-    otherInfo: string;
+    otherInfo?: string;
   };
 }
 

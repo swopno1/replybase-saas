@@ -3,12 +3,11 @@ import crypto from "crypto";
 const DEFAULT_ALGORITHM = "aes-256-gcm";
 
 function getCredentialEncryptionKey(): Buffer {
-  const keyMaterial =
-    process.env.CHANNEL_CREDENTIALS_ENCRYPTION_KEY || process.env.AUTH_SECRET;
+  const keyMaterial = process.env.CHANNEL_CREDENTIALS_ENCRYPTION_KEY;
 
   if (!keyMaterial) {
     throw new Error(
-      "Missing CHANNEL_CREDENTIALS_ENCRYPTION_KEY (or AUTH_SECRET) for channel credential encryption",
+      "Missing CHANNEL_CREDENTIALS_ENCRYPTION_KEY for channel credential encryption. Fallback to AUTH_SECRET is disabled for security.",
     );
   }
 

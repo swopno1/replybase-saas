@@ -24,8 +24,18 @@ import {
   Phone,
   Trash2,
   CheckCircle,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
 import { DataTable } from "@/components/data-table";
 import { ColumnDef, PaginationState, RowSelectionState } from "@tanstack/react-table";
@@ -128,6 +138,47 @@ export default function LeadsPage() {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [isAllMatchingSelected, setIsAllMatchingSelected] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportIds, setExportIds] = useState<string[] | undefined>(undefined);
+  const [selectedColumns, setSelectedColumns] = useState<Set<string>>(new Set(["name", "email", "phone", "company", "status", "source", "createdAt"]));
+  const [deletingLeadId, setDeletingLeadId] = useState<string | null>(null);
+
+  const allExportColumns = [
+    { key: "name", label: "Name" },
+    { key: "email", label: "Email" },
+    { key: "phone", label: "Phone" },
+    { key: "company", label: "Company" },
+    { key: "businessType", label: "Business Type" },
+    { key: "status", label: "Status" },
+    { key: "source", label: "Source" },
+    { key: "createdAt", label: "Captured At" },
+  ];
+
+  const toggleColumn = (key: string) => {
+    const newSelected = new Set(selectedColumns);
+    if (newSelected.has(key)) {
+      newSelected.delete(key);
+    } else {
+      newSelected.add(key);
+    }
+    setSelectedColumns(newSelected);
+  };
+
+  const getPlanBadge = (plan: string | null, trial: boolean) => {
+    if (!plan) return <Badge variant="outline">No Plan</Badge>;
+    return (
+      <div className="flex items-center gap-1">
+        <Badge variant="secondary" className="capitalize">
+          {plan}
+        </Badge>
+        {trial && (
+          <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-amber-200 text-amber-700 bg-amber-50">
+            TRIAL
+          </Badge>
+        )}
+      </div>
+    );
+  };
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
@@ -170,18 +221,20 @@ export default function LeadsPage() {
   }, [leads]);
 
   const handleDeleteLeads = async (ids: string[], allMatching = false) => {
-    const message = allMatching
-      ? `Are you sure you want to delete ALL ${totalCount} matching leads? This action cannot be undone.`
-      : `Are you sure you want to delete ${ids.length} lead(s)? This action cannot be undone.`;
-
     const confirmed = await confirm({
       title: "Delete Leads",
-      description: `Are you sure you want to delete ${ids.length} lead(s)? This action cannot be undone.`,
+      description: allMatching
+        ? `Are you sure you want to delete ALL ${totalCount} matching leads? This action cannot be undone.`
+        : `Are you sure you want to delete ${ids.length} lead(s)? This action cannot be undone.`,
       confirmText: "Delete",
       variant: "destructive",
     });
 
     if (!confirmed) return;
+
+    if (!allMatching && ids.length === 1) {
+      setDeletingLeadId(ids[0]);
+    }
 
     try {
       const response = await fetch("/api/leads", {
@@ -191,23 +244,25 @@ export default function LeadsPage() {
 
       if (!response.ok) throw new Error("Failed to delete leads");
 
-      toast.success(`${ids.length} lead(s) deleted`);
+      toast.success(allMatching ? "All matching leads deleted" : `${ids.length} lead(s) deleted`);
       setRowSelection({});
       fetchLeads();
     } catch (error) {
       toast.error("Failed to delete leads");
+    } finally {
+      setDeletingLeadId(null);
     }
   };
 
-  const handleExport = async (ids?: string[]) => {
+  const handleExport = async (idsOverride?: string[]) => {
     setIsExporting(true);
+    const idsToUse = Array.isArray(idsOverride) ? idsOverride : exportIds;
+
     try {
       let leadsToExport = [];
-      if (ids && ids.length > 0) {
-        // Export only selected
-        leadsToExport = leads.filter(l => ids.includes(l.id));
+      if (idsToUse && idsToUse.length > 0) {
+        leadsToExport = leads.filter(l => idsToUse.includes(l.id));
       } else {
-        // Export all matching current filters (matching page 1 size 1000 for simplicity)
         const response = await fetch(`/api/leads?limit=1000`);
         if (response.ok) {
           const data = await response.json();
@@ -227,19 +282,24 @@ export default function LeadsPage() {
         return value;
       };
 
-      const headers = ["Name", "Email", "Phone", "Company", "Business Type", "Status", "Source", "Captured At"];
-      const csvRows = leadsToExport.map(l => [
-        l.name || l.contact?.name || "",
-        getLeadEmail(l) || "",
-        getLeadPhone(l) || "",
-        l.company || "",
-        l.businessType || "",
-        l.status,
-        formatLeadSource(l.source),
-        new Date(l.createdAt).toLocaleString()
-      ].map(v => escapeCsv(v)).join(","));
+      const selectedHeaders = allExportColumns
+        .filter(col => selectedColumns.has(col.key))
+        .map(col => col.label);
 
-      const csv = [headers.join(","), ...csvRows].join("\n");
+      const csvRowsFiltered = leadsToExport.map((l: Lead) => {
+        const rowData: string[] = [];
+        if (selectedColumns.has("name")) rowData.push(l.name || l.contact?.name || "");
+        if (selectedColumns.has("email")) rowData.push(getLeadEmail(l) || "");
+        if (selectedColumns.has("phone")) rowData.push(getLeadPhone(l) || "");
+        if (selectedColumns.has("company")) rowData.push(l.company || "");
+        if (selectedColumns.has("businessType")) rowData.push(l.businessType || "");
+        if (selectedColumns.has("status")) rowData.push(l.status);
+        if (selectedColumns.has("source")) rowData.push(formatLeadSource(l.source));
+        if (selectedColumns.has("createdAt")) rowData.push(new Date(l.createdAt).toLocaleString());
+        return rowData.map(v => escapeCsv(v)).join(",");
+      });
+
+      const csv = [selectedHeaders.join(","), ...csvRowsFiltered].join("\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -248,6 +308,7 @@ export default function LeadsPage() {
       a.click();
       URL.revokeObjectURL(url);
       toast.success("CSV downloaded");
+      setExportDialogOpen(false);
     } catch (error) {
       console.error("Export failed:", error);
       toast.error("Failed to export leads");
@@ -265,7 +326,7 @@ export default function LeadsPage() {
 
       if (!response.ok) throw new Error("Failed to update status");
 
-      toast.success(`Status updated for ${ids.length} lead(s)`);
+      toast.success(`Status updated for ${allMatching ? "all" : ids.length} lead(s)`);
       setRowSelection({});
       fetchLeads();
     } catch (error) {
@@ -359,6 +420,15 @@ export default function LeadsPage() {
         cell: ({ row }: { row: any }) => getFlowInputs(row.original)[dcol.key] || "—",
       })),
       {
+        id: "plan",
+        header: "Plan",
+        cell: ({ row }) => row.original.interestedInSubscription ? (
+          getPlanBadge(row.original.selectedPlan, row.original.trialRequested)
+        ) : (
+          <Badge variant="outline" className="bg-gray-100">Not Interested</Badge>
+        ),
+      },
+      {
         accessorKey: "status",
         header: "Status",
         cell: ({ row }) => (
@@ -390,9 +460,25 @@ export default function LeadsPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {getLeadEmail(row.original) && (
+                  <DropdownMenuItem asChild>
+                    <a href={`mailto:${getLeadEmail(row.original)}`}>
+                      <Mail className="mr-2 h-4 w-4" />
+                      Email lead
+                    </a>
+                  </DropdownMenuItem>
+                )}
+                {getLeadPhone(row.original) && (
+                  <DropdownMenuItem asChild>
+                    <a href={`tel:${getLeadPhone(row.original)}`}>
+                      <Phone className="mr-2 h-4 w-4" />
+                      Call lead
+                    </a>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={() => handleDeleteLeads([row.original.id])} className="text-destructive">
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
+                  {deletingLeadId === row.original.id ? "Deleting..." : "Delete"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -401,7 +487,7 @@ export default function LeadsPage() {
       },
     ];
     return cols;
-  }, [dynamicColumns, leads]);
+  }, [dynamicColumns, leads, deletingLeadId]);
 
   const selectedIds = useMemo(() => Object.keys(rowSelection), [rowSelection]);
   const currentSelectionCount = isAllMatchingSelected ? totalCount : selectedIds.length;
@@ -432,7 +518,7 @@ export default function LeadsPage() {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button variant="outline" size="sm" onClick={() => handleExport(isAllMatchingSelected ? undefined : selectedIds)} disabled={isExporting}>
+            <Button variant="outline" size="sm" onClick={() => { setExportIds(isAllMatchingSelected ? undefined : selectedIds); setExportDialogOpen(true); }} disabled={isExporting}>
               <Download className="mr-2 h-4 w-4" />
               Export {isAllMatchingSelected ? "All" : "Selected"} ({currentSelectionCount})
             </Button>
@@ -456,167 +542,29 @@ export default function LeadsPage() {
              <Button
                variant="outline"
                size="sm"
-               onClick={() => handleExport()}
+               onClick={() => { setExportIds(undefined); setExportDialogOpen(true); }}
                disabled={isExporting}
              >
-               {isExporting ? <span className="animate-spin mr-2">◌</span> : <Download className="mr-2 h-4 w-4" />}
+               {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                Export All
              </Button>
           )}
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : leads.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              No leads yet. New website enquiries will appear here after a
-              visitor submits your chat widget or lead capture form.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Business Type</TableHead>
-                    <TableHead>Enquiry</TableHead>
-                    {dynamicColumns.map((col) => (
-                      <TableHead key={col.key}>{col.label}</TableHead>
-                    ))}
-                    <TableHead>Plan</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Source</TableHead>
-                    <TableHead>Captured At</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {leads.map((lead) => {
-                    const flowInputs = getFlowInputs(lead);
-                    return (
-                      <TableRow key={lead.id}>
-                        <TableCell className="font-medium whitespace-nowrap">
-                          {lead.name || lead.contact?.name || "—"}
-                        </TableCell>
-                        <TableCell>
-                          {getLeadEmail(lead) ? (
-                            <a
-                              href={`mailto:${getLeadEmail(lead)}`}
-                              className="inline-flex items-center gap-1 text-blue-600 hover:underline whitespace-nowrap"
-                            >
-                              <Mail className="h-3.5 w-3.5 shrink-0" />
-                              {getLeadEmail(lead)}
-                            </a>
-                          ) : (
-                            "—"
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {getLeadPhone(lead) ? (
-                            <a
-                              href={`tel:${getLeadPhone(lead)}`}
-                              className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground hover:underline whitespace-nowrap"
-                            >
-                              <Phone className="h-3.5 w-3.5 shrink-0" />
-                              {getLeadPhone(lead)}
-                            </a>
-                          ) : (
-                            "—"
-                          )}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          {lead.company || "—"}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          {lead.businessType || "—"}
-                        </TableCell>
-                        <TableCell className="max-w-xs whitespace-pre-wrap text-sm text-muted-foreground">
-                          {readEnquiry(lead.metadata) || "—"}
-                        </TableCell>
-                        {dynamicColumns.map((col) => (
-                          <TableCell
-                            key={col.key}
-                            className="max-w-xs whitespace-pre-wrap text-sm"
-                          >
-                            {flowInputs[col.key] || "—"}
-                          </TableCell>
-                        ))}
-                        <TableCell>
-                          {lead.interestedInSubscription ? (
-                            getPlanBadge(
-                              lead.selectedPlan,
-                              lead.trialRequested,
-                            )
-                          ) : (
-                            <Badge variant="outline" className="bg-gray-100">
-                              Not Interested
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            className={`${getStatusColor(lead.status)} text-white`}
-                          >
-                            {lead.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{formatLeadSource(lead.source)}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                          {new Date(lead.createdAt).toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                aria-label="Lead options"
-                              >
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {getLeadEmail(lead) ? (
-                                <DropdownMenuItem asChild>
-                                  <a href={`mailto:${getLeadEmail(lead)}`}>
-                                    <Mail className="mr-2 h-4 w-4" />
-                                    Email lead
-                                  </a>
-                                </DropdownMenuItem>
-                              ) : null}
-                              {getLeadPhone(lead) ? (
-                                <DropdownMenuItem asChild>
-                                  <a href={`tel:${getLeadPhone(lead)}`}>
-                                    <Phone className="mr-2 h-4 w-4" />
-                                    Call lead
-                                  </a>
-                                </DropdownMenuItem>
-                              ) : null}
-                              <DropdownMenuItem
-                                onClick={() => handleDeleteLead(lead.id)}
-                                disabled={deletingLeadId === lead.id}
-                                className="text-destructive"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                {deletingLeadId === lead.id
-                                  ? "Deleting..."
-                                  : "Delete"}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+          <DataTable
+            columns={columns}
+            data={leads}
+            pageCount={pageCount}
+            pagination={pagination}
+            onPaginationChange={setPagination}
+            rowSelection={rowSelection}
+            onRowSelectionChange={setRowSelection}
+            isLoading={loading}
+            persistenceKey="leads_table"
+            totalCount={totalCount}
+            onSelectAllMatching={setIsAllMatchingSelected}
+            isAllMatchingSelected={isAllMatchingSelected}
+          />
         </CardContent>
       </Card>
 
@@ -654,7 +602,7 @@ export default function LeadsPage() {
             >
               Cancel
             </Button>
-            <Button onClick={handleExport}>
+            <Button onClick={() => handleExport()}>
               <Download className="mr-2 h-4 w-4" />
               Download CSV
             </Button>
@@ -749,24 +697,6 @@ export default function LeadsPage() {
               </div>
             </div>
           </div>
-          
-          {/* ── Delete this section ───────────────────────────────────────────── */}
-          <DataTable
-            columns={columns}
-            data={leads}
-            pageCount={pageCount}
-            pagination={pagination}
-            onPaginationChange={setPagination}
-            rowSelection={rowSelection}
-            onRowSelectionChange={setRowSelection}
-            isLoading={loading}
-            persistenceKey="leads_table"
-            totalCount={totalCount}
-            onSelectAllMatching={setIsAllMatchingSelected}
-            isAllMatchingSelected={isAllMatchingSelected}
-          />
-          
-         
         </CardContent>
       </Card>
     </div>

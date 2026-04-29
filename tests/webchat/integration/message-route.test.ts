@@ -26,6 +26,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     crmMessage: {
       create: vi.fn().mockResolvedValue({ id: "msg_1" }),
+      createMany: vi.fn().mockResolvedValue({ count: 1 }),
       findFirst: vi.fn(),
       findMany: vi.fn().mockResolvedValue([]),
     },
@@ -258,12 +259,14 @@ describe("POST /api/webchat/message — integration", () => {
       expect(json.meta.mode).toBe("flow");
       expect(json.responses[0].text).toBe("Flow reply");
       // ensure CRM message was created synchronously
-      expect(prisma.crmMessage.create).toHaveBeenCalledWith(
+      expect(prisma.crmMessage.createMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({
-            content: "Flow reply",
-            direction: "outbound",
-          }),
+          data: expect.arrayContaining([
+            expect.objectContaining({
+              content: "Flow reply",
+              direction: "outbound",
+            }),
+          ]),
         }),
       );
     });

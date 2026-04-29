@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, summary });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Invalid data", details: error.errors }, { status: 400 });
+      return NextResponse.json({ error: "Invalid data", details: error.issues }, { status: 400 });
     }
     console.error("[Onboarding POST] Error:", error);
     return NextResponse.json({ error: "Failed to complete onboarding" }, { status: 500 });

@@ -76,6 +76,8 @@ async function getConversation(conversationId: string, tenantId: string) {
       },
     },
   });
+
+  return conversation;
 }
 
 // GET: Retrieve a specific conversation
