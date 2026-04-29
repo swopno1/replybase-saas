@@ -155,6 +155,20 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
   },
   callbacks: {
+    async signIn({ user }) {
+      // Strict dev-only login rule to prevent unauthorized access to dev versions
+      // This is controlled by environment variables to ensure it doesn't affect main/prod
+      if (process.env.STRICT_DEV_LOGIN === "true") {
+        const allowedEmails = ["replybase1@gmail.com", "amirhossain.limon@gmail.com"];
+        const userEmail = user?.email?.toLowerCase().trim();
+        
+        if (!userEmail || !allowedEmails.includes(userEmail)) {
+          console.warn(`[STRICT LOGIN] Blocked login attempt from: ${userEmail}`);
+          return false; // Deny login
+        }
+      }
+      return true;
+    },
     async jwt({ token, user }) {
       if (user) {
         // Fetch user with tenant to get tenantId
