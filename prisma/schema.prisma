@@ -168,22 +168,40 @@ model FacebookPage {
 }
 
 model Subscription {
-  id                 String    @id @default(cuid())
-  stripeId           String    @unique
-  stripeCustomerId   String?   @unique
-  status             String    @default("active")
-  currentPeriodStart DateTime  @default(now())
-  currentPeriodEnd   DateTime
-  cancelAtPeriodEnd  Boolean   @default(false)
-  trialEndsAt        DateTime?
-  planId             String
-  tenantId           String    @unique
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  plan               Plan      @relation(fields: [planId], references: [id])
-  tenant             Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id                    String    @id @default(cuid())
+  stripeId              String    @unique
+  stripeCustomerId      String?   @unique
+  status                String    @default("ACTIVE") // FREE, TRIALING, ACTIVE, PAST_DUE, CANCELED
+  currentPeriodStart    DateTime  @default(now())
+  currentPeriodEnd      DateTime
+  cancelAtPeriodEnd     Boolean   @default(false)
+  trialEndsAt           DateTime?
+  planId                String
+  tenantId              String    @unique
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  
+  // Upgrade/Downgrade management
+  downgradeScheduled    Boolean   @default(false)
+  downgradeEffectiveAt  DateTime?
+  
+  plan                  Plan      @relation(fields: [planId], references: [id])
+  tenant                Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("subscriptions")
+}
+
+model StripeEvent {
+  id               String    @id @default(cuid())
+  stripeEventId    String    @unique
+  type             String
+  status           String    @default("PENDING") // PENDING, PROCESSED, FAILED
+  error            String?
+  metadata         Json?
+  createdAt        DateTime  @default(now())
+  processedAt      DateTime?
+
+  @@map("stripe_events")
 }
 
 model NewsletterSubscriber {
