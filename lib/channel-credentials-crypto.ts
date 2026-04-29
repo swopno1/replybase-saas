@@ -7,7 +7,7 @@ function getCredentialEncryptionKey(): Buffer {
 
   if (!keyMaterial) {
     throw new Error(
-      "CRITICAL: Missing CHANNEL_CREDENTIALS_ENCRYPTION_KEY for channel credential encryption. This is required for production.",
+      "Missing CHANNEL_CREDENTIALS_ENCRYPTION_KEY for channel credential encryption. Fallback to AUTH_SECRET is disabled for security.",
     );
   }
 

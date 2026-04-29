@@ -162,7 +162,19 @@ function PricingContent() {
 
       const data = await response.json();
       if (data.url) {
-        window.location.href = data.url;
+        // Simple validation: only allow absolute URLs starting with https://
+        // or relative URLs starting with /
+        const isSafe =
+          data.url.startsWith("/") ||
+          data.url.startsWith("https://checkout.stripe.com/") ||
+          data.url.startsWith("https://billing.stripe.com/");
+
+        if (isSafe) {
+          window.location.href = data.url;
+        } else {
+          console.error("Blocked insecure redirect attempt to:", data.url);
+          toast.error("Insecure redirect blocked.");
+        }
       }
     } catch (error) {
       toast.error("Something went wrong. Please try again.");
