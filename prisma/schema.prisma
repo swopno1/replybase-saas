@@ -258,6 +258,8 @@ model Plan {
   maxBots                 Int                   @default(1)
   maxChannelsPerBot       Int                   @default(1)
   maxConversations        Int                   @default(100)
+  maxContacts             Int                   @default(100)
+  maxIntegrations         Int                   @default(1)
   maxFlows                Int                   @default(3)
   features                Json                  @default("{}")
   createdAt               DateTime              @default(now())
