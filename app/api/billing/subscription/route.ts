@@ -64,7 +64,7 @@ export async function GET() {
           tenantId: user.tenantId,
           planId: freePlan.id,
           stripeId: `free_${user.tenantId}`,
-          status: "active",
+          status: "FREE",
           currentPeriodStart: new Date(),
           currentPeriodEnd,
           trialEndsAt: null, // No trial started for Free plan

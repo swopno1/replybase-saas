@@ -54,7 +54,7 @@ export function SubscriptionStatus() {
 
   if (!subscription) return null;
 
-  const isTrial = subscription.status === "trialing";
+  const isTrial = subscription.status === "TRIALING";
   const planLabel = subscription.plan?.displayName || "Free";
   const daysRemaining = subscription.trialDaysRemaining;
 
@@ -99,7 +99,7 @@ export function SubscriptionStatus() {
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <CheckCircle2 className="h-4 w-4 text-green-500" />
-              <span>{subscription.status === "active" ? "Subscription active" : subscription.status}</span>
+              <span>{subscription.status === "ACTIVE" ? "Subscription active" : subscription.status.toLowerCase()}</span>
             </div>
             <Link href="/settings?tab=billing" className="block">
               <Button variant="outline" className="w-full h-9 text-xs font-bold gap-2 group">

@@ -157,7 +157,7 @@ export default function BillingTabContent() {
     );
   }
 
-  const isTrial = subscription?.status === "trialing";
+  const isTrial = subscription?.status === "TRIALING";
   const isCanceled = subscription?.cancelAtPeriodEnd;
   const trialDays = subscription?.trialDaysRemaining ?? 0;
 
@@ -209,9 +209,9 @@ export default function BillingTabContent() {
               <Badge variant="outline" className="font-bold border-primary/20 text-primary bg-primary/5 uppercase tracking-wider text-[10px]">Current Plan</Badge>
               {subscription && (
                 <Badge 
-                  className={subscription.status === "active" ? "bg-green-500/10 text-green-600 border-green-200" : "bg-muted text-muted-foreground"}
+                  className={subscription.status === "ACTIVE" ? "bg-green-500/10 text-green-600 border-green-200" : "bg-muted text-muted-foreground"}
                 >
-                  {subscription.status}
+                  {subscription.status.toLowerCase()}
                 </Badge>
               )}
             </div>
@@ -242,7 +242,7 @@ export default function BillingTabContent() {
               <Button onClick={handleUpgrade} className="w-full bg-foreground text-background hover:bg-foreground/90 font-bold h-11 rounded-xl shadow-md">
                 Change Plan
               </Button>
-              {subscription?.status !== "free" && !isCanceled && (
+              {subscription?.status !== "FREE" && !isCanceled && (
                 <Button 
                   variant="ghost" 
                   onClick={() => setShowCancelDialog(true)}
