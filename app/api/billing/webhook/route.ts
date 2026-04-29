@@ -43,35 +43,35 @@ export async function POST(req: NextRequest) {
     switch (event.type) {
       case "checkout.session.completed": {
         const checkoutSession = session as Stripe.Checkout.Session;
-        // Metadata from checkout session creation
         const tenantId = checkoutSession.metadata?.tenantId;
         const subscriptionId = checkoutSession.subscription as string;
 
         if (tenantId && subscriptionId) {
-          // Retrieve the subscription to get details
-          const subscription =
-            await stripe!.subscriptions.retrieve(subscriptionId);
-
+          const subscription = await stripe!.subscriptions.retrieve(subscriptionId);
           await syncSubscription(tenantId, subscription);
         }
         break;
       }
 
+      case "customer.subscription.created":
       case "customer.subscription.updated":
       case "customer.subscription.deleted": {
         const subscription = session as Stripe.Subscription;
-        // We need to find the tenant associated with this stripe subscription
-        // We store stripeCustomerId in our DB, so let's look it up
+        // Lookup tenant by stripe customer ID
         const dbSub = await prisma.subscription.findUnique({
           where: { stripeCustomerId: subscription.customer as string },
         });
 
         if (dbSub) {
           await syncSubscription(dbSub.tenantId, subscription);
-        } else {
-          console.warn(
-            `[Stripe Webhook] No database subscription found for customer ${subscription.customer}`,
-          );
+          
+          // Rule #2: Track trial usage to prevent abuse
+          if (subscription.status === "trialing") {
+            await prisma.tenant.update({
+              where: { id: dbSub.tenantId },
+              data: { trialUsed: true },
+            });
+          }
         }
         break;
       }
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
               stripeInvoiceId: invoice.id,
               stripeSubscriptionId,
               tenantId: dbSub.tenantId,
-              amount: invoice.amount_paid / 100, // convert cents to currency units
+              amount: invoice.amount_paid / 100,
               currency: invoice.currency,
               status: "paid",
               paidAt: new Date(),
@@ -101,23 +101,27 @@ export async function POST(req: NextRequest) {
               },
             },
           });
-          console.log(
-            `[Stripe Webhook] Recorded revenue for tenant ${dbSub.tenantId}: ${invoice.amount_paid / 100} ${invoice.currency}`,
-          );
-        } else {
-          console.warn(
-            `[Stripe Webhook] No database subscription found for customer ${stripeCustomerId} during invoice.paid`,
-          );
         }
         break;
       }
 
       case "invoice.payment_failed": {
         const invoice = session as Stripe.Invoice;
-        console.warn(
-          `[Stripe Webhook] Payment failed for invoice ${invoice.id} (Customer: ${invoice.customer})`,
-        );
-        // We could also record this in Revenue with a "failed" status if desired
+        const stripeCustomerId = invoice.customer as string;
+        
+        const dbSub = await prisma.subscription.findUnique({
+          where: { stripeCustomerId },
+        });
+
+        if (dbSub && dbSub.stripeId) {
+          // Rule #8: Failure handling -> restrict features
+          await prisma.subscription.update({
+            where: { id: dbSub.id },
+            data: { status: "past_due" },
+          });
+          
+          console.warn(`[Stripe Webhook] Payment failed for tenant ${dbSub.tenantId}. Status set to PAST_DUE.`);
+        }
         break;
       }
 
@@ -139,22 +143,14 @@ async function syncSubscription(
   tenantId: string,
   stripeSub: Stripe.Subscription,
 ) {
-  // Type-safe casting to access Stripe subscription properties
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sub = stripeSub as any;
 
-  // 1. Determine Plan based on price ID
-  // We assume the first item is the main plan
-  // Find our local plan that matches this price (via metadata or price lookup?)
-  // Our seed script sets price = X. We can iterate limit 1.
-  // Or we rely on the product name or metadata set in seed script.
-
+  // 1. Map Stripe Product to Internal Plan (Rule #1: Stripe is source of truth)
   const product = await stripe!.products.retrieve(
     sub.items.data[0].price.product as string,
   );
   let planName = product.metadata.app_plan_id;
 
-  // Fallback: If metadata is missing, try to infer from product name (e.g. "ReplyBase Pro")
   if (!planName) {
     const nameLower = product.name.toLowerCase();
     if (nameLower.includes("pro")) planName = "pro";
@@ -166,18 +162,21 @@ async function syncSubscription(
   const dbPlan = await prisma.plan.findUnique({ where: { name: planName } });
 
   if (!dbPlan) {
-    console.error(
-      `[Stripe Webhook] Sync failed: Unknown plan name '${planName}'`,
-    );
+    console.error(`[Stripe Webhook] Sync failed: Unknown plan name '${planName}'`);
     return;
   }
+
+  // 2. Map Stripe Status to State Machine (Rule #6)
+  // Mapping: trialing -> TRIALING, active -> ACTIVE, past_due -> PAST_DUE, canceled/unpaid -> CANCELED
+  let status = sub.status.toUpperCase();
+  if (status === "UNPAID" || status === "INCOMPLETE_EXPIRED") status = "CANCELED";
 
   await prisma.subscription.upsert({
     where: { tenantId },
     update: {
       stripeId: sub.id,
       stripeCustomerId: sub.customer as string,
-      status: sub.status,
+      status: status,
       currentPeriodStart: new Date(sub.current_period_start * 1000),
       currentPeriodEnd: new Date(sub.current_period_end * 1000),
       cancelAtPeriodEnd: sub.cancel_at_period_end,
@@ -188,7 +187,7 @@ async function syncSubscription(
       tenantId,
       stripeId: sub.id,
       stripeCustomerId: sub.customer as string,
-      status: sub.status,
+      status: status,
       currentPeriodStart: new Date(sub.current_period_start * 1000),
       currentPeriodEnd: new Date(sub.current_period_end * 1000),
       cancelAtPeriodEnd: sub.cancel_at_period_end,
@@ -197,7 +196,5 @@ async function syncSubscription(
     },
   });
 
-  console.log(
-    `[Stripe Webhook] Synced subscription for tenant ${tenantId} to plan ${planName} (${sub.status})`,
-  );
+  console.log(`[Stripe Webhook] Synced subscription for tenant ${tenantId} to state ${status}`);
 }

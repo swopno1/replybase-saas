@@ -86,7 +86,7 @@ async function getActiveSubscriptionWithPlan(tenantId: string) {
     where: {
       tenantId,
       status: {
-        in: ["active", "trialing"],
+        in: ["ACTIVE", "TRIALING"],
       },
     },
     include: { plan: true },
