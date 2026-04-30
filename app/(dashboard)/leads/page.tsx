@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -134,11 +135,13 @@ function getPlanBadge(plan: string | null, trial: boolean) {
 }
 
 export default function LeadsPage() {
+  const router = useRouter();
   const { confirm } = useConfirmation();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [pageCount, setPageCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [canExport, setCanExport] = useState(false);
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 20,
@@ -201,6 +204,7 @@ export default function LeadsPage() {
         setLeads(data.leads);
         setTotalCount(data.totalCount);
         setPageCount(data.totalPages);
+        setCanExport(data.canExport || false);
         setIsAllMatchingSelected(false);
       }
     } catch (error) {
@@ -322,6 +326,20 @@ export default function LeadsPage() {
     } finally {
       setIsExporting(false);
     }
+  };
+
+  const handleExportClick = (ids?: string[]) => {
+    if (!canExport) {
+      toast.error("Exporting leads is a premium feature. Please upgrade your plan.", {
+        action: {
+          label: "Upgrade",
+          onClick: () => router.push("/pricing"),
+        },
+      });
+      return;
+    }
+    setExportIds(ids);
+    setExportDialogOpen(true);
   };
 
   const handleUpdateStatus = async (ids: string[], status: string, allMatching = false) => {
@@ -529,7 +547,7 @@ export default function LeadsPage() {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button variant="outline" size="sm" onClick={() => { setExportIds(isAllMatchingSelected ? undefined : selectedIds); setExportDialogOpen(true); }} disabled={isExporting}>
+            <Button variant="outline" size="sm" onClick={() => handleExportClick(isAllMatchingSelected ? undefined : selectedIds)} disabled={isExporting}>
               <Download className="mr-2 h-4 w-4" />
               Export {isAllMatchingSelected ? "All" : "Selected"} ({currentSelectionCount})
             </Button>
@@ -553,7 +571,7 @@ export default function LeadsPage() {
              <Button
                variant="outline"
                size="sm"
-               onClick={() => { setExportIds(undefined); setExportDialogOpen(true); }}
+               onClick={() => handleExportClick(undefined)}
                disabled={isExporting}
              >
                {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}

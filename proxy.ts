@@ -58,7 +58,8 @@ export async function proxy(req: NextRequest) {
   if (
     pathname.startsWith("/api/health") ||
     pathname.startsWith("/api/system-health") ||
-    pathname.startsWith("/api/auth")
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/cron/")
   ) {
     return NextResponse.next();
   }

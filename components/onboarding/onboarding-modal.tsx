@@ -67,51 +67,47 @@ const CUSTOMER_TYPES = [
   "Other"
 ];
 
-export interface OnboardingKYC {
-  name?: string;
-  company?: string;
-  contactInfo?: string;
-  location?: string;
-}
-
-export interface OnboardingBusinessBasics {
-  industry?: string;
-  subIndustry?: string;
-  companySize?: string;
-  website?: string;
-  businessModel?: string;
-}
-
-export interface OnboardingProductDetails {
-  offer?: string;
-  targetCustomers?: string[] | string;
-}
-
-export interface OnboardingProductSpecifics {
-  mainProducts?: string;
-  pricing?: string;
-  usps?: string;
-}
-
-export interface OnboardingSupportSales {
-  commonQuestions?: string;
-  painPoints?: string;
-  salesProcess?: string;
-}
-
-export interface OnboardingAdditionalContext {
-  otherInfo?: string;
-}
-
 export interface OnboardingData {
-  kyc?: OnboardingKYC;
-  businessBasics?: OnboardingBusinessBasics;
-  productDetails?: OnboardingProductDetails;
-  productSpecifics?: OnboardingProductSpecifics;
-  supportSales?: OnboardingSupportSales;
-  additionalContext?: OnboardingAdditionalContext;
-  [key: string]: unknown;
+  kyc: {
+    name: string;
+    company: string;
+    contactInfo: string;
+    location: string;
+  };
+  businessBasics: {
+    industry: string;
+    subIndustry: string;
+    companySize: string;
+    website: string;
+    businessModel: string;
+  };
+  productDetails: {
+    offer: string;
+    targetCustomers: string[];
+  };
+  productSpecifics: {
+    mainProducts: string;
+    pricing: string;
+    usps: string;
+  };
+  supportSales: {
+    commonQuestions: string;
+    painPoints: string;
+    salesProcess: string;
+  };
+  additionalContext: {
+    otherInfo: string;
+  };
 }
+
+const INITIAL_DATA: OnboardingData = {
+  kyc: { name: "", company: "", contactInfo: "", location: "" },
+  businessBasics: { industry: "", subIndustry: "", companySize: "", website: "", businessModel: "" },
+  productDetails: { offer: "", targetCustomers: [] },
+  productSpecifics: { mainProducts: "", pricing: "", usps: "" },
+  supportSales: { commonQuestions: "", painPoints: "", salesProcess: "" },
+  additionalContext: { otherInfo: "" },
+};
 
 export function OnboardingModal({
   isOpen,
@@ -120,27 +116,32 @@ export function OnboardingModal({
 }: {
   isOpen: boolean;
   initialStep?: number;
-  initialData?: Record<string, unknown>;
+  initialData?: any;
 }) {
   const router = useRouter();
   const [step, setStep] = useState(initialStep);
   const { data: session } = useSession();
-  const [data, setData] = useState<OnboardingData>(initialData as OnboardingData);
+  const [data, setData] = useState<OnboardingData>(
+    (initialData as any)?.kyc ? (initialData as any) : INITIAL_DATA
+  );
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(isOpen);
 
   useEffect(() => {
-    if (session?.user?.email && !data.kyc?.contactInfo) {
+    if (session?.user?.email && !data.kyc.contactInfo) {
       updateData("kyc", "contactInfo", session.user.email);
     }
-  }, [session?.user?.email]);
+  }, [session?.user?.email, data.kyc.contactInfo]);
 
-
-  const updateData = (section: keyof OnboardingData, field: string, value: unknown) => {
+  const updateData = <T extends keyof OnboardingData>(
+    section: T,
+    field: keyof OnboardingData[T],
+    value: any
+  ) => {
     setData((prev) => ({
       ...prev,
       [section]: {
-        ...((prev[section] as Record<string, unknown>) || {}),
+        ...prev[section],
         [field]: value,
       },
     }));
@@ -224,7 +225,7 @@ export function OnboardingModal({
               <Input
                 id="name"
                 className="bg-background/50 border-primary/20 focus:border-primary/50 transition-all"
-                value={data.kyc?.name || ""}
+                value={data.kyc.name || ""}
                 onChange={(e) => updateData("kyc", "name", e.target.value)}
                 placeholder="John Doe"
               />
@@ -239,7 +240,7 @@ export function OnboardingModal({
               <Input
                 id="company"
                 className="bg-background/50 border-primary/20 focus:border-primary/50 transition-all"
-                value={data.kyc?.company || ""}
+                value={data.kyc.company || ""}
                 onChange={(e) => updateData("kyc", "company", e.target.value)}
                 placeholder="Acme Inc."
               />
@@ -254,7 +255,7 @@ export function OnboardingModal({
               <Input
                 id="contactInfo"
                 className="bg-background/50 border-primary/20 focus:border-primary/50 transition-all"
-                value={data.kyc?.contactInfo || ""}
+                value={data.kyc.contactInfo || ""}
                 onChange={(e) =>
                   updateData("kyc", "contactInfo", e.target.value)
                 }
@@ -272,7 +273,7 @@ export function OnboardingModal({
               <Input
                 id="location"
                 className="bg-background/50 border-primary/20 focus:border-primary/50 transition-all"
-                value={data.kyc?.location || ""}
+                value={data.kyc.location || ""}
                 onChange={(e) => updateData("kyc", "location", e.target.value)}
                 placeholder="London, UK"
               />
@@ -290,7 +291,7 @@ export function OnboardingModal({
                 Industry
               </Label>
               <Select
-                value={data.businessBasics?.industry || ""}
+                value={data.businessBasics.industry || ""}
                 onValueChange={(val) => {
                   updateData("businessBasics", "industry", val);
                   updateData("businessBasics", "subIndustry", ""); // Reset sub-industry on industry change
@@ -308,7 +309,7 @@ export function OnboardingModal({
                 </SelectContent>
               </Select>
             </div>
-            {data.businessBasics?.industry && (
+            {data.businessBasics.industry && (
               <div className="space-y-2 animate-in fade-in duration-300">
                 <Label
                   htmlFor="subIndustry"
@@ -317,7 +318,7 @@ export function OnboardingModal({
                   Sub-Category
                 </Label>
                 <Select
-                  value={data.businessBasics?.subIndustry || ""}
+                  value={data.businessBasics.subIndustry || ""}
                   onValueChange={(val) =>
                     updateData("businessBasics", "subIndustry", val)
                   }
@@ -326,7 +327,7 @@ export function OnboardingModal({
                     <SelectValue placeholder="Select specialization" />
                   </SelectTrigger>
                   <SelectContent>
-                    {INDUSTRIES_WITH_SUBCATEGORIES[data.businessBasics.industry]?.map((sub) => (
+                  {INDUSTRIES_WITH_SUBCATEGORIES[data.businessBasics.industry]?.map((sub) => (
                       <SelectItem key={sub} value={sub}>
                         {sub}
                       </SelectItem>
@@ -343,7 +344,7 @@ export function OnboardingModal({
                 Company Size
               </Label>
               <Select
-                value={data.businessBasics?.companySize || ""}
+                value={data.businessBasics.companySize || ""}
                 onValueChange={(val) =>
                   updateData("businessBasics", "companySize", val)
                 }
@@ -370,7 +371,7 @@ export function OnboardingModal({
               <Input
                 id="website"
                 className="bg-background/50 border-primary/20 focus:border-primary/50 transition-all"
-                value={data.businessBasics?.website || ""}
+                value={data.businessBasics.website || ""}
                 onChange={(e) =>
                   updateData("businessBasics", "website", e.target.value)
                 }
@@ -385,7 +386,7 @@ export function OnboardingModal({
                 Business Model
               </Label>
               <Select
-                value={data.businessBasics?.businessModel || ""}
+                value={data.businessBasics.businessModel || ""}
                 onValueChange={(val) =>
                   updateData("businessBasics", "businessModel", val)
                 }
@@ -417,7 +418,7 @@ export function OnboardingModal({
               <Textarea
                 id="offer"
                 className="bg-background/50 border-primary/20 min-h-[100px]"
-                value={data.productDetails?.offer || ""}
+                value={data.productDetails.offer || ""}
                 onChange={(e) =>
                   updateData("productDetails", "offer", e.target.value)
                 }
@@ -435,13 +436,9 @@ export function OnboardingModal({
                     className="w-full justify-between bg-background/50 border-primary/20 font-normal"
                   >
                     <span className="truncate">
-                      {Array.isArray(data.productDetails?.targetCustomers) &&
-                      data.productDetails.targetCustomers.length
+                      {data.productDetails.targetCustomers.length
                         ? data.productDetails.targetCustomers.join(", ")
-                        : typeof data.productDetails?.targetCustomers ===
-                              "string" && data.productDetails.targetCustomers
-                          ? data.productDetails.targetCustomers
-                          : "Select customer types"}
+                        : "Select customer types"}
                     </span>
                     <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
@@ -450,16 +447,11 @@ export function OnboardingModal({
                   {CUSTOMER_TYPES.map((type) => (
                     <DropdownMenuCheckboxItem
                       key={type}
-                      checked={data.productDetails?.targetCustomers?.includes(
+                      checked={data.productDetails.targetCustomers.includes(
                         type,
                       )}
                       onCheckedChange={(checked) => {
-                        const currentRaw = data.productDetails?.targetCustomers;
-                        const current = Array.isArray(currentRaw)
-                          ? currentRaw
-                          : typeof currentRaw === "string"
-                            ? [currentRaw]
-                            : [];
+                        const current = data.productDetails.targetCustomers;
                         const next = checked
                           ? [...current, type]
                           : current.filter((t: string) => t !== type);
@@ -487,7 +479,7 @@ export function OnboardingModal({
               <Textarea
                 id="mainProducts"
                 className="bg-background/50 border-primary/20 min-h-[80px]"
-                value={data.productSpecifics?.mainProducts || ""}
+                value={data.productSpecifics.mainProducts || ""}
                 onChange={(e) =>
                   updateData("productSpecifics", "mainProducts", e.target.value)
                 }
@@ -504,7 +496,7 @@ export function OnboardingModal({
               <Input
                 id="pricing"
                 className="bg-background/50 border-primary/20"
-                value={data.productSpecifics?.pricing || ""}
+                value={data.productSpecifics.pricing || ""}
                 onChange={(e) =>
                   updateData("productSpecifics", "pricing", e.target.value)
                 }
@@ -521,7 +513,7 @@ export function OnboardingModal({
               <Textarea
                 id="usps"
                 className="bg-background/50 border-primary/20 min-h-[80px]"
-                value={data.productSpecifics?.usps || ""}
+                value={data.productSpecifics.usps || ""}
                 onChange={(e) =>
                   updateData("productSpecifics", "usps", e.target.value)
                 }
@@ -543,7 +535,7 @@ export function OnboardingModal({
               <Textarea
                 id="commonQuestions"
                 className="bg-background/50 border-primary/20 min-h-[80px]"
-                value={data.supportSales?.commonQuestions || ""}
+                value={data.supportSales.commonQuestions || ""}
                 onChange={(e) =>
                   updateData("supportSales", "commonQuestions", e.target.value)
                 }
@@ -560,7 +552,7 @@ export function OnboardingModal({
               <Textarea
                 id="painPoints"
                 className="bg-background/50 border-primary/20 min-h-[80px]"
-                value={data.supportSales?.painPoints || ""}
+                value={data.supportSales.painPoints || ""}
                 onChange={(e) =>
                   updateData("supportSales", "painPoints", e.target.value)
                 }
@@ -577,7 +569,7 @@ export function OnboardingModal({
               <Textarea
                 id="salesProcess"
                 className="bg-background/50 border-primary/20 min-h-[80px]"
-                value={data.supportSales?.salesProcess || ""}
+                value={data.supportSales.salesProcess || ""}
                 onChange={(e) =>
                   updateData("supportSales", "salesProcess", e.target.value)
                 }
@@ -599,7 +591,7 @@ export function OnboardingModal({
               <Textarea
                 id="otherInfo"
                 className="bg-background/50 border-primary/20 min-h-[150px]"
-                value={data.additionalContext?.otherInfo || ""}
+                value={data.additionalContext.otherInfo || ""}
                 onChange={(e) =>
                   updateData("additionalContext", "otherInfo", e.target.value)
                 }
