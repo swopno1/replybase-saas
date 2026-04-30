@@ -47,7 +47,7 @@ export function getAiModel({
       const client = createGoogleGenerativeAI({
         apiKey: apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
       });
-      return client(model || (isPro ? "gemini-1.5-pro-latest" : "gemini-1.5-flash-latest"));
+      return client(model || (isPro ? "gemini-pro-latest" : "gemini-flash-latest"));
     }
 
     case "default":
@@ -56,7 +56,7 @@ export function getAiModel({
       const client = createGoogleGenerativeAI({
         apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
       });
-      return client(isPro ? "gemini-1.5-pro-latest" : "gemini-1.5-flash-latest");
+      return client(isPro ? "gemini-pro-latest" : "gemini-flash-latest");
     }
   }
 }

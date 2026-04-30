@@ -37,7 +37,7 @@ export interface OnboardingData {
  * Summarizes the collected onboarding data into a structured format for the AI assistant.
  */
 export async function summarizeOnboardingData(data: OnboardingData) {
-  const model = getAiModel({ provider: "default", planName: "pro" });
+  const model = getAiModel({ provider: "default", planName: "free" });
 
   const prompt = `
     You are an expert business analyst and AI configuration specialist.
@@ -94,7 +94,7 @@ export async function customizeFlowNodesWithAI(
 ): Promise<Array<{ type: string; content: Record<string, unknown>; order: number }>> {
   if (summary.isPlaceholder) return nodes;
 
-  const model = getAiModel({ provider: "default", planName: "pro" });
+  const model = getAiModel({ provider: "default", planName: "free" });
 
   const prompt = `
     You are an expert conversational designer. I have a standard chatbot flow template for a new business.
