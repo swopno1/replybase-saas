@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-// import { converse } from "@/lib/ai-engine";
 import {
   answerTelegramCallbackQuery,
   sendTelegramChatAction,
