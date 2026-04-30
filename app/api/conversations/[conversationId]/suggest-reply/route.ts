@@ -58,7 +58,7 @@ export const POST: (
 
       // 3. Prepare prompt
       const contactName = conversation.contact.name || "the customer";
-      const messageHistory = conversation.messages
+      const messageHistory = [...conversation.messages]
         .reverse()
         .map((m) => `${m.direction === "inbound" ? contactName : "You"}: ${m.content}`)
         .join("\n");
@@ -90,10 +90,10 @@ Suggest the next reply:`;
       } finally {
         clearTimeout(timeoutId);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("[Suggest Reply API] Error:", error);
       return NextResponse.json(
-        { error: "Failed to generate suggestion" },
+        { error: error?.message || "Failed to generate suggestion" },
         { status: 500 },
       );
     }

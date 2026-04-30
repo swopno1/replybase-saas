@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { TrialBadge } from "./trial-badge";
 import Link from "next/link";
+import { Zap, Clock, ShieldCheck, ArrowUpRight, CheckCircle2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface PlanInfo {
   name: string;
@@ -13,7 +14,7 @@ interface PlanInfo {
 }
 
 interface Subscription {
-  plan: PlanInfo | string;
+  plan: PlanInfo;
   status: string;
   trialEndsAt: string | null;
   trialDaysRemaining: number;
@@ -27,8 +28,10 @@ export function SubscriptionStatus() {
     const fetchSubscription = async () => {
       try {
         const res = await fetch("/api/billing/subscription");
-        const data = await res.json();
-        setSubscription(data);
+        if (res.ok) {
+          const data = await res.json();
+          setSubscription(data.subscription);
+        }
       } catch (error) {
         console.error("Failed to fetch subscription:", error);
       } finally {
@@ -39,60 +42,74 @@ export function SubscriptionStatus() {
     fetchSubscription();
   }, []);
 
-  if (loading) return <div>Loading subscription...</div>;
+  if (loading) {
+    return (
+      <div className="border rounded-2xl p-6 bg-card animate-pulse space-y-3">
+        <div className="h-4 w-24 bg-muted rounded" />
+        <div className="h-8 w-32 bg-muted rounded" />
+        <div className="h-10 w-full bg-muted rounded" />
+      </div>
+    );
+  }
+
   if (!subscription) return null;
 
-  const planObj =
-    typeof subscription.plan === "string" ? null : subscription.plan;
-  const planName =
-    planObj?.name ??
-    (typeof subscription.plan === "string" ? subscription.plan : "Free");
-  const planLabel = planObj?.displayName ?? planName ?? "Free";
-  const planCurrency = (planObj?.currency ?? "GBP").toUpperCase();
-  const planPrice = new Intl.NumberFormat("en-GB", {
-    style: "currency",
-    currency: planCurrency,
-  }).format(planObj?.price ?? 0);
-  const isTrialUser = planName === "trial";
+  const isTrial = subscription.status === "TRIALING";
+  const planLabel = subscription.plan?.displayName || "Free";
   const daysRemaining = subscription.trialDaysRemaining;
 
   return (
-    <div className="border rounded-lg p-6 space-y-4">
-      <div>
-        <h3 className="text-lg font-semibold mb-2">Current Plan</h3>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-gray-600 capitalize">
-              {isTrialUser ? "14-Day Free Trial" : planLabel}
-            </p>
-            {isTrialUser && (
-              <TrialBadge trialEndsAt={subscription.trialEndsAt} />
+    <div className="border rounded-2xl p-6 bg-card shadow-sm hover:shadow-md transition-shadow ring-1 ring-border/5">
+      <div className="flex items-start justify-between mb-4">
+        <div className="space-y-1">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Current Plan</p>
+          <h3 className="text-2xl font-black flex items-center gap-2">
+            {planLabel}
+            {isTrial && (
+              <Badge className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/10">Trial</Badge>
             )}
-          </div>
-          {isTrialUser && daysRemaining <= 3 && (
-            <Link href="/pricing">
-              <Button>Upgrade Now</Button>
-            </Link>
-          )}
+          </h3>
+        </div>
+        <div className={`p-2 rounded-xl ${isTrial ? "bg-amber-100" : "bg-primary/10"}`}>
+          {isTrial ? <Clock className="h-5 w-5 text-amber-600" /> : <ShieldCheck className="h-5 w-5 text-primary" />}
         </div>
       </div>
 
-      <div className="text-lg font-semibold">{planLabel}</div>
-      <div className="text-sm text-muted-foreground">{planPrice}</div>
-
-      {!isTrialUser && (
-        <div>
-          <p className="text-sm text-gray-600 mb-2">
-            Status:{" "}
-            <span className="capitalize font-medium">
-              {subscription.status}
-            </span>
-          </p>
-          <Link href="/billing">
-            <Button variant="outline">Manage Subscription</Button>
-          </Link>
-        </div>
-      )}
+      <div className="space-y-4">
+        {isTrial ? (
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs font-medium">
+              <span className="text-muted-foreground">Trial Period</span>
+              <span className="text-amber-600">{daysRemaining} days left</span>
+            </div>
+            <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-amber-500 transition-all duration-1000" 
+                style={{ width: `${(daysRemaining / 14) * 100}%` }}
+              />
+            </div>
+            <Link href="/pricing" className="block pt-2">
+              <Button className="w-full h-9 text-xs font-bold gap-2 shadow-lg shadow-primary/10">
+                Upgrade Now
+                <Zap className="h-3.5 w-3.5" />
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <span>{subscription.status === "ACTIVE" ? "Subscription active" : subscription.status.toLowerCase()}</span>
+            </div>
+            <Link href="/settings?tab=billing" className="block">
+              <Button variant="outline" className="w-full h-9 text-xs font-bold gap-2 group">
+                Manage Billing
+                <ArrowUpRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+              </Button>
+            </Link>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

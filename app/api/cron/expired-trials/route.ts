@@ -54,6 +54,19 @@ async function runExpiredTrials(): Promise<NextResponse> {
     },
   });
 
+  const tenantIds = expiredSubscriptions.map((sub) => sub.tenantId);
+
+  // Pre-fetch all handled events for these tenants to avoid N+1 queries.
+  const handledLogs = await prisma.activityLog.findMany({
+    where: {
+      tenantId: { in: tenantIds },
+      type: "trial_expired",
+    },
+    select: { tenantId: true },
+  });
+
+  const handledTenantIds = new Set(handledLogs.map((log) => log.tenantId));
+
   let processed = 0;
   let disabled = 0;
   let skipped = 0;
@@ -62,12 +75,7 @@ async function runExpiredTrials(): Promise<NextResponse> {
     const { tenantId } = sub;
 
     // Idempotent: skip if we already logged this expiry event.
-    const alreadyHandled = await prisma.activityLog.findFirst({
-      where: { tenantId, type: "trial_expired" },
-      select: { id: true },
-    });
-
-    if (alreadyHandled) {
+    if (handledTenantIds.has(tenantId)) {
       skipped++;
       continue;
     }

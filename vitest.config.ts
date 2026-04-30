@@ -10,7 +10,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov"],
-      include: ["lib/webchat*.ts", "app/api/webchat/**/*.ts"],
+      include: ["lib/webchat*.ts", "lib/flow-runtime-utils.ts", "app/api/webchat/**/*.ts"],
       exclude: [
         "**/*.d.ts",
         "**/node_modules/**",

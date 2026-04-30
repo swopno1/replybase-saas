@@ -4,16 +4,7 @@ import { useState, useEffect } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
-import { isChannelVisibleInUi, type ChannelId } from "@/lib/channel-config";
-
-interface ChannelConfig {
-  id: string;
-  displayName: string;
-  description: string;
-  enabled: boolean;
-  tenantEnabled: boolean;
-  systemEnabled: boolean;
-}
+import { isChannelVisibleInUi } from "@/lib/channel-config";
 
 interface ChannelStatus {
   facebook: boolean;
@@ -22,7 +13,16 @@ interface ChannelStatus {
   whatsapp: boolean;
 }
 
-const CHANNEL_INFO: Record<string, { icon: string; color: string }> = {
+interface ChannelConfig {
+  id: keyof ChannelStatus;
+  displayName: string;
+  description: string;
+  enabled: boolean;
+  tenantEnabled: boolean;
+  systemEnabled: boolean;
+}
+
+const CHANNEL_INFO: Record<keyof ChannelStatus, { icon: string; color: string }> = {
   facebook: { icon: "f", color: "bg-blue-500" },
   telegram: { icon: "✈", color: "bg-cyan-500" },
   webchat: { icon: "◆", color: "bg-green-500" },
@@ -87,9 +87,7 @@ export function ChannelsClient() {
         ];
 
         setChannels(
-          channelList.filter((channel) =>
-            isChannelVisibleInUi(channel.id as ChannelId),
-          ),
+          channelList.filter((channel) => isChannelVisibleInUi(channel.id as Parameters<typeof isChannelVisibleInUi>[0])),
         );
         setStatus({
           facebook: data.tenantOnly.facebook,

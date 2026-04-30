@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { LogOut, User, CreditCard } from "lucide-react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
@@ -26,6 +27,12 @@ export function NavUser({
     isAdmin?: boolean;
   };
 }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const initials =
     user.name
       .split(" ")
@@ -35,6 +42,16 @@ export function NavUser({
       .slice(0, 2) ||
     user.email[0]?.toUpperCase() ||
     "U";
+
+  if (!mounted) {
+    return (
+      <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+        <Avatar className="h-8 w-8">
+          <AvatarFallback>{initials}</AvatarFallback>
+        </Avatar>
+      </Button>
+    );
+  }
 
   return (
     <DropdownMenu>
@@ -46,7 +63,7 @@ export function NavUser({
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
+      <DropdownMenuContent className="w-56" align="end">
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">{user.name}</p>

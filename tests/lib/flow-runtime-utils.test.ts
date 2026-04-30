@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { interpolateText, normalizeDurationMs, evaluateCondition } from '@/lib/flow-runtime-utils';
+import { interpolateText, normalizeDurationMs, evaluateCondition, waitForFlowDurationMs } from '@/lib/flow-runtime-utils';
 
 describe('flow-runtime-utils', () => {
   describe('interpolateText', () => {
@@ -57,6 +57,12 @@ describe('flow-runtime-utils', () => {
       expect(normalizeDurationMs(undefined, 500)).toBe(500);
     });
 
+    it('should use default fallback 0 if not provided', () => {
+      expect(normalizeDurationMs('1000')).toBe(0);
+      expect(normalizeDurationMs(null)).toBe(0);
+      expect(normalizeDurationMs(undefined)).toBe(0);
+    });
+
     it('should return fallback if value is NaN or Infinite', () => {
       expect(normalizeDurationMs(NaN, 500)).toBe(500);
       expect(normalizeDurationMs(Infinity, 500)).toBe(500);
@@ -68,6 +74,10 @@ describe('flow-runtime-utils', () => {
 
     it('should clamp value to max if it exceeds max', () => {
       expect(normalizeDurationMs(6000, 0, 5000)).toBe(5000);
+    });
+
+    it('should use default max 5000 if not provided', () => {
+      expect(normalizeDurationMs(6000)).toBe(5000);
     });
 
     it('should round the value', () => {
@@ -89,6 +99,23 @@ describe('flow-runtime-utils', () => {
       it('should work with numbers', () => {
         expect(evaluateCondition(123, 'equals', '123')).toBe(true);
       });
+
+      it('should handle boolean values', () => {
+        expect(evaluateCondition(true, 'equals', 'true')).toBe(true);
+        expect(evaluateCondition(false, 'equals', 'false')).toBe(true);
+        expect(evaluateCondition(true, 'equals', 'false')).toBe(false);
+      });
+
+      it('should handle null and undefined', () => {
+        expect(evaluateCondition(null, 'equals', 'null')).toBe(true);
+        expect(evaluateCondition(undefined, 'equals', 'undefined')).toBe(true);
+        expect(evaluateCondition(null, 'equals', '')).toBe(false);
+      });
+
+      it('should handle empty strings', () => {
+        expect(evaluateCondition('', 'equals', '')).toBe(true);
+        expect(evaluateCondition(' ', 'equals', ' ')).toBe(true);
+      });
     });
 
     describe('contains', () => {
@@ -98,6 +125,22 @@ describe('flow-runtime-utils', () => {
 
       it('should return false if value does not contain compareValue', () => {
         expect(evaluateCondition('Hello World', 'contains', 'foo')).toBe(false);
+      });
+
+      it('should handle boolean values', () => {
+        expect(evaluateCondition(true, 'contains', 'ru')).toBe(true);
+        expect(evaluateCondition(false, 'contains', 'al')).toBe(true);
+      });
+
+      it('should handle null and undefined', () => {
+        expect(evaluateCondition(null, 'contains', 'ul')).toBe(true);
+        expect(evaluateCondition(undefined, 'contains', 'def')).toBe(true);
+      });
+
+      it('should handle empty strings', () => {
+        expect(evaluateCondition('', 'contains', '')).toBe(true);
+        expect(evaluateCondition('a', 'contains', '')).toBe(true);
+        expect(evaluateCondition('', 'contains', 'a')).toBe(false);
       });
     });
 
@@ -111,6 +154,22 @@ describe('flow-runtime-utils', () => {
         expect(evaluateCondition(5, 'greater_than', '10')).toBe(false);
         expect(evaluateCondition(10, 'greater_than', '10')).toBe(false);
       });
+
+      it('should handle invalid numeric strings', () => {
+        expect(evaluateCondition('abc', 'greater_than', '5')).toBe(false);
+        expect(evaluateCondition('10', 'greater_than', 'xyz')).toBe(false);
+      });
+
+      it('should handle null and undefined', () => {
+        expect(evaluateCondition(null, 'greater_than', '0')).toBe(false); // Number(null) is 0
+        expect(evaluateCondition(null, 'greater_than', '-1')).toBe(true);
+        expect(evaluateCondition(undefined, 'greater_than', '0')).toBe(false); // Number(undefined) is NaN
+      });
+
+      it('should handle boolean values', () => {
+        expect(evaluateCondition(true, 'greater_than', '0')).toBe(true); // Number(true) is 1
+        expect(evaluateCondition(false, 'greater_than', '0')).toBe(false); // Number(false) is 0
+      });
     });
 
     describe('less_than', () => {
@@ -123,10 +182,43 @@ describe('flow-runtime-utils', () => {
         expect(evaluateCondition(10, 'less_than', '5')).toBe(false);
         expect(evaluateCondition(10, 'less_than', '10')).toBe(false);
       });
+
+      it('should handle invalid numeric strings', () => {
+        expect(evaluateCondition('abc', 'less_than', '5')).toBe(false);
+        expect(evaluateCondition('5', 'less_than', 'xyz')).toBe(false);
+      });
+
+      it('should handle null and undefined', () => {
+        expect(evaluateCondition(null, 'less_than', '1')).toBe(true); // Number(null) is 0
+        expect(evaluateCondition(null, 'less_than', '0')).toBe(false);
+        expect(evaluateCondition(undefined, 'less_than', '1')).toBe(false); // Number(undefined) is NaN
+      });
+
+      it('should handle boolean values', () => {
+        expect(evaluateCondition(true, 'less_than', '2')).toBe(true); // Number(true) is 1
+        expect(evaluateCondition(false, 'less_than', '1')).toBe(true); // Number(false) is 0
+      });
     });
 
     it('should return false for unknown operator', () => {
       expect(evaluateCondition('test', 'unknown', 'test')).toBe(false);
+    });
+  });
+
+  describe('waitForFlowDurationMs', () => {
+    it('should resolve immediately if duration is 0 or less', async () => {
+      const start = Date.now();
+      await waitForFlowDurationMs(0);
+      await waitForFlowDurationMs(-100);
+      const end = Date.now();
+      expect(end - start).toBeLessThan(10);
+    });
+
+    it('should wait for the specified duration', async () => {
+      const start = Date.now();
+      await waitForFlowDurationMs(50);
+      const end = Date.now();
+      expect(end - start).toBeGreaterThanOrEqual(40); // allow small timing variations
     });
   });
 });

@@ -33,20 +33,29 @@ export async function GET() {
 
     if (!subscription) {
       // Ensure a free plan exists
-      const freePlan = await prisma.plan.upsert({
+      let freePlan = await prisma.plan.findUnique({
         where: { name: "free" },
-        update: {},
-        create: {
-          name: "free",
-          displayName: "Free",
-          price: 0,
-          currency: "GBP",
-        },
       });
 
-      const now = Date.now();
-      const trialEndsAt = new Date(now + 14 * 24 * 60 * 60 * 1000); // 14 days
-      const currentPeriodEnd = new Date(now + 30 * 24 * 60 * 60 * 1000); // 30 days
+      if (!freePlan) {
+        freePlan = await prisma.plan.create({
+          data: {
+            name: "free",
+            displayName: "Free",
+            price: 0,
+            currency: "GBP",
+            dailyMessageLimit: 100,
+            monthlyMessageLimit: 3000,
+            flowExecutionCap: 100,
+            maxBots: 1,
+            maxChannelsPerBot: 1,
+            maxConversations: 100,
+          },
+        });
+      }
+
+      const currentPeriodEnd = new Date();
+      currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
 
       const created = await prisma.subscription.upsert({
         where: { tenantId: user.tenantId },
@@ -55,24 +64,23 @@ export async function GET() {
           tenantId: user.tenantId,
           planId: freePlan.id,
           stripeId: `free_${user.tenantId}`,
-          status: "active",
+          status: "FREE",
           currentPeriodStart: new Date(),
           currentPeriodEnd,
-          trialEndsAt,
+          trialEndsAt: null, // No trial started for Free plan
         },
         include: { plan: true },
       });
 
-      const trialDaysRemaining = Math.max(
-        0,
-        Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
-      );
+      const { getTenantUsage } = await import("@/lib/subscription");
+      const usage = await getTenantUsage(user.tenantId);
 
       return NextResponse.json({
         subscription: {
           ...created,
-          trialDaysRemaining,
+          trialDaysRemaining: 0,
         },
+        usage,
         invoices: [],
       });
     }
@@ -108,6 +116,9 @@ export async function GET() {
       }));
     }
 
+    const { getTenantUsage } = await import("@/lib/subscription");
+    const usage = await getTenantUsage(user.tenantId);
+
     const trialDaysRemaining = subscription.trialEndsAt
       ? Math.ceil(
           (subscription.trialEndsAt.getTime() - Date.now()) /
@@ -120,6 +131,7 @@ export async function GET() {
         ...subscription,
         trialDaysRemaining: Math.max(0, trialDaysRemaining),
       },
+      usage,
       invoices,
     });
   } catch (error) {
