@@ -16,18 +16,44 @@ export async function syncSubscription(
   const sub = (await stripe.subscriptions.retrieve(stripeSubId)) as any;
   const stripeCustomerId = sub.customer as string;
 
+  // Ensure tenantId is valid and exists in DB
+  let tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+
+  if (!tenant) {
+    console.warn(`[Billing] Tenant ${tenantId} not found. Attempting fallback via Customer ID ${stripeCustomerId}...`);
+    // Fallback: Try to find tenant by stripeCustomerId in existing subscriptions
+    const existingSub = await prisma.subscription.findUnique({
+      where: { stripeCustomerId }
+    });
+    if (existingSub) {
+      tenantId = existingSub.tenantId;
+      tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+    }
+  }
+
+  if (!tenant) {
+    // If still not found, we cannot proceed as it would violate foreign key constraints (P2003)
+    throw new Error(`Tenant not found for ID: ${tenantId}. Cannot sync subscription ${stripeSubId}.`);
+  }
+
   // 1. Map Stripe Product to Internal Plan
-  const product = await stripe.products.retrieve(
-    sub.items.data[0].price.product as string,
-  );
-  let planName = product.metadata.app_plan_id;
+  // Prioritize planName from subscription metadata (set during checkout)
+  let planName = sub.metadata?.planName;
 
   if (!planName) {
-    const nameLower = product.name.toLowerCase();
-    if (nameLower.includes("pro")) planName = "pro";
-    else if (nameLower.includes("starter")) planName = "starter";
-    else if (nameLower.includes("business")) planName = "business";
-    else planName = "free";
+    const product = await stripe.products.retrieve(
+      sub.items.data[0].price.product as string,
+    );
+    planName = product.metadata?.app_plan_id;
+
+    if (!planName) {
+      const nameLower = product.name.toLowerCase();
+      // Improved matching order: more specific to less specific
+      if (nameLower.includes("business")) planName = "business";
+      else if (nameLower.includes("pro")) planName = "pro";
+      else if (nameLower.includes("starter")) planName = "starter";
+      else planName = "free";
+    }
   }
 
   let dbPlan = await prisma.plan.findUnique({ where: { name: planName } });
