@@ -24,6 +24,9 @@ vi.mock('@/lib/prisma', () => ({
     },
     crmConversation: {
       count: vi.fn(),
+    },
+    plan: {
+      findUnique: vi.fn(),
     }
   },
 }));
@@ -72,8 +75,8 @@ describe('Subscription Utility', () => {
       vi.mocked(prisma.usageLog.aggregate).mockResolvedValue({ _sum: { count: 50 } } as unknown as Awaited<ReturnType<typeof prisma.usageLog.aggregate>>);
       const result = await checkLimit('user_1', 'message');
       expect(result.allowed).toBe(true);
-      // Grace buffer is 5%, so limit is effectively 105
-      expect(result.remaining).toBe(55);
+      // HARD_LIMIT_THRESHOLD is 1.10 (10%), so limit is effectively 110
+      expect(result.remaining).toBe(60);
     });
 
     it('should block if over daily limit', async () => {
