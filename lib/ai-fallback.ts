@@ -1,16 +1,11 @@
 import { prisma } from "@/lib/prisma";
-import { streamText, Output } from "ai";
+import { streamText, Output, ModelMessage } from "ai";
 import { getAiModel, AiProvider } from "@/lib/ai-service";
-
-export interface AiMessage {
-  role: "system" | "user" | "assistant";
-  content: string;
-}
 
 export interface AiFallbackOptions {
   botId: string;
   conversationId: string;
-  messages: AiMessage[];
+  messages: ModelMessage[];
   planName: string;
   charLimit?: number;
 }
@@ -62,7 +57,7 @@ export async function aiFallback({
   }
 
   // Build prompt
-  let promptMessages = messages;
+  let promptMessages: ModelMessage[] = messages;
   const plan = planName.toLowerCase();
   if (plan.includes("pro") || plan.includes("business")) {
     // Inject bot context and last messages
@@ -74,7 +69,10 @@ export async function aiFallback({
     ]
       .filter(Boolean)
       .join("\n\n");
-    promptMessages = [{ role: "system", content: contextBlock }, ...messages];
+    promptMessages = [
+      { role: "system", content: contextBlock },
+      ...messages,
+    ] as ModelMessage[];
   }
   // For free/starter, just use messages
 
