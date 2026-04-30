@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   Dialog,
   DialogContent,
@@ -40,24 +41,30 @@ const STAGES = [
   "Additional Context",
 ];
 
-const INDUSTRIES = [
-  "SaaS",
-  "E-commerce",
-  "Agency",
-  "Healthcare",
-  "Education",
-  "Retail",
-  "Other",
-];
+const INDUSTRIES_WITH_SUBCATEGORIES: Record<string, string[]> = {
+  "Real Estate": ["Agencies", "Property Management", "Commercial", "Other"],
+  "E-commerce & Retail": ["Direct to Consumer (D2C)", "B2B Wholesale", "Dropshipping", "Brick & Mortar", "Other"],
+  "Professional Services": ["Law", "Consulting", "Accounting & Finance", "Insurance", "Other"],
+  "Home Services & Trades": ["Plumbing/HVAC", "Cleaning", "Landscaping", "Construction/Remodeling", "Other"],
+  "Healthcare & Wellness": ["Clinics/Dental", "Fitness/Gyms", "MedSpas & Salons", "Mental Health", "Other"],
+  "Software & Technology": ["SaaS", "IT Services", "App Development", "Hardware", "Other"],
+  "Travel & Hospitality": ["Hotels/Resorts", "Tour Operators", "Restaurants & Cafes", "Event Planning", "Other"],
+  "Education & Coaching": ["Online Courses", "Tutoring", "Business Coaching", "Schools/Universities", "Other"],
+  "Marketing & Agency": ["Digital Marketing", "SEO/Content", "PR/Communications", "Lead Generation", "Other"],
+  "Other": ["Other"]
+};
 const COMPANY_SIZES = ["1-10", "11-50", "51-200", "201-1000", "1000+"];
 const BUSINESS_MODELS = ["B2B", "B2C", "Marketplace", "Nonprofit", "Other"];
 const CUSTOMER_TYPES = [
-  "Small Businesses",
-  "Enterprises",
-  "Consumers",
-  "Startups",
-  "Agencies",
-  "Other",
+  "Local Consumers (B2C)",
+  "Online Shoppers (B2C)",
+  "Small & Medium Businesses (B2B)",
+  "Enterprise Corporations (B2B)",
+  "Startups & Founders",
+  "Agencies & Freelancers",
+  "Real Estate Buyers/Renters",
+  "Patients & Clients",
+  "Other"
 ];
 
 export interface OnboardingKYC {
@@ -69,6 +76,7 @@ export interface OnboardingKYC {
 
 export interface OnboardingBusinessBasics {
   industry?: string;
+  subIndustry?: string;
   companySize?: string;
   website?: string;
   businessModel?: string;
@@ -116,9 +124,17 @@ export function OnboardingModal({
 }) {
   const router = useRouter();
   const [step, setStep] = useState(initialStep);
+  const { data: session } = useSession();
   const [data, setData] = useState<OnboardingData>(initialData as OnboardingData);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(isOpen);
+
+  useEffect(() => {
+    if (session?.user?.email && !data.kyc?.contactInfo) {
+      updateData("kyc", "contactInfo", session.user.email);
+    }
+  }, [session?.user?.email]);
+
 
   const updateData = (section: keyof OnboardingData, field: string, value: unknown) => {
     setData((prev) => ({
@@ -242,7 +258,7 @@ export function OnboardingModal({
                 onChange={(e) =>
                   updateData("kyc", "contactInfo", e.target.value)
                 }
-                placeholder="john@example.com"
+                placeholder="john@example.com (Secondary if changed)"
                 required
               />
             </div>
@@ -275,15 +291,16 @@ export function OnboardingModal({
               </Label>
               <Select
                 value={data.businessBasics?.industry || ""}
-                onValueChange={(val) =>
-                  updateData("businessBasics", "industry", val)
-                }
+                onValueChange={(val) => {
+                  updateData("businessBasics", "industry", val);
+                  updateData("businessBasics", "subIndustry", ""); // Reset sub-industry on industry change
+                }}
               >
                 <SelectTrigger className="bg-background/50 border-primary/20">
                   <SelectValue placeholder="Select industry" />
                 </SelectTrigger>
                 <SelectContent>
-                  {INDUSTRIES.map((ind) => (
+                  {Object.keys(INDUSTRIES_WITH_SUBCATEGORIES).map((ind) => (
                     <SelectItem key={ind} value={ind}>
                       {ind}
                     </SelectItem>
@@ -291,6 +308,33 @@ export function OnboardingModal({
                 </SelectContent>
               </Select>
             </div>
+            {data.businessBasics?.industry && (
+              <div className="space-y-2 animate-in fade-in duration-300">
+                <Label
+                  htmlFor="subIndustry"
+                  className="text-xs uppercase tracking-widest text-primary/70"
+                >
+                  Sub-Category
+                </Label>
+                <Select
+                  value={data.businessBasics?.subIndustry || ""}
+                  onValueChange={(val) =>
+                    updateData("businessBasics", "subIndustry", val)
+                  }
+                >
+                  <SelectTrigger className="bg-background/50 border-primary/20">
+                    <SelectValue placeholder="Select specialization" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {INDUSTRIES_WITH_SUBCATEGORIES[data.businessBasics.industry]?.map((sub) => (
+                      <SelectItem key={sub} value={sub}>
+                        {sub}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label
                 htmlFor="companySize"
