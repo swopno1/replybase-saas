@@ -30,8 +30,56 @@ export async function syncSubscription(
     else planName = "free";
   }
 
-  const dbPlan = await prisma.plan.findUnique({ where: { name: planName } });
-  if (!dbPlan) throw new Error(`Unknown plan: ${planName}`);
+  let dbPlan = await prisma.plan.findUnique({ where: { name: planName } });
+  if (!dbPlan) {
+    console.warn(`[Billing] Plan '${planName}' not found in DB. Auto-creating...`);
+    
+    // Define default limits based on plan name
+    let dailyMessageLimit = 100;
+    let monthlyMessageLimit = 3000;
+    let flowExecutionCap = 100;
+    let maxBots = 1;
+    let price = 0;
+    let displayName = "Free";
+
+    if (planName === "starter") {
+      dailyMessageLimit = 500;
+      monthlyMessageLimit = 1000;
+      flowExecutionCap = 1500;
+      maxBots = 3;
+      price = 29;
+      displayName = "Starter";
+    } else if (planName === "pro") {
+      dailyMessageLimit = 2000;
+      monthlyMessageLimit = 7500;
+      flowExecutionCap = 10000;
+      maxBots = 10;
+      price = 89;
+      displayName = "Pro";
+    } else if (planName === "business") {
+      dailyMessageLimit = 5000;
+      monthlyMessageLimit = 25000;
+      flowExecutionCap = 40000;
+      maxBots = 25;
+      price = 249;
+      displayName = "Business";
+    }
+
+    dbPlan = await prisma.plan.create({
+      data: {
+        name: planName,
+        displayName: displayName,
+        price: price,
+        currency: "GBP",
+        dailyMessageLimit,
+        monthlyMessageLimit,
+        flowExecutionCap,
+        maxBots,
+        maxChannelsPerBot: 5,
+        maxConversations: 1000,
+      },
+    });
+  }
 
   // 2. Map Stripe Status to Strict State Machine (Rule #1)
   let status = sub.status.toUpperCase();
