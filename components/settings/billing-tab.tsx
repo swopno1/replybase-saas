@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Card,
@@ -27,6 +27,8 @@ import {
   Loader2,
   Trash2,
   X,
+  ExternalLink,
+  Calendar,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
@@ -83,35 +85,46 @@ interface Invoice {
   downloadUrl?: string;
 }
 
+interface PaymentMethod {
+  brand: string;
+  last4: string;
+  expMonth: number;
+  expYear: number;
+}
+
 export default function BillingTabContent() {
   const router = useRouter();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [usage, setUsage] = useState<UsageData | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCanceling, setIsCanceling] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showDowngradeDialog, setShowDowngradeDialog] = useState(false);
   const [cancelFeedback, setCancelFeedback] = useState("");
+  const [isPortalLoading, setIsPortalLoading] = useState(false);
 
-  useEffect(() => {
-    fetchBillingData();
-  }, []);
-
-  const fetchBillingData = async () => {
+  const fetchBillingData = useCallback(async () => {
     try {
-      const response = await fetch("/api/billing/subscription");
+      const response = await fetch("/api/billing");
       if (!response.ok) throw new Error("Failed to fetch billing data");
       const data = await response.json();
       setSubscription(data.subscription);
       setUsage(data.usage);
       setInvoices(data.invoices || []);
+      setPaymentMethod(data.paymentMethod);
     } catch (error) {
       console.error("Error fetching billing data:", error);
       toast.error("Failed to load billing information");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchBillingData();
+  }, [fetchBillingData]);
 
   const handleUpgrade = () => {
     router.push("/pricing");
@@ -121,16 +134,13 @@ export default function BillingTabContent() {
     if (!subscription) return;
     setIsCanceling(true);
     try {
-      const response = await fetch(
-        `/api/billing/subscription/${subscription.id}`,
-        { 
-          method: "DELETE",
+      const response = await fetch("/api/billing/cancel", {
+          method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ feedback: cancelFeedback })
-        },
-      );
+      });
       if (!response.ok) throw new Error("Failed to cancel subscription");
-      toast.success("Subscription canceled successfully");
+      toast.success("Subscription set to cancel at period end");
       setShowCancelDialog(false);
       fetchBillingData();
     } catch (error) {
@@ -138,6 +148,21 @@ export default function BillingTabContent() {
       toast.error("Failed to cancel subscription");
     } finally {
       setIsCanceling(false);
+    }
+  };
+
+  const handleUpdatePaymentMethod = async () => {
+    setIsPortalLoading(true);
+    try {
+      const response = await fetch("/api/billing/portal", { method: "POST" });
+      if (!response.ok) throw new Error("Failed to open billing portal");
+      const data = await response.json();
+      window.location.href = data.url;
+    } catch (error) {
+      console.error("Portal error:", error);
+      toast.error("Failed to open billing portal");
+    } finally {
+      setIsPortalLoading(false);
     }
   };
 
@@ -159,7 +184,16 @@ export default function BillingTabContent() {
 
   const isTrial = subscription?.status === "TRIALING";
   const isCanceled = subscription?.cancelAtPeriodEnd;
+  const isPastDue = subscription?.status === "PAST_DUE";
   const trialDays = subscription?.trialDaysRemaining ?? 0;
+
+  const getUsageColor = (current: number, limit: number) => {
+    if (limit === 0) return "bg-red-500";
+    const ratio = current / limit;
+    if (ratio >= 1.0) return "bg-red-500";
+    if (ratio >= 0.9) return "bg-yellow-500";
+    return "bg-primary";
+  };
 
   return (
     <div className="max-w-5xl space-y-8 pb-12">
@@ -185,6 +219,27 @@ export default function BillingTabContent() {
         </div>
       )}
 
+      {/* Past Due Banner */}
+      {isPastDue && (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="bg-red-500/20 p-3 rounded-xl">
+              <AlertCircle className="h-6 w-6 text-red-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-lg text-red-900">Payment Required</h3>
+              <p className="text-red-800 text-sm">
+                Your last payment failed. Please update your payment method to avoid service interruption.
+              </p>
+            </div>
+          </div>
+          <Button onClick={handleUpdatePaymentMethod} variant="destructive" disabled={isPortalLoading}>
+            Update Card
+            <CreditCard className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
       {/* Canceled Banner */}
       {isCanceled && (
         <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-6 flex items-center gap-4 shadow-sm">
@@ -194,7 +249,7 @@ export default function BillingTabContent() {
           <div>
             <h3 className="font-bold text-lg text-yellow-900">Subscription Canceled</h3>
             <p className="text-yellow-800 text-sm">
-              Your access will continue until <span className="font-bold">{new Date(subscription.currentPeriodEnd).toLocaleDateString()}</span>. 
+              Your access will continue until <span className="font-bold">{new Date(subscription?.currentPeriodEnd || "").toLocaleDateString()}</span>.
               After this date, you will be moved to the Free plan.
             </p>
           </div>
@@ -209,7 +264,7 @@ export default function BillingTabContent() {
               <Badge variant="outline" className="font-bold border-primary/20 text-primary bg-primary/5 uppercase tracking-wider text-[10px]">Current Plan</Badge>
               {subscription && (
                 <Badge 
-                  className={subscription.status === "ACTIVE" ? "bg-green-500/10 text-green-600 border-green-200" : "bg-muted text-muted-foreground"}
+                  className={subscription.status === "ACTIVE" || subscription.status === "TRIALING" ? "bg-green-500/10 text-green-600 border-green-200" : "bg-muted text-muted-foreground"}
                 >
                   {subscription.status.toLowerCase()}
                 </Badge>
@@ -240,8 +295,19 @@ export default function BillingTabContent() {
             
             <div className="space-y-4">
               <Button onClick={handleUpgrade} className="w-full bg-foreground text-background hover:bg-foreground/90 font-bold h-11 rounded-xl shadow-md">
-                Change Plan
+                {subscription?.plan.name === "business" || subscription?.plan.name === "pro" ? "Manage Plan" : "Upgrade Plan"}
               </Button>
+
+              {subscription && subscription.plan.name !== "free" && subscription.plan.name !== "starter" && !isCanceled && (
+                 <Button
+                   variant="outline"
+                   onClick={() => setShowDowngradeDialog(true)}
+                   className="w-full border-border hover:bg-muted transition-colors h-11 rounded-xl"
+                 >
+                   Downgrade Plan
+                 </Button>
+              )}
+
               {subscription?.status !== "FREE" && !isCanceled && (
                 <Button 
                   variant="ghost" 
@@ -284,6 +350,7 @@ export default function BillingTabContent() {
                 <Progress 
                   value={usage ? (usage.monthlyMessages / (usage.monthlyMessageLimit || 1)) * 100 : 0} 
                   className="h-2.5 bg-muted/50"
+                  indicatorClassName={getUsageColor(usage?.monthlyMessages || 0, usage?.monthlyMessageLimit || 1)}
                 />
                 <p className="text-[11px] text-muted-foreground">Reset on {new Date(subscription?.currentPeriodEnd || "").toLocaleDateString()}</p>
               </div>
@@ -302,6 +369,7 @@ export default function BillingTabContent() {
                 <Progress 
                   value={usage ? (usage.dailyFlowExecutions / (usage.flowExecutionCap || 1)) * 100 : 0} 
                   className="h-2.5 bg-muted/50"
+                  indicatorClassName={getUsageColor(usage?.dailyFlowExecutions || 0, usage?.flowExecutionCap || 1)}
                 />
                 <p className="text-[11px] text-muted-foreground">Resets at midnight UTC</p>
               </div>
@@ -324,17 +392,39 @@ export default function BillingTabContent() {
                 </div>
                 <h4 className="font-bold text-sm">Payment Method</h4>
               </div>
-              <p className="text-xs text-muted-foreground mb-4">Your default payment method is processed via Stripe.</p>
-              <Button variant="outline" size="sm" className="w-full text-xs font-bold rounded-lg h-9">Update Method</Button>
+              {paymentMethod ? (
+                  <div className="mb-4">
+                      <div className="flex items-center gap-2">
+                          <p className="text-sm font-bold capitalize">{paymentMethod.brand} •••• {paymentMethod.last4}</p>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">Expires {paymentMethod.expMonth}/{paymentMethod.expYear}</p>
+                  </div>
+              ) : (
+                <p className="text-xs text-muted-foreground mb-4">No payment method on file.</p>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-xs font-bold rounded-lg h-9"
+                onClick={handleUpdatePaymentMethod}
+                disabled={isPortalLoading}
+              >
+                  {isPortalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Update Method"}
+              </Button>
             </Card>
             <Card className="shadow-sm border-border/50 rounded-2xl p-5 ring-1 ring-border/5">
               <div className="flex items-center gap-3 mb-3">
                 <div className="bg-muted p-2 rounded-lg">
-                  <Shield className="h-4 w-4 text-muted-foreground" />
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <h4 className="font-bold text-sm">Billing Cycle</h4>
               </div>
-              <p className="text-xs text-muted-foreground mb-4">You are currently on a monthly billing cycle.</p>
+              <div className="mb-4">
+                <p className="text-xs text-muted-foreground">
+                    Next charge: <span className="font-bold text-foreground">{new Date(subscription?.currentPeriodEnd || "").toLocaleDateString()}</span>
+                </p>
+                <p className="text-[10px] text-muted-foreground">Currently on a monthly billing cycle.</p>
+              </div>
               <Button variant="outline" size="sm" className="w-full text-xs font-bold rounded-lg h-9">Switch to Annual (-20%)</Button>
             </Card>
           </div>
@@ -440,6 +530,59 @@ export default function BillingTabContent() {
         </div>
       </div>
 
+      {/* Downgrade Dialog */}
+      <Dialog open={showDowngradeDialog} onOpenChange={setShowDowngradeDialog}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+              <Shield className="h-5 w-5 text-yellow-500" />
+              Downgrade Plan?
+            </DialogTitle>
+            <DialogDescription className="text-base">
+              You are about to downgrade your plan. Some features will be restricted at the end of your current billing cycle.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4">
+              <h5 className="font-bold text-yellow-900 text-sm mb-2">What will change:</h5>
+              <ul className="space-y-2">
+                <li className="text-xs text-yellow-800 flex items-center gap-2">
+                  <AlertCircle className="h-3 w-3" />
+                  Lower message & flow execution limits
+                </li>
+                <li className="text-xs text-yellow-800 flex items-center gap-2">
+                  <AlertCircle className="h-3 w-3" />
+                  Reduced number of active bots
+                </li>
+                <li className="text-xs text-yellow-800 flex items-center gap-2">
+                  <AlertCircle className="h-3 w-3" />
+                  Standard support instead of Priority
+                </li>
+              </ul>
+            </div>
+            <p className="text-xs text-muted-foreground">
+                To complete your downgrade, please select a new plan on the pricing page. The changes will take effect at the start of your next billing period.
+            </p>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={() => setShowDowngradeDialog(false)} className="flex-1 rounded-xl">
+              Back
+            </Button>
+            <Button
+              onClick={() => {
+                  setShowDowngradeDialog(false);
+                  router.push("/pricing");
+              }}
+              className="flex-1 rounded-xl font-bold"
+            >
+              Choose New Plan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Cancellation Dialog */}
       <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
         <DialogContent className="sm:max-w-[450px]">
@@ -449,7 +592,9 @@ export default function BillingTabContent() {
               Cancel Subscription?
             </DialogTitle>
             <DialogDescription className="text-base">
-              We&apos;re sorry to see you go. Your subscription will remain active until the end of this billing cycle.
+              {isTrial
+                ? "Your trial will remain active until the end of the 14-day period. You will not be charged."
+                : "We're sorry to see you go. Your subscription will remain active until the end of this billing cycle."}
             </DialogDescription>
           </DialogHeader>
           
