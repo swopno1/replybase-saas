@@ -2,7 +2,7 @@
  * Unit tests for lib/whatsapp-provider.ts
  * Tests pure utility functions — no network calls, no DB.
  */
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, vi, beforeEach } from "vitest";
 import crypto from "node:crypto";
 
 beforeAll(() => {
@@ -15,6 +15,7 @@ import {
   normalizeWhatsAppE164,
   maskSecret,
   verifyTwilioSignature,
+  validateWhatsAppProviderConnection,
 } from "@/lib/whatsapp-provider";
 
 // ---------------------------------------------------------------------------
@@ -171,5 +172,212 @@ describe("verifyTwilioSignature", () => {
         values: tamperedParams,
       }),
     ).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// validateWhatsAppProviderConnection
+// ---------------------------------------------------------------------------
+describe("validateWhatsAppProviderConnection", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+    return () => {
+      vi.unstubAllGlobals();
+    };
+  });
+
+  describe("meta_cloud", () => {
+    const credentials = {
+      accessToken: "test_token",
+      phoneNumberId: "123456789",
+    };
+
+    it("returns valid: true on success", async () => {
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ id: "123456789" }),
+      });
+
+      const result = await validateWhatsAppProviderConnection({
+        provider: "meta_cloud",
+        credentials,
+      });
+
+      expect(result).toEqual({
+        valid: true,
+        normalized: { phoneNumberId: "123456789" },
+      });
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("123456789"),
+        expect.objectContaining({
+          headers: { Authorization: "Bearer test_token" },
+        }),
+      );
+    });
+
+    it("returns error message from Meta on failure", async () => {
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: false,
+        json: () =>
+          Promise.resolve({ error: { message: "Invalid OAuth access token" } }),
+      });
+
+      const result = await validateWhatsAppProviderConnection({
+        provider: "meta_cloud",
+        credentials,
+      });
+
+      expect(result).toEqual({
+        valid: false,
+        error: "Invalid OAuth access token",
+      });
+    });
+
+    it("returns fallback error message if data is not an object", async () => {
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.resolve("Just a string"),
+      });
+
+      const result = await validateWhatsAppProviderConnection({
+        provider: "meta_cloud",
+        credentials,
+      });
+
+      expect(result).toEqual({
+        valid: false,
+        error: "Failed to validate Meta Cloud API credentials",
+      });
+    });
+
+    it("returns fallback error message if JSON is an empty object", async () => {
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.resolve({}),
+      });
+
+      const result = await validateWhatsAppProviderConnection({
+        provider: "meta_cloud",
+        credentials,
+      });
+
+      expect(result).toEqual({
+        valid: false,
+        error: "Failed to validate Meta Cloud API credentials",
+      });
+    });
+
+    it("returns fallback error message if JSON is malformed", async () => {
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.reject(new Error("Bad JSON")),
+      });
+
+      const result = await validateWhatsAppProviderConnection({
+        provider: "meta_cloud",
+        credentials,
+      });
+
+      expect(result).toEqual({
+        valid: false,
+        error: "Failed to validate Meta Cloud API credentials",
+      });
+    });
+  });
+
+  describe("twilio", () => {
+    const credentials = {
+      accountSid: "AC123",
+      authToken: "secret",
+      fromNumber: "14155238886",
+    };
+
+    it("returns valid: true on success", async () => {
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ sid: "AC123" }),
+      });
+
+      const result = await validateWhatsAppProviderConnection({
+        provider: "twilio",
+        credentials,
+      });
+
+      expect(result).toEqual({
+        valid: true,
+        normalized: { fromNumber: "+14155238886" },
+      });
+      const auth = Buffer.from("AC123:secret").toString("base64");
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("AC123.json"),
+        expect.objectContaining({
+          headers: { Authorization: `Basic ${auth}` },
+        }),
+      );
+    });
+
+    it("returns error message from Twilio on failure", async () => {
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.resolve({ message: "Authentication Error" }),
+      });
+
+      const result = await validateWhatsAppProviderConnection({
+        provider: "twilio",
+        credentials,
+      });
+
+      expect(result).toEqual({
+        valid: false,
+        error: "Authentication Error",
+      });
+    });
+  });
+
+  describe("360dialog", () => {
+    const credentials = {
+      apiKey: "d360_key",
+      channelId: "chan_123",
+    };
+
+    it("returns valid: true on success", async () => {
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({}),
+      });
+
+      const result = await validateWhatsAppProviderConnection({
+        provider: "360dialog",
+        credentials,
+      });
+
+      expect(result).toEqual({
+        valid: true,
+        normalized: { channelId: "chan_123" },
+      });
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/v2/contacts"),
+        expect.objectContaining({
+          headers: { "D360-API-KEY": "d360_key" },
+        }),
+      );
+    });
+
+    it("returns fallback error if response is not ok", async () => {
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.resolve(null),
+      });
+
+      const result = await validateWhatsAppProviderConnection({
+        provider: "360dialog",
+        credentials,
+      });
+
+      expect(result).toEqual({
+        valid: false,
+        error: "Failed to validate 360dialog credentials",
+      });
+    });
   });
 });
