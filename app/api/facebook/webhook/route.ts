@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ModelMessage } from "ai";
 import { prisma } from "@/lib/prisma";
 // AI fallback removed April 2026
 import {
@@ -391,11 +392,11 @@ async function handleMessage(
           select: { content: true, source: true },
         });
         // Build messages array for AI (user/assistant roles)
-        const aiMessages = lastMessages.reverse().map((msg) => ({
-          role: (msg.source === "human" ? "user" : "assistant") as any,
+        const aiMessages: ModelMessage[] = lastMessages.reverse().map((msg) => ({
+          role: msg.source === "human" ? "user" : "assistant",
           content: msg.content,
         }));
-        aiMessages.push({ role: "user" as any, content: messageText });
+        aiMessages.push({ role: "user", content: messageText });
 
         // Dynamically import aiFallback to avoid circular deps
         const { aiFallback } = await import("@/lib/ai-fallback");

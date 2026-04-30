@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ModelMessage } from "ai";
 
 import { prisma } from "@/lib/prisma";
 import {
@@ -173,11 +174,11 @@ export async function POST(request: NextRequest) {
       take: 10,
       select: { content: true, source: true },
     });
-    const aiMessages = lastMessages.reverse().map((msg) => ({
-      role: (msg.source === "human" ? "user" : "assistant") as any,
+    const aiMessages: ModelMessage[] = lastMessages.reverse().map((msg) => ({
+      role: msg.source === "human" ? "user" : "assistant",
       content: msg.content,
     }));
-    aiMessages.push({ role: "user" as any, content: message });
+    aiMessages.push({ role: "user", content: message });
 
     // Dynamically import aiFallback to avoid circular deps
     const { aiFallback } = await import("@/lib/ai-fallback");

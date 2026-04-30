@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
+import { ModelMessage } from "ai";
 import { verifyWebhookSignature } from "@/lib/server/facebook-utils";
 import { prisma } from "@/lib/prisma";
 // AI fallback removed April 2026
@@ -481,11 +482,11 @@ async function sendAutoReply(params: {
       take: 10,
       select: { content: true, source: true },
     });
-    const aiMessages = lastMessages.reverse().map((msg) => ({
-      role: (msg.source === "human" ? "user" : "assistant") as any,
+    const aiMessages: ModelMessage[] = lastMessages.reverse().map((msg) => ({
+      role: msg.source === "human" ? "user" : "assistant",
       content: msg.content,
     }));
-    aiMessages.push({ role: "user" as any, content: params.inboundText });
+    aiMessages.push({ role: "user", content: params.inboundText });
 
     // Use tenant subscription plan name (fallback to "free")
     const subscription = await prisma.subscription.findUnique({
