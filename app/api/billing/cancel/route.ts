@@ -59,9 +59,11 @@ export async function POST(req: NextRequest) {
     const updated = await prisma.subscription.update({
       where: { id: subscription.id },
       data: {
-        status: stripeSub.status.toUpperCase(),
-        cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
-        currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
+        status: (stripeSub as any).status.toUpperCase(),
+        cancelAtPeriodEnd: (stripeSub as any).cancel_at_period_end,
+        currentPeriodEnd: (stripeSub as any).current_period_end 
+          ? new Date((stripeSub as any).current_period_end * 1000) 
+          : new Date(),
       },
     });
 
