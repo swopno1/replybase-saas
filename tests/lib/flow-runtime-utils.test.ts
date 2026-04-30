@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { interpolateText, normalizeDurationMs, evaluateCondition } from '@/lib/flow-runtime-utils';
+import { interpolateText, normalizeDurationMs, evaluateCondition, waitForFlowDurationMs } from '@/lib/flow-runtime-utils';
 
 describe('flow-runtime-utils', () => {
   describe('interpolateText', () => {
@@ -57,6 +57,12 @@ describe('flow-runtime-utils', () => {
       expect(normalizeDurationMs(undefined, 500)).toBe(500);
     });
 
+    it('should use default fallback 0 if not provided', () => {
+      expect(normalizeDurationMs('1000')).toBe(0);
+      expect(normalizeDurationMs(null)).toBe(0);
+      expect(normalizeDurationMs(undefined)).toBe(0);
+    });
+
     it('should return fallback if value is NaN or Infinite', () => {
       expect(normalizeDurationMs(NaN, 500)).toBe(500);
       expect(normalizeDurationMs(Infinity, 500)).toBe(500);
@@ -68,6 +74,10 @@ describe('flow-runtime-utils', () => {
 
     it('should clamp value to max if it exceeds max', () => {
       expect(normalizeDurationMs(6000, 0, 5000)).toBe(5000);
+    });
+
+    it('should use default max 5000 if not provided', () => {
+      expect(normalizeDurationMs(6000)).toBe(5000);
     });
 
     it('should round the value', () => {
@@ -127,6 +137,23 @@ describe('flow-runtime-utils', () => {
 
     it('should return false for unknown operator', () => {
       expect(evaluateCondition('test', 'unknown', 'test')).toBe(false);
+    });
+  });
+
+  describe('waitForFlowDurationMs', () => {
+    it('should resolve immediately if duration is 0 or less', async () => {
+      const start = Date.now();
+      await waitForFlowDurationMs(0);
+      await waitForFlowDurationMs(-100);
+      const end = Date.now();
+      expect(end - start).toBeLessThan(10);
+    });
+
+    it('should wait for the specified duration', async () => {
+      const start = Date.now();
+      await waitForFlowDurationMs(50);
+      const end = Date.now();
+      expect(end - start).toBeGreaterThanOrEqual(40); // allow small timing variations
     });
   });
 });
