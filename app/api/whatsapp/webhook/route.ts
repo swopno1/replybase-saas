@@ -706,21 +706,29 @@ async function processMetaPayload(params: {
         continue;
       }
 
+      const statusesToLog = [];
+      let hasStatuses = false;
+
       for (const status of value.statuses || []) {
         if (!status.id) {
           continue;
         }
 
-        await prisma.webhookLog.create({
+        statusesToLog.push({
+          type: "delivery",
+          source: "whatsapp",
+          event: `meta_status:${status.id}:${status.status || "unknown"}`,
           data: {
-            type: "delivery",
-            source: "whatsapp",
-            event: `meta_status:${status.id}:${status.status || "unknown"}`,
-            data: {
-              channelId: channel.id,
-              status,
-            } as Prisma.InputJsonValue,
-          },
+            channelId: channel.id,
+            status,
+          } as Prisma.InputJsonValue,
+        });
+        hasStatuses = true;
+      }
+
+      if (hasStatuses) {
+        await prisma.webhookLog.createMany({
+          data: statusesToLog,
         });
 
         const currentConfig = (channel.config || {}) as Prisma.JsonObject;
