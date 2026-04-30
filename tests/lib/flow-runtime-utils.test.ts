@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { interpolateText, normalizeDurationMs, evaluateCondition, waitForFlowDurationMs } from '@/lib/flow-runtime-utils';
+import {
+  interpolateText,
+  normalizeDurationMs,
+  evaluateCondition,
+  waitForFlowDurationMs,
+  getNextNode,
+  getNodeByOrder,
+  getRuntimeState,
+  setRuntimeState,
+  createInitialRuntimeState
+} from '@/lib/flow-runtime-utils';
 
 describe('flow-runtime-utils', () => {
   describe('interpolateText', () => {
@@ -83,6 +93,24 @@ describe('flow-runtime-utils', () => {
     it('should round the value', () => {
       expect(normalizeDurationMs(100.6)).toBe(101);
       expect(normalizeDurationMs(100.4)).toBe(100);
+    });
+
+    it('should return fallback for objects and arrays', () => {
+      expect(normalizeDurationMs({}, 500)).toBe(500);
+      expect(normalizeDurationMs([], 500)).toBe(500);
+    });
+
+    it('should handle custom max values', () => {
+      expect(normalizeDurationMs(10000, 0, 20000)).toBe(10000);
+      expect(normalizeDurationMs(30000, 0, 20000)).toBe(20000);
+    });
+
+    it('should handle non-integer max values', () => {
+      expect(normalizeDurationMs(100, 0, 50.5)).toBe(50.5);
+    });
+
+    it('should return non-numeric fallback as-is', () => {
+      expect(normalizeDurationMs('invalid', 'fallback' as any)).toBe('fallback');
     });
   });
 
@@ -219,6 +247,127 @@ describe('flow-runtime-utils', () => {
       await waitForFlowDurationMs(50);
       const end = Date.now();
       expect(end - start).toBeGreaterThanOrEqual(40); // allow small timing variations
+    });
+  });
+
+  describe('getNextNode', () => {
+    const nodes = [
+      { id: '1', order: 1 } as any,
+      { id: '2', order: 2 } as any,
+      { id: '3', order: 3 } as any,
+    ];
+
+    it('should return the next node sequentially if explicitNextOrder is not provided', () => {
+      expect(getNextNode(nodes, 1)).toEqual(nodes[1]);
+      expect(getNextNode(nodes, 2)).toEqual(nodes[2]);
+    });
+
+    it('should return the node with explicitNextOrder if provided', () => {
+      expect(getNextNode(nodes, 1, 3)).toEqual(nodes[2]);
+    });
+
+    it('should return null if no node matches the target order', () => {
+      expect(getNextNode(nodes, 3)).toBeNull();
+      expect(getNextNode(nodes, 1, 5)).toBeNull();
+    });
+  });
+
+  describe('getNodeByOrder', () => {
+    const nodes = [
+      { id: '1', order: 1 } as any,
+      { id: '2', order: 2 } as any,
+    ];
+
+    it('should return the node with the specified order', () => {
+      expect(getNodeByOrder(nodes, 1)).toEqual(nodes[0]);
+      expect(getNodeByOrder(nodes, 2)).toEqual(nodes[1]);
+    });
+
+    it('should return null if order is null or undefined', () => {
+      expect(getNodeByOrder(nodes, null)).toBeNull();
+      expect(getNodeByOrder(nodes, undefined)).toBeNull();
+    });
+
+    it('should return null if no node matches the order', () => {
+      expect(getNodeByOrder(nodes, 3)).toBeNull();
+    });
+  });
+
+  describe('createInitialRuntimeState', () => {
+    it('should create initial runtime state with provided flowId', () => {
+      const flowId = 'flow_1';
+      const state = createInitialRuntimeState(flowId);
+      expect(state).toEqual({
+        rootFlowId: flowId,
+        activeFlowId: flowId,
+        callStack: [],
+      });
+    });
+  });
+
+  describe('setRuntimeState', () => {
+    it('should set the runtime state on the variables object', () => {
+      const variables: any = {};
+      const runtime = {
+        rootFlowId: 'root',
+        activeFlowId: 'active',
+        callStack: [],
+      };
+      setRuntimeState(variables, runtime);
+      expect(variables.__runtime).toEqual(runtime);
+    });
+  });
+
+  describe('getRuntimeState', () => {
+    const fallbackFlowId = 'fallback';
+
+    it('should return the runtime state from variables if valid', () => {
+      const runtime = {
+        rootFlowId: 'root',
+        activeFlowId: 'active',
+        callStack: [{ flowId: 'parent', nextNodeOrder: 5 }],
+      };
+      const variables = { __runtime: runtime };
+      expect(getRuntimeState(variables, fallbackFlowId)).toEqual(runtime);
+    });
+
+    it('should fallback to provided flowId if __runtime is missing', () => {
+      const variables = {};
+      expect(getRuntimeState(variables, fallbackFlowId)).toEqual({
+        rootFlowId: fallbackFlowId,
+        activeFlowId: fallbackFlowId,
+        callStack: [],
+      });
+    });
+
+    it('should fallback if __runtime is null or not an object', () => {
+      expect(getRuntimeState({ __runtime: null }, fallbackFlowId)).toEqual({
+        rootFlowId: fallbackFlowId,
+        activeFlowId: fallbackFlowId,
+        callStack: [],
+      });
+      expect(getRuntimeState({ __runtime: 'invalid' as any }, fallbackFlowId)).toEqual({
+        rootFlowId: fallbackFlowId,
+        activeFlowId: fallbackFlowId,
+        callStack: [],
+      });
+      expect(getRuntimeState({ __runtime: [] as any }, fallbackFlowId)).toEqual({
+        rootFlowId: fallbackFlowId,
+        activeFlowId: fallbackFlowId,
+        callStack: [],
+      });
+    });
+
+    it('should handle partial runtime state by using defaults', () => {
+      const partialRuntime = {
+        activeFlowId: 'active',
+      };
+      const variables = { __runtime: partialRuntime as any };
+      expect(getRuntimeState(variables, fallbackFlowId)).toEqual({
+        rootFlowId: fallbackFlowId,
+        activeFlowId: 'active',
+        callStack: [],
+      });
     });
   });
 });
