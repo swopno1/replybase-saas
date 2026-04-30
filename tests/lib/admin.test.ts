@@ -8,6 +8,11 @@ describe('isPlatformAdmin', () => {
     expect(isPlatformAdmin(null)).toBe(false);
   });
 
+  it('returns false for undefined session', () => {
+    // @ts-expect-error - Testing undefined session
+    expect(isPlatformAdmin(undefined)).toBe(false);
+  });
+
   it('returns false for session with no user', () => {
     // @ts-expect-error - Testing invalid session object
     expect(isPlatformAdmin({})).toBe(false);
@@ -26,6 +31,17 @@ describe('isPlatformAdmin', () => {
     const session = {
       user: {
         id: '123',
+        role: 'USER' as UserRole,
+      }
+    } as Session;
+    expect(isPlatformAdmin(session)).toBe(false);
+  });
+
+  it('returns false when user.isAdmin is true but role is USER', () => {
+    const session = {
+      user: {
+        id: '123',
+        isAdmin: true,
         role: 'USER' as UserRole,
       }
     } as Session;
