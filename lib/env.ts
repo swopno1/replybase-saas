@@ -7,7 +7,7 @@ const envSchema = z.object({
 
   // AUTH
   AUTH_SECRET: z.string().min(32),
-  CHANNEL_CREDENTIALS_ENCRYPTION_KEY: z.string().min(32).default("development-only-encryption-key-32-chars"),
+  CHANNEL_CREDENTIALS_ENCRYPTION_KEY: z.string().min(32),
   NEXTAUTH_URL: z.string().url(),
 
   // OAUTH
@@ -50,8 +50,8 @@ const envSchema = z.object({
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 
   // SECRETS & ADMIN
-  API_SECRET_KEY: z.string().optional(),
-  CRON_SECRET: z.string().optional(),
+  API_SECRET_KEY: z.string().min(16),
+  CRON_SECRET: z.string().min(16),
 });
 
 // Validate env vars
