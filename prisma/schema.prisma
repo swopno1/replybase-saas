@@ -79,6 +79,7 @@ model Tenant {
   isOnboarded               Boolean                         @default(false)
   onboardingData            Json                            @default("{}")
   onboardingStep            Int                             @default(0)
+  trialUsed                 Boolean                         @default(false)
   activityLogs              ActivityLog[]
   adminActivities           AdminActivity[]
   bots                      Bot[]
@@ -99,6 +100,7 @@ model Tenant {
   usageLogs                 UsageLog[]
   users                     User[]
   webChatSites              WebChatSite[]
+  crmMessages               CrmMessage[]
 
   @@map("tenants")
 }
@@ -479,8 +481,8 @@ model CrmConversation {
   messages          CrmMessage[]
   internalNotes     InternalNote[]
   webChatSessions   WebChatSession[]
-  tenant            Tenant?            @relation(fields: [tenantId], references: [id])
-  tenantId          String?
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId          String
 
   @@index([contactId])
   @@index([assigneeId])
@@ -496,9 +498,12 @@ model CrmMessage {
   content        String
   createdAt      DateTime        @default(now())
   source         String          @default("human")
-  conversation   CrmConversation @relation(fields: [conversationId], references: [id])
+  tenantId       String
+  conversation   CrmConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([conversationId])
+  @@index([tenantId])
   @@map("crm_messages")
 }
 
