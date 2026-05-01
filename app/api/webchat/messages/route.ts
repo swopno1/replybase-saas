@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
       where: {
         conversationId: session.conversationId,
         direction: "outbound",
-        source: "human",
+        source: { in: ["human", "ai", "flow", "manual_fallback"] },
         ...(afterDate ? { createdAt: { gt: afterDate } } : {}),
       },
       orderBy: { createdAt: "asc" },
