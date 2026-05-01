@@ -79,14 +79,16 @@ model Tenant {
   isOnboarded               Boolean                         @default(false)
   onboardingData            Json                            @default("{}")
   onboardingStep            Int                             @default(0)
-  trialUsed                 Boolean                         @default(false)
   activityLogs              ActivityLog[]
-  churnFeedbacks            ChurnFeedback[]
+  adminActivities           AdminActivity[]
   bots                      Bot[]
+  churnFeedbacks            ChurnFeedback[]
   contacts                  Contact[]
+  crmConversations          CrmConversation[]
   dataDeletionRequests      DataDeletionRequest[]
   facebookPages             FacebookPage[]
   flows                     Flow[]
+  internalNotes             InternalNote[]
   leads                     Lead[]
   newsletterSubscriptions   NewsletterSubscriber[]
   onboardingMilestoneEvents OnboardingMilestoneEvent[]
@@ -97,9 +99,6 @@ model Tenant {
   usageLogs                 UsageLog[]
   users                     User[]
   webChatSites              WebChatSite[]
-  crmConversations          CrmConversation[]
-  crmMessages               CrmMessage[]
-  internalNotes             InternalNote[]
 
   @@map("tenants")
 }
@@ -178,7 +177,7 @@ model Subscription {
   id                   String    @id @default(cuid())
   stripeId             String    @unique
   stripeCustomerId     String?   @unique
-  status               String    @default("ACTIVE")
+  status               String    @default("active")
   currentPeriodStart   DateTime  @default(now())
   currentPeriodEnd     DateTime
   cancelAtPeriodEnd    Boolean   @default(false)
@@ -210,21 +209,20 @@ model StripeEvent {
 }
 
 model ChurnFeedback {
-  id          String   @id @default(cuid())
-  tenantId    String
-  userId      String?
-  type        String   // CANCEL, DOWNGRADE
-  reason      String
-  planId      String?
-  createdAt   DateTime @default(now())
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user        User?    @relation(fields: [userId], references: [id])
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String?
+  type      String // CANCEL, DOWNGRADE
+  reason    String
+  planId    String?
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id])
 
   @@index([tenantId])
   @@index([type])
   @@map("churn_feedback")
 }
-
 
 model NewsletterSubscriber {
   id               String           @id @default(cuid())
@@ -302,8 +300,6 @@ model Plan {
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
   maxFlows            Int                 @default(3)
-  maxContacts         Int                 @default(100)
-  maxIntegrations     Int                 @default(1)
   onboardingSessions  OnboardingSession[]
   subscriptions       Subscription[]
 
@@ -465,7 +461,6 @@ model ContactIdentity {
 
 model CrmConversation {
   id                String             @id @default(cuid())
-  tenantId          String
   contactId         String
   channel           String
   createdAt         DateTime           @default(now())
@@ -484,9 +479,9 @@ model CrmConversation {
   messages          CrmMessage[]
   internalNotes     InternalNote[]
   webChatSessions   WebChatSession[]
-  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant            Tenant?            @relation(fields: [tenantId], references: [id])
+  tenantId          String?
 
-  @@index([tenantId])
   @@index([contactId])
   @@index([assigneeId])
   @@index([externalSessionId])
@@ -496,18 +491,14 @@ model CrmConversation {
 
 model CrmMessage {
   id             String          @id @default(cuid())
-  tenantId       String
   conversationId String
   direction      String
   content        String
   createdAt      DateTime        @default(now())
   source         String          @default("human")
-  conversation   CrmConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversation   CrmConversation @relation(fields: [conversationId], references: [id])
 
-  @@index([tenantId])
   @@index([conversationId])
-  @@index([createdAt])
   @@map("crm_messages")
 }
 
@@ -574,16 +565,15 @@ model WebChatEvent {
 
 model InternalNote {
   id             String          @id @default(cuid())
-  tenantId       String
   content        String
   authorId       String
   conversationId String
+  tenantId       String
   createdAt      DateTime        @default(now())
   author         User            @relation(fields: [authorId], references: [id])
   conversation   CrmConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  @@index([tenantId])
   @@index([authorId])
   @@index([conversationId])
   @@map("internal_notes")
@@ -825,6 +815,8 @@ model AdminActivity {
   userAgent   String?
   createdAt   DateTime @default(now())
   admin       User     @relation(fields: [adminId], references: [id])
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
+  tenantId    String?
 
   @@index([adminId])
   @@index([createdAt])
