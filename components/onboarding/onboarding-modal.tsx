@@ -248,6 +248,16 @@ export function OnboardingModal({
                 placeholder="London, UK"
               />
             </div>
+            <div className="col-span-full pt-4">
+              <a 
+                href="https://replybase.co.uk/docs/get-started" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-xs text-primary hover:underline flex items-center gap-1"
+              >
+                Learn more about setting up your company profile
+              </a>
+            </div>
           </div>
         );
       case 1:
@@ -373,6 +383,16 @@ export function OnboardingModal({
                 </SelectContent>
               </Select>
             </div>
+            <div className="col-span-full pt-4">
+              <a 
+                href="https://replybase.co.uk/docs/get-started#industry-setup" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-xs text-primary hover:underline flex items-center gap-1"
+              >
+                Need help choosing your industry?
+              </a>
+            </div>
           </div>
         );
       case 2:
@@ -434,6 +454,16 @@ export function OnboardingModal({
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+            <div className="pt-4">
+              <a 
+                href="https://replybase.co.uk/docs/get-started#products" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-xs text-primary hover:underline flex items-center gap-1"
+              >
+                Guide: How to describe your offers for AI
+              </a>
+            </div>
           </div>
         );
       case 3:
@@ -490,6 +520,16 @@ export function OnboardingModal({
                 placeholder="Why should customers choose you?"
               />
             </div>
+            <div className="pt-4">
+              <a 
+                href="https://replybase.co.uk/docs/get-started#usp" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-xs text-primary hover:underline flex items-center gap-1"
+              >
+                Tips for defining your unique selling points
+              </a>
+            </div>
           </div>
         );
       case 4:
@@ -545,6 +585,16 @@ export function OnboardingModal({
                 }
                 placeholder="How do you usually close a deal?"
               />
+            </div>
+            <div className="pt-4">
+              <a 
+                href="https://replybase.co.uk/docs/get-started#support" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-xs text-primary hover:underline flex items-center gap-1"
+              >
+                How AI handles common customer queries
+              </a>
             </div>
           </div>
         );

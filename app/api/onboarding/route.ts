@@ -1,4 +1,4 @@
-import { summarizeOnboardingData, customizeFlowNodesWithAI } from "@/lib/onboarding-ai";
+import { summarizeOnboardingData, customizeFlowNodesWithAI, appendLeadGenerationNodes } from "@/lib/onboarding-ai";
 import { getTemplateByCategory, FlowTemplateCategory } from "@/lib/flow-templates";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 import { OnboardingSchema, OnboardingData, OnboardingSummary } from "@/types/shared/onboarding";
@@ -89,7 +89,8 @@ export const POST = withAuthAndTenant(async ({ id, tenantId }, request, context,
     const category = mapIndustryToCategory(validatedData.businessBasics.industry);
     const template = getTemplateByCategory(category) || getTemplateByCategory("welcome")!;
 
-    const customizedNodes = await customizeFlowNodesWithAI(template.nodes, summary);
+    const customizedNodesRaw = await customizeFlowNodesWithAI(template.nodes, summary);
+    const customizedNodes = appendLeadGenerationNodes(customizedNodesRaw);
 
     const flow = await db.flow.create({
       data: {
@@ -127,13 +128,26 @@ export const POST = withAuthAndTenant(async ({ id, tenantId }, request, context,
       },
     });
 
-    await db.bot.updateMany({
-      where: { tenantId },
-      data: {
-        context: summary as unknown as Prisma.InputJsonValue,
-        entryFlow: flow.id,
-      },
-    });
+    const botCount = await db.bot.count({ where: { tenantId } });
+    if (botCount === 0) {
+      await db.bot.create({
+        data: {
+          name: `${validatedData.kyc.company} AI Assistant`,
+          tenantId,
+          enabled: true,
+          context: summary as unknown as Prisma.InputJsonValue,
+          entryFlow: flow.id,
+        },
+      });
+    } else {
+      await db.bot.updateMany({
+        where: { tenantId },
+        data: {
+          context: summary as unknown as Prisma.InputJsonValue,
+          entryFlow: flow.id,
+        },
+      });
+    }
 
     return successResponse({ success: true, summary, flowId: flow.id });
   } catch (error) {

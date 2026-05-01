@@ -13,6 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Circle, ArrowRight, AlertCircle } from "lucide-react";
 import { DashboardFunnelTracker } from "@/components/analytics/dashboard-funnel-tracker";
+import { MilestoneAction } from "@/components/dashboard/milestone-action";
+import { ExternalLink } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -272,6 +274,7 @@ export default async function DashboardPage() {
       completedAt: firstConnectedChannelAt,
       actionLabel: "Connect a channel",
       actionHref: "/integrations/webchat",
+      docHref: "https://replybase.co.uk/docs/get-started#connecting-channels"
     },
     {
       id: "first-automated-reply",
@@ -282,6 +285,7 @@ export default async function DashboardPage() {
       completedAt: firstAutomatedReplyAt,
       actionLabel: "Run a reply test",
       actionHref: "/integrations/telegram",
+      docHref: "https://replybase.co.uk/docs/get-started#testing"
     },
     {
       id: "plan-selection",
@@ -293,6 +297,7 @@ export default async function DashboardPage() {
       completedAt: null,
       actionLabel: planActionLabel,
       actionHref: planActionHref,
+      docHref: "https://replybase.co.uk/docs/get-started#pricing"
     },
     {
       id: "lead-notifications",
@@ -305,6 +310,7 @@ export default async function DashboardPage() {
         : null,
       actionLabel: "Configure destinations",
       actionHref: "/settings?tab=notifications",
+      docHref: "https://replybase.co.uk/docs/get-started#notifications"
     },
   ];
 
@@ -485,18 +491,24 @@ export default async function DashboardPage() {
                           {milestone.completedAt.toLocaleDateString("en-US")}
                         </p>
                       )}
+                      <a 
+                        href={milestone.docHref} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="mt-2 text-[10px] text-primary hover:underline flex items-center gap-1 font-bold"
+                      >
+                        Guide: How to complete this step <ExternalLink className="h-2 w-2" />
+                      </a>
                     </div>
                   </div>
                   {!milestone.completed && (
-                    <Link href={milestone.actionHref}>
-                      <Button
-                        size="sm"
-                        variant={isNextAction ? "default" : "outline"}
-                      >
-                        {milestone.actionLabel}
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </Link>
+                    <MilestoneAction 
+                      id={milestone.id}
+                      actionLabel={milestone.actionLabel}
+                      actionHref={milestone.actionHref}
+                      isNextAction={isNextAction}
+                      tenantId={user.tenantId}
+                    />
                   )}
                 </div>
               );

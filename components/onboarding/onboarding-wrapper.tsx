@@ -18,7 +18,7 @@ export function OnboardingWrapper() {
       const res = await fetch("/api/onboarding");
       if (res.ok) {
         const data = await res.json();
-        setStatus(data);
+        setStatus(data.data);
       }
     }
     fetchStatus();

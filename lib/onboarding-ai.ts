@@ -107,3 +107,89 @@ export async function customizeFlowNodesWithAI(
     return nodes; // Fallback to original nodes
   }
 }
+
+/**
+ * Appends standard lead generation nodes to a flow if they are missing.
+ */
+export function appendLeadGenerationNodes(
+  nodes: Array<{ type: string; content: Record<string, unknown>; order: number }>
+): Array<{ type: string; content: Record<string, unknown>; order: number }> {
+  const lastOrder = nodes.length > 0 ? Math.max(...nodes.map(n => n.order)) : -1;
+  
+  // Check if we already have lead capture nodes
+  const hasEmailCapture = nodes.some(n => 
+    n.type === "input" && 
+    (n.content.variableName as string)?.toLowerCase().includes("email")
+  );
+
+  if (hasEmailCapture) return nodes;
+
+  const leadNodes = [
+    {
+      type: "message",
+      content: {
+        text: "Before we continue, I'd love to make sure we can stay in touch if we get disconnected. 🚀",
+        delayMs: 1000,
+        typingEnabled: true,
+        typingDurationMs: 1500,
+      },
+      order: lastOrder + 1,
+    },
+    {
+      type: "input",
+      content: {
+        text: "What's your name? 😊",
+        variableName: "lead_name",
+        inputType: "text",
+        delayMs: 500,
+        typingEnabled: true,
+        typingDurationMs: 1000,
+      },
+      order: lastOrder + 2,
+    },
+    {
+      type: "input",
+      content: {
+        text: "Nice to meet you, {{lead_name}}! What's your best email address? 📧",
+        variableName: "lead_email",
+        inputType: "email",
+        delayMs: 500,
+        typingEnabled: true,
+        typingDurationMs: 1000,
+      },
+      order: lastOrder + 3,
+    },
+    {
+      type: "input",
+      content: {
+        text: "And a phone number if you'd prefer a quick call or WhatsApp? (Optional) 📱",
+        variableName: "lead_phone",
+        inputType: "phone",
+        delayMs: 500,
+        typingEnabled: true,
+        typingDurationMs: 1000,
+      },
+      order: lastOrder + 4,
+    },
+    {
+      type: "action",
+      content: {
+        action: "tag_user",
+        tags: ["onboarding-lead", "automatic-capture"],
+      },
+      order: lastOrder + 5,
+    },
+    {
+      type: "message",
+      content: {
+        text: "Perfect! Thanks for sharing that. Now, how else can I help you today?",
+        delayMs: 800,
+        typingEnabled: true,
+        typingDurationMs: 1200,
+      },
+      order: lastOrder + 6,
+    },
+  ];
+
+  return [...nodes, ...leadNodes];
+}
