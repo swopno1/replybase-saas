@@ -55,13 +55,18 @@ const envSchema = z.object({
 });
 
 // Validate env vars
+const isBuildTime = process.env.NEXT_PHASE === "phase-production-build" || process.env.CI === "true";
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
-  console.error("❌ Invalid environment variables:", JSON.stringify(parsed.error.format(), null, 2));
-  
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("Invalid environment variables. Fix them before starting the app.");
+  if (!isBuildTime) {
+    console.error("❌ Invalid environment variables:", JSON.stringify(parsed.error.format(), null, 2));
+    
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("Invalid environment variables. Fix them before starting the app.");
+    }
+  } else {
+    console.warn("⚠️  Some environment variables are missing during build time. This is expected in some CI/Docker environments.");
   }
 }
 
