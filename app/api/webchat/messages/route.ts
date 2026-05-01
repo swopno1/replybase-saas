@@ -117,7 +117,12 @@ export async function GET(request: NextRequest) {
           orderBy: { updatedAt: "desc" },
         });
 
-    if (webChatSession) {
+    // Heartbeat Throttling: Only update lastSeenAt if it hasn't been updated in the last 60 seconds
+    if (
+      webChatSession &&
+      (!webChatSession.lastSeenAt ||
+        Date.now() - new Date(webChatSession.lastSeenAt).getTime() > 60000)
+    ) {
       await prisma.webChatSession.update({
         where: { id: webChatSession.id },
         data: { lastSeenAt: new Date() },
