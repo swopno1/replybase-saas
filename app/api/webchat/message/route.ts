@@ -163,25 +163,15 @@ export async function POST(request: NextRequest) {
         console.log("[Webchat Message] Responding from flow", {
           responses: flowResult.responses,
         });
-
-        return NextResponse.json(
-          {
-            responses: flowResult.responses,
-            meta: { mode: "flow", flowId: flowResult.flowId },
-          },
-          { headers: createWebchatCorsHeaders(request) },
-        );
       }
 
-      if (!flowResult.completed) {
-        return NextResponse.json(
-          {
-            responses: flowResult.responses,
-            meta: { mode: "flow", flowId: flowResult.flowId },
-          },
-          { headers: createWebchatCorsHeaders(request) },
-        );
-      }
+      return NextResponse.json(
+        {
+          responses: flowResult.responses,
+          meta: { mode: "flow", flowId: flowResult.flowId },
+        },
+        { headers: createWebchatCorsHeaders(request) },
+      );
     }
 
     // fallbackMode is "ai" or missing AND Flow bypassed: run AI, fallback to customFallbackMessage if AI fails
