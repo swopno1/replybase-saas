@@ -93,7 +93,6 @@ export const GET = withAuthAndTenant(async ({ id: userId, tenantId }) => {
             flowId: true,
             flow: { select: { id: true, name: true, isActive: true } },
           },
-          take: 1,
         },
       },
     });
@@ -106,12 +105,12 @@ export const GET = withAuthAndTenant(async ({ id: userId, tenantId }) => {
           engineConnected: p.engineConnected,
           webhookSubscribed: p.webhookSubscribed,
           internalId: p.id,
-          assignedFlow: p.flowAssignments[0]?.flow
+          assignedFlow: p.flowAssignments?.flow
             ? {
-                flowId: p.flowAssignments[0].flowId,
-                id: p.flowAssignments[0].flow.id,
-                name: p.flowAssignments[0].flow.name,
-                isActive: p.flowAssignments[0].flow.isActive,
+                flowId: p.flowAssignments.flowId,
+                id: p.flowAssignments.flow.id,
+                name: p.flowAssignments.flow.name,
+                isActive: p.flowAssignments.flow.isActive,
               }
             : null,
         },

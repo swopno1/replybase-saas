@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { OnboardingModal } from "./onboarding-modal";
 import { OnboardingBanner } from "./onboarding-banner";
 
-import type { OnboardingData } from "./onboarding-modal";
+import type { OnboardingData } from "@/types/shared/onboarding";
 
 export function OnboardingWrapper() {
   const [status, setStatus] = useState<{
