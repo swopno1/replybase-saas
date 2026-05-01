@@ -280,6 +280,7 @@ async function handleMessage(
       if (!conversation) {
         conversation = await prisma.crmConversation.create({
           data: {
+            tenantId,
             contactId: contact.id,
             channel: "facebook",
             botId: facebookPage.botId,
@@ -293,6 +294,7 @@ async function handleMessage(
     if (conversation) {
       await prisma.crmMessage.create({
         data: {
+          tenantId,
           conversationId: conversation.id,
           direction: "inbound",
           content: messageText,
@@ -348,6 +350,7 @@ async function handleMessage(
               await prisma.crmMessage
                 .create({
                   data: {
+                    tenantId,
                     conversationId: conversation.id,
                     direction: "outbound",
                     content: resp.text,
@@ -417,6 +420,7 @@ async function handleMessage(
           await sendTextMessage(accessToken, senderPsid, aiText.trim());
           await prisma.crmMessage.create({
             data: {
+              tenantId,
               conversationId: conversation.id,
               direction: "outbound",
               content: aiText.trim(),
@@ -448,6 +452,7 @@ async function handleMessage(
     if (conversation) {
       await prisma.crmMessage.create({
         data: {
+          tenantId,
           conversationId: conversation.id,
           direction: "outbound",
           content: "Our AI Agent is under development! We'll be up again soon.",

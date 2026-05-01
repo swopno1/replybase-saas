@@ -273,6 +273,7 @@ async function ensureContactAndConversation(params: {
   if (!conversation) {
     conversation = await prisma.crmConversation.create({
       data: {
+        tenantId: params.channel.bot.tenantId,
         contactId: contact.id,
         botId: params.channel.botId,
         channel: "whatsapp",
@@ -322,6 +323,7 @@ async function ensureContactAndConversation(params: {
 
   await prisma.crmMessage.create({
     data: {
+      tenantId: params.channel.bot.tenantId,
       conversationId: conversation.id,
       direction: "inbound",
       content: params.inboundText,
@@ -443,6 +445,7 @@ async function sendAutoReply(params: {
             await prisma.crmMessage
               .create({
                 data: {
+                  tenantId: params.channel.bot.tenantId,
                   conversationId: params.conversation.id,
                   direction: "outbound",
                   content: text,
@@ -546,6 +549,7 @@ async function sendAutoReply(params: {
     try {
       await prisma.crmMessage.create({
         data: {
+          tenantId: params.channel.bot.tenantId,
           conversationId: params.conversation.id,
           direction: "outbound",
           content: replyText,

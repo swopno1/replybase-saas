@@ -322,6 +322,7 @@ export async function POST(
     if (!conversation) {
       conversation = await prisma.crmConversation.create({
         data: {
+          tenantId,
           contactId: contact.id,
           botId: channel.bot.id,
           channel: "telegram",
@@ -331,6 +332,7 @@ export async function POST(
 
     await prisma.crmMessage.create({
       data: {
+        tenantId,
         conversationId: conversation.id,
         direction: "inbound",
         content: messageText,
@@ -386,6 +388,7 @@ export async function POST(
                 await prisma.crmMessage
                   .create({
                     data: {
+                      tenantId,
                       conversationId: conversation.id,
                       direction: "outbound",
                       content: normalized,
@@ -478,6 +481,7 @@ export async function POST(
       try {
         await prisma.crmMessage.create({
           data: {
+            tenantId,
             conversationId: conversation.id,
             direction: "outbound",
             content: replyText,
