@@ -3,6 +3,7 @@ import { isPlatformAdmin } from "@/lib/admin";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import { OnboardingData, OnboardingSummary } from "@/types/shared/onboarding";
 import {
   Card,
   CardContent,
@@ -91,7 +92,6 @@ export default async function OnboardingSessionsPage({
   const industryDistribution: Record<string, number> = {};
 
   tenants.forEach((t) => {
-    // Stage distribution based on step number
     const stageName = t.isOnboarded ? "COMPLETED" : STAGES[t.onboardingStep] || "Unknown";
     stageDistribution[stageName] = (stageDistribution[stageName] || 0) + 1;
 
@@ -100,8 +100,7 @@ export default async function OnboardingSessionsPage({
       abandonmentByStage[abandonStage] = (abandonmentByStage[abandonStage] || 0) + 1;
     }
 
-    // Extract data if exists
-    const data = t.onboardingData as any;
+    const data = t.onboardingData as { raw?: OnboardingData; summary?: OnboardingSummary } | null;
     if (data?.raw?.businessBasics?.industry) {
       const industry = data.raw.businessBasics.industry;
       industryDistribution[industry] = (industryDistribution[industry] || 0) + 1;
@@ -340,7 +339,7 @@ export default async function OnboardingSessionsPage({
                 </TableRow>
               ) : (
                 filteredTenants.map((tenant) => {
-                  const data = tenant.onboardingData as any;
+                  const data = tenant.onboardingData as { raw?: OnboardingData; summary?: OnboardingSummary } | null;
                   const companyName = data?.raw?.kyc?.company || "-";
                   const companySize = data?.raw?.businessBasics?.companySize || "";
                   const industry = data?.raw?.businessBasics?.industry;
@@ -383,9 +382,7 @@ export default async function OnboardingSessionsPage({
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {tenant.subscriptions && Array.isArray(tenant.subscriptions)
-                          ? tenant.subscriptions[0]?.plan?.displayName || "-"
-                          : "-"}
+                        {tenant.subscriptions?.plan?.displayName || "-"}
                       </TableCell>
                       <TableCell>
                         {new Date(tenant.createdAt).toLocaleDateString()}

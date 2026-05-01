@@ -8,6 +8,7 @@ import {
   isWebchatOriginAllowed,
 } from "@/lib/webchat-cors";
 import { findActiveWebChannel } from "@/lib/webchat";
+import { verifyWebchatSessionToken } from "@/lib/webchat-session";
 
 export async function POST(request: NextRequest) {
   if (!isWebchatOriginAllowed(request)) {
@@ -26,7 +27,22 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     console.log("[Webchat Message] Incoming request", body);
-    const { conversationId, botId, message, planName } = body;
+    const { token, conversationId, botId, message, planName } = body;
+    
+    // 1. Verify session token
+    let session;
+    try {
+      session = verifyWebchatSessionToken(token);
+    } catch (err) {
+      console.error("[Webchat Message] Invalid token", { error: err });
+      return NextResponse.json(
+        { error: "Invalid session" },
+        { status: 401, headers: createWebchatCorsHeaders(request) },
+      );
+    }
+
+    const { tenantId } = session;
+
     // Defensive: require all fields
     if (!conversationId || !botId || !message || !planName) {
       console.error("[Webchat Message] Missing required fields", {
@@ -44,6 +60,7 @@ export async function POST(request: NextRequest) {
     // Save inbound message immediately so the SaaS dashboard sees it
     await prisma.crmMessage.create({
       data: {
+        tenantId,
         conversationId,
         direction: "inbound",
         content: message.trim(),
@@ -72,6 +89,7 @@ export async function POST(request: NextRequest) {
       });
       await prisma.crmMessage.create({
         data: {
+          tenantId,
           conversationId,
           direction: "outbound",
           content: customFallbackMessage,
@@ -134,6 +152,7 @@ export async function POST(request: NextRequest) {
 
         await prisma.crmMessage.createMany({
           data: outMessages.map((outMsg) => ({
+            tenantId,
             conversationId,
             direction: "outbound",
             content: outMsg,
@@ -206,6 +225,7 @@ export async function POST(request: NextRequest) {
     if (aiText.trim()) {
       await prisma.crmMessage.create({
         data: {
+          tenantId,
           conversationId,
           direction: "outbound",
           content: aiText.trim(),

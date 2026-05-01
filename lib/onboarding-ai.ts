@@ -1,42 +1,11 @@
 import { generateText } from "ai";
 import { getAiModel } from "./ai-service";
-
-export interface OnboardingData {
-  kyc: {
-    name: string;
-    company: string;
-    contactInfo: string;
-    location: string;
-  };
-  businessBasics: {
-    industry: string;
-    companySize: string;
-    website?: string;
-    businessModel: string;
-  };
-  productDetails: {
-    offer: string;
-    targetCustomers: string;
-  };
-  productSpecifics: {
-    mainProducts: string;
-    pricing: string;
-    usps: string;
-  };
-  supportSales: {
-    commonQuestions: string;
-    painPoints: string;
-    salesProcess: string;
-  };
-  additionalContext: {
-    otherInfo?: string;
-  };
-}
+import { OnboardingData, OnboardingSummary } from "@/types/shared/onboarding";
 
 /**
  * Summarizes the collected onboarding data into a structured format for the AI assistant.
  */
-export async function summarizeOnboardingData(data: OnboardingData) {
+export async function summarizeOnboardingData(data: OnboardingData): Promise<OnboardingSummary> {
   const model = getAiModel({ provider: "default", planName: "free" });
 
   const prompt = `
@@ -80,7 +49,13 @@ export async function summarizeOnboardingData(data: OnboardingData) {
     // Fallback to a basic structure if AI fails
     return {
       companyProfile: `${data.kyc.company} is in the ${data.businessBasics.industry} industry.`,
-      raw: data,
+      targetAudience: "General",
+      keyOfferings: data.productSpecifics.mainProducts,
+      pricingStrategy: data.productSpecifics.pricing,
+      competitiveAdvantage: data.productSpecifics.usps,
+      commonQueries: "Contact support",
+      toneAndVoice: "Professional",
+      isPlaceholder: true
     };
   }
 }
@@ -90,7 +65,7 @@ export async function summarizeOnboardingData(data: OnboardingData) {
  */
 export async function customizeFlowNodesWithAI(
   nodes: Array<{ type: string; content: Record<string, unknown>; order: number }>,
-  summary: Record<string, unknown>
+  summary: OnboardingSummary
 ): Promise<Array<{ type: string; content: Record<string, unknown>; order: number }>> {
   if (summary.isPlaceholder) return nodes;
 

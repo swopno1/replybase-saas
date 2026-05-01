@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { recordActivity } from "@/lib/activity-log";
 import { withAuthAndTenant } from "@/lib/route-helpers";
+import { successResponse, errorResponse, validationErrorResponse } from "@/lib/api-response";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,7 @@ const createContactSchema = z
 export const GET: (
   request: NextRequest,
   context: { params: Promise<Record<string, string | string[]>> },
-) => Promise<Response> = withAuthAndTenant(async ({ tenantId }, request) => {
+) => Promise<Response> = withAuthAndTenant(async ({ tenantId }, request, context, db) => {
   try {
     const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get("page") || "1");
@@ -34,8 +35,8 @@ export const GET: (
     const skip = (page - 1) * limit;
 
     const [contacts, totalCount] = await Promise.all([
-      prisma.contact.findMany({
-        where: { tenantId },
+      db.contact.findMany({
+        where: {}, // tenantId is automatically injected by db extension
         include: {
           conversations: {
             select: { id: true, channel: true, updatedAt: true },
@@ -47,23 +48,20 @@ export const GET: (
         skip,
         take: limit,
       }),
-      prisma.contact.count({
-        where: { tenantId },
+      db.contact.count({
+        where: {}, // tenantId is automatically injected
       }),
     ]);
 
-    return NextResponse.json({
-      contacts,
+    return successResponse(contacts, 200, {
       totalCount,
       totalPages: Math.ceil(totalCount / limit),
-      currentPage: page,
+      page,
+      limit,
     });
   } catch (error) {
     console.error("[Contacts API] Error fetching contacts:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch contacts" },
-      { status: 500 },
-    );
+    return errorResponse("Failed to fetch contacts");
   }
 });
 
@@ -72,12 +70,12 @@ export const POST: (
   request: NextRequest,
   context: { params: Promise<Record<string, string | string[]>> },
 ) => Promise<Response> = withAuthAndTenant(
-  async ({ id, tenantId }, request) => {
+  async ({ id, tenantId }, request, context, db) => {
     try {
       const body = await request.json();
       const validated = createContactSchema.parse(body);
 
-      const contact = await prisma.contact.create({
+      const contact = await db.contact.create({
         data: {
           tenantId,
           name: validated.name,
@@ -96,19 +94,13 @@ export const POST: (
         entityId: contact.id,
       });
 
-      return NextResponse.json({ contact }, { status: 201 });
+      return successResponse({ contact }, 201);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return NextResponse.json(
-          { error: "Invalid input", details: error.issues },
-          { status: 400 },
-        );
+        return validationErrorResponse(error);
       }
       console.error("[Contacts API] Error creating contact:", error);
-      return NextResponse.json(
-        { error: "Failed to create contact" },
-        { status: 500 },
-      );
+      return errorResponse("Failed to create contact");
     }
   },
 );
@@ -116,7 +108,7 @@ export const POST: (
 export const DELETE: (
   request: NextRequest,
   context: { params: Promise<Record<string, string | string[]>> },
-) => Promise<Response> = withAuthAndTenant(async ({ tenantId }, request) => {
+) => Promise<Response> = withAuthAndTenant(async ({ tenantId }, request, context, db) => {
   try {
     const { ids } = await request.json();
 
@@ -127,18 +119,15 @@ export const DELETE: (
       );
     }
 
-    const where = ids === "ALL" ? { tenantId } : { id: { in: ids }, tenantId };
+    const where = ids === "ALL" ? {} : { id: { in: ids } };
 
-    const { count } = await prisma.contact.deleteMany({
+    const { count } = await db.contact.deleteMany({
       where,
     });
 
-    return NextResponse.json({ count });
+    return successResponse({ count });
   } catch (error) {
     console.error("[Contacts API] Batch delete error:", error);
-    return NextResponse.json(
-      { error: "Failed to delete contacts" },
-      { status: 500 },
-    );
+    return errorResponse("Failed to delete contacts");
   }
 });

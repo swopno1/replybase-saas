@@ -440,6 +440,7 @@ export async function resolveWebchatVisitorSession(params: {
 
     conversation = await prisma.crmConversation.create({
       data: {
+        tenantId: params.tenantId,
         contactId: contact.id,
         botId: params.botId,
         channel: "web",

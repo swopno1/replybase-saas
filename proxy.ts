@@ -1,9 +1,36 @@
 import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit } from "./lib/rate-limit";
 
 export async function proxy(req: NextRequest) {
-  const token = await getToken({ req, secret: process.env.AUTH_SECRET });
   const { pathname } = req.nextUrl;
+
+  // --- RATE LIMITING & PROTECTION ---
+  // 1. Auth Rate Limiting
+  if (pathname.startsWith("/api/auth")) {
+    const rl = await checkRateLimit(req, "auth");
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+      );
+    }
+  }
+
+  // 2. Webhook Rate Limiting
+  if (pathname.includes("/webhook")) {
+    const rl = await checkRateLimit(req, "webhook");
+    if (!rl.allowed) return new NextResponse("Too Many Requests", { status: 429 });
+  }
+
+  // 3. Request Size Limits
+  const contentLength = req.headers.get("content-length");
+  if (contentLength && parseInt(contentLength) > 10 * 1024 * 1024) {
+    return NextResponse.json({ error: "Payload too large" }, { status: 413 });
+  }
+  // --- END PROTECTION ---
+
+  const token = await getToken({ req, secret: process.env.AUTH_SECRET });
 
   // Allow public assets
   if (pathname.includes(".")) {
@@ -89,7 +116,7 @@ export async function proxy(req: NextRequest) {
 
     // SUBSCRIPTION CHECK
     // If not on billing page/pricing and subscription is inactive, redirect to pricing
-    const subscriptionStatus = token.subscriptionStatus as string;
+    const subscriptionStatus = (token.subscriptionStatus as string || "active").toLowerCase();
     const isBillingPath =
       pathname.startsWith("/settings/billing") ||
       pathname.startsWith("/settings/account") ||
@@ -98,17 +125,14 @@ export async function proxy(req: NextRequest) {
       pathname === "/" ||
       pathname.startsWith("/api/");
 
-    // We allow access to "/" (dashboard root usually)?
-    // Usually root is dashboard. Let's redirect dashboard access if inactive.
-    // We must allow API routes generally, OR specific API routes for billing.
-    // Simplification: only block UI pages.
     const isPageRequest = !pathname.startsWith("/api/");
 
     if (
       isPageRequest &&
       !isBillingPath &&
       subscriptionStatus !== "active" &&
-      subscriptionStatus !== "trialing"
+      subscriptionStatus !== "trialing" &&
+      subscriptionStatus !== "free"
     ) {
       const billingUrl = new URL(
         "/pricing?reason=subscription_required",

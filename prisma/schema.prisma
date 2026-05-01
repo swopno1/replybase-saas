@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
@@ -36,64 +37,67 @@ model Session {
 }
 
 model User {
-  id                    String            @id @default(cuid())
-  name                  String?
-  email                 String?           @unique
-  isAdmin               Boolean           @default(false)
-  role                  UserRole          @default(USER)
-  passwordHash          String?
-  emailVerified         DateTime?
-  image                 String?
-  createdAt             DateTime          @default(now())
-  updatedAt             DateTime          @updatedAt
-  tenantId              String
-  accounts              Account[]
-  assignedConversations CrmConversation[] @relation("AssignedConversations")
-  executionLogs         ExecutionLog[]
-  internalNotes         InternalNote[]
-  sessions              Session[]
-  activityLogs          ActivityLog[]
-  usageLogs             UsageLog[]
-  flows                 Flow[]
-  tenant                Tenant            @relation(fields: [tenantId], references: [id])
+  id                      String                 @id @default(cuid())
+  name                    String?
+  email                   String?                @unique
+  emailVerified           DateTime?
+  image                   String?
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+  tenantId                String
+  passwordHash            String?
+  isAdmin                 Boolean                @default(false)
+  role                    UserRole               @default(USER)
+  accounts                Account[]
+  activityLogs            ActivityLog[]
+  adminActivities         AdminActivity[]
+  assignedConversations   CrmConversation[]      @relation("AssignedConversations")
+  dataDeletionRequests    DataDeletionRequest[]
+  executionLogs           ExecutionLog[]
+  flows                   Flow[]
+  internalNotes           InternalNote[]
   newsletterSubscriptions NewsletterSubscriber[]
-  dataDeletionRequests   DataDeletionRequest[]
-  passwordResetTokens    PasswordResetToken[]
-  adminActivities        AdminActivity[]
+  passwordResetTokens     PasswordResetToken[]
+  sessions                Session[]
+  usageLogs               UsageLog[]
+  tenant                  Tenant                 @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
   @@map("users")
 }
 
 model Tenant {
-  id            String         @id @default(cuid())
-  name          String
-  aiEnabled     Boolean        @default(false)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  bots          Bot[]
-  contacts      Contact[]
-  facebookPages FacebookPage[]
-  leads         Lead[]
-  flows         Flow[]
-  subscriptions Subscription?
-  usageLogs     UsageLog[]
-  users         User[]
-  activityLogs  ActivityLog[]
-  webChatSites  WebChatSite[]
-  aiProvider    String?        @default("default")
-  aiModel       String?
-  aiApiKey      String?
-  newsletterSubscriptions NewsletterSubscriber[]
-  dataDeletionRequests    DataDeletionRequest[]
+  id                        String                          @id @default(cuid())
+  name                      String
+  aiEnabled                 Boolean                         @default(false)
+  createdAt                 DateTime                        @default(now())
+  updatedAt                 DateTime                        @updatedAt
+  aiApiKey                  String?
+  aiModel                   String?
+  aiProvider                String?                         @default("default")
+  isOnboarded               Boolean                         @default(false)
+  onboardingData            Json                            @default("{}")
+  onboardingStep            Int                             @default(0)
+  trialUsed                 Boolean                         @default(false)
+  activityLogs              ActivityLog[]
+  bots                      Bot[]
+  contacts                  Contact[]
+  dataDeletionRequests      DataDeletionRequest[]
+  facebookPages             FacebookPage[]
+  flows                     Flow[]
+  leads                     Lead[]
+  newsletterSubscriptions   NewsletterSubscriber[]
   onboardingMilestoneEvents OnboardingMilestoneEvent[]
-  channelStatuses TenantChannelStatus[]
-  leadNotificationSettings TenantLeadNotificationSettings?
-  revenue       Revenue[]
-  isOnboarded   Boolean        @default(false)
-  onboardingStep Int           @default(0)
-  onboardingData Json          @default("{}")
-  trialUsed     Boolean        @default(false)
+  revenue                   Revenue[]
+  subscriptions             Subscription?
+  channelStatuses           TenantChannelStatus?
+  leadNotificationSettings  TenantLeadNotificationSettings?
+  usageLogs                 UsageLog[]
+  users                     User[]
+  webChatSites              WebChatSite[]
+  crmConversations          CrmConversation[]
+  crmMessages               CrmMessage[]
+  internalNotes             InternalNote[]
 
   @@map("tenants")
 }
@@ -124,6 +128,7 @@ model TenantChannelStatus {
 
   @@map("tenant_channel_statuses")
 }
+
 model VerificationToken {
   identifier String
   token      String   @unique
@@ -145,22 +150,22 @@ model PasswordResetToken {
 }
 
 model FacebookPage {
-  id                  String                @id @default(cuid())
-  facebookId          String                @unique
-  name                String
-  accessToken         String
-  tenantId            String
-  botId               String?
-  engineConnected     Boolean               @default(false)
-  webhookSubscribed   Boolean               @default(false)
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
-  crmConversations    CrmConversation[]
-  flowAssignments     FlowAssignment[]
-  leads               Lead[]
-  bot                 Bot?                  @relation(fields: [botId], references: [id])
-  tenant              Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  onboardingSessions  OnboardingSession[]
+  id                 String              @id @default(cuid())
+  facebookId         String              @unique
+  name               String
+  accessToken        String
+  tenantId           String
+  botId              String?
+  engineConnected    Boolean             @default(false)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  webhookSubscribed  Boolean             @default(false)
+  crmConversations   CrmConversation[]
+  bot                Bot?                @relation(fields: [botId], references: [id])
+  tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  flowAssignments    FlowAssignment?
+  leads              Lead[]
+  onboardingSessions OnboardingSession[]
 
   @@index([tenantId])
   @@index([facebookId])
@@ -168,38 +173,35 @@ model FacebookPage {
 }
 
 model Subscription {
-  id                    String    @id @default(cuid())
-  stripeId              String    @unique
-  stripeCustomerId      String?   @unique
-  status                String    @default("ACTIVE") // FREE, TRIALING, ACTIVE, PAST_DUE, CANCELED
-  currentPeriodStart    DateTime  @default(now())
-  currentPeriodEnd      DateTime
-  cancelAtPeriodEnd     Boolean   @default(false)
-  trialEndsAt           DateTime?
-  planId                String
-  tenantId              String    @unique
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-  
-  // Upgrade/Downgrade management
-  downgradeScheduled    Boolean   @default(false)
-  downgradeEffectiveAt  DateTime?
-  
-  plan                  Plan      @relation(fields: [planId], references: [id])
-  tenant                Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id                   String    @id @default(cuid())
+  stripeId             String    @unique
+  stripeCustomerId     String?   @unique
+  status               String    @default("ACTIVE")
+  currentPeriodStart   DateTime  @default(now())
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean   @default(false)
+  trialEndsAt          DateTime?
+  planId               String
+  tenantId             String    @unique
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  downgradeEffectiveAt DateTime?
+  downgradeScheduled   Boolean   @default(false)
+  plan                 Plan      @relation(fields: [planId], references: [id])
+  tenant               Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("subscriptions")
 }
 
 model StripeEvent {
-  id               String    @id @default(cuid())
-  stripeEventId    String    @unique
-  type             String
-  status           String    @default("PENDING") // PENDING, PROCESSED, FAILED
-  error            String?
-  metadata         Json?
-  createdAt        DateTime  @default(now())
-  processedAt      DateTime?
+  id            String    @id @default(cuid())
+  stripeEventId String    @unique
+  type          String
+  status        String    @default("PENDING")
+  error         String?
+  metadata      Json?
+  createdAt     DateTime  @default(now())
+  processedAt   DateTime?
 
   @@map("stripe_events")
 }
@@ -214,8 +216,8 @@ model NewsletterSubscriber {
   unsubscribedAt   DateTime?
   userId           String?
   tenantId         String?
-  user             User?            @relation(fields: [userId], references: [id])
   tenant           Tenant?          @relation(fields: [tenantId], references: [id])
+  user             User?            @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([tenantId])
@@ -223,20 +225,20 @@ model NewsletterSubscriber {
 }
 
 model DataDeletionRequest {
-  id               String             @id @default(cuid())
-  email            String
-  status           DataDeletionStatus @default(PENDING)
-  confirmationCode String             @unique
-  source           String?
-  requestedAt      DateTime           @default(now())
+  id                  String             @id @default(cuid())
+  email               String
+  status              DataDeletionStatus @default(PENDING)
+  confirmationCode    String             @unique
+  source              String?
+  requestedAt         DateTime           @default(now())
+  processedAt         DateTime?
+  notes               String?
+  userId              String?
+  tenantId            String?
+  cancelToken         String?            @unique
   scheduledDeletionAt DateTime?
-  processedAt      DateTime?
-  cancelToken      String?            @unique
-  notes            String?
-  userId           String?
-  tenantId         String?
-  user             User?              @relation(fields: [userId], references: [id])
-  tenant           Tenant?            @relation(fields: [tenantId], references: [id])
+  tenant              Tenant?            @relation(fields: [tenantId], references: [id])
+  user                User?              @relation(fields: [userId], references: [id])
 
   @@index([email])
   @@index([status])
@@ -265,25 +267,25 @@ model Revenue {
 }
 
 model Plan {
-  id                      String                @id @default(cuid())
-  name                    String                @unique
-  displayName             String
-  price                   Float                 @default(0)
-  currency                String                @default("USD")
-  dailyMessageLimit       Int                   @default(100)
-  monthlyMessageLimit     Int                   @default(3000)
-  flowExecutionCap        Int                   @default(100)
-  maxBots                 Int                   @default(1)
-  maxChannelsPerBot       Int                   @default(1)
-  maxConversations        Int                   @default(100)
-  maxContacts             Int                   @default(100)
-  maxIntegrations         Int                   @default(1)
-  maxFlows                Int                   @default(3)
-  features                Json                  @default("{}")
-  createdAt               DateTime              @default(now())
-  updatedAt               DateTime              @updatedAt
-  subscriptions           Subscription[]
-  onboardingSessions      OnboardingSession[]
+  id                  String              @id @default(cuid())
+  name                String              @unique
+  displayName         String
+  price               Float               @default(0)
+  currency            String              @default("USD")
+  dailyMessageLimit   Int                 @default(100)
+  monthlyMessageLimit Int                 @default(3000)
+  flowExecutionCap    Int                 @default(100)
+  maxBots             Int                 @default(1)
+  maxChannelsPerBot   Int                 @default(1)
+  maxConversations    Int                 @default(100)
+  features            Json                @default("{}")
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  maxFlows            Int                 @default(3)
+  maxContacts         Int                 @default(100)
+  maxIntegrations     Int                 @default(1)
+  onboardingSessions  OnboardingSession[]
+  subscriptions       Subscription[]
 
   @@map("plans")
 }
@@ -297,9 +299,9 @@ model Bot {
   triggers         Json              @default("[]")
   enabled          Boolean           @default(true)
   tenantId         String
-  context          Json?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
+  context          Json?
   tenant           Tenant            @relation(fields: [tenantId], references: [id])
   channels         Channel[]
   crmConversations CrmConversation[]
@@ -312,21 +314,21 @@ model Bot {
 }
 
 model Channel {
-  id          String   @id @default(cuid())
-  type        ChannelType
-  name        String
-  accessToken String?
-  pageId      String?
-  channelId   String?
-  isActive    Boolean  @default(true)
-  enabled     Boolean  @default(true)
-  killSwitch  Boolean  @default(false)
-  config      Json     @default("{}")
-  botId       String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  bot         Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
-  flowAssignments FlowChannelAssignment[]
+  id              String                 @id @default(cuid())
+  type            ChannelType
+  name            String
+  accessToken     String?
+  pageId          String?
+  channelId       String?
+  isActive        Boolean                @default(true)
+  enabled         Boolean                @default(true)
+  killSwitch      Boolean                @default(false)
+  config          Json                   @default("{}")
+  botId           String
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  bot             Bot                    @relation(fields: [botId], references: [id], onDelete: Cascade)
+  flowAssignments FlowChannelAssignment?
 
   @@unique([botId, type])
   @@index([botId])
@@ -390,7 +392,7 @@ model ActivityLog {
   metadata    Json?
   createdAt   DateTime @default(now())
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user        User?    @relation(fields: [userId], references: [id])
 
   @@index([tenantId, createdAt])
   @@index([userId, createdAt])
@@ -410,18 +412,18 @@ model SystemHealth {
 }
 
 model Contact {
-  id                  String                @id @default(cuid())
-  tenantId            String
-  name                String?
-  email               String?
-  phone               String?
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
-  identities          ContactIdentity[]
-  leads               Lead[]
-  tenant              Tenant                @relation(fields: [tenantId], references: [id])
-  conversations       CrmConversation[]
-  onboardingSessions  OnboardingSession[]
+  id                 String              @id @default(cuid())
+  tenantId           String
+  name               String?
+  email              String?
+  phone              String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  identities         ContactIdentity[]
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  conversations      CrmConversation[]
+  leads              Lead[]
+  onboardingSessions OnboardingSession[]
 
   @@index([tenantId])
   @@map("contacts")
@@ -442,27 +444,29 @@ model ContactIdentity {
 }
 
 model CrmConversation {
-  id             String             @id @default(cuid())
-  contactId      String
-  channel        String
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
-  botId          String?
-  facebookPageId String?
-  status         ConversationStatus @default(OPEN)
-  assigneeId     String?
-  botPaused      Boolean            @default(false)
-  // External session support
+  id                String             @id @default(cuid())
+  tenantId          String
+  contactId         String
+  channel           String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  botId             String?
+  facebookPageId    String?
+  status            ConversationStatus @default(OPEN)
+  assigneeId        String?
+  botPaused         Boolean            @default(false)
   externalSessionId String?
   metadata          Json?
-  assignee       User?              @relation("AssignedConversations", fields: [assigneeId], references: [id])
-  bot            Bot?               @relation(fields: [botId], references: [id])
-  contact        Contact            @relation(fields: [contactId], references: [id])
-  facebookPage   FacebookPage?      @relation(fields: [facebookPageId], references: [id])
-  messages       CrmMessage[]
-  webChatSessions WebChatSession[]
-  internalNotes  InternalNote[]
+  assignee          User?              @relation("AssignedConversations", fields: [assigneeId], references: [id])
+  bot               Bot?               @relation(fields: [botId], references: [id])
+  contact           Contact            @relation(fields: [contactId], references: [id])
+  facebookPage      FacebookPage?      @relation(fields: [facebookPageId], references: [id])
+  messages          CrmMessage[]
+  internalNotes     InternalNote[]
+  webChatSessions   WebChatSession[]
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId])
   @@index([contactId])
   @@index([assigneeId])
   @@index([externalSessionId])
@@ -472,13 +476,16 @@ model CrmConversation {
 
 model CrmMessage {
   id             String          @id @default(cuid())
+  tenantId       String
   conversationId String
   direction      String
   content        String
   createdAt      DateTime        @default(now())
   source         String          @default("human")
-  conversation   CrmConversation @relation(fields: [conversationId], references: [id])
+  conversation   CrmConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId])
   @@index([conversationId])
   @@index([createdAt])
   @@map("crm_messages")
@@ -497,10 +504,10 @@ model WebChatSite {
   themeConfig    Json             @default("{}")
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
+  events         WebChatEvent[]
+  sessions       WebChatSession[]
   bot            Bot              @relation(fields: [botId], references: [id])
   tenant         Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  sessions       WebChatSession[]
-  events         WebChatEvent[]
 
   @@index([tenantId])
   @@index([botId])
@@ -519,9 +526,9 @@ model WebChatSession {
   lastSeenAt        DateTime        @default(now())
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
+  events            WebChatEvent[]
   conversation      CrmConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   site              WebChatSite     @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  events            WebChatEvent[]
 
   @@unique([siteId, visitorId])
   @@index([conversationId])
@@ -530,14 +537,14 @@ model WebChatSession {
 }
 
 model WebChatEvent {
-  id         String           @id @default(cuid())
-  siteId     String
-  sessionId  String?
-  type       WebChatEventType
-  payload    Json?
-  createdAt  DateTime         @default(now())
-  session    WebChatSession?  @relation(fields: [sessionId], references: [id], onDelete: SetNull)
-  site       WebChatSite      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  id        String           @id @default(cuid())
+  siteId    String
+  sessionId String?
+  type      WebChatEventType
+  payload   Json?
+  createdAt DateTime         @default(now())
+  session   WebChatSession?  @relation(fields: [sessionId], references: [id])
+  site      WebChatSite      @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   @@index([siteId, createdAt])
   @@index([sessionId, createdAt])
@@ -547,44 +554,47 @@ model WebChatEvent {
 
 model InternalNote {
   id             String          @id @default(cuid())
+  tenantId       String
   content        String
   authorId       String
   conversationId String
   createdAt      DateTime        @default(now())
   author         User            @relation(fields: [authorId], references: [id])
-  conversation   CrmConversation @relation(fields: [conversationId], references: [id])
+  conversation   CrmConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId])
   @@index([authorId])
   @@index([conversationId])
   @@map("internal_notes")
 }
 
 model Lead {
-  id             String    @id @default(cuid())
-  tenantId       String
-  contactId      String?
-  flowId         String?
-  pageId         String?
-  tags           Json      @default("[]")
-  name           String?
-  company        String?
-  mobile         String?
-  email          String?
-  businessType   String?
-  source         String    @default("facebook") // facebook, whatsapp, website
-  status         String    @default("new") // new, contacted, qualified, converted, lost
-  interestedInSubscription Boolean @default(false)
-  selectedPlan   String? // free, starter, pro, business
-  trialRequested Boolean   @default(false)
-  converted      Boolean   @default(false)
-  convertedAt    DateTime?
-  metadata       Json?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  tenant         Tenant    @relation(fields: [tenantId], references: [id])
-  contact        Contact?  @relation(fields: [contactId], references: [id])
-  flow           Flow?     @relation(fields: [flowId], references: [id])
-  page           FacebookPage? @relation(fields: [pageId], references: [id])
+  id                       String        @id @default(cuid())
+  tenantId                 String
+  contactId                String?
+  name                     String?
+  company                  String?
+  mobile                   String?
+  email                    String?
+  businessType             String?
+  source                   String        @default("facebook")
+  status                   String        @default("new")
+  interestedInSubscription Boolean       @default(false)
+  selectedPlan             String?
+  trialRequested           Boolean       @default(false)
+  converted                Boolean       @default(false)
+  convertedAt              DateTime?
+  metadata                 Json?
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
+  flowId                   String?
+  pageId                   String?
+  tags                     Json          @default("[]")
+  contact                  Contact?      @relation(fields: [contactId], references: [id])
+  flow                     Flow?         @relation(fields: [flowId], references: [id])
+  page                     FacebookPage? @relation(fields: [pageId], references: [id])
+  tenant                   Tenant        @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
   @@index([contactId])
@@ -595,28 +605,27 @@ model Lead {
   @@map("leads")
 }
 
-// Flow Builder Models
 model Flow {
-  id              String            @id @default(cuid())
-  name            String
-  description     String?
-  tenantId        String
-  ownerId         String?           // null = global flow
-  isGlobal        Boolean           @default(false)
-  isActive        Boolean           @default(false)
-  version         Int               @default(1)
-  language        String            @default("en")
-  fallbackMessage String?           @default("Sorry, I didn't understand that.")
-  maxTimeout      Int               @default(300) // seconds
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  owner           User?             @relation(fields: [ownerId], references: [id])
-  nodes           FlowNode[]
-  assignments     FlowAssignment[]
+  id                 String                  @id @default(cuid())
+  name               String
+  description        String?
+  tenantId           String
+  ownerId            String?
+  isGlobal           Boolean                 @default(false)
+  isActive           Boolean                 @default(false)
+  version            Int                     @default(1)
+  language           String                  @default("en")
+  fallbackMessage    String?                 @default("Sorry, I didn't understand that.")
+  maxTimeout         Int                     @default(300)
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  assignments        FlowAssignment[]
   channelAssignments FlowChannelAssignment[]
-  sessions        FlowSession[]
-  leads           Lead[]
+  nodes              FlowNode[]
+  sessions           FlowSession[]
+  owner              User?                   @relation(fields: [ownerId], references: [id])
+  tenant             Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leads              Lead[]
 
   @@index([tenantId])
   @@index([ownerId])
@@ -627,9 +636,9 @@ model Flow {
 model FlowNode {
   id        String   @id @default(cuid())
   flowId    String
-  type      String   // message | input | condition | action | end
-  content   Json     // Flexible JSON storage for node config
-  order     Int      // Sequential order in flow
+  type      String
+  content   Json
+  order     Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   flow      Flow     @relation(fields: [flowId], references: [id], onDelete: Cascade)
@@ -642,14 +651,13 @@ model FlowNode {
 model FlowAssignment {
   id        String       @id @default(cuid())
   flowId    String
-  pageId    String
+  pageId    String       @unique
   isActive  Boolean      @default(true)
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
   flow      Flow         @relation(fields: [flowId], references: [id], onDelete: Cascade)
   page      FacebookPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
 
-  @@unique([pageId]) // Only one active flow assignment per page
   @@index([flowId])
   @@index([pageId])
   @@map("flow_assignments")
@@ -658,14 +666,13 @@ model FlowAssignment {
 model FlowChannelAssignment {
   id        String   @id @default(cuid())
   flowId    String
-  channelId String
+  channelId String   @unique
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  flow      Flow     @relation(fields: [flowId], references: [id], onDelete: Cascade)
   channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  flow      Flow     @relation(fields: [flowId], references: [id], onDelete: Cascade)
 
-  @@unique([channelId]) // only one active assignment target per channel
   @@index([flowId])
   @@index([channelId])
   @@index([channelId, isActive])
@@ -673,17 +680,17 @@ model FlowChannelAssignment {
 }
 
 model FlowSession {
-  id             String    @id @default(cuid())
-  userId         String    // FB user ID or contact ID
-  pageId         String
-  flowId         String
-  currentNodeId  String?
-  variables      Json      @default("{}")
-  isActive       Boolean   @default(true)
-  completedAt    DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  flow           Flow      @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  id            String    @id @default(cuid())
+  userId        String
+  pageId        String
+  flowId        String
+  currentNodeId String?
+  variables     Json      @default("{}")
+  isActive      Boolean   @default(true)
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  flow          Flow      @relation(fields: [flowId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([pageId])
@@ -692,43 +699,28 @@ model FlowSession {
   @@map("flow_sessions")
 }
 
-enum ConversationStatus {
-  OPEN
-  PENDING
-  CLOSED
-}
-
-// Onboarding Models
 model OnboardingSession {
-  id                String                    @id @default(cuid())
-  tenantId          String?                   // May be null for new tenants
-  facebookPageId    String
-  conversationId    String
-  contactId         String
-  stage             OnboardingStage           @default(WELCOME)
-  status            OnboardingStatus          @default(IN_PROGRESS)
-  
-  // Collected Information
-  contactName       String?
-  businessName      String?
-  businessType      String? // e.g., "ecommerce", "service", "saas", "agency"
-  phone             String?
-  email             String?
-  emailFrequency    EmailFrequency            @default(DAILY) // DAILY, WEEKLY, MONTHLY, NEVER
-  
-  // Selection Data
-  selectedPlanId    String?
-  demoFlowSelected  String? // Demo template ID based on business type
-  
-  // Timestamps
-  createdAt         DateTime                  @default(now())
-  updatedAt         DateTime                  @updatedAt
-  completedAt       DateTime?
-  
-  // Relations
-  contact           Contact                   @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  facebookPage      FacebookPage              @relation(fields: [facebookPageId], references: [id], onDelete: Cascade)
-  plan              Plan?                     @relation(fields: [selectedPlanId], references: [id])
+  id               String           @id @default(cuid())
+  tenantId         String?
+  facebookPageId   String
+  conversationId   String
+  contactId        String
+  stage            OnboardingStage  @default(WELCOME)
+  status           OnboardingStatus @default(IN_PROGRESS)
+  contactName      String?
+  businessName     String?
+  businessType     String?
+  phone            String?
+  email            String?
+  emailFrequency   EmailFrequency   @default(DAILY)
+  selectedPlanId   String?
+  demoFlowSelected String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  completedAt      DateTime?
+  contact          Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  facebookPage     FacebookPage     @relation(fields: [facebookPageId], references: [id], onDelete: Cascade)
+  plan             Plan?            @relation(fields: [selectedPlanId], references: [id])
 
   @@index([tenantId])
   @@index([facebookPageId])
@@ -739,18 +731,18 @@ model OnboardingSession {
 }
 
 model DemoTemplate {
-  id                String                    @id @default(cuid())
-  name              String                    @unique
-  displayName       String
-  description       String?
-  businessType      String // e.g., "ecommerce", "service", "saas"
-  flowJson          Json // Flow structure
-  icon              String? // Icon or emoji for UI display
-  category          String? // e.g., "engagement", "qualification", "nurture"
-  enabled           Boolean                   @default(true)
-  order             Int                       @default(0)
-  createdAt         DateTime                  @default(now())
-  updatedAt         DateTime                  @updatedAt
+  id           String   @id @default(cuid())
+  name         String   @unique
+  displayName  String
+  description  String?
+  businessType String
+  flowJson     Json
+  icon         String?
+  category     String?
+  enabled      Boolean  @default(true)
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([businessType])
   @@index([enabled])
@@ -758,18 +750,89 @@ model DemoTemplate {
 }
 
 model OnboardingMetrics {
-  id                String                    @id @default(cuid())
-  tenantId          String
-  totalSessions     Int                       @default(0)
-  completedSessions Int                       @default(0)
-  abandonedAt       Json?                     // { stage: count }
-  planSelectionDistribution Json? // { planId: count }
-  averageTimeToComplete Int? // in minutes
-  createdAt         DateTime                  @default(now())
-  updatedAt         DateTime                  @updatedAt
+  id                        String   @id @default(cuid())
+  tenantId                  String   @unique
+  totalSessions             Int      @default(0)
+  completedSessions         Int      @default(0)
+  abandonedAt               Json?
+  planSelectionDistribution Json?
+  averageTimeToComplete     Int?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
 
-  @@unique([tenantId])
   @@map("onboarding_metrics")
+}
+
+model OnboardingMilestoneEvent {
+  id          String   @id @default(cuid())
+  tenantId    String
+  milestoneId String
+  context     Json?
+  createdAt   DateTime @default(now())
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, milestoneId])
+  @@index([tenantId])
+  @@index([milestoneId])
+  @@index([createdAt])
+  @@map("onboarding_milestone_events")
+}
+
+model WebhookLog {
+  id        String   @id @default(cuid())
+  type      String
+  source    String
+  event     String?
+  data      Json
+  createdAt DateTime @default(now())
+
+  @@unique([source, event], where: raw("((event IS NOT NULL) AND (POSITION((':'::text) IN (event)) > 0))"))
+  @@index([createdAt])
+  @@index([source])
+  @@index([source, event])
+  @@map("webhook_logs")
+}
+
+model AdminActivity {
+  id          String   @id @default(cuid())
+  adminId     String
+  action      String
+  entityType  String
+  entityId    String?
+  description String
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  admin       User     @relation(fields: [adminId], references: [id])
+
+  @@index([adminId])
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@map("admin_activities")
+}
+
+model TestHistory {
+  id        String   @id @default(cuid())
+  type      String
+  name      String
+  status    String
+  duration  Int
+  metrics   Json?
+  output    String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+  @@map("test_history")
+}
+
+enum ConversationStatus {
+  OPEN
+  PENDING
+  CLOSED
 }
 
 enum OnboardingStage {
@@ -814,8 +877,8 @@ enum DataDeletionStatus {
   PENDING
   IN_PROGRESS
   COMPLETED
-  ERROR
   REJECTED
+  ERROR
   CANCELLED
 }
 
@@ -833,70 +896,4 @@ enum ChannelType {
   facebook
   telegram
   whatsapp
-}
-
-model OnboardingMilestoneEvent {
-  id          String   @id @default(cuid())
-  tenantId    String
-  milestoneId String   // "first-channel", "first-automated-reply"
-  context     Json?    // additional context (channel type, message ID, etc)
-  createdAt   DateTime @default(now())
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  @@unique([tenantId, milestoneId]) // Only one completion per tenant per milestone
-  @@index([tenantId])
-  @@index([milestoneId])
-  @@index([createdAt])
-  @@map("onboarding_milestone_events")
-}
-
-model WebhookLog {
-  id        String   @id @default(cuid())
-  type      String   // "verification" | "message" | "postback" | "delivery" | "read"
-  source    String   // "facebook" | "stripe" | "whatsapp" | "telegram" etc
-  event     String?  // Event name / dedup key when non-null
-  data      Json     // Full event payload
-  createdAt DateTime @default(now())
-
-  @@index([createdAt])
-  @@index([source])
-  @@index([source, event])
-  @@map("webhook_logs")
-}
-
-model AdminActivity {
-  id          String   @id @default(cuid())
-  adminId     String
-  action      String   // e.g., "USER_PROMOTED", "SUBSCRIPTION_UPDATED", "SYSTEM_CONFIG_CHANGED"
-  entityType  String   // "USER", "TENANT", "SUBSCRIPTION", etc.
-  entityId    String?
-  description String
-  metadata    Json?    // Store before/after state or additional context
-  ipAddress   String?
-  userAgent   String?
-  createdAt   DateTime @default(now())
-
-  admin       User     @relation(fields: [adminId], references: [id])
-
-  @@index([adminId])
-  @@index([createdAt])
-  @@index([entityType, entityId])
-  @@map("admin_activities")
-}
-
-model TestHistory {
-  id            String   @id @default(cuid())
-  type          String   // "unit" | "integration" | "e2e" | "load" | "accessibility" | "security" | "smoke"
-  name          String
-  status        String   // "passed" | "failed" | "error"
-  duration      Int      // in milliseconds
-  metrics       Json?    // For load tests: { p50: number, p95: number, throughput: number, errorRate: number }
-  output        String?  // Summary of test results or error message
-  metadata      Json?    // Environment info, version, etc.
-  createdAt     DateTime @default(now())
-
-  @@index([type])
-  @@index([status])
-  @@index([createdAt])
-  @@map("test_history")
 }

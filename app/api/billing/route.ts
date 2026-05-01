@@ -1,40 +1,27 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
-import { authOptions } from "@/lib/auth";
 import { getTenantUsage } from "@/lib/subscription";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 import Stripe from "stripe";
+import { Invoice, PaymentMethodInfo } from "@/types/shared/billing";
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export const GET = withAuthAndTenant(async ({ tenantId }, request, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const tenantId = session.user.tenantId;
-    if (!tenantId) {
-      return NextResponse.json({ error: "No tenant found" }, { status: 403 });
-    }
-
     // 1. Get subscription from DB
-    const subscription = await prisma.subscription.findUnique({
+    let subscription = await db.subscription.findUnique({
       where: { tenantId },
       include: { plan: true },
     });
 
     if (!subscription) {
-      // Fallback for tenants without subscription record (newly created)
-      // This logic mirrors what was in /api/billing/subscription/route.ts
-      let freePlan = await prisma.plan.findUnique({
+      let freePlan = await db.plan.findUnique({
         where: { name: "free" },
       });
 
       if (!freePlan) {
-        freePlan = await prisma.plan.create({
+        freePlan = await db.plan.create({
           data: {
             name: "free",
             displayName: "Free",
@@ -53,7 +40,7 @@ export async function GET() {
       const currentPeriodEnd = new Date();
       currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
 
-      const created = await prisma.subscription.upsert({
+      subscription = await db.subscription.upsert({
         where: { tenantId },
         update: {},
         create: {
@@ -66,20 +53,11 @@ export async function GET() {
         },
         include: { plan: true },
       });
-
-      const usage = await getTenantUsage(tenantId);
-
-      return NextResponse.json({
-        subscription: created,
-        usage,
-        invoices: [],
-        paymentMethod: null,
-      });
     }
 
     // 2. Fetch live data from Stripe if available
-    let paymentMethod = null;
-    let invoices: any[] = [];
+    let paymentMethod: PaymentMethodInfo | null = null;
+    let invoices: Invoice[] = [];
 
     if (stripe && subscription.stripeId && !subscription.stripeId.startsWith("free_")) {
       try {
@@ -105,7 +83,7 @@ export async function GET() {
             limit: 10,
           });
 
-          invoices = stripeInvoices.data.map((invoice) => ({
+          invoices = stripeInvoices.data.map((invoice): Invoice => ({
             id: invoice.id,
             invoiceNumber: invoice.number || invoice.id,
             amount: invoice.amount_due,
@@ -121,7 +99,6 @@ export async function GET() {
         }
       } catch (err) {
         console.error("[Billing API] Stripe fetch error:", err);
-        // Continue with DB data if Stripe fails
       }
     }
 
@@ -150,4 +127,4 @@ export async function GET() {
       { status: 500 },
     );
   }
-}
+});

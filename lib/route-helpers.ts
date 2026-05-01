@@ -2,13 +2,15 @@ import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { getTenantPrisma } from "./prisma-tenant";
 
 export function withAuthAndTenant(
   handler: (
     user: { id: string; tenantId: string },
     request: NextRequest,
     context: { params: Promise<Record<string, string | string[]>> },
-  ) => Promise<NextResponse>,
+    db: ReturnType<typeof getTenantPrisma>,
+  ) => Promise<Response>,
 ) {
   return async (
     request: NextRequest,
@@ -40,10 +42,13 @@ export function withAuthAndTenant(
       return NextResponse.json({ error: "No tenant found" }, { status: 403 });
     }
 
+    const db = getTenantPrisma(user.tenantId);
+
     return await handler(
       { id: user.id, tenantId: user.tenantId },
       request,
       context,
+      db
     );
   };
 }

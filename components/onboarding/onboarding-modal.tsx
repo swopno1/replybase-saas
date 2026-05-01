@@ -31,6 +31,7 @@ import { OnboardingProgress } from "./onboarding-ui";
 import { toast } from "sonner";
 import { Loader2, ChevronDown, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { OnboardingData } from "@/types/shared/onboarding";
 
 const STAGES = [
   "KYC",
@@ -67,38 +68,7 @@ const CUSTOMER_TYPES = [
   "Other"
 ];
 
-export interface OnboardingData {
-  kyc: {
-    name: string;
-    company: string;
-    contactInfo: string;
-    location: string;
-  };
-  businessBasics: {
-    industry: string;
-    subIndustry: string;
-    companySize: string;
-    website: string;
-    businessModel: string;
-  };
-  productDetails: {
-    offer: string;
-    targetCustomers: string[];
-  };
-  productSpecifics: {
-    mainProducts: string;
-    pricing: string;
-    usps: string;
-  };
-  supportSales: {
-    commonQuestions: string;
-    painPoints: string;
-    salesProcess: string;
-  };
-  additionalContext: {
-    otherInfo: string;
-  };
-}
+// Interface is now imported from @/types/shared/onboarding
 
 const INITIAL_DATA: OnboardingData = {
   kyc: { name: "", company: "", contactInfo: "", location: "" },
@@ -112,17 +82,17 @@ const INITIAL_DATA: OnboardingData = {
 export function OnboardingModal({
   isOpen,
   initialStep = 0,
-  initialData = {},
+  initialData = null,
 }: {
   isOpen: boolean;
   initialStep?: number;
-  initialData?: any;
+  initialData?: OnboardingData | null;
 }) {
   const router = useRouter();
   const [step, setStep] = useState(initialStep);
   const { data: session } = useSession();
   const [data, setData] = useState<OnboardingData>(
-    (initialData as any)?.kyc ? (initialData as any) : INITIAL_DATA
+    initialData?.kyc ? initialData : INITIAL_DATA
   );
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(isOpen);
@@ -133,10 +103,10 @@ export function OnboardingModal({
     }
   }, [session?.user?.email, data.kyc.contactInfo]);
 
-  const updateData = <T extends keyof OnboardingData>(
+  const updateData = <T extends keyof OnboardingData, F extends keyof OnboardingData[T]>(
     section: T,
-    field: keyof OnboardingData[T],
-    value: any
+    field: F,
+    value: OnboardingData[T][F]
   ) => {
     setData((prev) => ({
       ...prev,
