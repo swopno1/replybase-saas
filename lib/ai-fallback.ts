@@ -82,19 +82,51 @@ export async function aiFallback({
     apiKey: bot?.tenant?.aiApiKey || undefined,
     model: bot?.tenant?.aiModel || undefined,
     planName,
+    task: "chat",
   });
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
 
   try {
-    const aiStream = await streamText({
-      model,
-      messages: promptMessages,
-      output: Output.text(),
-      abortSignal: controller.signal,
-    });
-    return aiStream;
+    try {
+      const aiStream = await streamText({
+        model,
+        messages: promptMessages,
+        output: Output.text(),
+        abortSignal: controller.signal,
+      });
+      return aiStream;
+    } catch (primaryError: any) {
+      // Check for rate limit errors (429 or RESOURCE_EXHAUSTED)
+      const isRateLimit = 
+        String(primaryError).includes("429") || 
+        String(primaryError).includes("RESOURCE_EXHAUSTED");
+
+      if (isRateLimit) {
+        console.warn("[AI Fallback] Rate limit hit on primary model. Failing over to Gemma...");
+        
+        const fallbackModel = getAiModel({
+          provider,
+          apiKey: bot?.tenant?.aiApiKey || undefined,
+          model: bot?.tenant?.aiModel || undefined,
+          planName,
+          task: "chat",
+          isFallback: true,
+        });
+
+        const fallbackStream = await streamText({
+          model: fallbackModel,
+          messages: promptMessages,
+          output: Output.text(),
+          abortSignal: controller.signal,
+        });
+        return fallbackStream;
+      }
+
+      // Re-throw if not a rate limit error
+      throw primaryError;
+    }
   } finally {
     clearTimeout(timeoutId);
   }

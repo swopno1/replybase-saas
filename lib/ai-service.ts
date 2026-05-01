@@ -4,34 +4,43 @@ import { anthropic, createAnthropic } from "@ai-sdk/anthropic";
 import { LanguageModel } from "ai";
 
 export type AiProvider = "default" | "gemini" | "openai" | "anthropic";
+export type AiTask = "onboarding" | "chat" | "general";
 
 export interface GetAiModelOptions {
   provider: AiProvider;
   apiKey?: string;
   model?: string;
   planName?: string;
+  task?: AiTask;
+  isFallback?: boolean;
 }
 
 /**
- * Returns the appropriate AI model based on provider, optional custom model, and plan.
+ * Returns the appropriate AI model based on provider, optional custom model, task type, and plan.
  * If a custom API key is provided, it uses it for the specified provider.
- * "default" provider uses system-managed Gemini models.
+ * "default" provider uses system-managed Gemini/Gemma models.
  */
 export function getAiModel({
   provider,
   apiKey,
   model,
   planName = "free",
+  task = "general",
+  isFallback = false,
 }: GetAiModelOptions): LanguageModel {
   const plan = planName.toLowerCase();
   const isPro = plan.includes("pro") || plan.includes("business");
+
+  // Logic: Onboarding ALWAYS prefers higher reasoning models.
+  // Chat fallback ALWAYS prefers high-speed, low-cost models.
+  const isHighPriority = task === "onboarding" || isPro;
 
   switch (provider) {
     case "openai": {
       const client = createOpenAI({
         apiKey: apiKey || process.env.OPENAI_API_KEY,
       });
-      return client(model || (isPro ? "gpt-4o" : "gpt-4o-mini"));
+      return client(model || (isHighPriority ? "gpt-4o" : "gpt-4o-mini"));
     }
 
     case "anthropic": {
@@ -39,24 +48,32 @@ export function getAiModel({
         apiKey: apiKey || process.env.ANTHROPIC_API_KEY,
       });
       return client(
-        model || (isPro ? "claude-3-5-sonnet-latest" : "claude-3-haiku-latest"),
+        model || (isHighPriority ? "claude-3-5-sonnet-latest" : "claude-3-haiku-latest"),
       );
     }
 
-    case "gemini": {
+    case "gemini":
+    case "default":
+    default: {
+      // System-managed Gemini/Gemma
       const client = createGoogleGenerativeAI({
         apiKey: apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
       });
-      return client(model || (isPro ? "gemini-pro-latest" : "gemini-flash-latest"));
-    }
 
-    case "default":
-    default: {
-      // System-managed Gemini
-      const client = createGoogleGenerativeAI({
-        apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-      });
-      return client(isPro ? "gemini-pro-latest" : "gemini-flash-latest");
+      // If this is a fallback request, use a high-RPM Gemma model
+      if (isFallback) {
+        return client("gemma-3-27b"); // Your highest RPM model (30 RPM)
+      }
+
+      // Task-specific defaults for Gemini 3.x
+      let defaultModel = "gemini-3-flash";
+      if (task === "chat") {
+        defaultModel = "gemini-3.1-flash-lite";
+      } else if (task === "onboarding") {
+        defaultModel = "gemini-3-flash"; // Highly capable and fast
+      }
+
+      return client(model || defaultModel);
     }
   }
 }

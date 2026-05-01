@@ -54,6 +54,7 @@ export const POST: (
         apiKey: tenant?.aiApiKey || undefined,
         model: tenant?.aiModel || undefined,
         planName,
+        task: "chat",
       });
 
       // 3. Prepare prompt
@@ -79,14 +80,44 @@ Suggest the next reply:`;
       const timeoutId = setTimeout(() => controller.abort(), 15000);
 
       try {
-        const { text } = await generateText({
-          model,
-          system: systemPrompt,
-          prompt: userPrompt,
-          abortSignal: controller.signal,
-        });
+        let textResult = "";
+        try {
+          const { text } = await generateText({
+            model,
+            system: systemPrompt,
+            prompt: userPrompt,
+            abortSignal: controller.signal,
+          });
+          textResult = text;
+        } catch (primaryError: any) {
+          const isRateLimit = 
+            String(primaryError).includes("429") || 
+            String(primaryError).includes("RESOURCE_EXHAUSTED");
 
-        return NextResponse.json({ suggestion: text.trim() });
+          if (isRateLimit) {
+            console.warn("[Suggest Reply] Rate limit hit. Failing over to Gemma...");
+            const fallbackModel = getAiModel({
+              provider,
+              apiKey: tenant?.aiApiKey || undefined,
+              model: tenant?.aiModel || undefined,
+              planName,
+              task: "chat",
+              isFallback: true,
+            });
+
+            const { text } = await generateText({
+              model: fallbackModel,
+              system: systemPrompt,
+              prompt: userPrompt,
+              abortSignal: controller.signal,
+            });
+            textResult = text;
+          } else {
+            throw primaryError;
+          }
+        }
+
+        return NextResponse.json({ suggestion: textResult.trim() });
       } finally {
         clearTimeout(timeoutId);
       }
