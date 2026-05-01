@@ -492,13 +492,21 @@ export async function incrementUsage(
   }
 }
 
-async function notifyUsageIfNeeded(tenantId: string, type: string, current: number, limit: number) {
+async function notifyUsageIfNeeded(
+  tenantId: string,
+  type: string,
+  current: number,
+  limit: number,
+) {
   if (limit <= 0) return;
-  
+
   const usageRatio = current / limit;
   let threshold = 0;
 
-  if (usageRatio >= 1.0) {
+  // Define thresholds: 0.9, 1.0, 1.1
+  if (usageRatio >= 1.1) {
+    threshold = 1.1;
+  } else if (usageRatio >= 1.0) {
     threshold = 1.0;
   } else if (usageRatio >= WARNING_THRESHOLD) {
     threshold = WARNING_THRESHOLD;
@@ -506,29 +514,99 @@ async function notifyUsageIfNeeded(tenantId: string, type: string, current: numb
 
   if (threshold === 0) return;
 
-  const logType = threshold === 1.0 ? "USAGE_LIMIT_EXCEEDED" : "USAGE_LIMIT_WARNING";
-  
+  const logType =
+    threshold >= 1.1
+      ? "USAGE_LIMIT_RESTRICTED"
+      : threshold >= 1.0
+        ? "USAGE_LIMIT_EXCEEDED"
+        : "USAGE_LIMIT_WARNING";
+
   try {
-    const today = startOfUtcDay();
+    // Get the current billing period to avoid spamming multiple alerts in the same period
+    const subscription = await prisma.subscription.findUnique({
+      where: { tenantId },
+      select: { currentPeriodStart: true },
+    });
+    const periodStart = subscription?.currentPeriodStart || startOfUtcMonth();
+
+    // Check if we already sent this specific threshold alert for this period
     const existing = await prisma.activityLog.findFirst({
       where: {
         tenantId,
         type: logType,
-        createdAt: { gte: today }
-      }
+        metadata: {
+          path: ["threshold"],
+          equals: threshold,
+        },
+        createdAt: { gte: periodStart },
+      },
     });
 
     if (!existing) {
+      const title =
+        threshold >= 1.1
+          ? "Critical Usage Limit: Service Restricted"
+          : threshold >= 1.0
+            ? "Usage Limit Reached"
+            : `Usage Warning (${Math.floor(threshold * 100)}%)`;
+
+      const description = `Your ${type.replace("_", " ")} usage has reached ${Math.floor(usageRatio * 100)}% of your plan limit (${current}/${limit}).`;
+
+      // 1. Create In-App Notification (ActivityLog)
       await prisma.activityLog.create({
         data: {
           tenantId,
           type: logType,
-          title: threshold === 1.0 ? "Usage Limit Reached" : `Usage Warning (${Math.floor(threshold * 100)}%)`,
-          description: `Your ${type.replace('_', ' ')} usage has reached ${Math.floor(usageRatio * 100)}% of your plan limit (${current}/${limit}).`,
-          metadata: { threshold, current, limit, type }
-        }
+          title,
+          description,
+          metadata: { threshold, current, limit, type },
+        },
       });
-      console.log(`[Usage Alert] Tenant ${tenantId} reached ${threshold * 100}% of ${type}`);
+
+      // 2. Send Email to Admins
+      const admins = await prisma.user.findMany({
+        where: { tenantId, isAdmin: true },
+        select: { email: true, name: true },
+      });
+
+      const adminEmails = admins
+        .map((a) => a.email)
+        .filter((e): e is string => !!e);
+
+      if (adminEmails.length > 0) {
+        const { sendEmail } = await import("@/lib/email");
+        const upgradeUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/settings?tab=billing`;
+
+        await sendEmail({
+          to: adminEmails,
+          subject: `[ReplyBase] ${title}`,
+          text: `
+Hi there,
+
+This is an automated alert regarding your ReplyBase usage.
+
+${description}
+
+${
+  threshold >= 1.1
+    ? "Your service has been restricted to protect your account. Please upgrade immediately to restore full functionality."
+    : threshold >= 1.0
+      ? "You have reached your plan limit. Please consider upgrading to avoid service interruption."
+      : "You are nearing your plan limit. We recommend checking your usage and considering an upgrade soon."
+}
+
+You can manage your subscription and upgrade here:
+${upgradeUrl}
+
+Best regards,
+The ReplyBase Team
+          `.trim(),
+        });
+      }
+
+      console.log(
+        `[Usage Alert] Tenant ${tenantId} reached ${threshold * 100}% of ${type}. Notification sent.`,
+      );
     }
   } catch (err) {
     console.error("Failed to process usage notification:", err);

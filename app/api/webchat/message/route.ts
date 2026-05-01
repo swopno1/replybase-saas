@@ -216,9 +216,19 @@ export async function POST(request: NextRequest) {
           : String(aiStream ?? "");
     } catch (aiError) {
       aiErrorOccurred = true;
-      aiText = customFallbackMessage;
+      const isQuotaError = String(aiError).includes("RESOURCE_EXHAUSTED") || String(aiError).includes("429");
+      const isTimeout = String(aiError).toLowerCase().includes("timeout") || String(aiError).toLowerCase().includes("abort");
+      
+      aiText = isQuotaError 
+        ? "I'm experiencing high demand right now. I've notified the team, but in the meantime, I'll be using my standard responses." 
+        : isTimeout
+          ? "I'm taking a bit longer than usual to think. Please bear with me or try again in a moment."
+          : customFallbackMessage;
+
       console.error("[Webchat Message] AI error, using fallback", {
         error: aiError,
+        isQuotaError,
+        isTimeout
       });
     }
 

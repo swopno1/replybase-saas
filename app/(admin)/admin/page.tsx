@@ -10,6 +10,9 @@ import {
   Activity,
   ArrowUpRight,
   ArrowDownRight,
+  AlertCircle,
+  Zap,
+  Trash2,
 } from "lucide-react";
 import { PlausibleDashboard } from "@/components/admin/plausible-dashboard";
 import { Badge } from "@/components/ui/badge";
@@ -105,6 +108,50 @@ async function getBusinessStats() {
     };
   });
 
+  const [
+    usersNearLimits,
+    trialUsers,
+    churnedUsers,
+  ] = await Promise.all([
+    // Near limits (at least one metric > 90%)
+    // This is a simplified check for the dashboard
+    prisma.activityLog.findMany({
+      where: {
+        type: "USAGE_LIMIT_WARNING",
+        createdAt: { gte: thirtyDaysAgo },
+      },
+      include: {
+        tenant: {
+          include: { users: { select: { email: true, name: true }, take: 1 } },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+    // Trial users
+    prisma.subscription.findMany({
+      where: { status: "TRIALING" },
+      include: {
+        tenant: {
+          include: { users: { select: { email: true, name: true }, take: 1 } },
+        },
+        plan: true,
+      },
+      orderBy: { trialEndsAt: "asc" },
+      take: 5,
+    }),
+    // Recent churn feedback
+    prisma.churnFeedback.findMany({
+      include: {
+        tenant: {
+          include: { users: { select: { email: true, name: true }, take: 1 } },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+  ]);
+
   return {
     totalUsers,
     totalTenants,
@@ -119,6 +166,11 @@ async function getBusinessStats() {
       : "0",
     totalOnboarding,
     revenueDetails: formattedRevenueDetails,
+    usageInsights: {
+      usersNearLimits,
+      trialUsers,
+      churnedUsers,
+    },
   };
 }
 
@@ -264,6 +316,86 @@ export default async function AdminPage() {
                     )}
                   </tbody>
                 </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-none shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Usage & Retention Insights</CardTitle>
+              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                Action Required
+              </Badge>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {/* Near Limits */}
+                <div className="space-y-4">
+                  <h4 className="text-xs font-bold uppercase text-gray-500 tracking-wider flex items-center gap-2">
+                    <AlertCircle className="h-3 w-3 text-orange-500" />
+                    Near Limits
+                  </h4>
+                  <div className="space-y-3">
+                    {stats.usageInsights.usersNearLimits.length === 0 ? (
+                      <p className="text-xs text-gray-400 italic">No warnings recently</p>
+                    ) : (
+                      stats.usageInsights.usersNearLimits.map((log) => (
+                        <div key={log.id} className="text-xs border-l-2 border-orange-200 pl-3 py-1">
+                          <p className="font-bold text-gray-900">{log.tenant.name}</p>
+                          <p className="text-gray-500 line-clamp-1">{log.description}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Trial Users */}
+                <div className="space-y-4">
+                  <h4 className="text-xs font-bold uppercase text-gray-500 tracking-wider flex items-center gap-2">
+                    <Zap className="h-3 w-3 text-blue-500" />
+                    Active Trials
+                  </h4>
+                  <div className="space-y-3">
+                    {stats.usageInsights.trialUsers.length === 0 ? (
+                      <p className="text-xs text-gray-400 italic">No active trials</p>
+                    ) : (
+                      stats.usageInsights.trialUsers.map((sub) => (
+                        <div key={sub.id} className="text-xs border-l-2 border-blue-200 pl-3 py-1 flex justify-between items-start">
+                          <div>
+                            <p className="font-bold text-gray-900">{sub.tenant.name}</p>
+                            <p className="text-gray-500">{sub.plan.displayName}</p>
+                          </div>
+                          <Badge variant="secondary" className="text-[9px] h-4">
+                            {sub.trialEndsAt ? Math.ceil((sub.trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0}d left
+                          </Badge>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Churn Feedback */}
+                <div className="space-y-4">
+                  <h4 className="text-xs font-bold uppercase text-gray-500 tracking-wider flex items-center gap-2">
+                    <Trash2 className="h-3 w-3 text-red-500" />
+                    Recent Churn
+                  </h4>
+                  <div className="space-y-3">
+                    {stats.usageInsights.churnedUsers.length === 0 ? (
+                      <p className="text-xs text-gray-400 italic">No recent churn</p>
+                    ) : (
+                      stats.usageInsights.churnedUsers.map((churn) => (
+                        <div key={churn.id} className="text-xs border-l-2 border-red-200 pl-3 py-1">
+                          <div className="flex justify-between">
+                            <p className="font-bold text-gray-900">{churn.tenant.name}</p>
+                            <Badge className="text-[8px] h-3 bg-red-100 text-red-700 hover:bg-red-200 border-none">{churn.type}</Badge>
+                          </div>
+                          <p className="text-gray-500 italic line-clamp-2">"{churn.reason}"</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

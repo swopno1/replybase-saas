@@ -60,6 +60,7 @@ model User {
   passwordResetTokens     PasswordResetToken[]
   sessions                Session[]
   usageLogs               UsageLog[]
+  churnFeedbacks          ChurnFeedback[]
   tenant                  Tenant                 @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
@@ -80,6 +81,7 @@ model Tenant {
   onboardingStep            Int                             @default(0)
   trialUsed                 Boolean                         @default(false)
   activityLogs              ActivityLog[]
+  churnFeedbacks            ChurnFeedback[]
   bots                      Bot[]
   contacts                  Contact[]
   dataDeletionRequests      DataDeletionRequest[]
@@ -201,10 +203,28 @@ model StripeEvent {
   error         String?
   metadata      Json?
   createdAt     DateTime  @default(now())
+  updatedAt     DateTime? @updatedAt
   processedAt   DateTime?
 
   @@map("stripe_events")
 }
+
+model ChurnFeedback {
+  id          String   @id @default(cuid())
+  tenantId    String
+  userId      String?
+  type        String   // CANCEL, DOWNGRADE
+  reason      String
+  planId      String?
+  createdAt   DateTime @default(now())
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User?    @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([type])
+  @@map("churn_feedback")
+}
+
 
 model NewsletterSubscriber {
   id               String           @id @default(cuid())

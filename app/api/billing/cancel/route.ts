@@ -18,14 +18,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No tenant found" }, { status: 403 });
     }
 
-    const { feedback } = await req.json().catch(() => ({ feedback: "" }));
+    const { feedback, type } = await req.json().catch(() => ({ feedback: "", type: "CANCEL" }));
 
     if (feedback) {
-      console.log(`[Subscription Cancel] Feedback from tenant ${tenantId}: ${feedback}`);
+      console.log(
+        `[Subscription Feedback] ${type} from tenant ${tenantId}: ${feedback}`,
+      );
+      await prisma.churnFeedback.create({
+        data: {
+          tenantId,
+          userId: session.user.id,
+          type: type || "CANCEL",
+          reason: feedback,
+        },
+      });
+      
+      // If it's just feedback for downgrade, we don't proceed with cancellation logic
+      if (type === "DOWNGRADE") {
+        return NextResponse.json({ message: "Feedback recorded" });
+      }
     }
 
     const subscription = await prisma.subscription.findUnique({
       where: { tenantId },
+      include: { plan: true },
     });
 
     if (!subscription) {
