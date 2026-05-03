@@ -1,0 +1,198 @@
+
+> replybase-saas@0.1.0 dev /app
+> next dev
+
+▲ Next.js 16.2.4 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+✓ Ready in 994ms
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+
+❌ Invalid environment variables: {
+  "_errors": [],
+  "NEXT_PUBLIC_APP_URL": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "AUTH_SECRET": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "CHANNEL_CREDENTIALS_ENCRYPTION_KEY": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "NEXTAUTH_URL": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "STRIPE_SECRET_KEY": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "STRIPE_WEBHOOK_SECRET": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "API_SECRET_KEY": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "CRON_SECRET": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  }
+}
+○ Compiling /pricing ...
+❌ Invalid environment variables: {
+  "_errors": [],
+  "NEXT_PUBLIC_APP_URL": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "AUTH_SECRET": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "CHANNEL_CREDENTIALS_ENCRYPTION_KEY": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "NEXTAUTH_URL": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "STRIPE_SECRET_KEY": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "STRIPE_WEBHOOK_SECRET": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "API_SECRET_KEY": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "CRON_SECRET": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  }
+}
+[next-auth][warn][NEXTAUTH_URL]
+https://next-auth.js.org/warnings#nextauth_url
+[next-auth][warn][NO_SECRET]
+https://next-auth.js.org/warnings#no_secret
+ GET /pricing 200 in 9.8s (next.js: 8.0s, proxy.ts: 359ms, application-code: 1450ms)
+ GET /pricing 200 in 435ms (next.js: 37ms, proxy.ts: 38ms, application-code: 360ms)
+○ Compiling /api/auth/[...nextauth] ...
+❌ Invalid environment variables: {
+  "_errors": [],
+  "NEXT_PUBLIC_APP_URL": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "AUTH_SECRET": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "CHANNEL_CREDENTIALS_ENCRYPTION_KEY": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "NEXTAUTH_URL": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "STRIPE_SECRET_KEY": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "STRIPE_WEBHOOK_SECRET": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "API_SECRET_KEY": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "CRON_SECRET": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  }
+}
+❌ Invalid environment variables: {
+  "_errors": [],
+  "NEXT_PUBLIC_APP_URL": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "AUTH_SECRET": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "CHANNEL_CREDENTIALS_ENCRYPTION_KEY": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "NEXTAUTH_URL": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "STRIPE_SECRET_KEY": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "STRIPE_WEBHOOK_SECRET": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "API_SECRET_KEY": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  },
+  "CRON_SECRET": {
+    "_errors": [
+      "Invalid input: expected string, received undefined"
+    ]
+  }
+}
+[next-auth][warn][NEXTAUTH_URL]
+https://next-auth.js.org/warnings#nextauth_url
+[next-auth][warn][NO_SECRET]
+https://next-auth.js.org/warnings#no_secret

@@ -39,7 +39,7 @@ const PLANS = [
     name: "starter",
     displayName: "Starter",
     aiLabel: "Smart Automation",
-    price: 29,
+    price: 2900,
     automations: "1,500",
     aiResponses: "1,000",
     aiOverage: "£12 / 1k",
@@ -55,7 +55,7 @@ const PLANS = [
     name: "pro",
     displayName: "Pro",
     aiLabel: "AI Co-Pilot",
-    price: 89,
+    price: 8900,
     automations: "10,000",
     aiResponses: "7,500",
     aiOverage: "£10 / 1k",
@@ -71,7 +71,7 @@ const PLANS = [
     name: "business",
     displayName: "Business",
     aiLabel: "AI Agent",
-    price: 249,
+    price: 24900,
     automations: "40,000",
     aiResponses: "25,000",
     aiOverage: "£8 / 1k",
@@ -293,7 +293,7 @@ function PricingContent() {
                   className={`p-6 text-center ${plan.highlight ? "font-bold text-primary bg-primary/5" : "text-foreground"}`}
                 >
                   <div className="flex flex-col items-center">
-                    <span className="text-2xl font-bold">£{plan.price}</span>
+                    <span className="text-2xl font-bold">£{plan.price / 100}</span>
                     <span className="text-xs text-muted-foreground font-normal">per month</span>
                   </div>
                 </td>
@@ -465,7 +465,7 @@ function PricingContent() {
                 </div>
                 <div className="flex justify-between items-center pt-4 border-t border-border">
                   <span className="text-sm font-semibold">Price after trial</span>
-                  <span className="text-lg font-bold text-foreground">£{selectedPlan.price}/mo</span>
+                  <span className="text-lg font-bold text-foreground">£{selectedPlan.price / 100}/mo</span>
                 </div>
               </div>
 

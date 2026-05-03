@@ -94,17 +94,17 @@ async function getBusinessStats() {
   });
 
   const formattedRevenueDetails = revenueDetails.map((tenant) => {
-    const totalPaid = tenant.revenue.reduce((sum, rev) => sum + rev.amount, 0);
+    const totalPaidCents = tenant.revenue.reduce((sum, rev) => sum + rev.amount, 0);
     const lastPayment = tenant.revenue[0];
 
     return {
       tenantName: tenant.name,
       userEmail: tenant.users[0]?.email || "N/A",
       stripeSubscriptionId: tenant.subscriptions?.stripeId || "N/A",
-      monthlyAmount: tenant.subscriptions?.plan.price || 0,
+      monthlyAmount: (tenant.subscriptions?.plan.price || 0) / 100,
       lastPaymentDate: lastPayment?.paidAt || null,
       status: tenant.subscriptions?.status || "inactive",
-      totalPaid,
+      totalPaid: totalPaidCents / 100,
     };
   });
 
@@ -160,7 +160,7 @@ async function getBusinessStats() {
     totalContacts,
     totalConversations,
     recentSubscriptions,
-    monthlyRevenue: revenueData._sum.amount || 0,
+    monthlyRevenue: (revenueData._sum.amount || 0) / 100,
     onboardingConversion: totalOnboarding
       ? ((onboardingStats._count.id / totalOnboarding) * 100).toFixed(1)
       : "0",

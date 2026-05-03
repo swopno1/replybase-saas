@@ -272,7 +272,7 @@ model Revenue {
   stripeInvoiceId      String   @unique
   stripeSubscriptionId String?
   tenantId             String
-  amount               Float
+  amount               Int
   currency             String
   status               String
   paidAt               DateTime @default(now())
@@ -290,7 +290,7 @@ model Plan {
   id                  String              @id @default(cuid())
   name                String              @unique
   displayName         String
-  price               Float               @default(0)
+  price               Int                 @default(0)
   currency            String              @default("USD")
   dailyMessageLimit   Int                 @default(100)
   monthlyMessageLimit Int                 @default(3000)
