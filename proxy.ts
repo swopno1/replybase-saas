@@ -107,13 +107,24 @@ export async function proxy(req: NextRequest) {
       pathname === publicPath || pathname.startsWith(`${publicPath}/`),
   );
 
-  // If the user is logged in
-  if (token) {
-    // and tries to access an auth path, redirect to root
-    if (isAuthPath) {
+  // --- DEFAULT DENY ENFORCEMENT ---
+  const isProtectedPath =
+    pathname.startsWith("/api/") ||
+    pathname.startsWith("/settings") ||
+    pathname.startsWith("/admin") ||
+    pathname === "/"; // Root is protected as it's the dashboard redirect
+
+  // Allow explicitly public paths even if they fall under protected prefixes
+  if (isPublicPath || isAuthPath) {
+    // If logged in and hitting auth path, redirect to home
+    if (token && isAuthPath) {
       return NextResponse.redirect(new URL("/", req.url));
     }
+    return NextResponse.next();
+  }
 
+  // If the user is logged in
+  if (token) {
     // SUBSCRIPTION CHECK
     // If not on billing page/pricing and subscription is inactive, redirect to pricing
     const subscriptionStatus = (token.subscriptionStatus as string || "active").toLowerCase();
@@ -144,19 +155,14 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // If the user is not logged in
-  if (!token) {
-    // and tries to access an auth path, allow them
-    if (isAuthPath || isPublicPath) {
-      return NextResponse.next();
-    }
-
-    // For protected API routes, return 401 instead of redirecting to login.
+  // Default Deny for unauthenticated users on protected paths
+  if (isProtectedPath) {
+    // For protected API routes, return 401
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // and tries to access a protected route, redirect to login
+    // For protected UI routes, redirect to login
     const loginUrl = new URL("/auth/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);

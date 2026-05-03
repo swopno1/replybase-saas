@@ -73,21 +73,21 @@ export async function syncSubscription(
       monthlyMessageLimit = 1000;
       flowExecutionCap = 1500;
       maxBots = 3;
-      price = 29;
+      price = 2900;
       displayName = "Starter";
     } else if (planName === "pro") {
       dailyMessageLimit = 2000;
       monthlyMessageLimit = 7500;
       flowExecutionCap = 10000;
       maxBots = 10;
-      price = 89;
+      price = 8900;
       displayName = "Pro";
     } else if (planName === "business") {
       dailyMessageLimit = 5000;
       monthlyMessageLimit = 25000;
       flowExecutionCap = 40000;
       maxBots = 25;
-      price = 249;
+      price = 24900;
       displayName = "Business";
     }
 

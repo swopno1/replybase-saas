@@ -78,14 +78,38 @@ export async function POST(req: NextRequest) {
       }
 
       case "invoice.payment_succeeded": {
-        const invoice = event.data.object as any;
+        const invoice = event.data.object as Stripe.Invoice;
         if (invoice.subscription) {
-           const dbSub = await prisma.subscription.findUnique({
-             where: { stripeCustomerId: invoice.customer as string },
-           });
-           if (dbSub) {
-             await syncSubscription(dbSub.tenantId, invoice.subscription as string);
-           }
+          const dbSub = await prisma.subscription.findUnique({
+            where: { stripeCustomerId: invoice.customer as string },
+          });
+
+          if (dbSub) {
+            await syncSubscription(dbSub.tenantId, invoice.subscription as string);
+
+            // Rule #8: Idempotent Revenue Tracking
+            await prisma.revenue.upsert({
+              where: { stripeInvoiceId: invoice.id },
+              create: {
+                stripeInvoiceId: invoice.id,
+                stripeSubscriptionId: invoice.subscription as string,
+                tenantId: dbSub.tenantId,
+                amount: invoice.amount_paid, // Cents from Stripe
+                currency: invoice.currency.toUpperCase(),
+                status: "paid",
+                paidAt: new Date(invoice.status_transitions.paid_at! * 1000),
+                metadata: {
+                  invoice_pdf: invoice.invoice_pdf,
+                  number: invoice.number,
+                },
+              },
+              update: {
+                status: "paid",
+                paidAt: new Date(invoice.status_transitions.paid_at! * 1000),
+              },
+            });
+            console.log(`[Webhook] Revenue recorded for tenant ${dbSub.tenantId}: ${invoice.amount_paid} ${invoice.currency}`);
+          }
         }
         break;
       }
