@@ -102,7 +102,7 @@ export function ChannelActivationDialog({
     try {
       let botId = selectedBotId;
 
-      // 1. Create Bot if needed
+      // 1. Create or Update Bot
       if (mode === "create") {
         const botRes = await fetch("/api/bots", {
           method: "POST",
@@ -118,22 +118,34 @@ export function ChannelActivationDialog({
         const botData = await botRes.json();
         botId = botData.bot.id;
       } else {
-        // Update existing bot's entry flow
+        // Update existing bot's entry flow and ensure it's enabled
         await fetch(`/api/bots/${botId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             entryFlow: selectedFlowId,
+            enabled: true,
           }),
         });
       }
 
-      // 2. Redirect to specific channel setup
-      toast.success("Bot ready! Redirecting to channel setup...");
-      
+      // 2. Automatically Provision Channel
       if (selectedChannel === "webchat") {
+        await fetch("/api/integrations/webchat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            botId,
+            name: "Main Webchat",
+            enabled: true,
+            allowedOrigins: ["*"], // Safe default for onboarding
+          }),
+        });
+        toast.success("Webchat activated! Redirecting...");
         router.push(`/integrations/webchat?botId=${botId}`);
       } else if (selectedChannel === "facebook") {
+        // Facebook requires OAuth, so we redirect to the connect page with botId context
+        toast.success("Bot ready! Redirecting to Facebook connection...");
         router.push(`/integrations/facebook?botId=${botId}`);
       } else {
         router.push("/integrations");

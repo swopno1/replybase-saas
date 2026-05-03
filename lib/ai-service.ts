@@ -65,12 +65,10 @@ export function getAiModel({
         return client("gemma-3-27b"); // Your highest RPM model (30 RPM)
       }
 
-      // Task-specific defaults for Gemini 3.x
-      let defaultModel = "gemini-3-flash";
-      if (task === "chat") {
-        defaultModel = "gemini-3.1-flash-lite";
-      } else if (task === "onboarding") {
-        defaultModel = "gemini-3-flash"; // Highly capable and fast
+      // Task-specific defaults for the available Gemini versions (2.5 and 3)
+      let defaultModel = "gemini-2.5-flash"; 
+      if (task === "onboarding") {
+        defaultModel = "gemini-3-flash"; 
       }
 
       return client(model || defaultModel);

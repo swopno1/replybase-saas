@@ -379,7 +379,8 @@ const STALE_SESSION_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 // No cooldown — flow_Initial's order:-1 returning-user gate handles qualified
 // contacts gracefully (skips greeting + lead-gen, goes straight to explore topic).
 // Setting this to 0 prevents post-flow messages from falling through to AI/fallback.
-const FLOW_REPEAT_COOLDOWN_MS = 0;
+// Setting this to 1 hour prevents the flow from restarting immediately after completion.
+const FLOW_REPEAT_COOLDOWN_MS = 60 * 60 * 1000; 
 
 async function resolveFlow(params: {
   tenantId: string;

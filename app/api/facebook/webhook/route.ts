@@ -444,10 +444,11 @@ async function handleMessage(
     }
 
     // 8. Static fallback if all else fails
+    const fallbackMessage = "All of our agents are currently busy or offline. Please leave your email address, and we'll get back to you as soon as possible.";
     await sendTextMessage(
       accessToken,
       senderPsid,
-      "Our AI Agent is under development! We'll be up again soon.",
+      fallbackMessage,
     );
     if (conversation) {
       await prisma.crmMessage.create({
@@ -455,7 +456,7 @@ async function handleMessage(
           tenantId,
           conversationId: conversation.id,
           direction: "outbound",
-          content: "Our AI Agent is under development! We'll be up again soon.",
+          content: fallbackMessage,
           source: "ai",
         },
       });

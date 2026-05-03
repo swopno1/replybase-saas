@@ -510,7 +510,7 @@ async function sendAutoReply(params: {
         : String(aiStream ?? "");
     replySource = "ai";
   } catch (aiError) {
-    replyText = "Our AI Agent is under development! We'll be up again soon.";
+    replyText = "All of our agents are currently busy or offline. Please leave your email address, and we'll get back to you as soon as possible.";
     replySource = "ai";
   }
 

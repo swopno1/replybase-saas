@@ -10,6 +10,9 @@ import {
 import { findActiveWebChannel } from "@/lib/webchat";
 import { verifyWebchatSessionToken } from "@/lib/webchat-session";
 
+// 2. Atomic Idempotency Check: Prevent concurrent duplicates
+const processingLocks = new Set<string>();
+
 export async function POST(request: NextRequest) {
   if (!isWebchatOriginAllowed(request)) {
     const reason = getWebchatOriginRejectionReason(request);
@@ -24,10 +27,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const body = await request.json();
+  const { token, conversationId, botId, message, planName } = body;
+  const lockKey = `${conversationId}:${String(message || "").trim()}`;
+
   try {
-    const body = await request.json();
     console.log("[Webchat Message] Incoming request", body);
-    const { token, conversationId, botId, message, planName } = body;
     
     // 1. Verify session token
     let session;
@@ -57,7 +62,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Save inbound message immediately so the SaaS dashboard sees it
+    if (processingLocks.has(lockKey)) {
+      console.warn("[Webchat Message] Concurrent duplicate blocked", { conversationId });
+      return NextResponse.json(
+        { status: "duplicate_ignored" },
+        { status: 200, headers: createWebchatCorsHeaders(request) }
+      );
+    }
+    processingLocks.add(lockKey);
+
+    // Save inbound message first
     await prisma.crmMessage.create({
       data: {
         tenantId,
@@ -68,19 +82,20 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Fetch channel config for fallbackMode/customFallbackMessage
     const channel = await findActiveWebChannel({ botId });
     if (!channel) {
+      console.error("[Webchat Message] Channel not found", { botId });
       return NextResponse.json(
         { error: "Channel not found" },
         { status: 404, headers: createWebchatCorsHeaders(request) },
       );
     }
+
     const config = (channel.config || {}) as Record<string, any>;
     const fallbackMode = config.fallbackMode || "ai";
     const customFallbackMessage =
       config.customFallbackMessage ||
-      "Our AI Agent is under development! We'll be up again soon.";
+      "All of our agents are currently busy or offline. Please leave your email address, and we'll get back to you as soon as possible.";
 
     if (fallbackMode === "manual") {
       console.warn("[Webchat Message] Manual fallback mode active", {
@@ -187,7 +202,12 @@ export async function POST(request: NextRequest) {
       role: msg.source === "human" ? "user" : "assistant",
       content: msg.content,
     }));
-    aiMessages.push({ role: "user", content: message });
+    // Note: We already saved the current message, so it's likely already in lastMessages.
+    // However, findMany might be slightly delayed or we might have fetched before save.
+    // To be safe and consistent with the existing logic, we ensure the current message is the last one.
+    if (aiMessages.length === 0 || aiMessages[aiMessages.length - 1].content !== message) {
+       aiMessages.push({ role: "user", content: message });
+    }
 
     // Dynamically import aiFallback to avoid circular deps
     const { aiFallback } = await import("@/lib/ai-fallback");
@@ -273,6 +293,8 @@ export async function POST(request: NextRequest) {
       { error: "Internal server error" },
       { status: 500, headers: createWebchatCorsHeaders(request) },
     );
+  } finally {
+    processingLocks.delete(lockKey);
   }
 }
 
@@ -293,3 +315,4 @@ export async function OPTIONS(request: NextRequest) {
     headers: createWebchatCorsHeaders(request),
   });
 }
+

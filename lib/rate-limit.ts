@@ -21,11 +21,13 @@ type ScopePolicy = {
 // Internal memory store
 const counters = new Map<string, CounterState>();
 
+const isDev = process.env.NODE_ENV === "development";
+
 const defaultPolicies: Record<string, ScopePolicy> = {
-  auth: { limit: 10, windowMs: 60_000 }, // 10 attempts per minute
-  webhook: { limit: 100, windowMs: 60_000 }, // 100 calls per minute
-  ai: { limit: 20, windowMs: 60_000 }, // 20 AI generations per minute
-  api: { limit: 60, windowMs: 60_000 }, // 60 general API calls per minute
+  auth: { limit: isDev ? 100 : 10, windowMs: 60_000 }, // More permissive in dev
+  webhook: { limit: isDev ? 500 : 100, windowMs: 60_000 },
+  ai: { limit: isDev ? 100 : 20, windowMs: 60_000 },
+  api: { limit: isDev ? 200 : 60, windowMs: 60_000 },
 };
 
 function getClientIp(request: NextRequest): string {
