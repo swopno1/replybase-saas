@@ -97,7 +97,7 @@ export async function aiFallback({
         abortSignal: controller.signal,
       });
       return aiStream;
-    } catch (primaryError: any) {
+    } catch (primaryError: unknown) {
       // Check for rate limit errors (429 or RESOURCE_EXHAUSTED)
       const isRateLimit = 
         String(primaryError).includes("429") || 

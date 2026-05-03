@@ -5,7 +5,7 @@ import { env } from "./env";
 
 // Create PostgreSQL connection pool
 const pool =
-  (globalThis as any).pool ??
+  (globalThis as unknown as { pool?: Pool }).pool ??
   new Pool({
     connectionString: env.DATABASE_URL,
   });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { checkLimit, incrementUsage, getTenantLimits } from '@/lib/subscription';
+import { checkLimit, incrementUsage, getTenantLimits, usageBuffer } from '@/lib/subscription';
 import { prisma } from '@/lib/prisma';
 
 vi.mock('@/lib/prisma', () => ({
@@ -88,7 +88,7 @@ describe('Subscription Utility', () => {
   });
 
   describe('incrementUsage', () => {
-    it('should upsert usage log', async () => {
+    it('should buffer usage and flush to DB', async () => {
       vi.mocked(prisma.user.findUnique).mockResolvedValue({ tenantId: 'tenant_1' } as unknown as NonNullable<Awaited<ReturnType<typeof prisma.user.findUnique>>>);
       vi.mocked(prisma.subscription.findFirst).mockResolvedValue({
         status: 'active',
@@ -96,9 +96,20 @@ describe('Subscription Utility', () => {
       } as unknown as NonNullable<Awaited<ReturnType<typeof prisma.subscription.findFirst>>>);
       vi.mocked(prisma.usageLog.aggregate).mockResolvedValue({ _sum: { count: 10 } } as unknown as Awaited<ReturnType<typeof prisma.usageLog.aggregate>>);
 
-      await incrementUsage('user_1', 'message', 1);
+      await incrementUsage('user_1', 'message', 5);
 
-      expect(prisma.usageLog.upsert).toHaveBeenCalled();
+      // Should NOT have called upsert immediately
+      expect(prisma.usageLog.upsert).not.toHaveBeenCalled();
+
+      // Manually flush the buffer
+      await usageBuffer.flush();
+
+      expect(prisma.usageLog.upsert).toHaveBeenCalledWith(expect.objectContaining({
+        create: expect.objectContaining({
+          count: 5,
+          tenantId: 'tenant_1'
+        })
+      }));
     });
   });
 });

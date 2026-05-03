@@ -123,16 +123,6 @@ function getFlowInputs(lead: Lead): Record<string, string> {
   return fi as Record<string, string>;
 }
 
-function getPlanBadge(plan: string | null, trial: boolean) {
-  if (!plan) return <Badge variant="outline">None</Badge>;
-  const label = plan.charAt(0).toUpperCase() + plan.slice(1);
-  return (
-    <div className="flex items-center gap-2">
-      <Badge variant="secondary">{label}</Badge>
-      {trial && <Badge variant="outline" className="text-[10px] h-4 px-1">Trial</Badge>}
-    </div>
-  );
-}
 
 export default function LeadsPage() {
   const router = useRouter();
@@ -216,7 +206,10 @@ export default function LeadsPage() {
   }, [pagination]);
 
   useEffect(() => {
-    fetchLeads();
+    const init = async () => {
+      await fetchLeads();
+    };
+    init();
   }, [fetchLeads]);
 
   const dynamicColumns = useMemo(() => {
@@ -446,7 +439,7 @@ export default function LeadsPage() {
       ...dynamicColumns.map((dcol) => ({
         id: dcol.key,
         header: dcol.label,
-        cell: ({ row }: { row: any }) => <span className="max-w-xs truncate block">{getFlowInputs(row.original)[dcol.key] || "—"}</span>,
+        cell: ({ row }: { row: { original: Lead } }) => <span className="max-w-xs truncate block">{getFlowInputs(row.original)[dcol.key] || "—"}</span>,
       })),
       {
         id: "plan",
@@ -516,7 +509,7 @@ export default function LeadsPage() {
       },
     ];
     return cols;
-  }, [dynamicColumns, leads, deletingLeadId]);
+  }, [dynamicColumns, leads, deletingLeadId, handleDeleteLeads]);
 
   const selectedIds = useMemo(() => Object.keys(rowSelection), [rowSelection]);
   const currentSelectionCount = isAllMatchingSelected ? totalCount : selectedIds.length;
@@ -572,7 +565,7 @@ export default function LeadsPage() {
                variant="outline"
                size="sm"
                onClick={() => handleExportClick(undefined)}
-               disabled={isExporting}
+               disabled={isExporting || !canExport}
              >
                {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                Export All

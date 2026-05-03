@@ -25,9 +25,7 @@ import {
   Info,
   ChevronRight,
   Loader2,
-  Trash2,
   X,
-  ExternalLink,
   Calendar,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -123,7 +121,10 @@ export default function BillingTabContent() {
   }, []);
 
   useEffect(() => {
-    fetchBillingData();
+    const init = async () => {
+      await fetchBillingData();
+    };
+    init();
   }, [fetchBillingData]);
 
   const handleUpgrade = () => {
@@ -252,7 +253,7 @@ export default function BillingTabContent() {
             <div>
               <h3 className="font-bold text-lg">Approaching Limits</h3>
               <p className="text-orange-50 text-sm">
-                You've used over 90% of your plan's resources. Upgrade now to ensure your bots keep responding.
+                You&apos;ve used over 90% of your plan&apos;s resources. Upgrade now to ensure your bots keep responding.
               </p>
             </div>
           </div>

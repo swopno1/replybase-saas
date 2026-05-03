@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { GET, PATCH, POST } from "../../app/api/onboarding/route";
+import { GET, POST } from "../../app/api/onboarding/route";
 import { getServerSession } from "next-auth";
 import { prisma } from "../../lib/prisma";
 import { getTenantPrisma } from "../../lib/prisma-tenant";
@@ -10,43 +10,43 @@ vi.mock("@/lib/prisma", () => ({
     user: {
       findUnique: vi.fn(),
     },
-    tenant: {
-      findUnique: vi.fn(),
-      update: vi.fn(),
-    },
-    bot: {
-      updateMany: vi.fn(),
-    },
-    flow: {
-      create: vi.fn().mockResolvedValue({ id: "mock-flow-id" }),
-    },
   },
 }));
 
 vi.mock("@/lib/prisma-tenant", () => ({
-  getTenantPrisma: vi.fn().mockReturnValue({
-    tenant: {
-      findUnique: vi.fn(),
-      update: vi.fn(),
-    },
-    bot: {
-      updateMany: vi.fn(),
-    },
-    flow: {
-      create: vi.fn().mockResolvedValue({ id: "mock-flow-id" }),
-    },
-  }),
+  getTenantPrisma: vi.fn(),
+}));
+
+const mockDb = {
+  tenant: {
+    findUnique: vi.fn(),
+    update: vi.fn().mockResolvedValue({ id: "mock-tenant-id" }),
+  },
+  bot: {
+    count: vi.fn().mockResolvedValue(0),
+    create: vi.fn().mockResolvedValue({ id: "mock-bot-id" }),
+    updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+  },
+  flow: {
+    create: vi.fn().mockResolvedValue({ id: "mock-flow-id" }),
+  },
+};
+
+vi.mock("@/lib/route-helpers", () => ({
+  withAuthAndTenant: (fn: any) => async (request: any, context: any) => {
+    return fn({ tenantId: "test-tenant-id", id: "test-user-id" }, request, context, mockDb);
+  },
 }));
 
 vi.mock("@/lib/onboarding-ai", () => ({
   summarizeOnboardingData: vi.fn().mockResolvedValue({ isPlaceholder: true, summary: "test summary" }),
-  customizeFlowNodesWithAI: vi.fn().mockResolvedValue([{ id: "test-node" }]),
+  customizeFlowNodesWithAI: vi.fn().mockResolvedValue([{ id: "test-node", type: "message", order: 1, content: {} }]),
+  appendLeadGenerationNodes: vi.fn().mockImplementation(nodes => nodes),
 }));
 
 describe("Onboarding API", () => {
   const mockTenantId = "test-tenant-id";
   const mockUserId = "test-user-id";
-  let mockDb: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -60,11 +60,16 @@ describe("Onboarding API", () => {
       tenantId: mockTenantId,
     } as any);
 
-    mockDb = getTenantPrisma(mockTenantId);
+    vi.mocked(getTenantPrisma).mockReturnValue(mockDb as any);
+
+    // Ensure default resolved values for safety
+    mockDb.tenant.update.mockResolvedValue({ id: mockTenantId });
+    mockDb.bot.count.mockResolvedValue(0);
+    mockDb.bot.create.mockResolvedValue({ id: "mock-bot-id" });
   });
 
   it("GET returns tenant onboarding status", async () => {
-    vi.mocked(mockDb.tenant.findUnique).mockResolvedValue({
+    mockDb.tenant.findUnique.mockResolvedValue({
       id: mockTenantId,
       isOnboarded: false,
       onboardingStep: 0,
@@ -72,9 +77,9 @@ describe("Onboarding API", () => {
     });
 
     const response = await GET(new Request("http://localhost") as any, { params: Promise.resolve({}) });
-    const data = await response.json();
+    const result = await response.json();
 
-    expect(data.isOnboarded).toBe(false);
+    expect(result.data.isOnboarded).toBe(false);
     expect(mockDb.tenant.findUnique).toHaveBeenCalled();
   });
 
@@ -82,7 +87,7 @@ describe("Onboarding API", () => {
     const onboardingData = {
       kyc: { name: "John", company: "Acme", contactInfo: "john@acme.com", location: "US" },
       businessBasics: { industry: "Tech", companySize: "10-50", website: "https://acme.com", businessModel: "SaaS" },
-      productDetails: { offer: "Software", targetCustomers: "SMEs" },
+      productDetails: { offer: "Software", targetCustomers: ["SMEs"] },
       productSpecifics: { mainProducts: "App", pricing: "$10", usps: "Fast" },
       supportSales: { commonQuestions: "How?", painPoints: "None", salesProcess: "Direct" },
       additionalContext: { otherInfo: "None" },
@@ -94,9 +99,14 @@ describe("Onboarding API", () => {
     });
 
     const response = await POST(req as any, { params: Promise.resolve({}) });
-    const data = await response.json();
+    const result = await response.json();
 
-    expect(data.success).toBe(true);
+    if (result.error) {
+        console.error('Test received API error:', result.error, result.details);
+    }
+
+    expect(result.data).toBeDefined();
+    expect(result.data.success).toBe(true);
     expect(mockDb.tenant.update).toHaveBeenCalledWith({
       where: { id: mockTenantId },
       data: expect.objectContaining({

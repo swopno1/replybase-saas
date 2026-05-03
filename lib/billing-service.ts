@@ -13,7 +13,7 @@ export async function syncSubscription(
 ) {
   if (!stripe) throw new Error("Stripe not initialized");
 
-  const sub = (await stripe.subscriptions.retrieve(stripeSubId)) as any;
+  const sub = await stripe.subscriptions.retrieve(stripeSubId);
   const stripeCustomerId = sub.customer as string;
 
   // Ensure tenantId is valid and exists in DB
