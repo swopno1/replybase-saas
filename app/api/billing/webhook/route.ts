@@ -79,20 +79,20 @@ export async function POST(req: NextRequest) {
 
       case "invoice.payment_succeeded": {
         const invoice = event.data.object as Stripe.Invoice;
-        if (invoice.subscription) {
+        if ((invoice as any).subscription) {
           const dbSub = await prisma.subscription.findUnique({
             where: { stripeCustomerId: invoice.customer as string },
           });
 
           if (dbSub) {
-            await syncSubscription(dbSub.tenantId, invoice.subscription as string);
+            await syncSubscription(dbSub.tenantId, (invoice as any).subscription as string);
 
             // Rule #8: Idempotent Revenue Tracking
             await prisma.revenue.upsert({
               where: { stripeInvoiceId: invoice.id },
               create: {
                 stripeInvoiceId: invoice.id,
-                stripeSubscriptionId: invoice.subscription as string,
+                stripeSubscriptionId: (invoice as any).subscription as string,
                 tenantId: dbSub.tenantId,
                 amount: invoice.amount_paid, // Cents from Stripe
                 currency: invoice.currency.toUpperCase(),

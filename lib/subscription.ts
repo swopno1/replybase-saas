@@ -1,3 +1,4 @@
+import logger from "./logger";
 import { prisma } from "@/lib/prisma";
 
 const AGGREGATE_BOT_ID = "__aggregate_bot__";
@@ -510,7 +511,7 @@ class UsageBuffer {
         });
       }
     } catch (error) {
-      console.error("[UsageBuffer] Failed to flush usage logs:", error);
+      logger.error({ error: error }, "[UsageBuffer] Failed to flush usage logs:");
       // Re-add failed entries back to buffer?
       // For simplicity in this MVP-to-Scale refactor, we log error.
       // In a production system, we would use a proper queue (Redis/SQS).
@@ -577,7 +578,7 @@ export async function incrementUsage(
         type === "message" ? limits.monthlyMessageLimit : limits.flowExecutionCap
       );
     } catch (err) {
-      console.error("Error in background usage notification:", err);
+      logger.error({ error: err }, "Error in background usage notification:");
     }
   }, 0);
 }
@@ -694,12 +695,12 @@ The ReplyBase Team
         });
       }
 
-      console.log(
+      logger.info(
         `[Usage Alert] Tenant ${tenantId} reached ${threshold * 100}% of ${type}. Notification sent.`,
       );
     }
   } catch (err) {
-    console.error("Failed to process usage notification:", err);
+    logger.error({ error: err }, "Failed to process usage notification:");
   }
 }
 

@@ -390,7 +390,7 @@ export default async function AdminPage() {
                             <p className="font-bold text-gray-900">{churn.tenant.name}</p>
                             <Badge className="text-[8px] h-3 bg-red-100 text-red-700 hover:bg-red-200 border-none">{churn.type}</Badge>
                           </div>
-                          <p className="text-gray-500 italic line-clamp-2">"{churn.reason}"</p>
+                          <p className="text-gray-500 italic line-clamp-2">&quot;{churn.reason}&quot;</p>
                         </div>
                       ))
                     )}

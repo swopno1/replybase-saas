@@ -225,7 +225,7 @@ export default function AdminFlowEditorPage({
           <h3 className="font-bold text-amber-900 text-sm">Admin Flow Editor</h3>
           <p className="text-amber-800 text-xs mt-1">
             You are editing this flow on behalf of <strong>Tenant ID: {flow.tenantId}</strong>.
-            Changes will take effect immediately for the user's bot.
+            Changes will take effect immediately for the user&apos;s bot.
           </p>
         </div>
       </div>
