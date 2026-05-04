@@ -10,6 +10,12 @@ vi.mock("@/lib/prisma", () => ({
       createMany: vi.fn().mockResolvedValue({ count: 2 }),
       findMany: vi.fn().mockResolvedValue([]),
     },
+    idempotencyKey: {
+      create: vi.fn().mockResolvedValue({}),
+      findUnique: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn().mockResolvedValue({}),
+    },
     crmConversation: {
       findUnique: vi.fn(),
     },

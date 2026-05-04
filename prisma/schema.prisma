@@ -846,6 +846,14 @@ model TestHistory {
   @@map("test_history")
 }
 
+model IdempotencyKey {
+  key       String   @id
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@map("idempotency_keys")
+}
+
 enum ConversationStatus {
   OPEN
   PENDING

@@ -1,4 +1,11 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
+
+// Introspect the Prisma DMMF to automatically identify models with a tenantId field.
+// This ensures that the tenant isolation logic stays in sync with the schema without manual updates.
+const tenantModels = (Prisma as any).dmmf.datamodel.models
+  .filter((m: any) => m.fields.some((f: any) => f.name === "tenantId"))
+  .map((m: any) => m.name);
 
 /**
  * Creates a tenant-scoped Prisma client using extensions.
@@ -9,31 +16,6 @@ export function getTenantPrisma(tenantId: string) {
     query: {
       $allModels: {
         async $allOperations({ model, operation, args, query }) {
-          // List of models that HAVE a tenantId field
-          // This should be updated as the schema grows
-          const tenantModels = [
-            "User",
-            "TenantLeadNotificationSettings",
-            "TenantChannelStatus",
-            "FacebookPage",
-            "Subscription",
-            "NewsletterSubscriber",
-            "DataDeletionRequest",
-            "Revenue",
-            "Bot",
-            "UsageLog",
-            "ActivityLog",
-            "Contact",
-            "WebChatSite",
-            "Lead",
-            "Flow",
-            "OnboardingSession",
-            "OnboardingMetrics",
-            "CrmConversation",
-            "CrmMessage",
-            "InternalNote",
-          ];
-
           if (tenantModels.includes(model)) {
             const tenantFilter = { tenantId };
             const anyArgs = args as any;
