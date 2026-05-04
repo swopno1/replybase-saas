@@ -106,7 +106,7 @@ function Note({ note }: { note: NoteWithAuthor }) {
           </span>
         </div>
         <div className="text-sm text-yellow-900 italic leading-relaxed">
-          "{note.content}"
+          &quot;{note.content}&quot;
         </div>
         <div className="mt-2 text-xs font-medium text-yellow-700 flex items-center gap-1">
           <Avatar className="w-4 h-4">

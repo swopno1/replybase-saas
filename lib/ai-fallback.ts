@@ -1,3 +1,4 @@
+import logger from "./logger";
 import { prisma } from "@/lib/prisma";
 import { streamText, Output, ModelMessage } from "ai";
 import { getAiModel, AiProvider } from "@/lib/ai-service";
@@ -104,7 +105,7 @@ export async function aiFallback({
         String(primaryError).includes("RESOURCE_EXHAUSTED");
 
       if (isRateLimit) {
-        console.warn("[AI Fallback] Rate limit hit on primary model. Failing over to Gemma...");
+        logger.warn("[AI Fallback] Rate limit hit on primary model. Failing over to Gemma...");
         
         const fallbackModel = getAiModel({
           provider,

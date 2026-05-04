@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { withAuthAndTenant } from "@/lib/route-helpers";
-import { BillingService } from "@/lib/services/billing-service";
+import { BillingService } from "@/lib/billing-service";
 
 export const dynamic = 'force-dynamic';
 

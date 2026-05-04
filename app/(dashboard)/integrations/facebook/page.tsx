@@ -232,7 +232,7 @@ export default function FacebookIntegrationPage() {
     const confirmed = await confirm({
       title: "Disconnect Facebook Account",
       description:
-        "This will remove all connected pages, their flow assignments, and revoke ReplyBase's access from your Meta account. You can reconnect at any time.",
+        "This will remove all connected pages, their flow assignments, and revoke ReplyBase&apos;s access from your Meta account. You can reconnect at any time.",
       confirmText: "Disconnect All",
       variant: "destructive",
     });
@@ -898,7 +898,7 @@ export default function FacebookIntegrationPage() {
                   </a>
                 </div>
                 <div className="text-[10px] leading-relaxed">
-                  ReplyBase complies with Meta's Platform Policy. We only
+                  ReplyBase complies with Meta&apos;s Platform Policy. We only
                   request permissions for pages you manage and messaging
                   capabilities required for ReplyBase to function. You can
                   request data deletion at any time through our support or via

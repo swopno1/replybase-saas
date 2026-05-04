@@ -1,3 +1,4 @@
+import logger from "./logger";
 /**
  * Flow Execution Engine
  *
@@ -183,7 +184,7 @@ export class FlowExecutionEngine {
         );
       }
     } catch (error) {
-      console.error("[FlowEngine] Execution error:", error);
+      logger.error({ error: error }, "[FlowEngine] Execution error:");
       return { success: false, error: String(error) };
     }
   }
@@ -253,7 +254,7 @@ export class FlowExecutionEngine {
         return { success: true, completed: true };
 
       default:
-        console.error(`[FlowEngine] Unknown node type: ${node.type}`);
+        logger.error(`[FlowEngine] Unknown node type: ${node.type}`);
         return { success: false, error: "unknown_node_type" };
     }
   }

@@ -1,350 +1,77 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ModelMessage } from "ai";
-
 import { prisma } from "@/lib/prisma";
-import {
-  createWebchatCorsHeaders,
-  getWebchatOriginRejectionReason,
-  isWebchatOriginAllowed,
-} from "@/lib/webchat-cors";
+import { createWebchatCorsHeaders, getWebchatOriginRejectionReason, isWebchatOriginAllowed } from "@/lib/webchat-cors";
 import { findActiveWebChannel } from "@/lib/webchat";
 import { verifyWebchatSessionToken } from "@/lib/webchat-session";
+import logger from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   if (!isWebchatOriginAllowed(request)) {
     const reason = getWebchatOriginRejectionReason(request);
-    console.error("[Webchat Message] Blocked by CORS", {
-      origin: request.headers.get("origin"),
-      referer: request.headers.get("referer"),
-      reason,
-    });
-    return NextResponse.json(
-      { error: "Origin not allowed", reason },
-      { status: 403, headers: createWebchatCorsHeaders(request) },
-    );
+    logger.error({ origin: request.headers.get("origin"), referer: request.headers.get("referer"), reason }, "[Webchat Message] Blocked by CORS");
+    return NextResponse.json({ error: "Origin not allowed", reason }, { status: 403, headers: createWebchatCorsHeaders(request) });
   }
-
   const body = await request.json();
   const { token, conversationId, botId, message, planName } = body;
   const lockKey = `${conversationId}:${String(message || "").trim()}`;
-
   try {
-    console.log("[Webchat Message] Incoming request", body);
-    
-    // 1. Verify session token
+    logger.info({ body }, "[Webchat Message] Incoming request");
     let session;
-    try {
-      session = verifyWebchatSessionToken(token);
-    } catch (err) {
-      console.error("[Webchat Message] Invalid token", { error: err });
-      return NextResponse.json(
-        { error: "Invalid session" },
-        { status: 401, headers: createWebchatCorsHeaders(request) },
-      );
-    }
-
+    try { session = verifyWebchatSessionToken(token); } catch (err) { logger.error({ error: err }, "[Webchat Message] Invalid token"); return NextResponse.json({ error: "Invalid session" }, { status: 401, headers: createWebchatCorsHeaders(request) }); }
     const { tenantId } = session;
-
-    // Defensive: require all fields
-    if (!conversationId || !botId || !message || !planName) {
-      console.error("[Webchat Message] Missing required fields", {
-        conversationId,
-        botId,
-        message,
-        planName,
-      });
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400, headers: createWebchatCorsHeaders(request) },
-      );
-    }
-
-    // 2. Distributed Idempotency Check: Prevent concurrent duplicates using database
-    try {
-      await prisma.idempotencyKey.create({
-        data: {
-          key: lockKey,
-          expiresAt: new Date(Date.now() + 1000 * 60 * 5), // 5 minutes expiry
-        },
-      });
-    } catch (e: any) {
-      // P2002 is Prisma unique constraint violation
-      if (e.code === "P2002") {
-        // Check if existing key is expired
-        const existing = await prisma.idempotencyKey.findUnique({
-          where: { key: lockKey },
-        });
-
-        if (existing && existing.expiresAt > new Date()) {
-          console.warn("[Webchat Message] Concurrent duplicate blocked", { conversationId });
-          return NextResponse.json(
-            { status: "duplicate_ignored" },
-            { status: 200, headers: createWebchatCorsHeaders(request) }
-          );
-        } else {
-          // Expired, update it
-          await prisma.idempotencyKey.update({
-            where: { key: lockKey },
-            data: {
-              createdAt: new Date(),
-              expiresAt: new Date(Date.now() + 1000 * 60 * 5),
-            },
-          });
-        }
-      } else {
-        throw e;
-      }
-    }
-
-    // Save inbound message first
-    await prisma.crmMessage.create({
-      data: {
-        tenantId,
-        conversationId,
-        direction: "inbound",
-        content: message.trim(),
-        source: "human",
-      },
-    });
-
+    if (!conversationId || !botId || !message || !planName) { logger.error({ conversationId, botId, message, planName }, "[Webchat Message] Missing required fields"); return NextResponse.json({ error: "Missing required fields" }, { status: 400, headers: createWebchatCorsHeaders(request) }); }
+    try { await prisma.idempotencyKey.create({ data: { key: lockKey, expiresAt: new Date(Date.now() + 1000 * 60 * 5) } }); }
+    catch (e: unknown) { if (typeof e === "object" && e !== null && "code" in e && (e as any).code === "P2002") { const existing = await prisma.idempotencyKey.findUnique({ where: { key: lockKey } }); if (existing && existing.expiresAt > new Date()) { logger.warn({ conversationId }, "[Webchat Message] Concurrent duplicate blocked"); return NextResponse.json({ status: "duplicate_ignored" }, { status: 200, headers: createWebchatCorsHeaders(request) }); } else { await prisma.idempotencyKey.update({ where: { key: lockKey }, data: { createdAt: new Date(), expiresAt: new Date(Date.now() + 1000 * 60 * 5) } }); } } else throw e; }
+    await prisma.crmMessage.create({ data: { tenantId, conversationId, direction: "inbound", content: message.trim(), source: "human" } });
     const channel = await findActiveWebChannel({ botId });
-    if (!channel) {
-      console.error("[Webchat Message] Channel not found", { botId });
-      return NextResponse.json(
-        { error: "Channel not found" },
-        { status: 404, headers: createWebchatCorsHeaders(request) },
-      );
-    }
-
-    const config = (channel.config || {}) as Record<string, any>;
-    const fallbackMode = config.fallbackMode || "ai";
-    const customFallbackMessage =
-      config.customFallbackMessage ||
-      "All of our agents are currently busy or offline. Please leave your email address, and we'll get back to you as soon as possible.";
-
-    if (fallbackMode === "manual") {
-      console.warn("[Webchat Message] Manual fallback mode active", {
-        conversationId,
-        botId,
-      });
-      await prisma.crmMessage.create({
-        data: {
-          tenantId,
-          conversationId,
-          direction: "outbound",
-          content: customFallbackMessage,
-          source: "manual_fallback",
-        },
-      });
-      return NextResponse.json(
-        {
-          responses: [
-            {
-              type: "text",
-              text: customFallbackMessage,
-            },
-          ],
-          meta: { mode: "manual_fallback" },
-        },
-        { headers: createWebchatCorsHeaders(request) }
-      );
-    }
-
-    const conversation = await prisma.crmConversation.findUnique({
-      where: { id: conversationId },
-      select: { contactId: true, metadata: true },
-    });
-
-    if (!conversation) {
-      return NextResponse.json(
-        { error: "Conversation not found" },
-        { status: 404, headers: createWebchatCorsHeaders(request) },
-      );
-    }
-
-    // Try executing assigned flow first natively
-    const { buildWebchatSourceContext, executeWebchatFlowFirst } = await import(
-      "@/lib/webchat-conversation-engine"
-    );
-
-    const sourceContext = buildWebchatSourceContext({
-      requestOrigin: request.headers.get("origin"),
-      requestReferer: request.headers.get("referer"),
-      messageMetadata: body.metadata as Record<string, unknown> | undefined,
-      existingMetadata: conversation.metadata as Record<string, unknown> | undefined,
-    });
-
-    const flowResult = await executeWebchatFlowFirst({
-      tenantId: channel.bot.tenantId,
-      botId,
-      contactId: conversation.contactId,
-      siteId: String((conversation.metadata as Record<string, any>)?.siteId || channel.id),
-      message,
-      channelId: channel.id,
-      sourceContext,
-    });
-
+    if (!channel) { logger.error({ botId }, "[Webchat Message] Channel not found"); return NextResponse.json({ error: "Channel not found" }, { status: 404, headers: createWebchatCorsHeaders(request) }); }
+    const config = (channel.config || {}) as Record<string, unknown>;
+    const fallbackMode = (config.fallbackMode as string) || "ai";
+    const customFallbackMessage = ((config.customFallbackMessage as string) || "All of our agents are currently busy or offline. Please leave your email address, and we'll get back to you as soon as possible.") as string;
+    if (fallbackMode === "manual") { logger.warn({ conversationId, botId }, "[Webchat Message] Manual fallback mode active"); await prisma.crmMessage.create({ data: { tenantId, conversationId, direction: "outbound", content: customFallbackMessage, source: "manual_fallback" } }); return NextResponse.json({ responses: [{ type: "text", text: customFallbackMessage }], meta: { mode: "manual_fallback" } }, { headers: createWebchatCorsHeaders(request) }); }
+    const conversation = await prisma.crmConversation.findUnique({ where: { id: conversationId }, select: { contactId: true, metadata: true } });
+    if (!conversation) return NextResponse.json({ error: "Conversation not found" }, { status: 404, headers: createWebchatCorsHeaders(request) });
+    const { buildWebchatSourceContext, executeWebchatFlowFirst } = await import("@/lib/webchat-conversation-engine");
+    const sourceContext = buildWebchatSourceContext({ requestOrigin: request.headers.get("origin"), requestReferer: request.headers.get("referer"), messageMetadata: body.metadata as Record<string, unknown> | undefined, existingMetadata: conversation.metadata as Record<string, unknown> | undefined });
+    const flowResult = await executeWebchatFlowFirst({ tenantId: channel.bot.tenantId, botId, contactId: conversation.contactId, siteId: String((conversation.metadata as Record<string, unknown>)?.siteId || channel.id), message, channelId: channel.id, sourceContext });
     if (flowResult && flowResult.handled) {
       if (flowResult.responses.length > 0) {
-        const outMessages = flowResult.responses
-          .filter((r) => r.type === "text")
-          .map((r) => (r as { type: "text"; text: string }).text);
-
-        await prisma.crmMessage.createMany({
-          data: outMessages.map((outMsg) => ({
-            tenantId,
-            conversationId,
-            direction: "outbound",
-            content: outMsg,
-            source: "flow",
-          })),
-        });
-
-        console.log("[Webchat Message] Responding from flow", {
-          responses: flowResult.responses,
-        });
+        const outMessages = flowResult.responses.filter((r) => r.type === "text").map((r) => (r as { type: "text"; text: string }).text);
+        await prisma.crmMessage.createMany({ data: outMessages.map((outMsg) => ({ tenantId, conversationId, direction: "outbound", content: outMsg, source: "flow" })) });
+        logger.info({ responses: flowResult.responses }, "[Webchat Message] Responding from flow");
       }
-
-      return NextResponse.json(
-        {
-          responses: flowResult.responses,
-          meta: { mode: "flow", flowId: flowResult.flowId },
-        },
-        { headers: createWebchatCorsHeaders(request) },
-      );
+      return NextResponse.json({ responses: flowResult.responses, meta: { mode: "flow", flowId: flowResult.flowId } }, { headers: createWebchatCorsHeaders(request) });
     }
-
-    // fallbackMode is "ai" or missing AND Flow bypassed: run AI, fallback to customFallbackMessage if AI fails
-    // Fetch last messages for context
-
-    const lastMessages = await prisma.crmMessage.findMany({
-      where: { conversationId },
-      orderBy: { createdAt: "desc" },
-      take: 10,
-      select: { content: true, source: true },
-    });
-    const aiMessages: ModelMessage[] = lastMessages.reverse().map((msg) => ({
-      role: msg.source === "human" ? "user" : "assistant",
-      content: msg.content,
-    }));
-    // Note: We already saved the current message, so it's likely already in lastMessages.
-    // However, findMany might be slightly delayed or we might have fetched before save.
-    // To be safe and consistent with the existing logic, we ensure the current message is the last one.
-    if (aiMessages.length === 0 || aiMessages[aiMessages.length - 1].content !== message) {
-       aiMessages.push({ role: "user", content: message });
-    }
-
-    // Dynamically import aiFallback to avoid circular deps
+    const lastMessages = await prisma.crmMessage.findMany({ where: { conversationId }, orderBy: { createdAt: "desc" }, take: 10, select: { content: true, source: true } });
+    const aiMessages: ModelMessage[] = lastMessages.reverse().map((msg) => ({ role: msg.source === "human" ? "user" : "assistant", content: msg.content }));
+    if (aiMessages.length === 0 || aiMessages[aiMessages.length - 1].content !== message) { aiMessages.push({ role: "user", content: message }); }
     const { aiFallback } = await import("@/lib/ai-fallback");
-    let aiText = "";
-    let aiErrorOccurred = false;
+    let aiText = "", aiErrorOccurred = false;
     try {
-      const aiStream = await aiFallback({
-        botId,
-        conversationId,
-        messages: aiMessages,
-        planName,
-      });
-      aiText =
-        aiStream && "text" in aiStream
-          ? await aiStream.text
-          : String(aiStream ?? "");
+      const aiStream = await aiFallback({ botId, conversationId, messages: aiMessages, planName });
+      aiText = aiStream && "text" in aiStream ? (await aiStream.text) as string : String(aiStream ?? "");
     } catch (aiError) {
       aiErrorOccurred = true;
       const isQuotaError = String(aiError).includes("RESOURCE_EXHAUSTED") || String(aiError).includes("429");
       const isTimeout = String(aiError).toLowerCase().includes("timeout") || String(aiError).toLowerCase().includes("abort");
-      
-      aiText = isQuotaError 
-        ? "I'm experiencing high demand right now. I've notified the team, but in the meantime, I'll be using my standard responses." 
-        : isTimeout
-          ? "I'm taking a bit longer than usual to think. Please bear with me or try again in a moment."
-          : customFallbackMessage;
-
-      console.error("[Webchat Message] AI error, using fallback", {
-        error: aiError,
-        isQuotaError,
-        isTimeout
-      });
+      aiText = isQuotaError ? "I'm experiencing high demand right now." : isTimeout ? "I'm taking a bit longer than usual." : customFallbackMessage;
+      logger.error({ error: aiError, isQuotaError, isTimeout }, "[Webchat Message] AI error, using fallback");
     }
-
     if (aiText.trim()) {
-      await prisma.crmMessage.create({
-        data: {
-          tenantId,
-          conversationId,
-          direction: "outbound",
-          content: aiText.trim(),
-          source: aiErrorOccurred ? "manual_fallback" : "ai",
-        },
-      });
-      console.log("[Webchat Message] Responding", {
-        mode: aiErrorOccurred ? "manual_fallback" : "ai_fallback",
-        aiText,
-      });
-      return NextResponse.json(
-        {
-          responses: [
-            {
-              type: "text",
-              text: aiText.trim(),
-            },
-          ],
-          meta: { mode: aiErrorOccurred ? "manual_fallback" : "ai_fallback" },
-        },
-        { headers: createWebchatCorsHeaders(request) }
-      );
+      await prisma.crmMessage.create({ data: { tenantId, conversationId, direction: "outbound", content: aiText.trim(), source: aiErrorOccurred ? "manual_fallback" : "ai" } });
+      logger.info({ mode: aiErrorOccurred ? "manual_fallback" : "ai_fallback", aiText }, "[Webchat Message] Responding");
+      return NextResponse.json({ responses: [{ type: "text", text: aiText.trim() }], meta: { mode: aiErrorOccurred ? "manual_fallback" : "ai_fallback" } }, { headers: createWebchatCorsHeaders(request) });
     }
-
-    // Static fallback if all else fails
-    console.error(
-      "[Webchat Message] All fallbacks failed, using static fallback",
-      { conversationId, botId },
-    );
-    return NextResponse.json(
-      {
-        responses: [
-          {
-            type: "text",
-            text: customFallbackMessage,
-          },
-        ],
-        meta: { mode: "safe_fallback" },
-      },
-      { headers: createWebchatCorsHeaders(request) }
-    );
-  } catch (error) {
-    console.error("[Webchat Message] Internal server error", { error });
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: createWebchatCorsHeaders(request) },
-    );
-  } finally {
-    // Optional: cleanup the lock immediately on success/failure
-    // However, keeping it for the duration of expiresAt handles retry safety better
-    // For now, we delete it to allow rapid subsequent messages if they are NOT duplicates
-    try {
-      await prisma.idempotencyKey.delete({ where: { key: lockKey } });
-    } catch (e) {
-      // Ignore if already deleted or error
-    }
-  }
+    logger.error({ conversationId, botId }, "[Webchat Message] All fallbacks failed");
+    return NextResponse.json({ responses: [{ type: "text", text: customFallbackMessage }], meta: { mode: "safe_fallback" } }, { headers: createWebchatCorsHeaders(request) });
+  } catch (error) { logger.error({ error }, "[Webchat Message] Internal server error"); return NextResponse.json({ error: "Internal server error" }, { status: 500, headers: createWebchatCorsHeaders(request) }); }
+  finally { try { await prisma.idempotencyKey.delete({ where: { key: lockKey } }); } catch (e) {} }
 }
-
 export async function OPTIONS(request: NextRequest) {
   if (!isWebchatOriginAllowed(request)) {
     const reason = getWebchatOriginRejectionReason(request);
-    return NextResponse.json(
-      { error: "Origin not allowed", reason },
-      {
-        status: 403,
-        headers: createWebchatCorsHeaders(request),
-      },
-    );
+    return NextResponse.json({ error: "Origin not allowed", reason }, { status: 403, headers: createWebchatCorsHeaders(request) });
   }
-
-  return new NextResponse(null, {
-    status: 204,
-    headers: createWebchatCorsHeaders(request),
-  });
+  return new NextResponse(null, { status: 204, headers: createWebchatCorsHeaders(request) });
 }
-
