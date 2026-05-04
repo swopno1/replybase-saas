@@ -10,9 +10,6 @@ import {
 import { findActiveWebChannel } from "@/lib/webchat";
 import { verifyWebchatSessionToken } from "@/lib/webchat-session";
 
-// 2. Atomic Idempotency Check: Prevent concurrent duplicates
-const processingLocks = new Set<string>();
-
 export async function POST(request: NextRequest) {
   if (!isWebchatOriginAllowed(request)) {
     const reason = getWebchatOriginRejectionReason(request);
@@ -62,14 +59,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (processingLocks.has(lockKey)) {
-      console.warn("[Webchat Message] Concurrent duplicate blocked", { conversationId });
-      return NextResponse.json(
-        { status: "duplicate_ignored" },
-        { status: 200, headers: createWebchatCorsHeaders(request) }
-      );
+    // 2. Distributed Idempotency Check: Prevent concurrent duplicates using database
+    try {
+      await prisma.idempotencyKey.create({
+        data: {
+          key: lockKey,
+          expiresAt: new Date(Date.now() + 1000 * 60 * 5), // 5 minutes expiry
+        },
+      });
+    } catch (e: any) {
+      // P2002 is Prisma unique constraint violation
+      if (e.code === "P2002") {
+        // Check if existing key is expired
+        const existing = await prisma.idempotencyKey.findUnique({
+          where: { key: lockKey },
+        });
+
+        if (existing && existing.expiresAt > new Date()) {
+          console.warn("[Webchat Message] Concurrent duplicate blocked", { conversationId });
+          return NextResponse.json(
+            { status: "duplicate_ignored" },
+            { status: 200, headers: createWebchatCorsHeaders(request) }
+          );
+        } else {
+          // Expired, update it
+          await prisma.idempotencyKey.update({
+            where: { key: lockKey },
+            data: {
+              createdAt: new Date(),
+              expiresAt: new Date(Date.now() + 1000 * 60 * 5),
+            },
+          });
+        }
+      } else {
+        throw e;
+      }
     }
-    processingLocks.add(lockKey);
 
     // Save inbound message first
     await prisma.crmMessage.create({
@@ -294,7 +319,14 @@ export async function POST(request: NextRequest) {
       { status: 500, headers: createWebchatCorsHeaders(request) },
     );
   } finally {
-    processingLocks.delete(lockKey);
+    // Optional: cleanup the lock immediately on success/failure
+    // However, keeping it for the duration of expiresAt handles retry safety better
+    // For now, we delete it to allow rapid subsequent messages if they are NOT duplicates
+    try {
+      await prisma.idempotencyKey.delete({ where: { key: lockKey } });
+    } catch (e) {
+      // Ignore if already deleted or error
+    }
   }
 }
 
