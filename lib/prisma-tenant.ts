@@ -10,11 +10,17 @@ export function getTenantPrisma(tenantId: string) {
         async $allOperations({ model, operation, args, query }) {
           if (tenantModels.includes(model)) {
             const tenantFilter = { tenantId };
-            const anyArgs = args as Record<string, unknown>;
-            if (["findFirst", "findUnique", "findMany", "count", "aggregate", "groupBy"].includes(operation)) { anyArgs.where = { ...(anyArgs.where as Record<string, unknown>), ...tenantFilter }; }
-            else if (["update", "updateMany", "delete", "deleteMany"].includes(operation)) { anyArgs.where = { ...(anyArgs.where as Record<string, unknown>), ...tenantFilter }; }
-            else if (operation === "upsert") { anyArgs.where = { ...(anyArgs.where as Record<string, unknown>), ...tenantFilter }; anyArgs.create = { ...(anyArgs.create as Record<string, unknown>), ...tenantFilter }; anyArgs.update = { ...(anyArgs.update as Record<string, unknown>), ...tenantFilter }; }
-            else if (operation === "create" || operation === "createMany") { if (Array.isArray(anyArgs.data)) { anyArgs.data = anyArgs.data.map((item: Record<string, unknown>) => ({ ...item, ...tenantFilter })); } else { anyArgs.data = { ...(anyArgs.data as Record<string, unknown>), ...tenantFilter }; } }
+            interface PrismaQueryArgs {
+              where?: Record<string, unknown>;
+              data?: Record<string, unknown> | Array<Record<string, unknown>>;
+              create?: Record<string, unknown>;
+              update?: Record<string, unknown>;
+            }
+            const typedArgs = args as PrismaQueryArgs;
+            if (["findFirst", "findUnique", "findMany", "count", "aggregate", "groupBy"].includes(operation)) { typedArgs.where = { ...(typedArgs.where || {}), ...tenantFilter }; }
+            else if (["update", "updateMany", "delete", "deleteMany"].includes(operation)) { typedArgs.where = { ...(typedArgs.where || {}), ...tenantFilter }; }
+            else if (operation === "upsert") { typedArgs.where = { ...(typedArgs.where || {}), ...tenantFilter }; typedArgs.create = { ...(typedArgs.create || {}), ...tenantFilter }; typedArgs.update = { ...(typedArgs.update || {}), ...tenantFilter }; }
+            else if (operation === "create" || operation === "createMany") { if (Array.isArray(typedArgs.data)) { typedArgs.data = typedArgs.data.map((item: Record<string, unknown>) => ({ ...item, ...tenantFilter })); } else { typedArgs.data = { ...(typedArgs.data as Record<string, unknown> || {}), ...tenantFilter }; } }
           }
           return query(args);
         },
