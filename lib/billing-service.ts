@@ -1,7 +1,7 @@
 import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
-import { handlePlanDowngrade, getTenantUsage } from "./subscription";
+import { handlePlanDowngrade, getTenantUsage, invalidateTenantLimitsCache } from "./subscription";
 import { Invoice, PaymentMethodInfo } from "@/types/shared/billing";
 import logger from "./logger";
 
@@ -68,6 +68,7 @@ export async function syncSubscription(tenantId: string, stripeSubId: string) {
     });
     if (status === "TRIALING") await tx.tenant.update({ where: { id: tenantId }, data: { trialUsed: true } });
     if (existingSub && existingSub.planId !== dbPlan!.id) await handlePlanDowngrade(tenantId, dbPlan!.id);
+    await invalidateTenantLimitsCache(tenantId);
     return updatedSub;
   });
 }
