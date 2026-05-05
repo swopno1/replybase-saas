@@ -78,7 +78,7 @@ export async function DELETE(
       },
     });
 
-    invalidateTenantCache(session.user.tenantId);
+    await invalidateTenantCache(session.user.tenantId);
 
     return NextResponse.json({ subscription: updated });
   } catch (error: unknown) {

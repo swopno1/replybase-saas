@@ -4,6 +4,7 @@ import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import Stripe from "stripe";
 import { syncSubscription } from "@/lib/billing-service";
+import { invalidateTenantCache } from "@/lib/subscription";
 
 export const dynamic = 'force-dynamic';
 
@@ -126,6 +127,7 @@ export async function POST(req: NextRequest) {
             where: { id: dbSub.id },
             data: { status: "PAST_DUE" },
           });
+          await invalidateTenantCache(dbSub.tenantId);
           console.warn(`[Webhook] Payment failed for tenant ${dbSub.tenantId}. Status set to PAST_DUE.`);
         }
         break;
@@ -143,6 +145,7 @@ export async function POST(req: NextRequest) {
             where: { id: dbSub.id },
             data: { status: "CANCELED" },
           });
+          await invalidateTenantCache(dbSub.tenantId);
           console.log(`[Webhook] Charge refunded for tenant ${dbSub.tenantId}. Subscription revoked.`);
         }
         break;
