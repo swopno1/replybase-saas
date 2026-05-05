@@ -296,7 +296,7 @@ export async function getTenantUsage(tenantId: string) {
   const today = startOfUtcDay();
   const monthStart = startOfUtcMonth();
 
-  const [botCount, contactCount, dailyMessages, monthlyMessages, dailyFlowExecutions] =
+  const [botCount, contactCount, dailyMessages, monthlyMessages, monthlyFlowExecutions] =
     await Promise.all([
       prisma.bot.count({
         where: { tenantId },
@@ -316,11 +316,12 @@ export async function getTenantUsage(tenantId: string) {
         startDate: monthStart,
         endDate: startOfNextUtcMonth(monthStart),
       }),
+      // flowExecutionCap is a MONTHLY limit — count the full billing month
       getUsageCount({
         tenantId,
         type: "flow_execution",
-        startDate: today,
-        endDate: startOfNextUtcDay(today),
+        startDate: monthStart,
+        endDate: startOfNextUtcMonth(monthStart),
       }),
     ]);
 
@@ -328,11 +329,12 @@ export async function getTenantUsage(tenantId: string) {
     ...limits,
     dailyMessages,
     monthlyMessages,
-    dailyFlowExecutions,
+    monthlyFlowExecutions,
     usage: {
       bots: botCount,
       contacts: contactCount,
       messages: monthlyMessages,
+      flowExecutions: monthlyFlowExecutions,
     },
   };
 }
@@ -483,21 +485,22 @@ export async function checkLimit(
     return { allowed: false, remaining: 0, limit: 0, status };
   }
 
-  const dailyUsage = await getUsageCount({
+  // flowExecutionCap is a MONTHLY limit — check against the full billing month
+  const monthlyUsage = await getUsageCount({
     tenantId: user.tenantId,
     type: "flow_execution",
-    startDate: today,
-    endDate: startOfNextUtcDay(today),
+    startDate: startOfUtcMonth(now),
+    endDate: startOfNextUtcMonth(now),
   });
 
-  const status = getUsageStatus(dailyUsage, limit);
-  const remaining = Math.max(limit * HARD_LIMIT_THRESHOLD - dailyUsage, 0);
+  const status = getUsageStatus(monthlyUsage, limit);
+  const remaining = Math.max(limit * HARD_LIMIT_THRESHOLD - monthlyUsage, 0);
 
   return {
     allowed: status.allowed,
     remaining: Math.floor(remaining),
     limit,
-    retryAfter: secondsUntil(startOfNextUtcDay(now), now),
+    retryAfter: secondsUntil(startOfNextUtcMonth(now), now),
     status,
   };
 }

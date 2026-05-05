@@ -1,6 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { checkLimit, incrementUsage, getTenantLimits, usageBuffer, invalidateTenantCache } from '@/lib/subscription';
+import {
+  checkLimit,
+  incrementUsage,
+  incrementTenantUsage,
+  getTenantLimits,
+  usageBuffer,
+  invalidateTenantCache,
+  getUsageStatus,
+  UsageZone,
+} from '@/lib/subscription';
 import { prisma } from '@/lib/prisma';
+
+// ─── Mocks ───────────────────────────────────────────────────────────────────
 
 vi.mock('@/lib/prisma', () => ({
   prisma: {
@@ -23,104 +34,340 @@ vi.mock('@/lib/prisma', () => ({
     bot: {
       count: vi.fn(),
     },
+    contact: {
+      count: vi.fn(),
+    },
     crmConversation: {
       count: vi.fn(),
     },
     plan: {
       findUnique: vi.fn(),
-    }
+    },
   },
 }));
 
 vi.mock('@/lib/redis', () => ({
   redis: {
-    get: vi.fn(),
-    set: vi.fn(),
-    del: vi.fn(),
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn().mockResolvedValue('OK'),
+    del: vi.fn().mockResolvedValue(1),
   },
 }));
 
-describe('Subscription Utility', () => {
+// ─── Plan fixtures (must match pricing table exactly) ────────────────────────
+
+const PLAN_FREE = {
+  name: 'free',
+  displayName: 'Free',
+  monthlyMessageLimit: 100,    // AI Responses / Month
+  dailyMessageLimit: 100,
+  flowExecutionCap: 200,       // Automations / Month
+  maxBots: 1,
+};
+
+const PLAN_STARTER = {
+  name: 'starter',
+  displayName: 'Starter',
+  monthlyMessageLimit: 1000,   // AI Responses / Month
+  dailyMessageLimit: 100,
+  flowExecutionCap: 1500,      // Automations / Month
+  maxBots: 3,
+};
+
+const PLAN_PRO = {
+  name: 'pro',
+  displayName: 'Pro',
+  monthlyMessageLimit: 7500,   // AI Responses / Month
+  dailyMessageLimit: 500,
+  flowExecutionCap: 10000,     // Automations / Month
+  maxBots: 10,
+};
+
+const PLAN_BUSINESS = {
+  name: 'business',
+  displayName: 'Business',
+  monthlyMessageLimit: 25000,  // AI Responses / Month
+  dailyMessageLimit: 1500,
+  flowExecutionCap: 40000,     // Automations / Month
+  maxBots: 25,
+};
+
+function mockActiveSub(plan: Record<string, unknown>) {
+  vi.mocked(prisma.subscription.findFirst).mockResolvedValue({
+    tenantId: 'tenant_1',
+    status: 'ACTIVE',
+    plan,
+  } as unknown as NonNullable<Awaited<ReturnType<typeof prisma.subscription.findFirst>>>);
+}
+
+function mockUser() {
+  vi.mocked(prisma.user.findUnique).mockResolvedValue({
+    tenantId: 'tenant_1',
+  } as unknown as NonNullable<Awaited<ReturnType<typeof prisma.user.findUnique>>>);
+}
+
+function mockUsageLog(count: number) {
+  vi.mocked(prisma.usageLog.aggregate).mockResolvedValue({
+    _sum: { count },
+  } as unknown as Awaited<ReturnType<typeof prisma.usageLog.aggregate>>);
+}
+
+// ─── Tests ───────────────────────────────────────────────────────────────────
+
+describe('Plan limit values (pricing table compliance)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     invalidateTenantCache('tenant_1');
   });
 
-  describe('getTenantLimits', () => {
-    it('should return suspended defaults if no subscription exists', async () => {
-      vi.mocked(prisma.subscription.findFirst).mockResolvedValue(null);
+  it.each([
+    ['free',     PLAN_FREE,     100,   200,  1],
+    ['starter',  PLAN_STARTER,  1000,  1500, 3],
+    ['pro',      PLAN_PRO,      7500,  10000, 10],
+    ['business', PLAN_BUSINESS, 25000, 40000, 25],
+  ])(
+    '%s plan: monthlyMessageLimit=%d, flowExecutionCap=%d, maxBots=%d',
+    async (planName, plan, expectedMessages, expectedFlow, expectedBots) => {
+      mockActiveSub(plan);
       const limits = await getTenantLimits('tenant_1');
-      expect(limits.name).toBe('suspended');
-      expect(limits.dailyMessageLimit).toBe(0);
-    });
+      expect(limits.monthlyMessageLimit).toBe(expectedMessages);
+      expect(limits.flowExecutionCap).toBe(expectedFlow);
+      expect(limits.maxBots).toBe(expectedBots);
+    },
+  );
+});
 
-    it('should return plan details if subscription exists', async () => {
-      const mockSub = {
-        tenantId: 'tenant_1',
-        status: 'active',
-        plan: {
-          name: 'pro',
-          displayName: 'Pro',
-          dailyMessageLimit: 100,
-          monthlyMessageLimit: 3000,
-          flowExecutionCap: 500,
-        }
-      };
-      vi.mocked(prisma.subscription.findFirst).mockResolvedValue(mockSub as unknown as NonNullable<Awaited<ReturnType<typeof prisma.subscription.findFirst>>>);
-      const limits = await getTenantLimits('tenant_1');
-      expect(limits.name).toBe('pro');
-      expect(limits.dailyMessageLimit).toBe(100);
-    });
+describe('getTenantLimits', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    invalidateTenantCache('tenant_1');
   });
 
-  describe('checkLimit', () => {
-    beforeEach(() => {
-      vi.mocked(prisma.user.findUnique).mockResolvedValue({ tenantId: 'tenant_1' } as unknown as NonNullable<Awaited<ReturnType<typeof prisma.user.findUnique>>>);
-      vi.mocked(prisma.subscription.findFirst).mockResolvedValue({
-        status: 'active',
-        plan: { dailyMessageLimit: 100, monthlyMessageLimit: 3000, flowExecutionCap: 10, displayName: 'Pro' }
-      } as unknown as NonNullable<Awaited<ReturnType<typeof prisma.subscription.findFirst>>>);
-    });
-
-    it('should allow if under daily limit', async () => {
-      vi.mocked(prisma.usageLog.aggregate).mockResolvedValue({ _sum: { count: 50 } } as unknown as Awaited<ReturnType<typeof prisma.usageLog.aggregate>>);
-      const result = await checkLimit('user_1', 'message');
-      expect(result.allowed).toBe(true);
-      // HARD_LIMIT_THRESHOLD is 1.10 (10%), so limit is effectively 110
-      expect(result.remaining).toBe(60);
-    });
-
-    it('should block if over daily limit', async () => {
-      vi.mocked(prisma.usageLog.aggregate).mockResolvedValue({ _sum: { count: 110 } } as unknown as Awaited<ReturnType<typeof prisma.usageLog.aggregate>>);
-      const result = await checkLimit('user_1', 'message');
-      expect(result.allowed).toBe(false);
-      expect(result.remaining).toBe(0);
-    });
+  it('returns suspended defaults when no subscription and no free plan exists', async () => {
+    vi.mocked(prisma.subscription.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.plan.findUnique).mockResolvedValue(null);
+    const limits = await getTenantLimits('tenant_1');
+    expect(limits.name).toBe('suspended');
+    expect(limits.dailyMessageLimit).toBe(0);
+    expect(limits.monthlyMessageLimit).toBe(0);
+    expect(limits.flowExecutionCap).toBe(0);
   });
 
-  describe('incrementUsage', () => {
-    it('should buffer usage and flush to DB', async () => {
-      vi.mocked(prisma.user.findUnique).mockResolvedValue({ tenantId: 'tenant_1' } as unknown as NonNullable<Awaited<ReturnType<typeof prisma.user.findUnique>>>);
-      vi.mocked(prisma.subscription.findFirst).mockResolvedValue({
-        status: 'active',
-        plan: { dailyMessageLimit: 100, monthlyMessageLimit: 3000, flowExecutionCap: 100 }
-      } as unknown as NonNullable<Awaited<ReturnType<typeof prisma.subscription.findFirst>>>);
-      vi.mocked(prisma.usageLog.aggregate).mockResolvedValue({ _sum: { count: 10 } } as unknown as Awaited<ReturnType<typeof prisma.usageLog.aggregate>>);
+  it('returns free plan limits when no subscription but free plan exists', async () => {
+    vi.mocked(prisma.subscription.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.plan.findUnique).mockResolvedValue({
+      ...PLAN_FREE,
+      id: 'plan_free',
+      displayName: 'Free',
+    } as unknown as NonNullable<Awaited<ReturnType<typeof prisma.plan.findUnique>>>);
+    const limits = await getTenantLimits('tenant_1');
+    expect(limits.monthlyMessageLimit).toBe(100);
+    expect(limits.flowExecutionCap).toBe(200);
+    expect(limits.maxBots).toBe(1);
+  });
 
-      await incrementUsage('user_1', 'message', 5);
+  it('returns active subscription plan limits', async () => {
+    mockActiveSub(PLAN_PRO);
+    const limits = await getTenantLimits('tenant_1');
+    expect(limits.name).toBe('pro');
+    expect(limits.monthlyMessageLimit).toBe(7500);
+    expect(limits.flowExecutionCap).toBe(10000);
+    expect(limits.maxBots).toBe(10);
+  });
+});
 
-      // Should NOT have called upsert immediately
-      expect(prisma.usageLog.upsert).not.toHaveBeenCalled();
+describe('checkLimit — AI Responses (message type)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    invalidateTenantCache('tenant_1');
+    mockUser();
+  });
 
-      // Manually flush the buffer
-      await usageBuffer.flush();
+  it('allows requests under monthly limit', async () => {
+    mockActiveSub(PLAN_FREE);
+    // Both daily AND monthly queries will return 50
+    mockUsageLog(50);
+    const result = await checkLimit('user_1', 'message');
+    expect(result.allowed).toBe(true);
+  });
 
-      expect(prisma.usageLog.upsert).toHaveBeenCalledWith(expect.objectContaining({
+  it('blocks requests when monthly limit is exceeded (free: 100 → 110 hard limit)', async () => {
+    mockActiveSub(PLAN_FREE);
+    // 110 = 100 * 1.10 hard limit
+    mockUsageLog(110);
+    const result = await checkLimit('user_1', 'message');
+    expect(result.allowed).toBe(false);
+    expect(result.remaining).toBe(0);
+  });
+
+  it('blocks at hard limit for starter plan (1000 monthly → 1100 hard)', async () => {
+    mockActiveSub(PLAN_STARTER);
+    mockUsageLog(1100);
+    const result = await checkLimit('user_1', 'message');
+    expect(result.allowed).toBe(false);
+  });
+
+  it('allows at grace zone for pro plan — monthly only over 100%, daily ok', async () => {
+    mockActiveSub(PLAN_PRO);
+    // First call: daily usage (below daily cap of 500)
+    vi.mocked(prisma.usageLog.aggregate)
+      .mockResolvedValueOnce({ _sum: { count: 300 } } as unknown as Awaited<ReturnType<typeof prisma.usageLog.aggregate>>)
+      // Second call: monthly usage (8000 / 7500 = 1.066 — grace zone)
+      .mockResolvedValueOnce({ _sum: { count: 8000 } } as unknown as Awaited<ReturnType<typeof prisma.usageLog.aggregate>>);
+    const result = await checkLimit('user_1', 'message');
+    // Grace zone (100%-110%) is still allowed
+    expect(result.allowed).toBe(true);
+  });
+});
+
+describe('checkLimit — Automations (flow_execution type, MONTHLY window)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    invalidateTenantCache('tenant_1');
+    mockUser();
+  });
+
+  it('allows flow executions under monthly cap', async () => {
+    mockActiveSub(PLAN_FREE);
+    mockUsageLog(100); // 100 out of 200
+    const result = await checkLimit('user_1', 'flow_execution');
+    expect(result.allowed).toBe(true);
+  });
+
+  it('blocks flow executions at hard limit (free: 200 cap → 220 hard)', async () => {
+    mockActiveSub(PLAN_FREE);
+    mockUsageLog(220); // 220 = 200 * 1.10
+    const result = await checkLimit('user_1', 'flow_execution');
+    expect(result.allowed).toBe(false);
+    expect(result.remaining).toBe(0);
+  });
+
+  it('allows flow executions at grace zone for starter (1500 cap, usage 1550)', async () => {
+    mockActiveSub(PLAN_STARTER);
+    mockUsageLog(1550); // 1550 / 1500 = 1.033 — grace zone, still allowed
+    const result = await checkLimit('user_1', 'flow_execution');
+    expect(result.allowed).toBe(true);
+  });
+
+  it('blocks flow executions when hard limit exceeded for pro (10000 cap → 11001 blocks)', async () => {
+    mockActiveSub(PLAN_PRO);
+    mockUsageLog(11001); // 11001 > 10000 * 1.10
+    const result = await checkLimit('user_1', 'flow_execution');
+    expect(result.allowed).toBe(false);
+  });
+
+  it('returns monthly retryAfter for flow_execution (not daily)', async () => {
+    mockActiveSub(PLAN_FREE);
+    mockUsageLog(250);
+    const result = await checkLimit('user_1', 'flow_execution');
+    // retryAfter should be > 1 day (monthly reset)
+    const oneDayInSeconds = 60 * 60 * 24;
+    expect(result.retryAfter).toBeGreaterThan(oneDayInSeconds);
+  });
+});
+
+describe('getUsageStatus', () => {
+  it('returns SAFE zone at 0%', () => {
+    const s = getUsageStatus(0, 1000);
+    expect(s.zone).toBe(UsageZone.SAFE);
+    expect(s.allowed).toBe(true);
+  });
+
+  it('returns WARNING zone at 90%', () => {
+    const s = getUsageStatus(900, 1000);
+    expect(s.zone).toBe(UsageZone.WARNING);
+    expect(s.allowed).toBe(true);
+  });
+
+  it('returns GRACE zone at 100%', () => {
+    const s = getUsageStatus(1000, 1000);
+    expect(s.zone).toBe(UsageZone.GRACE);
+    expect(s.allowed).toBe(true);
+  });
+
+  it('returns HARD zone at 110%', () => {
+    const s = getUsageStatus(1100, 1000);
+    expect(s.zone).toBe(UsageZone.HARD);
+    expect(s.allowed).toBe(false);
+  });
+
+  it('returns HARD zone when limit is 0', () => {
+    const s = getUsageStatus(0, 0);
+    expect(s.zone).toBe(UsageZone.HARD);
+    expect(s.allowed).toBe(false);
+  });
+});
+
+describe('incrementUsage (buffered)', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    invalidateTenantCache('tenant_1');
+    // Flush any leftover state from previous tests
+    await usageBuffer.flush();
+  });
+
+  it('buffers usage and does not immediately write to DB', async () => {
+    mockUser();
+    mockActiveSub(PLAN_PRO);
+    mockUsageLog(10);
+
+    await incrementUsage('user_1', 'message', 5);
+
+    expect(prisma.usageLog.upsert).not.toHaveBeenCalled();
+  });
+
+  it('writes to DB when buffer is flushed', async () => {
+    mockUser();
+    mockActiveSub(PLAN_PRO);
+    mockUsageLog(10);
+
+    await incrementUsage('user_1', 'message', 5);
+    await usageBuffer.flush();
+
+    expect(prisma.usageLog.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
         create: expect.objectContaining({
-          count: 5,
-          tenantId: 'tenant_1'
-        })
-      }));
-    });
+          tenantId: 'tenant_1',
+          type: 'message',
+        }),
+      }),
+    );
+  });
+});
+
+describe('incrementTenantUsage (buffered, tenant-direct)', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    invalidateTenantCache('tenant_1');
+    // Flush any state left from previous tests
+    await usageBuffer.flush();
+    mockActiveSub(PLAN_BUSINESS);
+    mockUsageLog(0);
+  });
+
+  it('buffers flow_execution without a user lookup', async () => {
+    await incrementTenantUsage('tenant_1', 'flow_execution', 1);
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    expect(prisma.usageLog.upsert).not.toHaveBeenCalled();
+  });
+
+  it('flushes flow_execution to DB', async () => {
+    await incrementTenantUsage('tenant_1', 'flow_execution', 3);
+    await usageBuffer.flush();
+
+    expect(prisma.usageLog.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          tenantId: 'tenant_1',
+          type: 'flow_execution',
+        }),
+      }),
+    );
+  });
+
+  it('ignores amounts <= 0', async () => {
+    await incrementTenantUsage('tenant_1', 'message', 0);
+    await usageBuffer.flush();
+    expect(prisma.usageLog.upsert).not.toHaveBeenCalled();
   });
 });
