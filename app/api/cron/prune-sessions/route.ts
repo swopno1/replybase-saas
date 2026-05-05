@@ -38,7 +38,5 @@ async function runPruneSessions(): Promise<NextResponse> {
     where: { expires: { lt: now } },
   });
 
-  console.log(`[prune-sessions] deleted=${count}`);
-
   return NextResponse.json({ ok: true, deleted: count });
 }
