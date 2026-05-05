@@ -47,21 +47,40 @@ export async function POST(request: NextRequest) {
     const aiMessages: ModelMessage[] = lastMessages.reverse().map((msg) => ({ role: msg.source === "human" ? "user" : "assistant", content: msg.content }));
     if (aiMessages.length === 0 || aiMessages[aiMessages.length - 1].content !== message) { aiMessages.push({ role: "user", content: message }); }
     const { aiFallback } = await import("@/lib/ai-fallback");
-    let aiText = "", aiErrorOccurred = false;
     try {
       const aiStream = await aiFallback({ botId, conversationId, messages: aiMessages, planName });
-      aiText = aiStream && "text" in aiStream ? (await aiStream.text) as string : String(aiStream ?? "");
+      if (aiStream && "toDataStreamResponse" in aiStream) {
+        // Vercel AI SDK 3.1+ style streaming
+        return (aiStream as any).toDataStreamResponse({
+          headers: createWebchatCorsHeaders(request) as any,
+          onFinished: async (completion: string) => {
+            await prisma.crmMessage.create({
+              data: {
+                tenantId,
+                conversationId,
+                direction: "outbound",
+                content: completion.trim(),
+                source: "ai",
+              },
+            });
+            logger.info({ conversationId }, "[Webchat Message] AI response finished and saved");
+          },
+        });
+      }
+
+      // Fallback for older versions or non-stream results
+      const aiText = aiStream && "text" in aiStream ? (await (aiStream as any).text) as string : String(aiStream ?? "");
+      if (aiText.trim()) {
+        await prisma.crmMessage.create({ data: { tenantId, conversationId, direction: "outbound", content: aiText.trim(), source: "ai" } });
+        return NextResponse.json({ responses: [{ type: "text", text: aiText.trim() }], meta: { mode: "ai_fallback" } }, { headers: createWebchatCorsHeaders(request) });
+      }
     } catch (aiError) {
-      aiErrorOccurred = true;
       const isQuotaError = String(aiError).includes("RESOURCE_EXHAUSTED") || String(aiError).includes("429");
       const isTimeout = String(aiError).toLowerCase().includes("timeout") || String(aiError).toLowerCase().includes("abort");
-      aiText = isQuotaError ? "I'm experiencing high demand right now." : isTimeout ? "I'm taking a bit longer than usual." : customFallbackMessage;
+      const aiText = isQuotaError ? "I'm experiencing high demand right now." : isTimeout ? "I'm taking a bit longer than usual." : customFallbackMessage;
       logger.error({ error: aiError, isQuotaError, isTimeout }, "[Webchat Message] AI error, using fallback");
-    }
-    if (aiText.trim()) {
-      await prisma.crmMessage.create({ data: { tenantId, conversationId, direction: "outbound", content: aiText.trim(), source: aiErrorOccurred ? "manual_fallback" : "ai" } });
-      logger.info({ mode: aiErrorOccurred ? "manual_fallback" : "ai_fallback", aiText }, "[Webchat Message] Responding");
-      return NextResponse.json({ responses: [{ type: "text", text: aiText.trim() }], meta: { mode: aiErrorOccurred ? "manual_fallback" : "ai_fallback" } }, { headers: createWebchatCorsHeaders(request) });
+      await prisma.crmMessage.create({ data: { tenantId, conversationId, direction: "outbound", content: aiText.trim(), source: "manual_fallback" } });
+      return NextResponse.json({ responses: [{ type: "text", text: aiText.trim() }], meta: { mode: "manual_fallback" } }, { headers: createWebchatCorsHeaders(request) });
     }
     logger.error({ conversationId, botId }, "[Webchat Message] All fallbacks failed");
     return NextResponse.json({ responses: [{ type: "text", text: customFallbackMessage }], meta: { mode: "safe_fallback" } }, { headers: createWebchatCorsHeaders(request) });
