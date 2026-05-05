@@ -230,7 +230,7 @@ function getVariableString(
 function mergeTags(existing: unknown, incoming?: string[]) {
   const currentTags = Array.isArray(existing)
     ? existing.filter(
-        (tag): tag is string =>
+        (tag: unknown): tag is string =>
           typeof tag === "string" && tag.trim().length > 0,
       )
     : [];

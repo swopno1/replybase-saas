@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { Prisma } from "@prisma/client";
 import { ModelMessage } from "ai";
 import { verifyWebhookSignature } from "@/lib/server/facebook-utils";
 import { prisma } from "@/lib/prisma";
-// AI fallback removed April 2026
+import logger from "@/lib/logger";
 import { executeBotEntryFlowFirst } from "@/lib/bot-entry-flow-engine";
 import { recordMilestoneEvent } from "@/lib/milestone-events";
 import { waitForFlowDurationMs } from "@/lib/flow-runtime-utils";
@@ -472,7 +473,7 @@ async function sendAutoReply(params: {
       return;
     }
   } catch (error) {
-    console.error("[WhatsApp Webhook] Flow engine error:", error);
+    logger.error({ error }, "[WhatsApp Webhook] Flow engine error");
   }
 
   // AI fallback if flow did not return text
@@ -557,10 +558,7 @@ async function sendAutoReply(params: {
         },
       });
     } catch (error) {
-      console.error(
-        "[WhatsApp Webhook] Failed to persist outbound message:",
-        error,
-      );
+      logger.error({ error }, "[WhatsApp Webhook] Failed to persist outbound message");
     }
 
     // Best-effort milestone tracking.
@@ -594,10 +592,7 @@ async function sendAutoReply(params: {
         },
       })
       .catch((err) => {
-        console.error(
-          "[WhatsApp Webhook] Failed to update delivery success config:",
-          err,
-        );
+        logger.error({ error: err }, "[WhatsApp Webhook] Failed to update delivery success config");
       });
   } else {
     await prisma.webhookLog
@@ -759,15 +754,41 @@ async function processMetaPayload(params: {
           continue;
         }
 
-        await ensureContactAndConversation({
-          channel,
-          waId: message.from,
-          profileName: value.contacts?.[0]?.profile?.name,
-          rawPhone: message.from,
-          inboundText: message.text.body,
-          messageId: message.id,
-          timestamp: message.timestamp,
-        });
+        // Process using waitUntil to ensure execution in serverless environments
+        try {
+          waitUntil(
+            ensureContactAndConversation({
+              channel,
+              waId: message.from,
+              profileName: value.contacts?.[0]?.profile?.name,
+              rawPhone: message.from,
+              inboundText: message.text.body,
+              messageId: message.id,
+              timestamp: message.timestamp,
+            }).catch((err) => {
+              logger.error(
+                { error: err },
+                "[WhatsApp Webhook] Async processing error",
+              );
+            }),
+          );
+        } catch (e) {
+          // Fallback if waitUntil is not available
+          ensureContactAndConversation({
+            channel,
+            waId: message.from,
+            profileName: value.contacts?.[0]?.profile?.name,
+            rawPhone: message.from,
+            inboundText: message.text.body,
+            messageId: message.id,
+            timestamp: message.timestamp,
+          }).catch((err) => {
+            logger.error(
+              { error: err },
+              "[WhatsApp Webhook] Async processing error (fallback)",
+            );
+          });
+        }
       }
     }
   }
@@ -852,13 +873,37 @@ async function processTwilioPayload(
     );
   }
 
-  await ensureContactAndConversation({
-    channel,
-    waId: from,
-    rawPhone: from,
-    inboundText: body,
-    messageId: messageSid,
-  });
+  // Process using waitUntil to ensure execution in serverless environments
+  try {
+    waitUntil(
+      ensureContactAndConversation({
+        channel,
+        waId: from,
+        rawPhone: from,
+        inboundText: body,
+        messageId: messageSid,
+      }).catch((err) => {
+        logger.error(
+          { error: err },
+          "[WhatsApp Webhook] Async Twilio processing error",
+        );
+      }),
+    );
+  } catch (e) {
+    // Fallback if waitUntil is not available
+    ensureContactAndConversation({
+      channel,
+      waId: from,
+      rawPhone: from,
+      inboundText: body,
+      messageId: messageSid,
+    }).catch((err) => {
+      logger.error(
+        { error: err },
+        "[WhatsApp Webhook] Async Twilio processing error (fallback)",
+      );
+    });
+  }
 
   return new NextResponse("<Response></Response>", {
     status: 200,
@@ -921,7 +966,7 @@ export async function POST(req: NextRequest) {
       signature: req.headers.get("x-hub-signature-256"),
     });
   } catch (error) {
-    console.error("[WhatsApp Webhook] Error:", error);
+    logger.error({ error }, "[WhatsApp Webhook] Error");
     return NextResponse.json({ received: false }, { status: 500 });
   }
 }

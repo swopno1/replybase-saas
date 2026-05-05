@@ -540,7 +540,7 @@ export default function LeadsPage() {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button variant="outline" size="sm" onClick={() => handleExportClick(isAllMatchingSelected ? undefined : selectedIds)} disabled={isExporting}>
+            <Button variant="outline" size="sm" onClick={() => handleExportClick(isAllMatchingSelected ? undefined : selectedIds)} disabled={isExporting || !canExport}>
               <Download className="mr-2 h-4 w-4" />
               Export {isAllMatchingSelected ? "All" : "Selected"} ({currentSelectionCount})
             </Button>

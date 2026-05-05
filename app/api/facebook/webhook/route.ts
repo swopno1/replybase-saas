@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { ModelMessage } from "ai";
 import { prisma } from "@/lib/prisma";
-// AI fallback removed April 2026
+import logger from "@/lib/logger";
 import {
   sendFacebookSenderAction,
   sendTextMessage,
@@ -19,7 +20,7 @@ import { waitForFlowDurationMs } from "@/lib/flow-runtime-utils";
 export async function GET(req: NextRequest) {
   // Check if Facebook channel is enabled
   if (!isChannelEnabled("facebook")) {
-    console.warn("[Facebook Webhook] Channel is disabled");
+    logger.warn("[Facebook Webchat] Channel is disabled");
     return NextResponse.json(
       { error: "Facebook channel is not enabled" },
       { status: 403 },
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
   const verifyToken = process.env.FACEBOOK_WEBHOOK_VERIFY_TOKEN;
 
   if (!verifyToken) {
-    console.error("FACEBOOK_WEBHOOK_VERIFY_TOKEN not configured");
+    logger.error("FACEBOOK_WEBHOOK_VERIFY_TOKEN not configured");
     return NextResponse.json(
       { error: "Server configuration error" },
       { status: 500 },
@@ -54,13 +55,13 @@ export async function GET(req: NextRequest) {
         },
       });
     } catch (logError) {
-      console.error("[Facebook Webhook] Failed to log verification:", logError);
+      logger.error({ error: logError }, "[Facebook Webhook] Failed to log verification");
     }
 
     return new NextResponse(challenge, { status: 200 });
   }
 
-  console.warn("[Facebook Webhook] Verification failed");
+  logger.warn("[Facebook Webhook] Verification failed");
   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 }
 
@@ -68,7 +69,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   // Check if Facebook channel is enabled
   if (!isChannelEnabled("facebook")) {
-    console.warn("[Facebook Webhook] Channel is disabled");
+    logger.warn("[Facebook Webhook] Channel is disabled");
     return NextResponse.json(
       { error: "Facebook channel is not enabled" },
       { status: 403 },
@@ -81,7 +82,7 @@ export async function POST(req: NextRequest) {
     const appSecret = process.env.FACEBOOK_CLIENT_SECRET;
 
     if (!appSecret) {
-      console.error("[Facebook Webhook] FACEBOOK_CLIENT_SECRET not configured");
+      logger.error("[Facebook Webhook] FACEBOOK_CLIENT_SECRET not configured");
       return NextResponse.json(
         { error: "Server configuration error" },
         { status: 500 },
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!signature) {
-      console.error("[Facebook Webhook] Missing X-Hub-Signature-256 header");
+      logger.error("[Facebook Webhook] Missing X-Hub-Signature-256 header");
       return NextResponse.json(
         { error: "Missing signature header" },
         { status: 401 },
@@ -101,7 +102,7 @@ export async function POST(req: NextRequest) {
     const isValid = verifyWebhookSignature(bodyText, signature, appSecret);
 
     if (!isValid) {
-      console.error("[Facebook Webhook] Invalid signature");
+      logger.error("[Facebook Webhook] Invalid signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
     }
 
@@ -110,7 +111,7 @@ export async function POST(req: NextRequest) {
 
     // Log webhook event to database (async, don't await to avoid blocking)
     logWebhookEvent(body).catch((err) =>
-      console.error("[Facebook Webhook] Failed to log event:", err),
+      logger.error("[Facebook Webhook] Failed to log event:", err),
     );
 
     // Process each entry in the webhook payload
@@ -120,7 +121,25 @@ export async function POST(req: NextRequest) {
         if (!messaging || !Array.isArray(messaging)) continue;
 
         for (const event of messaging) {
-          await handleMessagingEvent(event);
+          // Process using waitUntil to ensure execution in serverless environments
+          try {
+            waitUntil(
+              handleMessagingEvent(event).catch((err) =>
+                logger.error(
+                  { error: err },
+                  "[Facebook Webhook] Async processing error",
+                ),
+              ),
+            );
+          } catch (e) {
+            // Fallback if waitUntil is not available
+            handleMessagingEvent(event).catch((err) =>
+              logger.error(
+                { error: err },
+                "[Facebook Webhook] Async processing error (fallback)",
+              ),
+            );
+          }
         }
       }
     }
@@ -128,7 +147,7 @@ export async function POST(req: NextRequest) {
     // Always return 200 OK to Facebook to prevent retries
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
-    console.error("[Facebook Webhook] Error processing event:", error);
+    logger.error({ error }, "[Facebook Webhook] Error processing event");
     // Still return 200 to prevent Facebook from retrying
     return NextResponse.json({ success: true }, { status: 200 });
   }
@@ -189,9 +208,9 @@ async function handleMessagingEvent(event: FacebookMessagingEvent) {
 
     await handleMessage(senderPsid, pageId, messageText);
   } catch (error) {
-    console.error(
-      "[Facebook Webhook] Unhandled error in handleMessagingEvent:",
-      error,
+    logger.error(
+      { error },
+      "[Facebook Webhook] Unhandled error in handleMessagingEvent",
     );
   }
 }
@@ -206,7 +225,7 @@ async function handleMessage(
 ) {
   try {
     if (!senderPsid || !pageId) {
-      console.warn("[Facebook Webhook] Missing sender or recipient ID");
+      logger.warn("[Facebook Webhook] Missing sender or recipient ID");
       return;
     }
 
@@ -216,7 +235,7 @@ async function handleMessage(
     });
 
     if (!facebookPage || !facebookPage.tenantId) {
-      console.warn(
+      logger.warn(
         `[Facebook Webhook] Page ${pageId} not found or missing tenantId`,
       );
       return;
@@ -373,7 +392,7 @@ async function handleMessage(
         return;
       }
     } catch (error) {
-      console.error("[Facebook Webhook] Flow Engine Error:", error);
+      logger.error({ error }, "[Facebook Webhook] Flow Engine Error");
       // Fall through to AI
     }
 
@@ -439,7 +458,7 @@ async function handleMessage(
         }
       }
     } catch (aiError) {
-      console.error("[Facebook Webhook] AI fallback error:", aiError);
+      logger.error({ error: aiError }, "[Facebook Webhook] AI fallback error");
       // If AI fails, fall through to static message
     }
 
@@ -470,7 +489,7 @@ async function handleMessage(
       source: "ai",
     });
   } catch (error) {
-    console.error("[Facebook Webhook] Error in handleMessage:", error);
+    logger.error({ error }, "[Facebook Webhook] Error in handleMessage");
   }
 }
 
@@ -528,6 +547,6 @@ async function logWebhookEvent(body: Record<string, unknown>) {
     }
   } catch (error) {
     // Silently fail - logging is non-critical
-    console.error("[Facebook Webhook] Log error:", error);
+    logger.error({ error }, "[Facebook Webhook] Log error");
   }
 }
