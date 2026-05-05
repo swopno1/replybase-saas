@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { streamText, Output, ModelMessage } from "ai";
 import { getAiModel, AiProvider } from "@/lib/ai-service";
 import { incrementTenantUsage } from "./subscription";
+import { buildFallbackSystemPrompt } from "@/lib/onboarding-ai";
 
 export interface AiFallbackOptions {
   botId: string;
@@ -13,9 +14,12 @@ export interface AiFallbackOptions {
 }
 
 /**
- * Fetches bot context and last N messages, builds prompt, and streams AI fallback response.
- * - For pro/business: injects bot context and last N messages (char limit)
- * - For free/starter: uses simple prompt
+ * Fetches bot context and last N messages, builds a grounded system prompt,
+ * and streams an AI fallback response.
+ *
+ * ALL plan tiers now receive a structured system prompt built from bot context.
+ * - Pro/Business: includes recent conversation history for richer context
+ * - Free/Starter: system prompt only (no conversation history)
  */
 export async function aiFallback({
   botId,
@@ -47,43 +51,44 @@ export async function aiFallback({
 
   const tenantId = bot.tenantId;
 
-  // Fetch last N messages (limit by char count)
-  const lastMessages = await prisma.crmMessage.findMany({
-    where: { conversationId },
-    orderBy: { createdAt: "desc" },
-    take: 10, // fetch up to 10, trim by char below
-    select: { content: true, source: true, createdAt: true },
-  });
-  // Reverse to chronological order
-  const ordered = lastMessages.reverse();
-  const contextMessages: string[] = [];
-  let totalChars = 0;
-  for (const msg of ordered) {
-    const line = `[${msg.source}] ${msg.content}`;
-    if (totalChars + line.length > charLimit) break;
-    contextMessages.push(line);
-    totalChars += line.length;
-  }
+  // Build grounded system prompt from bot context (ALL plans)
+  const botContext = bot.context as Record<string, unknown> | null;
+  const systemPrompt = buildFallbackSystemPrompt(botContext, bot.name || undefined);
 
-  // Build prompt
-  let promptMessages: ModelMessage[] = messages;
+  // Build prompt messages — always include system prompt
+  let promptMessages: ModelMessage[] = [
+    { role: "system", content: systemPrompt },
+    ...messages,
+  ] as ModelMessage[];
+
+  // For Pro/Business plans, also include recent conversation history
   const plan = planName.toLowerCase();
   if (plan.includes("pro") || plan.includes("business")) {
-    // Inject bot context and last messages
-    const contextBlock = [
-      bot?.context ? `Bot Context: ${JSON.stringify(bot.context)}` : null,
-      contextMessages.length
-        ? `Recent Conversation:\n${contextMessages.join("\n")}`
-        : null,
-    ]
-      .filter(Boolean)
-      .join("\n\n");
-    promptMessages = [
-      { role: "system", content: contextBlock },
-      ...messages,
-    ] as ModelMessage[];
+    const lastMessages = await prisma.crmMessage.findMany({
+      where: { conversationId },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: { content: true, source: true, createdAt: true },
+    });
+
+    const ordered = lastMessages.reverse();
+    const contextMessages: string[] = [];
+    let totalChars = 0;
+    for (const msg of ordered) {
+      const line = `[${msg.source}] ${msg.content}`;
+      if (totalChars + line.length > charLimit) break;
+      contextMessages.push(line);
+      totalChars += line.length;
+    }
+
+    if (contextMessages.length > 0) {
+      const historyBlock = `Recent Conversation:\n${contextMessages.join("\n")}`;
+      promptMessages = [
+        { role: "system", content: `${systemPrompt}\n\n${historyBlock}` },
+        ...messages,
+      ] as ModelMessage[];
+    }
   }
-  // For free/starter, just use messages
 
   const provider = (bot?.tenant?.aiProvider as AiProvider) || "default";
   const model = getAiModel({

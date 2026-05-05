@@ -1,11 +1,14 @@
-import { summarizeOnboardingData, customizeFlowNodesWithAI, appendLeadGenerationNodes } from "@/lib/onboarding-ai";
-import { getTemplateByCategory, FlowTemplateCategory } from "@/lib/flow-templates";
+import {
+  summarizeOnboardingData,
+  customizeFlowNodesWithAI,
+  appendLeadGenerationNodes,
+  resolveTemplateCategory,
+} from "@/lib/onboarding-ai";
+import { getTemplateByCategory } from "@/lib/flow-templates";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 import { OnboardingSchema, OnboardingData, OnboardingSummary } from "@/types/shared/onboarding";
 import { successResponse, errorResponse, validationErrorResponse } from "@/lib/api-response";
 import { Prisma } from "@prisma/client";
-
-// Schema is now in types/shared/onboarding.ts
 
 export const GET = withAuthAndTenant(async ({ tenantId }, request, context, db) => {
   const tenant = await db.tenant.findUnique({
@@ -53,56 +56,65 @@ export const POST = withAuthAndTenant(async ({ id, tenantId }, request, context,
     const body = await request.json();
     const validatedData = OnboardingSchema.parse(body);
 
+    // 1. Summarize onboarding data into structured profile
     let summary: OnboardingSummary;
     try {
       summary = await summarizeOnboardingData(validatedData);
     } catch (err) {
       console.error("[Onboarding AI] Failed to summarize data", err);
       summary = {
-        companyProfile: `${validatedData.kyc.company} is a business in the ${validatedData.businessBasics.industry} industry.`,
-        targetAudience: Array.isArray(validatedData.productDetails.targetCustomers)
-          ? validatedData.productDetails.targetCustomers.join(", ")
-          : validatedData.productDetails.targetCustomers,
-        keyOfferings: validatedData.productSpecifics.mainProducts,
-        pricingStrategy: validatedData.productSpecifics.pricing,
-        competitiveAdvantage: validatedData.productSpecifics.usps,
-        commonQueries: "Refer to support documents.",
+        companyProfile: `${validatedData.business.company} is a business in the ${validatedData.business.industry} industry.`,
+        targetAudience: Array.isArray(validatedData.offer.targetCustomers)
+          ? validatedData.offer.targetCustomers.join(", ")
+          : validatedData.offer.targetCustomers,
+        keyOfferings: validatedData.offer.mainProducts,
+        commonQueries: validatedData.context.commonQuestions,
         toneAndVoice: "Professional and helpful",
-        isPlaceholder: true
+        conversionGoal: validatedData.chatbotGoals.conversionGoal,
+        preferredCta: validatedData.chatbotGoals.preferredCta,
+        escalationPreference: validatedData.chatbotGoals.escalationPreference,
+        isPlaceholder: true,
       };
     }
 
-    const mapIndustryToCategory = (industry: string): FlowTemplateCategory => {
-      const lower = industry.toLowerCase();
-      if (lower.includes("saas")) return "saas";
-      if (lower.includes("e-commerce") || lower.includes("retail")) return "ecommerce";
-      if (lower.includes("agency")) return "agencies";
-      if (lower.includes("real estate")) return "real-estate";
-      if (lower.includes("fitness") || lower.includes("gym")) return "boutique-gym";
-      if (lower.includes("beauty") || lower.includes("salon")) return "hair-salon";
-      if (lower.includes("restaurant") || lower.includes("food")) return "restaurant";
-      if (lower.includes("hotel") || lower.includes("hospitality")) return "hotel";
-      if (lower.includes("service")) return "services";
-      return "welcome";
-    };
-
-    const category = mapIndustryToCategory(validatedData.businessBasics.industry);
+    // 2. Resolve template from industry + sub-industry + goal
+    const category = resolveTemplateCategory(validatedData);
     const template = getTemplateByCategory(category) || getTemplateByCategory("welcome")!;
 
-    const customizedNodesRaw = await customizeFlowNodesWithAI(template.nodes, summary);
-    const customizedNodes = appendLeadGenerationNodes(customizedNodesRaw);
+    // 3. Customize template nodes with AI (text only, structure preserved)
+    const customizedNodesRaw = await customizeFlowNodesWithAI(
+      template.nodes,
+      summary,
+      validatedData,
+    );
 
+    // 4. Append lead generation / CTA nodes based on chatbot goals
+    const customizedNodes = appendLeadGenerationNodes(customizedNodesRaw, validatedData);
+
+    // 5. Build fallback message based on escalation preference
+    const fallbackMessages: Record<string, string> = {
+      email: `I'm not sure about that one. Our ${validatedData.business.industry} team will follow up with you by email shortly.`,
+      phone: `That's a great question! Let me have someone from our team call you to discuss.`,
+      live_chat: `I'll connect you with a team member who can help with that right away.`,
+      none: `I'm not quite sure about that. Our team will get back to you soon.`,
+    };
+
+    const fallbackMessage = summary.isPlaceholder
+      ? "Sorry, I didn't understand that."
+      : fallbackMessages[validatedData.chatbotGoals.escalationPreference] || fallbackMessages.none;
+
+    // 6. Create the flow
     const flow = await db.flow.create({
       data: {
-        name: `${validatedData.kyc.company} Main Flow`,
-        description: `Automated flow generated during onboarding from ${template.name} template`,
+        name: `${validatedData.business.company} Main Flow`,
+        description: `Automated flow generated during onboarding from ${template.name} template (${category})`,
         tenantId,
         ownerId: id,
         isGlobal: false,
         isActive: true,
         version: 1,
         language: "en",
-        fallbackMessage: summary.isPlaceholder ? "Sorry, I didn't understand that." : `I'm not quite sure about that. Our ${validatedData.businessBasics.industry} team will get back to you soon.`,
+        fallbackMessage,
         maxTimeout: 300,
         nodes: {
           create: customizedNodes.map(
@@ -117,6 +129,7 @@ export const POST = withAuthAndTenant(async ({ id, tenantId }, request, context,
       },
     });
 
+    // 7. Store onboarding data and summary
     await db.tenant.update({
       where: { id: tenantId },
       data: {
@@ -128,11 +141,12 @@ export const POST = withAuthAndTenant(async ({ id, tenantId }, request, context,
       },
     });
 
+    // 8. Create or update bot with context
     const botCount = await db.bot.count({ where: { tenantId } });
     if (botCount === 0) {
       await db.bot.create({
         data: {
-          name: `${validatedData.kyc.company} AI Assistant`,
+          name: `${validatedData.business.company} AI Assistant`,
           tenantId,
           enabled: true,
           context: summary as unknown as Prisma.InputJsonValue,

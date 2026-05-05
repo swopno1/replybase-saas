@@ -27,12 +27,10 @@ import {
 export const dynamic = "force-dynamic";
 
 const STAGES = [
-  "KYC",
-  "Business Basics",
-  "Product/Service",
-  "Specifics",
-  "Support & Sales",
-  "Additional Context",
+  "Your Business",
+  "Your Offer",
+  "Chatbot Goals",
+  "Finishing Touches",
 ];
 
 export default async function OnboardingSessionsPage({
@@ -100,9 +98,11 @@ export default async function OnboardingSessionsPage({
       abandonmentByStage[abandonStage] = (abandonmentByStage[abandonStage] || 0) + 1;
     }
 
-    const data = t.onboardingData as { raw?: OnboardingData; summary?: OnboardingSummary } | null;
-    if (data?.raw?.businessBasics?.industry) {
-      const industry = data.raw.businessBasics.industry;
+    const data = t.onboardingData as { raw?: OnboardingData | Record<string, any>; summary?: OnboardingSummary } | null;
+    // Support both new schema (raw.business.industry) and legacy (raw.businessBasics.industry)
+    const rawData = data?.raw as Record<string, any> | undefined;
+    const industry = rawData?.business?.industry || rawData?.businessBasics?.industry;
+    if (industry) {
       industryDistribution[industry] = (industryDistribution[industry] || 0) + 1;
     }
   });
@@ -339,10 +339,11 @@ export default async function OnboardingSessionsPage({
                 </TableRow>
               ) : (
                 filteredTenants.map((tenant) => {
-                  const data = tenant.onboardingData as { raw?: OnboardingData; summary?: OnboardingSummary } | null;
-                  const companyName = data?.raw?.kyc?.company || "-";
-                  const companySize = data?.raw?.businessBasics?.companySize || "";
-                  const industry = data?.raw?.businessBasics?.industry;
+                  const data = tenant.onboardingData as { raw?: OnboardingData | Record<string, any>; summary?: OnboardingSummary } | null;
+                  // Support both new schema and legacy schema
+                  const rawData = data?.raw as Record<string, any> | undefined;
+                  const companyName = rawData?.business?.company || rawData?.kyc?.company || "-";
+                  const industry = rawData?.business?.industry || rawData?.businessBasics?.industry;
                   const aiSummary = data?.summary?.companyProfile || "";
                   const email = tenant.users[0]?.email || "-";
 
@@ -353,7 +354,6 @@ export default async function OnboardingSessionsPage({
                       </TableCell>
                       <TableCell>
                         <div className="font-semibold">{companyName}</div>
-                        {companySize && <div className="text-xs text-muted-foreground">{companySize}</div>}
                         {aiSummary && <div className="text-xs italic text-gray-500 mt-1 max-w-[200px] truncate" title={aiSummary}>{aiSummary}</div>}
                       </TableCell>
                       <TableCell>

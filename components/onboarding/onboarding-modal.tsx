@@ -29,18 +29,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { OnboardingProgress } from "./onboarding-ui";
 import { toast } from "sonner";
-import { Loader2, ChevronDown, Sparkles } from "lucide-react";
+import { Loader2, ChevronDown, Sparkles, Target, MessageSquare, Zap, Phone, Mail, Globe, Calendar, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { OnboardingData } from "@/types/shared/onboarding";
 
+// ─── Step Configuration ─────────────────────────────────────────────────────
+
 const STAGES = [
-  "KYC",
-  "Business Basics",
-  "Product/Service",
-  "Specifics",
-  "Support & Sales",
-  "Additional Context",
+  "Your Business",
+  "Your Offer",
+  "Chatbot Goals",
+  "Finishing Touches",
 ];
+
+// ─── Selection Options ──────────────────────────────────────────────────────
 
 const INDUSTRIES_WITH_SUBCATEGORIES: Record<string, string[]> = {
   "Real Estate": ["Agencies", "Property Management", "Commercial", "Other"],
@@ -54,8 +56,9 @@ const INDUSTRIES_WITH_SUBCATEGORIES: Record<string, string[]> = {
   "Marketing & Agency": ["Digital Marketing", "SEO/Content", "PR/Communications", "Lead Generation", "Other"],
   "Other": ["Other"]
 };
-const COMPANY_SIZES = ["1-10", "11-50", "51-200", "201-1000", "1000+"];
+
 const BUSINESS_MODELS = ["B2B", "B2C", "Marketplace", "Nonprofit", "Other"];
+
 const CUSTOMER_TYPES = [
   "Local Consumers (B2C)",
   "Online Shoppers (B2C)",
@@ -68,16 +71,46 @@ const CUSTOMER_TYPES = [
   "Other"
 ];
 
-// Interface is now imported from @/types/shared/onboarding
+const CONVERSION_GOAL_OPTIONS = [
+  { value: "lead_capture", label: "Capture Leads", description: "Collect contact details from interested visitors", icon: Users },
+  { value: "booking", label: "Book Appointments", description: "Get visitors to schedule a call or visit", icon: Calendar },
+  { value: "support", label: "Customer Support", description: "Answer questions and resolve issues", icon: MessageSquare },
+  { value: "sales", label: "Drive Sales", description: "Guide visitors toward making a purchase", icon: Zap },
+  { value: "engagement", label: "Engage & Inform", description: "Share info and keep visitors engaged", icon: Globe },
+] as const;
+
+const CTA_OPTIONS = [
+  { value: "call", label: "Phone Call", icon: Phone },
+  { value: "whatsapp", label: "WhatsApp", icon: MessageSquare },
+  { value: "email", label: "Email", icon: Mail },
+  { value: "form", label: "Contact Form", icon: Target },
+  { value: "booking_link", label: "Booking Link", icon: Calendar },
+] as const;
+
+const PERSONALITY_OPTIONS = [
+  { value: "professional", label: "Professional", description: "Clear, confident, no slang" },
+  { value: "friendly", label: "Friendly", description: "Warm, approachable, light emojis" },
+  { value: "casual", label: "Casual", description: "Relaxed, informal, emoji-rich" },
+  { value: "luxury", label: "Luxury", description: "Elegant, refined, exclusive" },
+] as const;
+
+const ESCALATION_OPTIONS = [
+  { value: "email", label: "Email follow-up" },
+  { value: "phone", label: "Phone callback" },
+  { value: "live_chat", label: "Live chat handoff" },
+  { value: "none", label: "No escalation needed" },
+] as const;
+
+// ─── Initial Data ───────────────────────────────────────────────────────────
 
 const INITIAL_DATA: OnboardingData = {
-  kyc: { name: "", company: "", contactInfo: "", location: "" },
-  businessBasics: { industry: "", subIndustry: "", companySize: "", website: "", businessModel: "" },
-  productDetails: { offer: "", targetCustomers: [] },
-  productSpecifics: { mainProducts: "", pricing: "", usps: "" },
-  supportSales: { commonQuestions: "", painPoints: "", salesProcess: "" },
-  additionalContext: { otherInfo: "" },
+  business: { name: "", company: "", industry: "", subIndustry: "", website: "", businessModel: "" },
+  offer: { description: "", targetCustomers: [], mainProducts: "" },
+  chatbotGoals: { conversionGoal: "lead_capture", preferredCta: "email", botPersonality: "friendly", escalationPreference: "email" },
+  context: { commonQuestions: "", otherInfo: "" },
 };
+
+// ─── Component ──────────────────────────────────────────────────────────────
 
 export function OnboardingModal({
   isOpen,
@@ -92,16 +125,17 @@ export function OnboardingModal({
   const [step, setStep] = useState(initialStep);
   const { data: session } = useSession();
   const [data, setData] = useState<OnboardingData>(
-    initialData?.kyc ? initialData : INITIAL_DATA
+    initialData?.business ? initialData : INITIAL_DATA
   );
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(isOpen);
 
+  // Pre-fill name from session
   useEffect(() => {
-    if (session?.user?.email && !data.kyc.contactInfo) {
-      updateData("kyc", "contactInfo", session.user.email);
+    if (session?.user?.name && !data.business.name) {
+      updateData("business", "name", session.user.name);
     }
-  }, [session?.user?.email, data.kyc.contactInfo]);
+  }, [session?.user?.name, data.business.name]);
 
   const updateData = <T extends keyof OnboardingData, F extends keyof OnboardingData[T]>(
     section: T,
@@ -139,25 +173,13 @@ export function OnboardingModal({
   const isStepValid = () => {
     switch (step) {
       case 0:
-        return !!data.kyc.name && !!data.kyc.company && !!data.kyc.contactInfo;
+        return !!data.business.name && !!data.business.company && !!data.business.industry && !!data.business.businessModel;
       case 1:
-        return (
-          !!data.businessBasics.industry &&
-          !!data.businessBasics.companySize &&
-          !!data.businessBasics.businessModel
-        );
+        return !!data.offer.description && !!data.offer.mainProducts;
       case 2:
-        return !!data.productDetails.offer;
+        return !!data.chatbotGoals.conversionGoal && !!data.chatbotGoals.preferredCta;
       case 3:
-        return !!data.productSpecifics.mainProducts && !!data.productSpecifics.usps;
-      case 4:
-        return (
-          !!data.supportSales.commonQuestions &&
-          !!data.supportSales.painPoints &&
-          !!data.supportSales.salesProcess
-        );
-      case 5:
-        return true;
+        return true; // optional step
       default:
         return true;
     }
@@ -190,7 +212,7 @@ export function OnboardingModal({
         });
         if (res.ok) {
           toast.success(
-            "We’re preparing a custom chatbot flow for you based on your details.",
+            "We're building your custom chatbot flow — it'll be ready in seconds!",
           );
           setOpen(false);
           router.refresh();
@@ -214,457 +236,329 @@ export function OnboardingModal({
     setOpen(newOpen);
   };
 
-  const renderStage = () => {
-    switch (step) {
-      case 0:
-        return (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="space-y-2">
-              <Label
-                htmlFor="name"
-                className="text-xs uppercase tracking-widest text-primary/70"
-              >
-                Your Name <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="name"
-                className="bg-background/50 border-primary/20 focus:border-primary/50 transition-all"
-                value={data.kyc.name || ""}
-                onChange={(e) => updateData("kyc", "name", e.target.value)}
-                placeholder="John Doe"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="company"
-                className="text-xs uppercase tracking-widest text-primary/70"
-              >
-                Company Name <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="company"
-                className="bg-background/50 border-primary/20 focus:border-primary/50 transition-all"
-                value={data.kyc.company || ""}
-                onChange={(e) => updateData("kyc", "company", e.target.value)}
-                placeholder="Acme Inc."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="contactInfo"
-                className="text-xs uppercase tracking-widest text-primary/70"
-              >
-                Contact Info <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="contactInfo"
-                className="bg-background/50 border-primary/20 focus:border-primary/50 transition-all"
-                value={data.kyc.contactInfo || ""}
-                onChange={(e) =>
-                  updateData("kyc", "contactInfo", e.target.value)
-                }
-                placeholder="john@example.com (Secondary if changed)"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="location"
-                className="text-xs uppercase tracking-widest text-primary/70"
-              >
-                Location
-              </Label>
-              <Input
-                id="location"
-                className="bg-background/50 border-primary/20 focus:border-primary/50 transition-all"
-                value={data.kyc.location || ""}
-                onChange={(e) => updateData("kyc", "location", e.target.value)}
-                placeholder="London, UK"
-              />
-            </div>
-            <div className="col-span-full pt-4">
-              <a 
-                href="https://replybase.co.uk/docs/get-started" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-xs text-primary hover:underline flex items-center gap-1"
-              >
-                Learn more about setting up your company profile
-              </a>
-            </div>
-          </div>
-        );
-      case 1:
-        return (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="space-y-2">
-              <Label
-                htmlFor="industry"
-                className="text-xs uppercase tracking-widest text-primary/70"
-              >
-                Industry <span className="text-destructive">*</span>
-              </Label>
-              <Select
-                value={data.businessBasics.industry || ""}
-                onValueChange={(val) => {
-                  updateData("businessBasics", "industry", val);
-                  updateData("businessBasics", "subIndustry", ""); // Reset sub-industry on industry change
+  // ─── Step Renderers ─────────────────────────────────────────────────────────
+
+  const renderStep0_Business = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="space-y-2">
+        <Label htmlFor="name" className="text-xs uppercase tracking-widest text-primary/70">
+          Your Name <span className="text-destructive">*</span>
+        </Label>
+        <Input
+          id="name"
+          className="bg-background/50 border-primary/20 focus:border-primary/50 transition-all"
+          value={data.business.name || ""}
+          onChange={(e) => updateData("business", "name", e.target.value)}
+          placeholder="John Doe"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="company" className="text-xs uppercase tracking-widest text-primary/70">
+          Company Name <span className="text-destructive">*</span>
+        </Label>
+        <Input
+          id="company"
+          className="bg-background/50 border-primary/20 focus:border-primary/50 transition-all"
+          value={data.business.company || ""}
+          onChange={(e) => updateData("business", "company", e.target.value)}
+          placeholder="Acme Inc."
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="industry" className="text-xs uppercase tracking-widest text-primary/70">
+          Industry <span className="text-destructive">*</span>
+        </Label>
+        <Select
+          value={data.business.industry || ""}
+          onValueChange={(val) => {
+            updateData("business", "industry", val);
+            updateData("business", "subIndustry", "");
+          }}
+        >
+          <SelectTrigger className="bg-background/50 border-primary/20">
+            <SelectValue placeholder="Select industry" />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.keys(INDUSTRIES_WITH_SUBCATEGORIES).map((ind) => (
+              <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {data.business.industry && (
+        <div className="space-y-2 animate-in fade-in duration-300">
+          <Label htmlFor="subIndustry" className="text-xs uppercase tracking-widest text-primary/70">
+            Sub-Category
+          </Label>
+          <Select
+            value={data.business.subIndustry || ""}
+            onValueChange={(val) => updateData("business", "subIndustry", val)}
+          >
+            <SelectTrigger className="bg-background/50 border-primary/20">
+              <SelectValue placeholder="Select specialization" />
+            </SelectTrigger>
+            <SelectContent>
+              {INDUSTRIES_WITH_SUBCATEGORIES[data.business.industry]?.map((sub) => (
+                <SelectItem key={sub} value={sub}>{sub}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      <div className="space-y-2">
+        <Label htmlFor="businessModel" className="text-xs uppercase tracking-widest text-primary/70">
+          Business Model <span className="text-destructive">*</span>
+        </Label>
+        <Select
+          value={data.business.businessModel || ""}
+          onValueChange={(val) => updateData("business", "businessModel", val)}
+        >
+          <SelectTrigger className="bg-background/50 border-primary/20">
+            <SelectValue placeholder="Select model" />
+          </SelectTrigger>
+          <SelectContent>
+            {BUSINESS_MODELS.map((model) => (
+              <SelectItem key={model} value={model}>{model}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="website" className="text-xs uppercase tracking-widest text-primary/70">
+          Website (Optional)
+        </Label>
+        <Input
+          id="website"
+          className="bg-background/50 border-primary/20 focus:border-primary/50 transition-all"
+          value={data.business.website || ""}
+          onChange={(e) => updateData("business", "website", e.target.value)}
+          placeholder="https://example.com"
+        />
+      </div>
+    </div>
+  );
+
+  const renderStep1_Offer = () => (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="space-y-2">
+        <Label htmlFor="description" className="text-xs uppercase tracking-widest text-primary/70">
+          What do you sell/offer? <span className="text-destructive">*</span>
+        </Label>
+        <Textarea
+          id="description"
+          className="bg-background/50 border-primary/20 min-h-[100px]"
+          value={data.offer.description || ""}
+          onChange={(e) => updateData("offer", "description", e.target.value)}
+          placeholder="Describe your main products or services..."
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="mainProducts" className="text-xs uppercase tracking-widest text-primary/70">
+          Main products/services <span className="text-destructive">*</span>
+        </Label>
+        <Textarea
+          id="mainProducts"
+          className="bg-background/50 border-primary/20 min-h-[80px]"
+          value={data.offer.mainProducts || ""}
+          onChange={(e) => updateData("offer", "mainProducts", e.target.value)}
+          placeholder="List your top products and their key features..."
+        />
+      </div>
+      <div className="space-y-2">
+        <Label className="text-xs uppercase tracking-widest text-primary/70">
+          Who are your customers?
+        </Label>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              className="w-full justify-between bg-background/50 border-primary/20 font-normal"
+            >
+              <span className="truncate">
+                {data.offer.targetCustomers.length
+                  ? data.offer.targetCustomers.join(", ")
+                  : "Select customer types"}
+              </span>
+              <ChevronDown className="h-4 w-4 opacity-50" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+            {CUSTOMER_TYPES.map((type) => (
+              <DropdownMenuCheckboxItem
+                key={type}
+                checked={data.offer.targetCustomers.includes(type)}
+                onCheckedChange={(checked) => {
+                  const current = data.offer.targetCustomers;
+                  const next = checked
+                    ? [...current, type]
+                    : current.filter((t: string) => t !== type);
+                  updateData("offer", "targetCustomers", next);
                 }}
               >
-                <SelectTrigger className="bg-background/50 border-primary/20">
-                  <SelectValue placeholder="Select industry" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.keys(INDUSTRIES_WITH_SUBCATEGORIES).map((ind) => (
-                    <SelectItem key={ind} value={ind}>
-                      {ind}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {data.businessBasics.industry && (
-              <div className="space-y-2 animate-in fade-in duration-300">
-                <Label
-                  htmlFor="subIndustry"
-                  className="text-xs uppercase tracking-widest text-primary/70"
-                >
-                  Sub-Category
-                </Label>
-                <Select
-                  value={data.businessBasics.subIndustry || ""}
-                  onValueChange={(val) =>
-                    updateData("businessBasics", "subIndustry", val)
-                  }
-                >
-                  <SelectTrigger className="bg-background/50 border-primary/20">
-                    <SelectValue placeholder="Select specialization" />
-                  </SelectTrigger>
-                  <SelectContent>
-                  {INDUSTRIES_WITH_SUBCATEGORIES[data.businessBasics.industry]?.map((sub) => (
-                      <SelectItem key={sub} value={sub}>
-                        {sub}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {type}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
+
+  const renderStep2_Goals = () => (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Conversion Goal */}
+      <div className="space-y-3">
+        <Label className="text-xs uppercase tracking-widest text-primary/70">
+          What should your chatbot focus on? <span className="text-destructive">*</span>
+        </Label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {CONVERSION_GOAL_OPTIONS.map(({ value, label, description, icon: Icon }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => updateData("chatbotGoals", "conversionGoal", value)}
+              className={cn(
+                "flex items-start gap-3 rounded-xl border p-3 text-left transition-all duration-200",
+                data.chatbotGoals.conversionGoal === value
+                  ? "border-primary bg-primary/5 ring-2 ring-primary/30 shadow-sm"
+                  : "border-border/50 hover:border-primary/30 hover:bg-muted/30"
+              )}
+            >
+              <Icon className={cn(
+                "h-4 w-4 mt-0.5 shrink-0",
+                data.chatbotGoals.conversionGoal === value ? "text-primary" : "text-muted-foreground"
+              )} />
+              <div>
+                <div className="text-sm font-medium">{label}</div>
+                <div className="text-xs text-muted-foreground">{description}</div>
               </div>
-            )}
-            <div className="space-y-2">
-              <Label
-                htmlFor="companySize"
-                className="text-xs uppercase tracking-widest text-primary/70"
-              >
-                Company Size <span className="text-destructive">*</span>
-              </Label>
-              <Select
-                value={data.businessBasics.companySize || ""}
-                onValueChange={(val) =>
-                  updateData("businessBasics", "companySize", val)
-                }
-              >
-                <SelectTrigger className="bg-background/50 border-primary/20">
-                  <SelectValue placeholder="Select size" />
-                </SelectTrigger>
-                <SelectContent>
-                  {COMPANY_SIZES.map((size) => (
-                    <SelectItem key={size} value={size}>
-                      {size}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="website"
-                className="text-xs uppercase tracking-widest text-primary/70"
-              >
-                Website (Optional)
-              </Label>
-              <Input
-                id="website"
-                className="bg-background/50 border-primary/20 focus:border-primary/50 transition-all"
-                value={data.businessBasics.website || ""}
-                onChange={(e) =>
-                  updateData("businessBasics", "website", e.target.value)
-                }
-                placeholder="https://example.com"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="businessModel"
-                className="text-xs uppercase tracking-widest text-primary/70"
-              >
-                Business Model <span className="text-destructive">*</span>
-              </Label>
-              <Select
-                value={data.businessBasics.businessModel || ""}
-                onValueChange={(val) =>
-                  updateData("businessBasics", "businessModel", val)
-                }
-              >
-                <SelectTrigger className="bg-background/50 border-primary/20">
-                  <SelectValue placeholder="Select model" />
-                </SelectTrigger>
-                <SelectContent>
-                  {BUSINESS_MODELS.map((model) => (
-                    <SelectItem key={model} value={model}>
-                      {model}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="col-span-full pt-4">
-              <a 
-                href="https://replybase.co.uk/docs/get-started#industry-setup" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-xs text-primary hover:underline flex items-center gap-1"
-              >
-                Need help choosing your industry?
-              </a>
-            </div>
-          </div>
-        );
-      case 2:
-        return (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="space-y-2">
-              <Label
-                htmlFor="offer"
-                className="text-xs uppercase tracking-widest text-primary/70"
-              >
-                What do you sell/offer? <span className="text-destructive">*</span>
-              </Label>
-              <Textarea
-                id="offer"
-                className="bg-background/50 border-primary/20 min-h-[100px]"
-                value={data.productDetails.offer || ""}
-                onChange={(e) =>
-                  updateData("productDetails", "offer", e.target.value)
-                }
-                placeholder="Describe your main products or services..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-widest text-primary/70">
-                Who are your customers?
-              </Label>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-between bg-background/50 border-primary/20 font-normal"
-                  >
-                    <span className="truncate">
-                      {data.productDetails.targetCustomers.length
-                        ? data.productDetails.targetCustomers.join(", ")
-                        : "Select customer types"}
-                    </span>
-                    <ChevronDown className="h-4 w-4 opacity-50" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                  {CUSTOMER_TYPES.map((type) => (
-                    <DropdownMenuCheckboxItem
-                      key={type}
-                      checked={data.productDetails.targetCustomers.includes(
-                        type,
-                      )}
-                      onCheckedChange={(checked) => {
-                        const current = data.productDetails.targetCustomers;
-                        const next = checked
-                          ? [...current, type]
-                          : current.filter((t: string) => t !== type);
-                        updateData("productDetails", "targetCustomers", next);
-                      }}
-                    >
-                      {type}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-            <div className="pt-4">
-              <a 
-                href="https://replybase.co.uk/docs/get-started#products" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-xs text-primary hover:underline flex items-center gap-1"
-              >
-                Guide: How to describe your offers for AI
-              </a>
-            </div>
-          </div>
-        );
-      case 3:
-        return (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="space-y-2">
-              <Label
-                htmlFor="mainProducts"
-                className="text-xs uppercase tracking-widest text-primary/70"
-              >
-                Main products/services details <span className="text-destructive">*</span>
-              </Label>
-              <Textarea
-                id="mainProducts"
-                className="bg-background/50 border-primary/20 min-h-[80px]"
-                value={data.productSpecifics.mainProducts || ""}
-                onChange={(e) =>
-                  updateData("productSpecifics", "mainProducts", e.target.value)
-                }
-                placeholder="List top products and their features..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="pricing"
-                className="text-xs uppercase tracking-widest text-primary/70"
-              >
-                Pricing Information
-              </Label>
-              <Input
-                id="pricing"
-                className="bg-background/50 border-primary/20"
-                value={data.productSpecifics.pricing || ""}
-                onChange={(e) =>
-                  updateData("productSpecifics", "pricing", e.target.value)
-                }
-                placeholder="Optional: starting from $X, subscription-based..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="usps"
-                className="text-xs uppercase tracking-widest text-primary/70"
-              >
-                What makes you unique? (USPs) <span className="text-destructive">*</span>
-              </Label>
-              <Textarea
-                id="usps"
-                className="bg-background/50 border-primary/20 min-h-[80px]"
-                value={data.productSpecifics.usps || ""}
-                onChange={(e) =>
-                  updateData("productSpecifics", "usps", e.target.value)
-                }
-                placeholder="Why should customers choose you?"
-              />
-            </div>
-            <div className="pt-4">
-              <a 
-                href="https://replybase.co.uk/docs/get-started#usp" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-xs text-primary hover:underline flex items-center gap-1"
-              >
-                Tips for defining your unique selling points
-              </a>
-            </div>
-          </div>
-        );
-      case 4:
-        return (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="space-y-2">
-              <Label
-                htmlFor="commonQuestions"
-                className="text-xs uppercase tracking-widest text-primary/70"
-              >
-                Typical customer questions <span className="text-destructive">*</span>
-              </Label>
-              <Textarea
-                id="commonQuestions"
-                className="bg-background/50 border-primary/20 min-h-[80px]"
-                value={data.supportSales.commonQuestions || ""}
-                onChange={(e) =>
-                  updateData("supportSales", "commonQuestions", e.target.value)
-                }
-                placeholder="What do customers ask most often?"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="painPoints"
-                className="text-xs uppercase tracking-widest text-primary/70"
-              >
-                Customer pain points <span className="text-destructive">*</span>
-              </Label>
-              <Textarea
-                id="painPoints"
-                className="bg-background/50 border-primary/20 min-h-[80px]"
-                value={data.supportSales.painPoints || ""}
-                onChange={(e) =>
-                  updateData("supportSales", "painPoints", e.target.value)
-                }
-                placeholder="What problems are your customers trying to solve?"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="salesProcess"
-                className="text-xs uppercase tracking-widest text-primary/70"
-              >
-                Your sales process <span className="text-destructive">*</span>
-              </Label>
-              <Textarea
-                id="salesProcess"
-                className="bg-background/50 border-primary/20 min-h-[80px]"
-                value={data.supportSales.salesProcess || ""}
-                onChange={(e) =>
-                  updateData("supportSales", "salesProcess", e.target.value)
-                }
-                placeholder="How do you usually close a deal?"
-              />
-            </div>
-            <div className="pt-4">
-              <a 
-                href="https://replybase.co.uk/docs/get-started#support" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-xs text-primary hover:underline flex items-center gap-1"
-              >
-                How AI handles common customer queries
-              </a>
-            </div>
-          </div>
-        );
-      case 5:
-        return (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="space-y-2">
-              <Label
-                htmlFor="otherInfo"
-                className="text-xs uppercase tracking-widest text-primary/70"
-              >
-                Anything else?
-              </Label>
-              <Textarea
-                id="otherInfo"
-                className="bg-background/50 border-primary/20 min-h-[150px]"
-                value={data.additionalContext.otherInfo || ""}
-                onChange={(e) =>
-                  updateData("additionalContext", "otherInfo", e.target.value)
-                }
-                placeholder="Any other details to help personalize your chatbot..."
-              />
-            </div>
-            <div className="flex items-start gap-3 p-4 rounded-lg bg-primary/5 border border-primary/10">
-              <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                We collect these details to build your custom chatbot and
-                provide accurate, relevant responses for your business.
-              </p>
-            </div>
-          </div>
-        );
-      default:
-        return null;
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Preferred CTA */}
+      <div className="space-y-3">
+        <Label className="text-xs uppercase tracking-widest text-primary/70">
+          How should leads contact you? <span className="text-destructive">*</span>
+        </Label>
+        <div className="flex flex-wrap gap-2">
+          {CTA_OPTIONS.map(({ value, label, icon: Icon }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => updateData("chatbotGoals", "preferredCta", value)}
+              className={cn(
+                "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-all duration-200",
+                data.chatbotGoals.preferredCta === value
+                  ? "border-primary bg-primary/5 text-primary font-medium ring-1 ring-primary/30"
+                  : "border-border/50 text-muted-foreground hover:border-primary/30"
+              )}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Bot Personality */}
+      <div className="space-y-3">
+        <Label className="text-xs uppercase tracking-widest text-primary/70">
+          Chatbot personality
+        </Label>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {PERSONALITY_OPTIONS.map(({ value, label, description }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => updateData("chatbotGoals", "botPersonality", value)}
+              className={cn(
+                "rounded-lg border p-2.5 text-center transition-all duration-200",
+                data.chatbotGoals.botPersonality === value
+                  ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                  : "border-border/50 hover:border-primary/30"
+              )}
+            >
+              <div className="text-sm font-medium">{label}</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">{description}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Escalation */}
+      <div className="space-y-2">
+        <Label className="text-xs uppercase tracking-widest text-primary/70">
+          When the bot can&apos;t help, what happens?
+        </Label>
+        <Select
+          value={data.chatbotGoals.escalationPreference}
+          onValueChange={(val) =>
+            updateData("chatbotGoals", "escalationPreference", val as OnboardingData["chatbotGoals"]["escalationPreference"])
+          }
+        >
+          <SelectTrigger className="bg-background/50 border-primary/20">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {ESCALATION_OPTIONS.map(({ value, label }) => (
+              <SelectItem key={value} value={value}>{label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+
+  const renderStep3_Context = () => (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="space-y-2">
+        <Label htmlFor="commonQuestions" className="text-xs uppercase tracking-widest text-primary/70">
+          What do customers ask most often?
+        </Label>
+        <Textarea
+          id="commonQuestions"
+          className="bg-background/50 border-primary/20 min-h-[120px]"
+          value={data.context.commonQuestions || ""}
+          onChange={(e) => updateData("context", "commonQuestions", e.target.value)}
+          placeholder="e.g. What are your prices? Do you offer refunds? How long does delivery take?"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="otherInfo" className="text-xs uppercase tracking-widest text-primary/70">
+          Anything else the AI should know?
+        </Label>
+        <Textarea
+          id="otherInfo"
+          className="bg-background/50 border-primary/20 min-h-[100px]"
+          value={data.context.otherInfo || ""}
+          onChange={(e) => updateData("context", "otherInfo", e.target.value)}
+          placeholder="Any other details to help personalize your chatbot..."
+        />
+      </div>
+      <div className="flex items-start gap-3 p-4 rounded-lg bg-primary/5 border border-primary/10">
+        <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Based on your answers, we&apos;ll generate a custom chatbot flow
+          tailored to your <strong>{data.business.industry || "industry"}</strong> business
+          with a focus on <strong>{CONVERSION_GOAL_OPTIONS.find(g => g.value === data.chatbotGoals.conversionGoal)?.label?.toLowerCase() || "your goals"}</strong>.
+        </p>
+      </div>
+    </div>
+  );
+
+  const renderStage = () => {
+    switch (step) {
+      case 0: return renderStep0_Business();
+      case 1: return renderStep1_Offer();
+      case 2: return renderStep2_Goals();
+      case 3: return renderStep3_Context();
+      default: return null;
     }
   };
+
+  // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -686,8 +580,10 @@ export function OnboardingModal({
               </DialogTitle>
             </div>
             <DialogDescription className="text-base text-muted-foreground/80">
-              Initializing neural parameters to align the AI assistant with your
-              business DNA.
+              {step === 0 && "Tell us about your business so we can build the perfect chatbot."}
+              {step === 1 && "Describe what you offer so your chatbot speaks your language."}
+              {step === 2 && "Define what your chatbot should achieve and how it should behave."}
+              {step === 3 && "Add context to make your chatbot even smarter."}
             </DialogDescription>
           </DialogHeader>
 
@@ -740,7 +636,7 @@ export function OnboardingModal({
                   disabled={step === 0 || loading}
                   className="hover:bg-primary/5 text-muted-foreground"
                 >
-                  Previous Phase
+                  Previous
                 </Button>
                 <Button
                   onClick={handleNext}
@@ -748,7 +644,7 @@ export function OnboardingModal({
                   className="min-w-[140px] bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_0_20px_-5px_rgba(var(--primary),0.5)] transition-all active:scale-95"
                 >
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {step === STAGES.length - 1 ? "Initialize AI" : "Next Phase"}
+                  {step === STAGES.length - 1 ? "Build My Chatbot" : "Continue"}
                 </Button>
               </div>
             </div>
