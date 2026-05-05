@@ -123,8 +123,9 @@ export async function processWhatsAppJob(payload: any) {
       variables: { channel: "whatsapp", waId: normalizedWaId },
     });
 
-    if (flowResult?.responses?.length > 0) {
-      for (const resp of flowResult.responses) {
+    const flowResponses = flowResult?.responses;
+    if (flowResponses && flowResponses.length > 0) {
+      for (const resp of flowResponses) {
         if (resp.type === "typing") await waitForFlowDurationMs(Math.min(resp.durationMs, 2000));
         else if (resp.type === "text" && resp.text) {
           const sendResult = await sendWhatsAppText({

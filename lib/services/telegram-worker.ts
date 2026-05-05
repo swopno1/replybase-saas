@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { ModelMessage } from "ai";
 import {
   sendTelegramChatAction,
   sendTelegramTextMessage,
@@ -83,7 +84,7 @@ export async function processTelegramJob(payload: any) {
     // Try Flow
     try {
       const flowResult = await executeBotEntryFlowFirst({
-        tenantId: contact.id, // wait, tenantId was used as contactId in previous logic? checking original... no it was contactId: contact.id
+        tenantId,
         contactId: contact.id,
         scopeKey: `telegram:${channel.id}`,
         message: messageText,
@@ -92,8 +93,9 @@ export async function processTelegramJob(payload: any) {
         variables: { channel: "telegram", chatId, userId, userName },
       });
 
-      if (flowResult?.responses?.length > 0) {
-        for (const resp of flowResult.responses) {
+      const flowResponses = flowResult?.responses;
+      if (flowResponses && flowResponses.length > 0) {
+        for (const resp of flowResponses) {
           if (resp.type === "typing") {
             await sendTelegramChatAction(token, chatId, "typing");
             await waitForFlowDurationMs(Math.min(resp.durationMs, 3000));
@@ -128,7 +130,7 @@ export async function processTelegramJob(payload: any) {
         take: 10,
         select: { content: true, source: true },
       });
-      const aiMessages = lastMessages.reverse().map((msg: any) => ({
+      const aiMessages: ModelMessage[] = lastMessages.reverse().map((msg: any) => ({
         role: msg.source === "human" ? "user" : "assistant",
         content: msg.content,
       }));

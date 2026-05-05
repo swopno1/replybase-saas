@@ -102,8 +102,9 @@ export async function processFacebookJob(payload: any) {
       variables: { channel: "facebook", psid: senderPsid },
     });
 
-    if (flowResult?.responses?.length > 0) {
-      for (const resp of flowResult.responses) {
+    const flowResponses = flowResult?.responses;
+    if (flowResponses && flowResponses.length > 0) {
+      for (const resp of flowResponses) {
         if (resp.type === "typing") {
           await sendFacebookSenderAction(accessToken, senderPsid, "typing_on");
           await waitForFlowDurationMs(Math.min(resp.durationMs, 3000));

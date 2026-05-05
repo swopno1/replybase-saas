@@ -759,12 +759,13 @@ This is an automated alert regarding your ReplyBase usage.
 
 ${description}
 
-${threshold >= 1.1
-              ? "Your service has been restricted to protect your account. Please upgrade immediately to restore full functionality."
-              : threshold >= 1.0
-                ? "You have reached your plan limit. Please consider upgrading to avoid service interruption."
-                : "You are nearing your plan limit. We recommend checking your usage and considering an upgrade soon."
-            }
+${
+  threshold >= 1.1
+    ? "Your service has been restricted to protect your account. Please upgrade immediately to restore full functionality."
+    : threshold >= 1.0
+      ? "You have reached your plan limit. Please consider upgrading to avoid service interruption."
+      : "You are nearing your plan limit. We recommend checking your usage and considering an upgrade soon."
+}
 
 You can manage your subscription and upgrade here:
 ${upgradeUrl}
