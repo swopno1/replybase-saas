@@ -9,6 +9,7 @@ import {
 } from "@/lib/facebook-sender";
 import { getFacebookGraphUrl } from "@/lib/server/facebook-utils";
 import logger from "@/lib/logger";
+import { incrementTenantUsage } from "@/lib/subscription";
 
 export async function processFacebookJob(payload: any) {
   const { senderPsid, pageId, messageText } = payload;
@@ -124,8 +125,11 @@ export async function processFacebookJob(payload: any) {
           }
         }
       }
-      await recordMilestoneEvent(tenantId, "first-channel", { channelType: "facebook", pageId: facebookPage.id });
-      await recordMilestoneEvent(tenantId, "first-automated-reply", { channelType: "facebook", source: "flow" });
+      await Promise.allSettled([
+        incrementTenantUsage(tenantId, "flow_execution", 1, facebookPage.botId || undefined, facebookPage.id),
+        recordMilestoneEvent(tenantId, "first-channel", { channelType: "facebook", pageId: facebookPage.id }),
+        recordMilestoneEvent(tenantId, "first-automated-reply", { channelType: "facebook", source: "flow" }),
+      ]);
       return;
     }
   } catch (error) {
@@ -173,8 +177,11 @@ export async function processFacebookJob(payload: any) {
             source: "ai",
           },
         });
-        await recordMilestoneEvent(tenantId, "first-channel", { channelType: "facebook", pageId: facebookPage.id });
-        await recordMilestoneEvent(tenantId, "first-automated-reply", { channelType: "facebook", source: "ai" });
+        await Promise.allSettled([
+          incrementTenantUsage(tenantId, "message", 1, facebookPage.botId, facebookPage.id),
+          recordMilestoneEvent(tenantId, "first-channel", { channelType: "facebook", pageId: facebookPage.id }),
+          recordMilestoneEvent(tenantId, "first-automated-reply", { channelType: "facebook", source: "ai" }),
+        ]);
         return;
       }
     }
@@ -196,6 +203,9 @@ export async function processFacebookJob(payload: any) {
       },
     });
   }
-  await recordMilestoneEvent(tenantId, "first-channel", { channelType: "facebook", pageId: facebookPage.id });
-  await recordMilestoneEvent(tenantId, "first-automated-reply", { channelType: "facebook", source: "ai" });
+  await Promise.allSettled([
+    incrementTenantUsage(tenantId, "message", 1, facebookPage.botId || undefined, facebookPage.id),
+    recordMilestoneEvent(tenantId, "first-channel", { channelType: "facebook", pageId: facebookPage.id }),
+    recordMilestoneEvent(tenantId, "first-automated-reply", { channelType: "facebook", source: "ai" }),
+  ]);
 }

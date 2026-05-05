@@ -12,6 +12,7 @@ import {
 } from "@/lib/telegram-utils";
 import { recordMilestoneEvent } from "@/lib/milestone-events";
 import logger from "@/lib/logger";
+import { incrementTenantUsage } from "@/lib/subscription";
 
 function getCommandReply(commandText: string): string | null {
   const command = commandText.split(" ")[0]?.toLowerCase();
@@ -113,8 +114,11 @@ export async function processTelegramJob(payload: any) {
             });
           }
         }
-        await recordMilestoneEvent(channel.bot.tenantId, "first-channel", { channelType: "telegram", channelId: channel.id });
-        await recordMilestoneEvent(channel.bot.tenantId, "first-automated-reply", { channelType: "telegram", source: "flow" });
+        await Promise.allSettled([
+          incrementTenantUsage(tenantId, "flow_execution", 1, channel.bot.id, channel.id),
+          recordMilestoneEvent(tenantId, "first-channel", { channelType: "telegram", channelId: channel.id }),
+          recordMilestoneEvent(tenantId, "first-automated-reply", { channelType: "telegram", source: "flow" }),
+        ]);
         return;
       }
     } catch (error) {
@@ -179,6 +183,25 @@ export async function processTelegramJob(payload: any) {
     },
   });
 
-  await recordMilestoneEvent(channel.bot.tenantId, "first-channel", { channelType: "telegram", channelId: channel.id });
-  await recordMilestoneEvent(channel.bot.tenantId, "first-automated-reply", { channelType: "telegram", source: replySource });
+  await Promise.allSettled([
+    ...(replySource === "ai"
+      ? [
+          incrementTenantUsage(
+            tenantId,
+            "message",
+            1,
+            channel.bot.id,
+            channel.id,
+          ),
+        ]
+      : []),
+    recordMilestoneEvent(tenantId, "first-channel", {
+      channelType: "telegram",
+      channelId: channel.id,
+    }),
+    recordMilestoneEvent(tenantId, "first-automated-reply", {
+      channelType: "telegram",
+      source: replySource,
+    }),
+  ]);
 }

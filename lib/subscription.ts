@@ -617,7 +617,21 @@ export async function incrementUsage(
     select: { tenantId: true },
   });
 
-  if (!user?.tenantId || amount <= 0) {
+  if (!user?.tenantId) {
+    return;
+  }
+
+  return incrementTenantUsage(user.tenantId, type, amount, botId, channelId);
+}
+
+export async function incrementTenantUsage(
+  tenantId: string,
+  type: "message" | "flow_execution",
+  amount: number,
+  botId?: string,
+  channelId?: string,
+): Promise<void> {
+  if (amount <= 0) {
     return;
   }
 
@@ -630,7 +644,7 @@ export async function incrementUsage(
 
   // Add to in-memory buffer instead of immediate DB write
   usageBuffer.add({
-    tenantId: user.tenantId,
+    tenantId,
     type,
     date,
     botId: normalizedBotId,
@@ -643,17 +657,17 @@ export async function incrementUsage(
   // This is an acceptable trade-off for scalability.
   setTimeout(async () => {
     try {
-      const limits = await getTenantLimits(user.tenantId!);
+      const limits = await getTenantLimits(tenantId);
       const now = new Date();
       const usageCount = await getUsageCount({
-        tenantId: user.tenantId!,
+        tenantId,
         type,
         startDate: type === "message" ? startOfUtcMonth(now) : startOfUtcDay(now),
         endDate: type === "message" ? startOfNextUtcMonth(now) : startOfNextUtcDay(now),
       });
 
       await notifyUsageIfNeeded(
-        user.tenantId!,
+        tenantId,
         type === "message" ? "monthly_messages" : "flow_executions",
         usageCount,
         type === "message" ? limits.monthlyMessageLimit : limits.flowExecutionCap
