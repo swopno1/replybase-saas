@@ -15,7 +15,6 @@ import {
 } from "@/lib/whatsapp-provider";
 import { Prisma } from "@prisma/client";
 import logger from "@/lib/logger";
-import { incrementTenantUsage } from "@/lib/subscription";
 
 export async function processWhatsAppJob(payload: any) {
   const { channel, waId, profileName, rawPhone, inboundText, messageId, timestamp } = payload;
@@ -148,7 +147,6 @@ export async function processWhatsAppJob(payload: any) {
       }
 
       await Promise.allSettled([
-        incrementTenantUsage(channel.bot.tenantId, "flow_execution", 1, channel.botId, channel.id),
         recordMilestoneEvent(channel.bot.tenantId, "first-channel", { channelType: "whatsapp", channelId: channel.id }),
         recordMilestoneEvent(channel.bot.tenantId, "first-automated-reply", { channelType: "whatsapp", source: "flow" }),
       ]);
@@ -204,7 +202,6 @@ export async function processWhatsAppJob(payload: any) {
       });
 
       await Promise.allSettled([
-        incrementTenantUsage(channel.bot.tenantId, "message", 1, channel.botId, channel.id),
         recordMilestoneEvent(channel.bot.tenantId, "first-channel", { channelType: "whatsapp", channelId: channel.id }),
         recordMilestoneEvent(channel.bot.tenantId, "first-automated-reply", { channelType: "whatsapp", source: "ai" }),
       ]);

@@ -2,6 +2,7 @@ import logger from "./logger";
 import { prisma } from "@/lib/prisma";
 import { streamText, Output, ModelMessage } from "ai";
 import { getAiModel, AiProvider } from "@/lib/ai-service";
+import { incrementTenantUsage } from "./subscription";
 
 export interface AiFallbackOptions {
   botId: string;
@@ -27,6 +28,7 @@ export async function aiFallback({
   const bot = await prisma.bot.findUnique({
     where: { id: botId },
     select: {
+      tenantId: true,
       context: true,
       name: true,
       tenant: {
@@ -38,6 +40,12 @@ export async function aiFallback({
       },
     },
   });
+
+  if (!bot) {
+    throw new Error("Bot not found");
+  }
+
+  const tenantId = bot.tenantId;
 
   // Fetch last N messages (limit by char count)
   const lastMessages = await prisma.crmMessage.findMany({
@@ -96,17 +104,22 @@ export async function aiFallback({
         messages: promptMessages,
         output: Output.text(),
         abortSignal: controller.signal,
+        onFinish: async () => {
+          await incrementTenantUsage(tenantId, "message", 1, botId);
+        },
       });
       return aiStream;
     } catch (primaryError: unknown) {
       // Check for rate limit errors (429 or RESOURCE_EXHAUSTED)
-      const isRateLimit = 
-        String(primaryError).includes("429") || 
+      const isRateLimit =
+        String(primaryError).includes("429") ||
         String(primaryError).includes("RESOURCE_EXHAUSTED");
 
       if (isRateLimit) {
-        logger.warn("[AI Fallback] Rate limit hit on primary model. Failing over to Gemma...");
-        
+        logger.warn(
+          "[AI Fallback] Rate limit hit on primary model. Failing over to Gemma...",
+        );
+
         const fallbackModel = getAiModel({
           provider,
           apiKey: bot?.tenant?.aiApiKey || undefined,
@@ -121,6 +134,9 @@ export async function aiFallback({
           messages: promptMessages,
           output: Output.text(),
           abortSignal: controller.signal,
+          onFinish: async () => {
+            await incrementTenantUsage(tenantId, "message", 1, botId);
+          },
         });
         return fallbackStream;
       }

@@ -4,6 +4,7 @@ import { getAiModel, AiProvider } from "@/lib/ai-service";
 import {
   checkLimit,
   incrementUsage,
+  incrementTenantUsage,
   getMonthlyConversationCount,
   getTenantLimits,
 } from "@/lib/subscription";
@@ -82,10 +83,10 @@ The current workspace is ${tenant?.name || "unknown"}.`;
     const aiStream = await streamText({
       model,
       messages: promptMessages,
+      onFinish: async () => {
+        await incrementTenantUsage(tenantId, "message", 1);
+      },
     });
-
-    // Increment AI message usage
-    await incrementUsage(id, "message", 1);
 
     // Use the SDK's built-in streaming response for Next.js
     return aiStream.toTextStreamResponse({

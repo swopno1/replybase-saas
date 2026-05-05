@@ -518,6 +518,8 @@ async function resolveFlow(params: {
   return startFlowSession(configuredFlow);
 }
 
+import { incrementTenantUsage } from "./subscription";
+
 export async function executeWebchatFlowFirst(params: {
   tenantId: string;
   botId: string;
@@ -532,6 +534,15 @@ export async function executeWebchatFlowFirst(params: {
   if (!resolved) {
     return null;
   }
+
+  // Centralized usage tracking for webchat flow executions
+  await incrementTenantUsage(
+    params.tenantId,
+    "flow_execution",
+    1,
+    params.botId,
+    params.channelId || undefined,
+  );
 
   let activeFlow = resolved.flow;
   const { session } = resolved;

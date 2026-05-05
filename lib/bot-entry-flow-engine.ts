@@ -192,6 +192,8 @@ async function resolveFlow(params: {
   return startFlowSession(configuredFlow);
 }
 
+import { incrementTenantUsage } from "./subscription";
+
 export async function executeBotEntryFlowFirst(params: {
   tenantId: string;
   contactId: string;
@@ -205,6 +207,15 @@ export async function executeBotEntryFlowFirst(params: {
   if (!resolved) {
     return null;
   }
+
+  // Centralized usage tracking for flow executions
+  await incrementTenantUsage(
+    params.tenantId,
+    "flow_execution",
+    1,
+    undefined,
+    params.channelId,
+  );
 
   let activeFlow = resolved.flow;
   const { session } = resolved;
