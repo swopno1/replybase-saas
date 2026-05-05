@@ -71,9 +71,9 @@ export async function GET() {
           100,
           (usage.monthlyMessages / limits.monthlyMessageLimit) * 100
         ),
-        dailyFlowExecutions: Math.min(
+        monthlyFlowExecutions: Math.min(
           100,
-          (usage.dailyFlowExecutions / limits.flowExecutionCap) * 100
+          (usage.monthlyFlowExecutions / limits.flowExecutionCap) * 100
         ),
       },
     });

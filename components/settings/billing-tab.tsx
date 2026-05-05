@@ -65,7 +65,7 @@ interface Subscription {
 interface UsageData {
   monthlyMessages: number;
   monthlyMessageLimit: number;
-  dailyFlowExecutions: number;
+  monthlyFlowExecutions: number;
   flowExecutionCap: number;
   usage: {
     bots: number;
@@ -243,8 +243,8 @@ export default function BillingTabContent() {
 
       {/* Usage Warning Banner */}
       {usage && 
-       !(usage.monthlyMessages / (usage.monthlyMessageLimit || 1) >= 1.1 || usage.dailyFlowExecutions / (usage.flowExecutionCap || 1) >= 1.1) &&
-       (usage.monthlyMessages / (usage.monthlyMessageLimit || 1) >= 0.9 || usage.dailyFlowExecutions / (usage.flowExecutionCap || 1) >= 0.9) && (
+       !(usage.monthlyMessages / (usage.monthlyMessageLimit || 1) >= 1.1 || usage.monthlyFlowExecutions / (usage.flowExecutionCap || 1) >= 1.1) &&
+       (usage.monthlyMessages / (usage.monthlyMessageLimit || 1) >= 0.9 || usage.monthlyFlowExecutions / (usage.flowExecutionCap || 1) >= 0.9) && (
         <div className="bg-orange-500 text-white rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg ring-4 ring-orange-500/10">
           <div className="flex items-center gap-4">
             <div className="bg-white/20 p-3 rounded-xl">
@@ -264,7 +264,7 @@ export default function BillingTabContent() {
       )}
 
       {/* Limit Reached Banner */}
-      {usage && (usage.monthlyMessages / (usage.monthlyMessageLimit || 1) >= 1.1 || usage.dailyFlowExecutions / (usage.flowExecutionCap || 1) >= 1.1) && (
+      {usage && (usage.monthlyMessages / (usage.monthlyMessageLimit || 1) >= 1.1 || usage.monthlyFlowExecutions / (usage.flowExecutionCap || 1) >= 1.1) && (
         <div className="bg-red-600 text-white rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl ring-4 ring-red-600/20 animate-pulse">
           <div className="flex items-center gap-4">
             <div className="bg-white/20 p-3 rounded-xl">
@@ -405,18 +405,18 @@ export default function BillingTabContent() {
                 <div className="flex justify-between items-end">
                   <div className="flex items-center gap-2">
                     <RotateCw className="h-4 w-4 text-primary" />
-                    <span className="font-bold text-sm">Flow Executions (Daily)</span>
+                    <span className="font-bold text-sm">Flow Executions (Monthly)</span>
                   </div>
                   <span className="text-xs font-medium text-muted-foreground">
-                    <span className="text-foreground font-bold">{usage?.dailyFlowExecutions.toLocaleString()}</span> / {usage?.flowExecutionCap === 999999999 ? "∞" : usage?.flowExecutionCap.toLocaleString()}
+                    <span className="text-foreground font-bold">{(usage?.monthlyFlowExecutions ?? 0).toLocaleString()}</span> / {usage?.flowExecutionCap === 999999999 ? "∞" : (usage?.flowExecutionCap ?? 0).toLocaleString()}
                   </span>
                 </div>
                 <Progress 
-                  value={usage ? (usage.dailyFlowExecutions / (usage.flowExecutionCap || 1)) * 100 : 0} 
+                  value={usage ? ((usage.monthlyFlowExecutions ?? 0) / (usage.flowExecutionCap || 1)) * 100 : 0} 
                   className="h-2.5 bg-muted/50"
-                  indicatorClassName={getUsageColor(usage?.dailyFlowExecutions || 0, usage?.flowExecutionCap || 1)}
+                  indicatorClassName={getUsageColor(usage?.monthlyFlowExecutions ?? 0, usage?.flowExecutionCap || 1)}
                 />
-                <p className="text-[11px] text-muted-foreground">Resets at midnight UTC</p>
+                <p className="text-[11px] text-muted-foreground">Resets at the start of each billing cycle</p>
               </div>
 
               <div className="bg-primary/5 rounded-xl p-4 border border-primary/10 flex items-start gap-3">
