@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { waitUntil } from "@vercel/functions";
 import { Prisma } from "@prisma/client";
 import { ModelMessage } from "ai";
 import { verifyWebhookSignature } from "@/lib/server/facebook-utils";
@@ -754,41 +753,22 @@ async function processMetaPayload(params: {
           continue;
         }
 
-        // Process using waitUntil to ensure execution in serverless environments
-        try {
-          waitUntil(
-            ensureContactAndConversation({
-              channel,
-              waId: message.from,
-              profileName: value.contacts?.[0]?.profile?.name,
-              rawPhone: message.from,
-              inboundText: message.text.body,
-              messageId: message.id,
-              timestamp: message.timestamp,
-            }).catch((err) => {
-              logger.error(
-                { error: err },
-                "[WhatsApp Webhook] Async processing error",
-              );
-            }),
+        // Process asynchronously. Since we are on a DigitalOcean Droplet (Node.js runtime),
+        // we can safely fire-and-forget without @vercel/functions waitUntil.
+        ensureContactAndConversation({
+          channel,
+          waId: message.from,
+          profileName: value.contacts?.[0]?.profile?.name,
+          rawPhone: message.from,
+          inboundText: message.text.body,
+          messageId: message.id,
+          timestamp: message.timestamp,
+        }).catch((err) => {
+          logger.error(
+            { error: err },
+            "[WhatsApp Webhook] Async processing error",
           );
-        } catch (e) {
-          // Fallback if waitUntil is not available
-          ensureContactAndConversation({
-            channel,
-            waId: message.from,
-            profileName: value.contacts?.[0]?.profile?.name,
-            rawPhone: message.from,
-            inboundText: message.text.body,
-            messageId: message.id,
-            timestamp: message.timestamp,
-          }).catch((err) => {
-            logger.error(
-              { error: err },
-              "[WhatsApp Webhook] Async processing error (fallback)",
-            );
-          });
-        }
+        });
       }
     }
   }
@@ -873,37 +853,20 @@ async function processTwilioPayload(
     );
   }
 
-  // Process using waitUntil to ensure execution in serverless environments
-  try {
-    waitUntil(
-      ensureContactAndConversation({
-        channel,
-        waId: from,
-        rawPhone: from,
-        inboundText: body,
-        messageId: messageSid,
-      }).catch((err) => {
-        logger.error(
-          { error: err },
-          "[WhatsApp Webhook] Async Twilio processing error",
-        );
-      }),
+  // Process asynchronously. Since we are on a DigitalOcean Droplet (Node.js runtime),
+  // we can safely fire-and-forget without @vercel/functions waitUntil.
+  ensureContactAndConversation({
+    channel,
+    waId: from,
+    rawPhone: from,
+    inboundText: body,
+    messageId: messageSid,
+  }).catch((err) => {
+    logger.error(
+      { error: err },
+      "[WhatsApp Webhook] Async Twilio processing error",
     );
-  } catch (e) {
-    // Fallback if waitUntil is not available
-    ensureContactAndConversation({
-      channel,
-      waId: from,
-      rawPhone: from,
-      inboundText: body,
-      messageId: messageSid,
-    }).catch((err) => {
-      logger.error(
-        { error: err },
-        "[WhatsApp Webhook] Async Twilio processing error (fallback)",
-      );
-    });
-  }
+  });
 
   return new NextResponse("<Response></Response>", {
     status: 200,

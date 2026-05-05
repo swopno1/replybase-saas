@@ -86,9 +86,6 @@ importers:
       '@tanstack/react-table':
         specifier: ^8.21.3
         version: 8.21.3(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
-      '@vercel/functions':
-        specifier: ^3.5.0
-        version: 3.5.0
       ai:
         specifier: ^6.0.168
         version: 6.0.168(zod@4.3.6)
@@ -2045,21 +2042,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@vercel/functions@3.5.0':
-    resolution: {integrity: sha512-+RokZ+4gkYyOsKBuJ29cQ8iSZG123LLJbZfPry20kkTgrN9U0277La4feP4DnWVo3sGoYa4plCEKY9XKUYoX9g==}
-    engines: {node: '>= 20'}
-    peerDependencies:
-      '@aws-sdk/credential-provider-web-identity': '*'
-    peerDependenciesMeta:
-      '@aws-sdk/credential-provider-web-identity':
-        optional: true
-
   '@vercel/oidc@3.2.0':
     resolution: {integrity: sha512-UycprH3T6n3jH0k44NHMa7pnFHGu/N05MjojYr+Mc6I7obkoLIJujSWwin1pCvdy/eOxrI/l3uDLQsmcrOb4ug==}
-    engines: {node: '>= 20'}
-
-  '@vercel/oidc@3.4.0':
-    resolution: {integrity: sha512-p0sKfHkfRmMaqqDwNL4tjnX9TgRrLMlEtUjIxfrEns8pOxz1R9ztqOVI+ehqiq93/2/HnfPe/UBZkfAZwnx0UA==}
     engines: {node: '>= 20'}
 
   '@vitest/coverage-v8@3.2.4':
@@ -6093,13 +6077,7 @@ snapshots:
   '@unrs/resolver-binding-win32-x64-msvc@1.11.1':
     optional: true
 
-  '@vercel/functions@3.5.0':
-    dependencies:
-      '@vercel/oidc': 3.4.0
-
   '@vercel/oidc@3.2.0': {}
-
-  '@vercel/oidc@3.4.0': {}
 
   '@vitest/coverage-v8@3.2.4(vitest@3.2.4(@types/node@20.19.39)(jiti@2.6.1)(jsdom@29.0.2)(lightningcss@1.32.0)(tsx@4.21.0))':
     dependencies:

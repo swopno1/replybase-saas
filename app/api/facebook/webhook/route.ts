@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { waitUntil } from "@vercel/functions";
 import { ModelMessage } from "ai";
 import { prisma } from "@/lib/prisma";
 import logger from "@/lib/logger";
@@ -121,25 +120,14 @@ export async function POST(req: NextRequest) {
         if (!messaging || !Array.isArray(messaging)) continue;
 
         for (const event of messaging) {
-          // Process using waitUntil to ensure execution in serverless environments
-          try {
-            waitUntil(
-              handleMessagingEvent(event).catch((err) =>
-                logger.error(
-                  { error: err },
-                  "[Facebook Webhook] Async processing error",
-                ),
-              ),
-            );
-          } catch (e) {
-            // Fallback if waitUntil is not available
-            handleMessagingEvent(event).catch((err) =>
-              logger.error(
-                { error: err },
-                "[Facebook Webhook] Async processing error (fallback)",
-              ),
-            );
-          }
+          // Process asynchronously. Since we are on a DigitalOcean Droplet (Node.js runtime),
+          // we can safely fire-and-forget without @vercel/functions waitUntil.
+          handleMessagingEvent(event).catch((err) =>
+            logger.error(
+              { error: err },
+              "[Facebook Webhook] Async processing error",
+            ),
+          );
         }
       }
     }
