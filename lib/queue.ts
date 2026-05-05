@@ -4,18 +4,22 @@ import logger from "./logger";
 
 const QUEUE_NAME = "message-processing";
 
-export const messageQueue = new Queue(QUEUE_NAME, {
-  connection: redis,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: "exponential",
-      delay: 1000,
-    },
-    removeOnComplete: true,
-    removeOnFail: false,
-  },
-});
+const isBuild = process.env.NEXT_PHASE === "phase-production-build";
+
+export const messageQueue = isBuild
+  ? (null as any)
+  : new Queue(QUEUE_NAME, {
+      connection: redis,
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+          type: "exponential",
+          delay: 1000,
+        },
+        removeOnComplete: true,
+        removeOnFail: false,
+      },
+    });
 
 export interface MessageJobData {
   type: "whatsapp" | "facebook" | "telegram";
