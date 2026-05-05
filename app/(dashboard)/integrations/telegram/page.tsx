@@ -62,7 +62,7 @@ interface BotChannel {
   id: string;
   name: string;
   type: string;
-  flowAssignments?: ChannelFlowAssignment[];
+  flowAssignments?: ChannelFlowAssignment | null;
 }
 
 interface TelegramStatus {
@@ -262,7 +262,7 @@ export default function TelegramIntegrationPage() {
         channels.find((item) => item.type?.toLowerCase() === "telegram") ||
         null;
 
-      const activeAssignment = channel?.flowAssignments?.[0];
+      const activeAssignment = channel?.flowAssignments;
 
       setTelegramChannel(channel);
       setAssignedFlow(

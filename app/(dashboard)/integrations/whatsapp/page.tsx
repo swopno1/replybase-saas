@@ -64,7 +64,7 @@ interface BotChannel {
   id: string;
   name: string;
   type: string;
-  flowAssignments?: ChannelFlowAssignment[];
+  flowAssignments?: ChannelFlowAssignment | null;
 }
 
 interface WebhookLogEntry {
@@ -307,7 +307,7 @@ export default function WhatsAppIntegrationPage() {
         : [];
       const channel =
         channels.find((c) => c.type?.toLowerCase() === "whatsapp") || null;
-      const activeAssignment = channel?.flowAssignments?.[0];
+      const activeAssignment = channel?.flowAssignments;
       setWhatsappChannel(channel);
       setAssignedFlow(
         activeAssignment?.flow

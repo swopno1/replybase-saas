@@ -80,7 +80,7 @@ type Channel = {
     position?: "left" | "right";
     [key: string]: unknown;
   };
-  flowAssignments?: ChannelFlowAssignment[];
+  flowAssignments?: ChannelFlowAssignment | null;
 };
 
 type PreviewMessage = {
@@ -284,7 +284,7 @@ export default function WebchatIntegrationPage() {
       );
       setPosition(channel.config?.position === "left" ? "left" : "right");
 
-      const assignment = channel.flowAssignments?.[0];
+      const assignment = channel.flowAssignments;
       setSelectedFlowId(assignment?.flowId || "");
 
       void loadWebchatSite(selectedBotId, id);
@@ -331,7 +331,7 @@ export default function WebchatIntegrationPage() {
   );
 
   const assignedChannelFlow = useMemo(() => {
-    const assignment = selectedChannel?.flowAssignments?.[0];
+    const assignment = selectedChannel?.flowAssignments;
     if (!assignment?.flow) {
       return null;
     }
