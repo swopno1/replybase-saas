@@ -699,6 +699,9 @@ async function processMetaPayload(params: {
     }
   }
 
+  const allStatusesToLog = [];
+  let hasAnyStatus = false;
+
   for (const entry of params.payload.entry || []) {
     for (const change of entry.changes || []) {
       const value = change.value;
@@ -706,15 +709,12 @@ async function processMetaPayload(params: {
         continue;
       }
 
-      const statusesToLog = [];
-      let hasStatuses = false;
-
       for (const status of value.statuses || []) {
         if (!status.id) {
           continue;
         }
 
-        statusesToLog.push({
+        allStatusesToLog.push({
           type: "delivery",
           source: "whatsapp",
           event: `meta_status:${status.id}:${status.status || "unknown"}`,
@@ -723,25 +723,7 @@ async function processMetaPayload(params: {
             status,
           } as Prisma.InputJsonValue,
         });
-        hasStatuses = true;
-      }
-
-      if (hasStatuses) {
-        await prisma.webhookLog.createMany({
-          data: statusesToLog,
-        });
-
-        const currentConfig = (channel.config || {}) as Prisma.JsonObject;
-        await prisma.channel.update({
-          where: { id: channel.id },
-          data: {
-            config: {
-              ...currentConfig,
-              lastWebhookEventAt: new Date().toISOString(),
-              lastStatusEventAt: new Date().toISOString(),
-            } as Prisma.JsonObject,
-          },
-        });
+        hasAnyStatus = true;
       }
 
       for (const message of value.messages || []) {
@@ -765,6 +747,24 @@ async function processMetaPayload(params: {
         });
       }
     }
+  }
+
+  if (hasAnyStatus) {
+    await prisma.webhookLog.createMany({
+      data: allStatusesToLog,
+    });
+
+    const currentConfig = (channel.config || {}) as Prisma.JsonObject;
+    await prisma.channel.update({
+      where: { id: channel.id },
+      data: {
+        config: {
+          ...currentConfig,
+          lastWebhookEventAt: new Date().toISOString(),
+          lastStatusEventAt: new Date().toISOString(),
+        } as Prisma.JsonObject,
+      },
+    });
   }
 
   return NextResponse.json({ received: true, matched: true }, { status: 200 });
