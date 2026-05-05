@@ -102,7 +102,18 @@ export async function getMonthlyConversationCount(
   });
 }
 
-// --- Subscription Logic ---
+// --- Subscription Logic & Caching ---
+
+const TENANT_LIMITS_CACHE = new Map<string, { data: any; expires: number }>();
+const CACHE_TTL_MS = 1000 * 60 * 5; // 5 minutes
+
+/**
+ * Clear cache for a specific tenant.
+ * Useful when subscription or plan changes.
+ */
+export function invalidateTenantCache(tenantId: string) {
+  TENANT_LIMITS_CACHE.delete(tenantId);
+}
 
 async function getActiveSubscriptionWithPlan(tenantId: string) {
   return prisma.subscription.findFirst({
@@ -119,7 +130,21 @@ async function getActiveSubscriptionWithPlan(tenantId: string) {
   });
 }
 
+/**
+ * Optimized lookup for subscription status to avoid frequent DB hits in middleware/auth.
+ * Uses the same 5-minute TTL cache as getTenantLimits.
+ */
+export async function getTenantSubscriptionStatus(tenantId: string): Promise<string> {
+  const limits = await getTenantLimits(tenantId);
+  return limits.subscriptionStatus || "active";
+}
+
 export async function getTenantLimits(tenantId: string) {
+  const now = Date.now();
+  const cached = TENANT_LIMITS_CACHE.get(tenantId);
+
+  if (cached && cached.expires > now) {
+    return cached.data;
   const cacheKey = `limits:${tenantId}`;
   try {
     const cached = await redis.get(cacheKey);
@@ -132,6 +157,7 @@ export async function getTenantLimits(tenantId: string) {
 
   const subscription = await getActiveSubscriptionWithPlan(tenantId);
 
+  let result;
   let limits;
   if (!subscription) {
     const freePlan = await prisma.plan.findUnique({
@@ -139,9 +165,33 @@ export async function getTenantLimits(tenantId: string) {
     });
 
     if (freePlan) {
+      result = {
       limits = {
         ...freePlan,
         planName: freePlan.displayName,
+        subscriptionStatus: "active",
+      };
+    } else {
+      result = {
+        maxBots: 0,
+        dailyMessageLimit: 0,
+        name: "suspended",
+        displayName: "Suspended",
+        planName: "Suspended",
+        id: "suspended",
+        currency: "GBP",
+        price: 0,
+        monthlyMessageLimit: 0,
+        flowExecutionCap: 0,
+        maxChannelsPerBot: 0,
+        maxConversations: 0,
+        maxContacts: 0,
+        maxIntegrations: 0,
+        maxFlows: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        features: [],
+        subscriptionStatus: "inactive",
       };
     } else {
       limits = {
@@ -166,6 +216,26 @@ export async function getTenantLimits(tenantId: string) {
       };
     }
   } else {
+    result = {
+      ...subscription.plan,
+      planName: subscription.plan.displayName,
+      subscriptionStatus: subscription.status.toLowerCase(),
+    };
+  }
+
+  // Cache the result
+  TENANT_LIMITS_CACHE.set(tenantId, {
+    data: result,
+    expires: now + CACHE_TTL_MS,
+  });
+
+  // Basic cache size management
+  if (TENANT_LIMITS_CACHE.size > 1000) {
+    const firstKey = TENANT_LIMITS_CACHE.keys().next().value;
+    if (firstKey) TENANT_LIMITS_CACHE.delete(firstKey);
+  }
+
+  return result;
     limits = {
       ...subscription.plan,
       planName: subscription.plan.displayName,

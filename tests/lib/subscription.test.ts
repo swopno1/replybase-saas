@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { checkLimit, incrementUsage, getTenantLimits, usageBuffer } from '@/lib/subscription';
+import { checkLimit, incrementUsage, getTenantLimits, usageBuffer, invalidateTenantCache } from '@/lib/subscription';
 import { prisma } from '@/lib/prisma';
 
 vi.mock('@/lib/prisma', () => ({
@@ -43,6 +43,7 @@ vi.mock('@/lib/redis', () => ({
 describe('Subscription Utility', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    invalidateTenantCache('tenant_1');
   });
 
   describe('getTenantLimits', () => {
