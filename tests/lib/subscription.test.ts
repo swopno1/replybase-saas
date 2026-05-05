@@ -6,6 +6,7 @@ vi.mock('@/lib/prisma', () => ({
   prisma: {
     subscription: {
       findFirst: vi.fn(),
+      findUnique: vi.fn(),
     },
     user: {
       findUnique: vi.fn(),
@@ -31,6 +32,14 @@ vi.mock('@/lib/prisma', () => ({
   },
 }));
 
+vi.mock('@/lib/redis', () => ({
+  redis: {
+    get: vi.fn(),
+    set: vi.fn(),
+    del: vi.fn(),
+  },
+}));
+
 describe('Subscription Utility', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -51,6 +60,7 @@ describe('Subscription Utility', () => {
         status: 'active',
         plan: {
           name: 'pro',
+          displayName: 'Pro',
           dailyMessageLimit: 100,
           monthlyMessageLimit: 3000,
           flowExecutionCap: 500,
@@ -68,7 +78,7 @@ describe('Subscription Utility', () => {
       vi.mocked(prisma.user.findUnique).mockResolvedValue({ tenantId: 'tenant_1' } as unknown as NonNullable<Awaited<ReturnType<typeof prisma.user.findUnique>>>);
       vi.mocked(prisma.subscription.findFirst).mockResolvedValue({
         status: 'active',
-        plan: { dailyMessageLimit: 100, monthlyMessageLimit: 3000, flowExecutionCap: 10 }
+        plan: { dailyMessageLimit: 100, monthlyMessageLimit: 3000, flowExecutionCap: 10, displayName: 'Pro' }
       } as unknown as NonNullable<Awaited<ReturnType<typeof prisma.subscription.findFirst>>>);
     });
 
@@ -93,7 +103,7 @@ describe('Subscription Utility', () => {
       vi.mocked(prisma.user.findUnique).mockResolvedValue({ tenantId: 'tenant_1' } as unknown as NonNullable<Awaited<ReturnType<typeof prisma.user.findUnique>>>);
       vi.mocked(prisma.subscription.findFirst).mockResolvedValue({
         status: 'active',
-        plan: { dailyMessageLimit: 100, flowExecutionCap: 100 }
+        plan: { dailyMessageLimit: 100, monthlyMessageLimit: 3000, flowExecutionCap: 100 }
       } as unknown as NonNullable<Awaited<ReturnType<typeof prisma.subscription.findFirst>>>);
       vi.mocked(prisma.usageLog.aggregate).mockResolvedValue({ _sum: { count: 10 } } as unknown as Awaited<ReturnType<typeof prisma.usageLog.aggregate>>);
 

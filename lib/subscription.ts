@@ -1,5 +1,6 @@
 import logger from "./logger";
 import { prisma } from "@/lib/prisma";
+import { redis } from "./redis";
 
 const AGGREGATE_BOT_ID = "__aggregate_bot__";
 const AGGREGATE_CHANNEL_ID = "__aggregate_channel__";
@@ -144,11 +145,20 @@ export async function getTenantLimits(tenantId: string) {
 
   if (cached && cached.expires > now) {
     return cached.data;
+  const cacheKey = `limits:${tenantId}`;
+  try {
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+  } catch (err) {
+    logger.error({ error: err, tenantId }, "[Subscription] Redis cache get failed");
   }
 
   const subscription = await getActiveSubscriptionWithPlan(tenantId);
 
   let result;
+  let limits;
   if (!subscription) {
     const freePlan = await prisma.plan.findUnique({
       where: { name: "free" },
@@ -156,6 +166,7 @@ export async function getTenantLimits(tenantId: string) {
 
     if (freePlan) {
       result = {
+      limits = {
         ...freePlan,
         planName: freePlan.displayName,
         subscriptionStatus: "active",
@@ -182,6 +193,27 @@ export async function getTenantLimits(tenantId: string) {
         features: [],
         subscriptionStatus: "inactive",
       };
+    } else {
+      limits = {
+        maxBots: 0,
+        dailyMessageLimit: 0,
+        name: "suspended",
+        displayName: "Suspended",
+        planName: "Suspended",
+        id: "suspended",
+        currency: "GBP",
+        price: 0,
+        monthlyMessageLimit: 0,
+        flowExecutionCap: 0,
+        maxChannelsPerBot: 0,
+        maxConversations: 0,
+        maxContacts: 0,
+        maxIntegrations: 0,
+        maxFlows: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        features: [],
+      };
     }
   } else {
     result = {
@@ -204,6 +236,27 @@ export async function getTenantLimits(tenantId: string) {
   }
 
   return result;
+    limits = {
+      ...subscription.plan,
+      planName: subscription.plan.displayName,
+    };
+  }
+
+  try {
+    await redis.set(cacheKey, JSON.stringify(limits), "EX", 3600); // 1 hour TTL
+  } catch (err) {
+    logger.error({ error: err, tenantId }, "[Subscription] Redis cache set failed");
+  }
+
+  return limits;
+}
+
+export async function invalidateTenantLimitsCache(tenantId: string) {
+  try {
+    await redis.del(`limits:${tenantId}`);
+  } catch (err) {
+    logger.error({ error: err, tenantId }, "[Subscription] Redis cache invalidate failed");
+  }
 }
 
 export function getUsageStatus(current: number, limit: number): UsageStatus {
