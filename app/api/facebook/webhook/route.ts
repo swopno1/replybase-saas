@@ -108,11 +108,6 @@ export async function POST(req: NextRequest) {
     // Parse the verified body
     const body = JSON.parse(bodyText);
 
-    // Log webhook event to database (async, don't await to avoid blocking)
-    logWebhookEvent(body).catch((err) =>
-      console.error("[Facebook Webhook] Failed to log event:", err),
-    );
-
     // Process each entry in the webhook payload
     if (body.object === "page" && body.entry) {
       for (const entry of body.entry) {
@@ -169,6 +164,32 @@ async function handleMessagingEvent(event: FacebookMessagingEvent) {
     }
 
     const { sender, recipient, message, postback } = event;
+
+    // Idempotency check using Facebook message ID (mid)
+    if (message?.mid) {
+      const eventKey = `mid:${message.mid}`;
+      try {
+        await prisma.webhookLog.create({
+          data: {
+            type: "message",
+            source: "facebook",
+            event: eventKey,
+            data: event as any,
+          },
+        });
+      } catch (err: unknown) {
+        if (typeof err === "object" && err !== null && "code" in err && (err as any).code === "P2002") {
+          // Already processed
+          return;
+        }
+        throw err;
+      }
+    } else {
+      // Log other events without strict de-duplication if mid is missing
+      logWebhookEvent(event).catch((err) =>
+        console.error("[Facebook Webhook] Failed to log event:", err),
+      );
+    }
     const senderPsid = sender?.id;
     const pageId = recipient?.id;
 
@@ -476,56 +497,22 @@ async function handleMessage(
 
 /**
  * Log webhook event to database for debugging
- * Note: This will be available after running: npx prisma migrate dev
  */
-async function logWebhookEvent(body: Record<string, unknown>) {
+async function logWebhookEvent(event: any) {
   try {
-    const entry = (body?.entry as unknown[])?.[0] as Record<string, unknown>;
-    const messaging = (entry?.messaging as unknown[])?.[0] as Record<
-      string,
-      unknown
-    >;
-
     let eventType = "unknown";
-    let eventData: Record<string, unknown> = { raw: body };
+    if (event.postback) eventType = "postback";
+    else if (event.delivery) eventType = "delivery";
+    else if (event.read) eventType = "read";
 
-    if (messaging?.message) {
-      eventType = "message";
-      const msg = messaging.message as Record<string, unknown>;
-      const sender = messaging.sender as Record<string, unknown>;
-      eventData = {
-        sender: sender?.id,
-        text: msg?.text,
-        hasAttachments: Boolean(msg?.attachments),
-      };
-    } else if (messaging?.postback) {
-      eventType = "postback";
-      const postback = messaging.postback as Record<string, unknown>;
-      const sender = messaging.sender as Record<string, unknown>;
-      eventData = {
-        sender: sender?.id,
-        payload: postback?.payload,
-        title: postback?.title,
-      };
-    } else if (messaging?.delivery) {
-      eventType = "delivery";
-    } else if (messaging?.read) {
-      eventType = "read";
-    }
-
-    // Only create if webhookLog model exists (after migration)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((prisma as any).webhookLog) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (prisma as any).webhookLog.create({
-        data: {
-          type: eventType,
-          source: "facebook",
-          event: body?.object || "page",
-          data: eventData,
-        },
-      });
-    }
+    await prisma.webhookLog.create({
+      data: {
+        type: eventType,
+        source: "facebook",
+        event: null, // No unique constraint if event is null
+        data: event as any,
+      },
+    });
   } catch (error) {
     // Silently fail - logging is non-critical
     console.error("[Facebook Webhook] Log error:", error);

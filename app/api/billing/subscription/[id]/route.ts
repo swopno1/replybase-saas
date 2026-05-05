@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
+import { invalidateTenantCache } from "@/lib/subscription";
 
 export const dynamic = 'force-dynamic';
 
@@ -76,6 +77,8 @@ export async function DELETE(
         currentPeriodEnd: new Date(sub.current_period_end * 1000),
       },
     });
+
+    invalidateTenantCache(session.user.tenantId);
 
     return NextResponse.json({ subscription: updated });
   } catch (error: unknown) {
