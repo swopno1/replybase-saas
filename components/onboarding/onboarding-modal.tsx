@@ -136,7 +136,39 @@ export function OnboardingModal({
     }
   };
 
+  const isStepValid = () => {
+    switch (step) {
+      case 0:
+        return !!data.kyc.name && !!data.kyc.company && !!data.kyc.contactInfo;
+      case 1:
+        return (
+          !!data.businessBasics.industry &&
+          !!data.businessBasics.companySize &&
+          !!data.businessBasics.businessModel
+        );
+      case 2:
+        return !!data.productDetails.offer;
+      case 3:
+        return !!data.productSpecifics.mainProducts && !!data.productSpecifics.usps;
+      case 4:
+        return (
+          !!data.supportSales.commonQuestions &&
+          !!data.supportSales.painPoints &&
+          !!data.supportSales.salesProcess
+        );
+      case 5:
+        return true;
+      default:
+        return true;
+    }
+  };
+
   const handleNext = async () => {
+    if (!isStepValid()) {
+      toast.error("Please fill in all required fields to proceed.");
+      return;
+    }
+
     if (step < STAGES.length - 1) {
       setLoading(true);
       try {
@@ -163,7 +195,9 @@ export function OnboardingModal({
           setOpen(false);
           router.refresh();
         } else {
-          toast.error("Failed to complete onboarding");
+          const errorData = await res.json();
+          console.error("Onboarding failed:", errorData);
+          toast.error(errorData.error || "Failed to complete onboarding");
         }
       } catch (_error) {
         toast.error("An error occurred");
@@ -190,7 +224,7 @@ export function OnboardingModal({
                 htmlFor="name"
                 className="text-xs uppercase tracking-widest text-primary/70"
               >
-                Your Name
+                Your Name <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="name"
@@ -205,7 +239,7 @@ export function OnboardingModal({
                 htmlFor="company"
                 className="text-xs uppercase tracking-widest text-primary/70"
               >
-                Company Name
+                Company Name <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="company"
@@ -220,7 +254,7 @@ export function OnboardingModal({
                 htmlFor="contactInfo"
                 className="text-xs uppercase tracking-widest text-primary/70"
               >
-                Contact Info
+                Contact Info <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="contactInfo"
@@ -268,7 +302,7 @@ export function OnboardingModal({
                 htmlFor="industry"
                 className="text-xs uppercase tracking-widest text-primary/70"
               >
-                Industry
+                Industry <span className="text-destructive">*</span>
               </Label>
               <Select
                 value={data.businessBasics.industry || ""}
@@ -321,7 +355,7 @@ export function OnboardingModal({
                 htmlFor="companySize"
                 className="text-xs uppercase tracking-widest text-primary/70"
               >
-                Company Size
+                Company Size <span className="text-destructive">*</span>
               </Label>
               <Select
                 value={data.businessBasics.companySize || ""}
@@ -363,7 +397,7 @@ export function OnboardingModal({
                 htmlFor="businessModel"
                 className="text-xs uppercase tracking-widest text-primary/70"
               >
-                Business Model
+                Business Model <span className="text-destructive">*</span>
               </Label>
               <Select
                 value={data.businessBasics.businessModel || ""}
@@ -403,7 +437,7 @@ export function OnboardingModal({
                 htmlFor="offer"
                 className="text-xs uppercase tracking-widest text-primary/70"
               >
-                What do you sell/offer?
+                What do you sell/offer? <span className="text-destructive">*</span>
               </Label>
               <Textarea
                 id="offer"
@@ -474,7 +508,7 @@ export function OnboardingModal({
                 htmlFor="mainProducts"
                 className="text-xs uppercase tracking-widest text-primary/70"
               >
-                Main products/services details
+                Main products/services details <span className="text-destructive">*</span>
               </Label>
               <Textarea
                 id="mainProducts"
@@ -508,7 +542,7 @@ export function OnboardingModal({
                 htmlFor="usps"
                 className="text-xs uppercase tracking-widest text-primary/70"
               >
-                What makes you unique? (USPs)
+                What makes you unique? (USPs) <span className="text-destructive">*</span>
               </Label>
               <Textarea
                 id="usps"
@@ -540,7 +574,7 @@ export function OnboardingModal({
                 htmlFor="commonQuestions"
                 className="text-xs uppercase tracking-widest text-primary/70"
               >
-                Typical customer questions
+                Typical customer questions <span className="text-destructive">*</span>
               </Label>
               <Textarea
                 id="commonQuestions"
@@ -557,7 +591,7 @@ export function OnboardingModal({
                 htmlFor="painPoints"
                 className="text-xs uppercase tracking-widest text-primary/70"
               >
-                Customer pain points
+                Customer pain points <span className="text-destructive">*</span>
               </Label>
               <Textarea
                 id="painPoints"
@@ -574,7 +608,7 @@ export function OnboardingModal({
                 htmlFor="salesProcess"
                 className="text-xs uppercase tracking-widest text-primary/70"
               >
-                Your sales process
+                Your sales process <span className="text-destructive">*</span>
               </Label>
               <Textarea
                 id="salesProcess"

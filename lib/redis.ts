@@ -25,8 +25,27 @@ const redisInstance = isBuild
       lazyConnect: true,
     });
 
+let connectionAlerted = false;
+
 if (!isBuild) {
   redisInstance.on("error", (err: any) => {
+    // Check if this is a connection refused error (including AggregateError)
+    const isRefused =
+      err.code === "ECONNREFUSED" ||
+      err.message?.includes("ECONNREFUSED") ||
+      (Array.isArray(err.errors) &&
+        err.errors.some((e: any) => e.code === "ECONNREFUSED"));
+
+    if (isRefused) {
+      if (!connectionAlerted) {
+        console.warn(
+          "⚠️ Redis connection refused. Caching and background jobs will be unavailable locally.",
+        );
+        connectionAlerted = true;
+      }
+      return;
+    }
+
     console.error("Redis error:", err);
   });
 }

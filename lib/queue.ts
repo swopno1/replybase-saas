@@ -6,10 +6,25 @@ const QUEUE_NAME = "message-processing";
 
 const isBuild = process.env.NEXT_PHASE === "phase-production-build";
 
+// BullMQ needs dedicated connections for the Queue and Worker to avoid
+// blocking other commands. We duplicate the main connection and attach
+// error listeners to prevent unsilenced connection errors from flooding the console.
+const getQueueConnection = () => {
+  if (isBuild || !redis) return undefined;
+  // If redis is already a proxy/mock, it will return a mock
+  const conn = redis.duplicate ? redis.duplicate() : redis;
+  if (conn.on) {
+    conn.on("error", () => {
+      /* Silenced — handled by the main redis instance logger */
+    });
+  }
+  return conn;
+};
+
 export const messageQueue = isBuild
   ? (null as any)
   : new Queue(QUEUE_NAME, {
-      connection: redis,
+      connection: getQueueConnection(),
       defaultJobOptions: {
         attempts: 3,
         backoff: {
@@ -27,6 +42,8 @@ export interface MessageJobData {
 }
 
 export const setupWorker = () => {
+  if (isBuild) return;
+
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job<MessageJobData>) => {
@@ -35,13 +52,19 @@ export const setupWorker = () => {
 
       try {
         if (type === "whatsapp") {
-          const { processWhatsAppJob } = await import("@/lib/services/whatsapp-worker");
+          const { processWhatsAppJob } = await import(
+            "@/lib/services/whatsapp-worker"
+          );
           await processWhatsAppJob(payload);
         } else if (type === "facebook") {
-          const { processFacebookJob } = await import("@/lib/services/facebook-worker");
+          const { processFacebookJob } = await import(
+            "@/lib/services/facebook-worker"
+          );
           await processFacebookJob(payload);
         } else if (type === "telegram") {
-          const { processTelegramJob } = await import("@/lib/services/telegram-worker");
+          const { processTelegramJob } = await import(
+            "@/lib/services/telegram-worker"
+          );
           await processTelegramJob(payload);
         }
       } catch (error) {
@@ -50,9 +73,9 @@ export const setupWorker = () => {
       }
     },
     {
-      connection: redis,
+      connection: getQueueConnection(),
       concurrency: 5,
-    }
+    },
   );
 
   worker.on("completed", (job) => {

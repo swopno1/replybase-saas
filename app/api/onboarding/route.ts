@@ -152,6 +152,7 @@ export const POST = withAuthAndTenant(async ({ id, tenantId }, request, context,
     return successResponse({ success: true, summary, flowId: flow.id });
   } catch (error) {
     if (error instanceof Error && "name" in error && error.name === "ZodError") {
+       console.error("[Onboarding POST] Validation Failed:", (error as any).issues);
        return validationErrorResponse(error as any);
     }
     console.error("[Onboarding POST] Error:", error);
