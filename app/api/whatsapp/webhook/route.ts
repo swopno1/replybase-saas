@@ -11,6 +11,8 @@ import {
   decryptWhatsAppCredentialEnvelope,
   getStringFromJsonConfig,
 } from "@/lib/whatsapp-channel-credentials";
+import { messageQueue } from "@/lib/queue";
+import { getStringFromJsonConfig } from "@/lib/whatsapp-channel-credentials";
 import {
   // ...existing code...
   WhatsAppProviderCredentials,
@@ -175,116 +177,21 @@ async function ensureContactAndConversation(params: {
   messageId: string;
   timestamp?: string;
 }) {
-  const normalizedWaId = normalizeWhatsAppAddress(params.waId);
-  const normalizedPhone = params.rawPhone
-    ? normalizeWhatsAppE164(params.rawPhone)
-    : null;
+  // Use messageId as jobId for BullMQ idempotency.
+  // This ensures that if Meta retries the webhook, we don't process the same message twice.
+  await messageQueue.add(
+    "whatsapp-message",
+    { type: "whatsapp", payload: params },
+    { jobId: `whatsapp:${params.messageId}` }
+  );
 
-  let contact = await prisma.contact.findFirst({
-    where: {
-      tenantId: params.channel.bot.tenantId,
-      identities: {
-        some: {
-          type: "whatsapp_wa_id",
-          value: normalizedWaId,
-        },
-      },
-    },
-  });
-
-  if (!contact) {
-    contact = await prisma.contact.create({
-      data: {
-        tenantId: params.channel.bot.tenantId,
-        name: params.profileName || null,
-        phone: normalizedPhone,
-        identities: {
-          create: [
-            {
-              type: "whatsapp_wa_id",
-              value: normalizedWaId,
-            },
-            ...(normalizedPhone
-              ? [
-                  {
-                    type: "whatsapp_phone_e164",
-                    value: normalizedPhone,
-                  },
-                ]
-              : []),
-          ],
-        },
-      },
-    });
-  } else {
-    await prisma.contactIdentity.upsert({
-      where: {
-        contactId_type_value: {
-          contactId: contact.id,
-          type: "whatsapp_wa_id",
-          value: normalizedWaId,
-        },
-      },
-      update: {},
-      create: {
-        contactId: contact.id,
-        type: "whatsapp_wa_id",
-        value: normalizedWaId,
-      },
-    });
-
-    if (normalizedPhone) {
-      await prisma.contactIdentity.upsert({
-        where: {
-          contactId_type_value: {
-            contactId: contact.id,
-            type: "whatsapp_phone_e164",
-            value: normalizedPhone,
-          },
-        },
-        update: {},
-        create: {
-          contactId: contact.id,
-          type: "whatsapp_phone_e164",
-          value: normalizedPhone,
-        },
-      });
-    }
-
-    if (!contact.name && params.profileName) {
-      contact = await prisma.contact.update({
-        where: { id: contact.id },
-        data: {
-          name: params.profileName,
-          phone: contact.phone || normalizedPhone,
-        },
-      });
-    }
-  }
-
-  let conversation = await prisma.crmConversation.findFirst({
-    where: {
-      contactId: contact.id,
-      botId: params.channel.botId,
-      channel: "whatsapp",
-    },
-  });
-
-  if (!conversation) {
-    conversation = await prisma.crmConversation.create({
-      data: {
-        tenantId: params.channel.bot.tenantId,
-        contactId: contact.id,
-        botId: params.channel.botId,
-        channel: "whatsapp",
-      },
-    });
-  }
-
-  const existingEvent = await prisma.webhookLog.findFirst({
-    where: {
+  // Log the event asynchronously for audit purposes
+  prisma.webhookLog.create({
+    data: {
+      type: "message",
       source: "whatsapp",
       event: `meta_message:${params.messageId}`,
+      data: { channelId: params.channel.id } as Prisma.InputJsonValue,
     },
     select: { id: true },
   });
@@ -627,6 +534,7 @@ async function sendAutoReply(params: {
         // Best effort only.
       });
   }
+  }).catch(() => { /* audit logging is best-effort */ });
 }
 
 async function processMetaPayload(params: {

@@ -418,31 +418,81 @@
         }
       }
 
-      request("/api/webchat/message", "POST", {
-        token: token,
-        conversationId: conversationId,
-        botId: botId,
-        message: text,
-        planName: window.ReplyBaseWebchatPlanName || "pro",
-        metadata: buildRuntimeMetadata(),
-        botSignals: buildBotSignals(),
+      fetch(baseUrl + "/api/webchat/message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: token,
+          conversationId: conversationId,
+          botId: botId,
+          message: text,
+          planName: window.ReplyBaseWebchatPlanName || "pro",
+          metadata: buildRuntimeMetadata(),
+          botSignals: buildBotSignals(),
+        }),
       })
-        .then(function (data) {
-          var entries = normalizeResponseEntries(data);
-          if (!entries.length) {
-            if (
-              data &&
-              data.meta &&
-              typeof data.meta.mode === "string" &&
-              data.meta.mode.indexOf("human_handoff") === 0
-            ) {
-              return;
-            }
-            addSystemNote("No response received");
-            return;
+        .then(function (res) {
+          if (!res.ok) {
+            return res.json().then(function (data) {
+              throw new Error((data && data.error) || "Request failed");
+            });
           }
 
-          return renderResponseEntries(entries);
+          var contentType = res.headers.get("content-type");
+          if (contentType && contentType.indexOf("text/plain") !== -1) {
+            // Streaming response (Vercel AI SDK data stream)
+            var reader = res.body.getReader();
+            var decoder = new TextDecoder();
+            var fullText = "";
+            var bubble = document.createElement("div");
+            bubble.className = "rb-message bot";
+            messages.appendChild(bubble);
+
+            function read() {
+              return reader.read().then(function (result) {
+                if (result.done) {
+                  isSending = false;
+                  sendButton.disabled = false;
+                  return;
+                }
+                var chunk = decoder.decode(result.value, { stream: true });
+                // Vercel AI SDK Data Stream format: prefix:JSON or prefix:text
+                // 0:text, 1:text_diff, etc.
+                var lines = chunk.split("\n");
+                lines.forEach(function (line) {
+                  if (line.startsWith("0:")) {
+                    var val = line.substring(2);
+                    try {
+                      var textPart = JSON.parse(val);
+                      fullText += textPart;
+                      bubble.textContent = fullText;
+                      messages.scrollTop = messages.scrollHeight;
+                    } catch (e) {}
+                  }
+                });
+                return read();
+              });
+            }
+            return read();
+          } else {
+            // Standard JSON response
+            return res.json().then(function (data) {
+              var entries = normalizeResponseEntries(data);
+              if (!entries.length) {
+                if (
+                  data &&
+                  data.meta &&
+                  typeof data.meta.mode === "string" &&
+                  data.meta.mode.indexOf("human_handoff") === 0
+                ) {
+                  return;
+                }
+                addSystemNote("No response received");
+                return;
+              }
+              return renderResponseEntries(entries);
+            });
+          }
         })
         .catch(function (err) {
           hideBotTyping();

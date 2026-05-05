@@ -1,5 +1,6 @@
 import logger from "./logger";
 import { prisma } from "@/lib/prisma";
+import { redis } from "./redis";
 
 const AGGREGATE_BOT_ID = "__aggregate_bot__";
 const AGGREGATE_CHANNEL_ID = "__aggregate_channel__";
@@ -70,12 +71,12 @@ async function getUsageCount(input: {
       type: input.type,
       date: input.endDate
         ? {
-            gte: input.startDate,
-            lt: input.endDate,
-          }
+          gte: input.startDate,
+          lt: input.endDate,
+        }
         : {
-            gte: input.startDate,
-          },
+          gte: input.startDate,
+        },
     },
     _sum: {
       count: true,
@@ -101,7 +102,10 @@ export async function getMonthlyConversationCount(
   });
 }
 
-// --- Subscription Logic ---
+// --- Subscription Logic & Caching ---
+
+const TENANT_LIMITS_CACHE = new Map<string, { data: any; expires: number }>();
+const CACHE_TTL_MS = 1000 * 60 * 5; // 5 minutes
 
 async function getActiveSubscriptionWithPlan(tenantId: string) {
   return prisma.subscription.findFirst({
@@ -118,48 +122,125 @@ async function getActiveSubscriptionWithPlan(tenantId: string) {
   });
 }
 
+/**
+ * Optimized lookup for subscription status to avoid frequent DB hits in middleware/auth.
+ * Uses the same 5-minute TTL cache as getTenantLimits.
+ */
+export async function getTenantSubscriptionStatus(tenantId: string): Promise<string> {
+  const limits = await getTenantLimits(tenantId);
+  return limits.subscriptionStatus || "active";
+}
+
 export async function getTenantLimits(tenantId: string) {
+  const now = Date.now();
+
+  // 1. Check L1 Cache (In-memory)
+  const cachedL1 = TENANT_LIMITS_CACHE.get(tenantId);
+  if (cachedL1 && cachedL1.expires > now) {
+    return cachedL1.data;
+  }
+
+  // 2. Check L2 Cache (Redis)
+  const cacheKey = `limits:${tenantId}`;
+  try {
+    const cachedL2 = await redis.get(cacheKey);
+    if (cachedL2) {
+      const data = JSON.parse(cachedL2);
+      // Backfill L1
+      TENANT_LIMITS_CACHE.set(tenantId, { data, expires: now + CACHE_TTL_MS });
+      return data;
+    }
+  } catch (err) {
+    logger.error({ error: err, tenantId }, "[Subscription] Redis cache get failed");
+  }
+
+  // 3. Database Lookup
   const subscription = await getActiveSubscriptionWithPlan(tenantId);
 
+  let limits;
   if (!subscription) {
     const freePlan = await prisma.plan.findUnique({
       where: { name: "free" },
     });
 
     if (freePlan) {
-      return {
+      limits = {
         ...freePlan,
         planName: freePlan.displayName,
+        subscriptionStatus: "active",
+      };
+    } else {
+      limits = {
+        maxBots: 0,
+        dailyMessageLimit: 0,
+        name: "suspended",
+        displayName: "Suspended",
+        planName: "Suspended",
+        id: "suspended",
+        currency: "GBP",
+        price: 0,
+        monthlyMessageLimit: 0,
+        flowExecutionCap: 0,
+        maxChannelsPerBot: 0,
+        maxConversations: 0,
+        maxContacts: 0,
+        maxIntegrations: 0,
+        maxFlows: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        features: [],
+        subscriptionStatus: "inactive",
       };
     }
-
-    return {
-      maxBots: 0,
-      dailyMessageLimit: 0,
-      name: "suspended",
-      displayName: "Suspended",
-      planName: "Suspended",
-      id: "suspended",
-      currency: "GBP",
-      price: 0,
-      monthlyMessageLimit: 0,
-      flowExecutionCap: 0,
-      maxChannelsPerBot: 0,
-      maxConversations: 0,
-      maxContacts: 0,
-      maxIntegrations: 0,
-      maxFlows: 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      features: [],
+  } else {
+    limits = {
+      ...subscription.plan,
+      planName: subscription.plan.displayName,
+      subscriptionStatus: subscription.status.toLowerCase(),
     };
   }
 
-  return {
-    ...subscription.plan,
-    planName: subscription.plan.displayName,
-  };
+  // 4. Update Caches
+  try {
+    // Update L1
+    TENANT_LIMITS_CACHE.set(tenantId, {
+      data: limits,
+      expires: now + CACHE_TTL_MS,
+    });
+
+    // Basic L1 size management
+    if (TENANT_LIMITS_CACHE.size > 1000) {
+      const firstKey = TENANT_LIMITS_CACHE.keys().next().value;
+      if (firstKey) TENANT_LIMITS_CACHE.delete(firstKey);
+    }
+
+    // Update L2 (Redis)
+    await redis.set(cacheKey, JSON.stringify(limits), "EX", 3600); // 1 hour TTL
+  } catch (err) {
+    logger.error({ error: err, tenantId }, "[Subscription] Cache update failed");
+  }
+
+  return limits;
 }
+
+/**
+ * Clear cache for a specific tenant across all layers.
+ * Useful when subscription or plan changes.
+ */
+export async function invalidateTenantCache(tenantId: string) {
+  // Clear L1
+  TENANT_LIMITS_CACHE.delete(tenantId);
+
+  // Clear L2
+  try {
+    await redis.del(`limits:${tenantId}`);
+  } catch (err) {
+    logger.error({ error: err, tenantId }, "[Subscription] Redis cache invalidate failed");
+  }
+}
+
+// Alias for backward compatibility if needed, though we should migrate to invalidateTenantCache
+export const invalidateTenantLimitsCache = invalidateTenantCache;
 
 export function getUsageStatus(current: number, limit: number): UsageStatus {
   if (limit <= 0) {
@@ -291,7 +372,7 @@ export async function handlePlanDowngrade(tenantId: string, newPlanId: string) {
       where: { id: { in: botsToDeactivate.map((b) => b.id) } },
       data: { enabled: false },
     });
-    
+
     await prisma.activityLog.create({
       data: {
         tenantId,
@@ -337,9 +418,9 @@ export async function checkLimit(
   });
 
   if (!user?.tenantId) {
-    return { 
-      allowed: false, 
-      remaining: 0, 
+    return {
+      allowed: false,
+      remaining: 0,
       limit: 0,
       status: { zone: UsageZone.HARD, ratio: 1, message: "Unauthorized", allowed: false }
     };
@@ -384,7 +465,7 @@ export async function checkLimit(
     const monthlyRemaining = Math.max(monthlyLimit * HARD_LIMIT_THRESHOLD - monthlyUsage, 0);
 
     const monthlyIsTighter = monthlyRemaining < dailyRemaining;
-    
+
     return {
       allowed: status.allowed,
       remaining: Math.floor(monthlyIsTighter ? monthlyRemaining : dailyRemaining),
@@ -678,13 +759,12 @@ This is an automated alert regarding your ReplyBase usage.
 
 ${description}
 
-${
-  threshold >= 1.1
-    ? "Your service has been restricted to protect your account. Please upgrade immediately to restore full functionality."
-    : threshold >= 1.0
-      ? "You have reached your plan limit. Please consider upgrading to avoid service interruption."
-      : "You are nearing your plan limit. We recommend checking your usage and considering an upgrade soon."
-}
+${threshold >= 1.1
+              ? "Your service has been restricted to protect your account. Please upgrade immediately to restore full functionality."
+              : threshold >= 1.0
+                ? "You have reached your plan limit. Please consider upgrading to avoid service interruption."
+                : "You are nearing your plan limit. We recommend checking your usage and considering an upgrade soon."
+            }
 
 You can manage your subscription and upgrade here:
 ${upgradeUrl}

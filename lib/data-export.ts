@@ -30,11 +30,27 @@ export async function exportTenantData(tenantId: string) {
       subscriptions: true,
       activityLogs: {
         take: 1000, // Limit logs for performance
-        orderBy: { createdAt: "desc" }
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          type: true,
+          title: true,
+          description: true,
+          createdAt: true,
+          metadata: true,
+        }
       },
       usageLogs: {
         take: 1000,
-        orderBy: { date: "desc" }
+        orderBy: { date: "desc" },
+        select: {
+          id: true,
+          type: true,
+          count: true,
+          date: true,
+          botId: true,
+          channelId: true,
+        }
       },
       webChatSites: {
         include: {

@@ -6,6 +6,7 @@ import type { AdapterUser } from "next-auth/adapters";
 import { PrismaAdapter } from "next-auth-prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/server/password";
+import { getTenantSubscriptionStatus } from "@/lib/subscription";
 import { isChannelEnabled } from "@/lib/channel-config";
 import { generateAppSecretProof } from "@/lib/server/facebook-utils";
 
@@ -185,11 +186,7 @@ export const authOptions: NextAuthOptions = {
 
         // Fetch subscription status separately to avoid complex nested includes typing issues
         if (dbUser?.tenantId) {
-          const tenantSub = await prisma.subscription.findFirst({
-            where: { tenantId: dbUser.tenantId },
-            orderBy: { createdAt: "desc" },
-          });
-          token.subscriptionStatus = tenantSub?.status || "active";
+          token.subscriptionStatus = await getTenantSubscriptionStatus(dbUser.tenantId);
         } else {
           token.subscriptionStatus = "inactive";
         }
@@ -200,11 +197,7 @@ export const authOptions: NextAuthOptions = {
         const FIFTEEN_MINUTES = 15 * 60 * 1000;
 
         if (now - lastCheck > FIFTEEN_MINUTES && token.tenantId) {
-          const tenantSub = await prisma.subscription.findFirst({
-            where: { tenantId: token.tenantId as string },
-            orderBy: { createdAt: "desc" },
-          });
-          token.subscriptionStatus = tenantSub?.status || "active";
+          token.subscriptionStatus = await getTenantSubscriptionStatus(token.tenantId as string);
           token.lastSubscriptionCheck = now;
         }
       }
