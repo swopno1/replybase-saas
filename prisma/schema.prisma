@@ -51,6 +51,7 @@ model User {
   accounts                Account[]
   activityLogs            ActivityLog[]
   adminActivities         AdminActivity[]
+  churnFeedbacks          ChurnFeedback[]
   assignedConversations   CrmConversation[]      @relation("AssignedConversations")
   dataDeletionRequests    DataDeletionRequest[]
   executionLogs           ExecutionLog[]
@@ -60,7 +61,6 @@ model User {
   passwordResetTokens     PasswordResetToken[]
   sessions                Session[]
   usageLogs               UsageLog[]
-  churnFeedbacks          ChurnFeedback[]
   tenant                  Tenant                 @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
@@ -86,6 +86,7 @@ model Tenant {
   churnFeedbacks            ChurnFeedback[]
   contacts                  Contact[]
   crmConversations          CrmConversation[]
+  crmMessages               CrmMessage[]
   dataDeletionRequests      DataDeletionRequest[]
   facebookPages             FacebookPage[]
   flows                     Flow[]
@@ -100,7 +101,6 @@ model Tenant {
   usageLogs                 UsageLog[]
   users                     User[]
   webChatSites              WebChatSite[]
-  crmMessages               CrmMessage[]
 
   @@map("tenants")
 }
@@ -214,7 +214,7 @@ model ChurnFeedback {
   id        String   @id @default(cuid())
   tenantId  String
   userId    String?
-  type      String // CANCEL, DOWNGRADE
+  type      String
   reason    String
   planId    String?
   createdAt DateTime @default(now())
@@ -474,15 +474,15 @@ model CrmConversation {
   botPaused         Boolean            @default(false)
   externalSessionId String?
   metadata          Json?
+  tenantId          String
   assignee          User?              @relation("AssignedConversations", fields: [assigneeId], references: [id])
   bot               Bot?               @relation(fields: [botId], references: [id])
   contact           Contact            @relation(fields: [contactId], references: [id])
   facebookPage      FacebookPage?      @relation(fields: [facebookPageId], references: [id])
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   messages          CrmMessage[]
   internalNotes     InternalNote[]
   webChatSessions   WebChatSession[]
-  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  tenantId          String
 
   @@index([contactId])
   @@index([assigneeId])
@@ -573,8 +573,8 @@ model InternalNote {
   content        String
   authorId       String
   conversationId String
-  tenantId       String
   createdAt      DateTime        @default(now())
+  tenantId       String
   author         User            @relation(fields: [authorId], references: [id])
   conversation   CrmConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -819,9 +819,9 @@ model AdminActivity {
   ipAddress   String?
   userAgent   String?
   createdAt   DateTime @default(now())
+  tenantId    String?
   admin       User     @relation(fields: [adminId], references: [id])
   tenant      Tenant?  @relation(fields: [tenantId], references: [id])
-  tenantId    String?
 
   @@index([adminId])
   @@index([createdAt])

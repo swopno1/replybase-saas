@@ -389,7 +389,7 @@ export default function BillingTabContent() {
                     <span className="font-bold text-sm">Monthly AI Responses</span>
                   </div>
                   <span className="text-xs font-medium text-muted-foreground">
-                    <span className="text-foreground font-bold">{usage?.monthlyMessages.toLocaleString()}</span> / {usage?.monthlyMessageLimit === 999999999 ? "∞" : usage?.monthlyMessageLimit.toLocaleString()}
+                    <span className="text-foreground font-bold">{(usage?.monthlyMessages ?? 0).toLocaleString()}</span> / {usage?.monthlyMessageLimit === 999999999 ? "∞" : (usage?.monthlyMessageLimit ?? 0).toLocaleString()}
                   </span>
                 </div>
                 <Progress 
