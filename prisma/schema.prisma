@@ -158,13 +158,13 @@ model FacebookPage {
   name               String
   accessToken        String
   tenantId           String
-  botId              String?
+  botId              String
   engineConnected    Boolean             @default(false)
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   webhookSubscribed  Boolean             @default(false)
   crmConversations   CrmConversation[]
-  bot                Bot?                @relation(fields: [botId], references: [id])
+  bot                Bot                 @relation(fields: [botId], references: [id])
   tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   flowAssignments    FlowAssignment?
   leads              Lead[]
@@ -348,11 +348,10 @@ model Channel {
   bot             Bot                    @relation(fields: [botId], references: [id], onDelete: Cascade)
   flowAssignments FlowChannelAssignment?
 
-  @@unique([botId, type])
+  @@unique([type, channelId])
   @@index([botId])
   @@index([pageId])
   @@index([channelId])
-  @@index([botId, type])
   @@map("channels")
 }
 
