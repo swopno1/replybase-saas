@@ -2,11 +2,8 @@ import { NextResponse } from "next/server";
 
 export const dynamic = 'force-dynamic';
 
-
-
-
 /**
- * GET /api/telegram/health
+ * GET /api/bots/[botId]/channels/telegram/health
  *
  * Public liveness probe for the Telegram integration service.
  * Returns no sensitive information.  Suitable for uptime monitors and

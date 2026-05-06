@@ -3,16 +3,21 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/whatsapp/logs?channelId=<id>&limit=<n>
+ * GET /api/bots/[botId]/channels/telegram/logs?channelId=<id>&limit=<n>
  *
- * Returns recent webhook log entries for a WhatsApp channel.
+ * Returns recent webhook log entries for a Telegram channel.
+ * Includes delivery errors and raw update records for diagnostics.
  * Tenant-scoped: only returns logs for channels owned by the caller's tenant.
  */
-export async function GET(req: NextRequest) {
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ botId: string }> },
+) {
   try {
+    const { botId } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -39,11 +44,12 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Verify the channel belongs to this tenant before returning logs.
+    // Verify the channel belongs to this tenant and bot before returning logs.
     const channel = await prisma.channel.findFirst({
       where: {
         id: channelId,
-        type: "whatsapp",
+        botId: botId,
+        type: "telegram",
         bot: { tenantId: user.tenantId },
       },
       select: { id: true },
@@ -53,20 +59,22 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Channel not found" }, { status: 404 });
     }
 
+    // Fetch logs whose event key is scoped to this channel.
     const logs = await prisma.webhookLog.findMany({
       where: {
-        source: "whatsapp",
+        source: "telegram",
         OR: [
           {
-            event: { startsWith: `meta_message:` },
-            data: { path: ["channelId"], equals: channelId },
+            event: {
+              startsWith: `update:${channelId}:`,
+            },
           },
           {
-            event: { startsWith: `twilio_status:` },
-            data: { path: ["channelId"], equals: channelId },
+            event: `send_error:${channelId}`,
           },
-          { event: `send_error:${channelId}` },
-          { event: `meta_status_event:${channelId}` },
+          {
+            event: `internal_error:${channelId}`,
+          },
         ],
       },
       orderBy: { createdAt: "desc" },
@@ -76,12 +84,13 @@ export async function GET(req: NextRequest) {
         type: true,
         event: true,
         createdAt: true,
+        // Omit raw `data` by default to avoid leaking PII in list responses.
       },
     });
 
     return NextResponse.json({ logs });
   } catch (error) {
-    console.error("[WhatsApp Logs] Error:", error);
+    console.error("[Telegram Logs] Error:", error);
     return NextResponse.json(
       { error: "Failed to fetch logs" },
       { status: 500 },

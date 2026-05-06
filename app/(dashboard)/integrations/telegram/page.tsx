@@ -154,13 +154,15 @@ export default function TelegramIntegrationPage() {
     const run = async () => {
       setIsStatusLoading(true);
       try {
-        const res = await fetch(`/api/telegram/status?botId=${selectedBotId}`);
+        const res = await fetch(
+          `/api/bots/${encodeURIComponent(selectedBotId)}/channels/telegram/status`,
+        );
         const data = await res.json();
         if (cancelled) return;
         setStatus(data);
         if (data.connected && data.channel?.id) {
           const logsRes = await fetch(
-            `/api/telegram/logs?channelId=${data.channel.id}&limit=15`,
+            `/api/bots/${encodeURIComponent(selectedBotId)}/channels/telegram/logs?channelId=${data.channel.id}&limit=15`,
           );
           const logsData = await logsRes.json();
           if (!cancelled) setLogs(logsData.logs || []);
@@ -207,7 +209,9 @@ export default function TelegramIntegrationPage() {
   const loadStatus = async (botId: string) => {
     setIsStatusLoading(true);
     try {
-      const res = await fetch(`/api/telegram/status?botId=${botId}`);
+      const res = await fetch(
+        `/api/bots/${encodeURIComponent(botId)}/channels/telegram/status`,
+      );
       const data = await res.json();
       setStatus(data);
       if (data.connected && data.channel?.id) {
@@ -354,7 +358,7 @@ export default function TelegramIntegrationPage() {
     setIsLogsLoading(true);
     try {
       const res = await fetch(
-        `/api/telegram/logs?channelId=${channelId}&limit=15`,
+        `/api/bots/${encodeURIComponent(selectedBotId)}/channels/telegram/logs?channelId=${channelId}&limit=15`,
       );
       const data = await res.json();
       setLogs(data.logs || []);
@@ -373,15 +377,17 @@ export default function TelegramIntegrationPage() {
 
     setIsConnecting(true);
     try {
-      const res = await fetch("/api/telegram/connect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          botId: selectedBotId,
-          botToken: botToken.trim(),
-          channelName: channelName.trim() || undefined,
-        }),
-      });
+      const res = await fetch(
+        `/api/bots/${encodeURIComponent(selectedBotId)}/channels/telegram/connect`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            botToken: botToken.trim(),
+            channelName: channelName.trim() || undefined,
+          }),
+        },
+      );
 
       const data = await res.json();
       if (!res.ok) {
@@ -419,11 +425,14 @@ export default function TelegramIntegrationPage() {
 
     setIsDisconnecting(true);
     try {
-      const res = await fetch("/api/telegram/disconnect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channelId: status.channel.id }),
-      });
+      const res = await fetch(
+        `/api/bots/${encodeURIComponent(selectedBotId)}/channels/telegram/disconnect`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ channelId: status.channel.id }),
+        },
+      );
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -446,11 +455,14 @@ export default function TelegramIntegrationPage() {
     if (!status?.channel?.id) return;
     setIsReconnecting(true);
     try {
-      const res = await fetch("/api/telegram/reconnect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channelId: status.channel.id }),
-      });
+      const res = await fetch(
+        `/api/bots/${encodeURIComponent(selectedBotId)}/channels/telegram/reconnect`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ channelId: status.channel.id }),
+        },
+      );
 
       const data = await res.json();
       if (!res.ok) {

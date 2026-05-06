@@ -11,23 +11,24 @@ import { recordTelegramWebhookSetupLog } from "@/lib/telegram-webhook-setup-log"
 
 export const dynamic = 'force-dynamic';
 
-
-
-
 const reconnectSchema = z.object({
   channelId: z.string().min(1),
 });
 
 /**
- * POST /api/telegram/reconnect
+ * POST /api/bots/[botId]/channels/telegram/reconnect
  *
  * Re-registers the Telegram webhook for an already-connected channel using the
  * stored (encrypted) bot token.  Useful when Telegram marks the webhook as
  * failed or when the public URL changes (e.g. after a deployment/domain change).
  * No need to re-enter the bot token.
  */
-export async function POST(req: NextRequest) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ botId: string }> },
+) {
   try {
+    const { botId } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -48,6 +49,7 @@ export async function POST(req: NextRequest) {
     const channel = await prisma.channel.findFirst({
       where: {
         id: validated.channelId,
+        botId: botId,
         type: "telegram",
         bot: { tenantId: user.tenantId },
       },

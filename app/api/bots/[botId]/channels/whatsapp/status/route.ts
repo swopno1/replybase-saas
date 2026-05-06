@@ -11,8 +11,12 @@ import { maskSecret } from "@/lib/whatsapp-provider";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ botId: string }> },
+) {
   try {
+    const { botId } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -28,17 +32,17 @@ export async function GET(req: NextRequest) {
     }
 
     const channelId = req.nextUrl.searchParams.get("channelId");
-    const botId = req.nextUrl.searchParams.get("botId");
 
     const whereClause: Prisma.ChannelWhereInput = channelId
       ? {
           id: channelId,
+          botId,
           type: "whatsapp",
           bot: { tenantId: user.tenantId },
         }
       : {
           type: "whatsapp",
-          botId: botId || undefined,
+          botId: botId,
           bot: { tenantId: user.tenantId },
         };
 

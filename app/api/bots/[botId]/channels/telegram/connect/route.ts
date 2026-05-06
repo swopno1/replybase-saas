@@ -16,17 +16,17 @@ import { getTenantLimits } from "@/lib/subscription";
 
 export const dynamic = 'force-dynamic';
 
-
-
-
 const connectSchema = z.object({
-  botId: z.string().min(1),
   botToken: z.string().min(10),
   channelName: z.string().min(1).optional(),
 });
 
-export async function POST(req: NextRequest) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ botId: string }> },
+) {
   try {
+    const { botId } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     }
 
     const bot = await prisma.bot.findFirst({
-      where: { id: validated.botId, tenantId: user.tenantId },
+      where: { id: botId, tenantId: user.tenantId },
       select: { id: true },
     });
 

@@ -16,7 +16,6 @@ import { encryptWhatsAppCredentialEnvelope } from "@/lib/whatsapp-channel-creden
 export const dynamic = "force-dynamic";
 
 const metaSchema = z.object({
-  botId: z.string().min(1),
   provider: z.literal("meta_cloud"),
   channelName: z.string().min(1).optional(),
   credentials: z.object({
@@ -28,7 +27,6 @@ const metaSchema = z.object({
 });
 
 const twilioSchema = z.object({
-  botId: z.string().min(1),
   provider: z.literal("twilio"),
   channelName: z.string().min(1).optional(),
   credentials: z.object({
@@ -39,7 +37,6 @@ const twilioSchema = z.object({
 });
 
 const dialogSchema = z.object({
-  botId: z.string().min(1),
   provider: z.literal("360dialog"),
   channelName: z.string().min(1).optional(),
   credentials: z.object({
@@ -66,8 +63,12 @@ function resolveWebhookBaseUrl(req: NextRequest): string {
   return req.nextUrl.origin;
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ botId: string }> },
+) {
   try {
+    const { botId } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -86,7 +87,7 @@ export async function POST(req: NextRequest) {
     }
 
     const bot = await prisma.bot.findFirst({
-      where: { id: validated.botId, tenantId: user.tenantId },
+      where: { id: botId, tenantId: user.tenantId },
       select: { id: true, name: true },
     });
 
