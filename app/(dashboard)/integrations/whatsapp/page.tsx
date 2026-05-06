@@ -178,14 +178,14 @@ export default function WhatsAppIntegrationPage() {
       setLoadingStatus(true);
       try {
         const res = await fetch(
-          `/api/whatsapp/status?botId=${encodeURIComponent(selectedBotId)}`,
+          `/api/bots/${encodeURIComponent(selectedBotId)}/channels/whatsapp/status`,
         );
         const data = (await res.json()) as WhatsAppStatus;
         if (cancelled) return;
         setStatus(data);
         if (data.connected && data.channel?.id) {
           const logsRes = await fetch(
-            `/api/whatsapp/logs?channelId=${data.channel.id}&limit=15`,
+            `/api/bots/${encodeURIComponent(selectedBotId)}/channels/whatsapp/logs?channelId=${data.channel.id}&limit=15`,
           );
           const logsData = await logsRes.json();
           if (!cancelled) setLogs(logsData.logs || []);
@@ -262,7 +262,7 @@ export default function WhatsAppIntegrationPage() {
     setLoadingStatus(true);
     try {
       const res = await fetch(
-        `/api/whatsapp/status?botId=${encodeURIComponent(botId)}`,
+        `/api/bots/${encodeURIComponent(botId)}/channels/whatsapp/status`,
       );
       const data = (await res.json()) as WhatsAppStatus;
       setStatus(data);
@@ -330,7 +330,7 @@ export default function WhatsAppIntegrationPage() {
     setIsLogsLoading(true);
     try {
       const res = await fetch(
-        `/api/whatsapp/logs?channelId=${channelId}&limit=15`,
+        `/api/bots/${encodeURIComponent(selectedBotId)}/channels/whatsapp/logs?channelId=${channelId}&limit=15`,
       );
       const data = await res.json();
       setLogs(data.logs || []);
@@ -434,11 +434,14 @@ export default function WhatsAppIntegrationPage() {
         };
       }
 
-      const res = await fetch("/api/whatsapp/connect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const res = await fetch(
+        `/api/bots/${encodeURIComponent(selectedBotId)}/channels/whatsapp/connect`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
 
       const data = await res.json();
       if (!res.ok) {
@@ -472,11 +475,14 @@ export default function WhatsAppIntegrationPage() {
 
     setDisconnecting(true);
     try {
-      const res = await fetch("/api/whatsapp/disconnect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channelId: status.channel.id }),
-      });
+      const res = await fetch(
+        `/api/bots/${encodeURIComponent(selectedBotId)}/channels/whatsapp/disconnect`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ channelId: status.channel.id }),
+        },
+      );
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
