@@ -97,6 +97,7 @@ model Tenant {
   revenue                   Revenue[]
   subscriptions             Subscription?
   channelStatuses           TenantChannelStatus?
+  channels                  Channel[]
   leadNotificationSettings  TenantLeadNotificationSettings?
   usageLogs                 UsageLog[]
   users                     User[]
@@ -342,12 +343,15 @@ model Channel {
   enabled         Boolean                @default(true)
   killSwitch      Boolean                @default(false)
   config          Json                   @default("{}")
+  tenantId        String
   botId           String
   createdAt       DateTime               @default(now())
   updatedAt       DateTime               @updatedAt
+  tenant          Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   bot             Bot                    @relation(fields: [botId], references: [id], onDelete: Cascade)
   flowAssignments FlowChannelAssignment?
 
+  @@index([tenantId])
   @@unique([type, channelId])
   @@index([botId])
   @@index([pageId])
