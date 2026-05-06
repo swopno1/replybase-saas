@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Settings, Share2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,8 +14,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { isChannelVisibleInUi } from "@/lib/channel-config";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
+import { WhatsAppConfig } from "@/components/channels/WhatsAppConfig";
+import { TelegramConfig } from "@/components/channels/TelegramConfig";
+import { FacebookConfig } from "@/components/channels/FacebookConfig";
+import { WebchatConfig } from "@/components/channels/WebchatConfig";
 
 export const dynamic = "force-dynamic";
 
@@ -59,38 +71,22 @@ const CHANNEL_OPTIONS: Array<{
 ];
 
 function channelLabel(type: string) {
+  if (type === "web") return "Webchat";
   return type.charAt(0).toUpperCase() + type.slice(1);
 }
 
-function channelConfigHref(type: string) {
-  if (type === "web") return "/integrations/webchat";
-  if (type === "telegram") return "/integrations/telegram";
-  if (type === "facebook") return "/integrations/facebook";
-  if (type === "whatsapp") return "/integrations/whatsapp";
-  return null;
-}
-
-function isBotChannelVisible(channelType: string): boolean {
-  if (channelType === "web") {
-    return isChannelVisibleInUi("webchat");
-  }
-
-  if (
-    channelType === "telegram" ||
-    channelType === "facebook" ||
-    channelType === "whatsapp"
-  ) {
-    return isChannelVisibleInUi(channelType);
-  }
-
-  return true;
-}
-
-export default function BotDetailPage() {
+function BotDetailContent() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { alert, confirm } = useConfirmation();
   const botId = params.botId as string;
+
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "general");
+  const [activeChannel, setActiveChannel] = useState<ChannelType | null>(
+    (searchParams.get("channel") as ChannelType) || null
+  );
+
   const [bot, setBot] = useState<Bot | null>(null);
   const [loading, setLoading] = useState(true);
   const [flows, setFlows] = useState<Flow[]>([]);
@@ -100,100 +96,58 @@ export default function BotDetailPage() {
     null,
   );
   const [editing, setEditing] = useState(false);
-  const [deletingBot, setDeletingBot] = useState(false);
   const [formData, setFormData] = useState<BotFormData | null>(null);
-  const visibleChannelOptions = CHANNEL_OPTIONS.filter((option) =>
-    isBotChannelVisible(option.type),
-  );
-  const visibleBotChannels = bot?.channels.filter((channel) =>
-    isBotChannelVisible(channel.type),
-  );
+  const [saving, setSaving] = useState(false);
+  const [deletingBot, setDeletingBot] = useState(false);
 
-  const fetchBot = async () => {
+  useEffect(() => {
+    if (!botId) return;
+    void loadBot();
+    void loadFlows();
+  }, [botId]);
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab) setActiveTab(tab);
+
+    const channel = searchParams.get("channel") as ChannelType;
+    if (channel) setActiveChannel(channel);
+  }, [searchParams]);
+
+  const loadBot = async () => {
     try {
-      const res = await fetch(`/api/bots/${botId}`);
-      const data = await res.json();
+      const response = await fetch(`/api/bots/${botId}`);
+      if (!response.ok) throw new Error("Failed to fetch bot");
+      const data = await response.json();
       setBot(data.bot);
       setFormData({
         name: data.bot.name,
         status: data.bot.enabled,
-        entryFlow: data.bot.entryFlow ?? null,
+        entryFlow: data.bot.entryFlow,
       });
     } catch (error) {
-      console.error("Failed to fetch bot:", error);
+      console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchFlows = async () => {
+  const loadFlows = async () => {
     try {
-      const res = await fetch("/api/flows?type=my");
-      const data = await res.json();
-      setFlows(Array.isArray(data.flows) ? data.flows : []);
+      const response = await fetch("/api/flows");
+      if (!response.ok) throw new Error("Failed to fetch flows");
+      const data = await response.json();
+      setFlows(data.flows || []);
     } catch (error) {
-      console.error("Failed to fetch flows:", error);
-    }
-  };
-
-  useEffect(() => {
-    void fetchBot();
-    void fetchFlows();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [botId]);
-
-  const handleAddChannel = async (type: ChannelType) => {
-    if (!bot) {
-      return;
-    }
-
-    setAddingChannelType(type);
-    try {
-      const payload: {
-        type: ChannelType;
-        name: string;
-        channelId?: string;
-      } = {
-        type,
-        name: `${channelLabel(type)} Channel`,
-      };
-
-      if (type !== "web") {
-        payload.channelId = `${type}-${bot.id.slice(0, 8)}`;
-      }
-
-      const response = await fetch(`/api/bots/${botId}/channels`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to create channel");
-      }
-
-      await fetchBot();
-    } catch (error) {
-      console.error("Failed to add channel:", error);
-      await alert({
-        title: "Failed to Add Channel",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to add channel. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setAddingChannelType(null);
+      console.error(error);
     }
   };
 
   const handleSave = async () => {
-    if (!formData) return;
-
+    if (!formData || saving) return;
+    setSaving(true);
     try {
-      const res = await fetch(`/api/bots/${botId}`, {
+      const response = await fetch(`/api/bots/${botId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -202,62 +156,82 @@ export default function BotDetailPage() {
           entryFlow: formData.entryFlow,
         }),
       });
-
-      if (res.ok) {
-        const updated = await res.json();
-        setBot((previous) =>
-          previous
-            ? {
-                ...previous,
-                ...updated.bot,
-              }
-            : updated.bot,
-        );
-        setEditing(false);
-      }
+      if (!response.ok) throw new Error("Failed to update bot");
+      await loadBot();
+      setEditing(false);
     } catch (error) {
-      console.error("Failed to update bot:", error);
+      console.error(error);
+      await alert({
+        title: "Error",
+        description: "Failed to save bot changes",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleRemoveChannel = async (
-    channelId: string,
-    channelType: string,
-  ) => {
-    if (!bot) {
-      return;
-    }
+  const handleAddChannel = async (type: ChannelType) => {
+    setAddingChannelType(type);
+    try {
+      const response = await fetch(`/api/bots/${botId}/channels`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type,
+          name: `${channelLabel(type)} Channel`,
+        }),
+      });
 
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to add channel");
+      }
+
+      await loadBot();
+      setActiveChannel(type);
+    } catch (error) {
+      console.error(error);
+      await alert({
+        title: "Failed to Add Channel",
+        description: error instanceof Error ? error.message : "Try again later",
+        variant: "destructive",
+      });
+    } finally {
+      setAddingChannelType(null);
+    }
+  };
+
+  const handleRemoveChannel = async (id: string, type: string) => {
     const confirmed = await confirm({
       title: "Remove Channel",
-      description: `Remove ${channelLabel(channelType)} channel from this bot?`,
+      description: `Are you sure you want to remove the ${channelLabel(type)} channel? This will delete its configuration.`,
       confirmText: "Remove",
       variant: "destructive",
     });
-    if (!confirmed) {
-      return;
-    }
 
-    setDeletingChannelId(channelId);
+    if (!confirmed) return;
+
+    setDeletingChannelId(id);
     try {
-      const response = await fetch(`/api/bots/${botId}/channels/${channelId}`, {
+      const response = await fetch(`/api/bots/${botId}/channels/${id}`, {
         method: "DELETE",
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || "Failed to delete channel");
+        throw new Error(error.error || "Failed to remove channel");
       }
 
-      await fetchBot();
+      if (activeChannel === type) {
+        setActiveChannel(null);
+      }
+      await loadBot();
     } catch (error) {
-      console.error("Failed to remove channel:", error);
+      console.error(error);
       await alert({
-        title: "Failed to Remove Channel",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to remove channel. Please try again.",
+        title: "Error",
+        description: "Failed to remove channel",
         variant: "destructive",
       });
     } finally {
@@ -266,20 +240,16 @@ export default function BotDetailPage() {
   };
 
   const handleDeleteBot = async () => {
-    if (!bot || deletingBot) {
-      return;
-    }
+    if (!bot || deletingBot) return;
 
     const confirmed = await confirm({
       title: "Delete Bot",
-      description: `Delete bot \"${bot.name}\"? This removes its channels, webchat sites, and execution logs. Existing conversation history will be detached from the bot reference.`,
+      description: `Delete bot \"${bot.name}\"? This removes its channels, webchat sites, and execution logs.`,
       confirmText: "Delete Bot",
       variant: "destructive",
     });
 
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     setDeletingBot(true);
     try {
@@ -287,250 +257,301 @@ export default function BotDetailPage() {
         method: "DELETE",
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to delete bot");
-      }
+      if (!response.ok) throw new Error("Failed to delete bot");
 
       router.push("/bots");
-      router.refresh();
     } catch (error) {
-      console.error("Failed to delete bot:", error);
+      console.error(error);
       await alert({
-        title: "Failed to Delete Bot",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to delete bot. Please try again.",
+        title: "Error",
+        description: "Failed to delete bot",
         variant: "destructive",
       });
       setDeletingBot(false);
     }
   };
 
-  if (loading) return <div>Loading...</div>;
-  if (!bot) return <div>Bot not found</div>;
+  const visibleChannelOptions = CHANNEL_OPTIONS.filter((opt) => {
+    if (opt.type === "web") return isChannelVisibleInUi("webchat");
+    return isChannelVisibleInUi(opt.type);
+  });
+
+  if (loading) return <div className="p-8 text-center"><Loader2 className="animate-spin inline mr-2" /> Loading...</div>;
+  if (!bot) return <div className="p-8">Bot not found</div>;
+
+  const renderChannelConfig = () => {
+    if (!activeChannel) return null;
+
+    return (
+      <div className="space-y-6">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setActiveChannel(null)}
+          className="mb-2"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Channels
+        </Button>
+
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold">{channelLabel(activeChannel)} Configuration</h2>
+        </div>
+
+        {activeChannel === "whatsapp" && <WhatsAppConfig botId={botId} />}
+        {activeChannel === "telegram" && <TelegramConfig botId={botId} />}
+        {activeChannel === "facebook" && <FacebookConfig botId={botId} />}
+        {activeChannel === "web" && <WebchatConfig botId={botId} />}
+      </div>
+    );
+  };
 
   return (
-    <div className="max-w-2xl">
-      <h1 className="text-3xl font-bold mb-6">{bot.name}</h1>
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">{bot.name}</h1>
+        <div className="flex gap-2">
+           <Button variant="outline" onClick={() => setEditing(!editing)}>
+            <Settings className="mr-2 h-4 w-4" />
+            {editing ? "View Details" : "Edit Bot"}
+          </Button>
+        </div>
+      </div>
 
-      <div className="border rounded-lg p-6 space-y-4">
-        {editing ? (
-          <>
-            <div>
-              <Label className="block text-sm font-medium mb-1">Bot Name</Label>
-              <Input
-                value={formData?.name || ""}
-                onChange={(e) =>
-                  setFormData((prev) =>
-                    prev ? { ...prev, name: e.target.value } : null,
-                  )
-                }
-              />
-            </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="general" className="flex items-center gap-1">
+            <Settings className="h-4 w-4" />
+            General
+          </TabsTrigger>
+          <TabsTrigger value="channels" className="flex items-center gap-1">
+            <Share2 className="h-4 w-4" />
+            Channels
+          </TabsTrigger>
+        </TabsList>
 
-            <div>
-              <Label className="block text-sm font-medium mb-1">Status</Label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={formData?.status ?? false}
-                  onChange={(e) =>
-                    setFormData((prev) =>
-                      prev ? { ...prev, status: e.target.checked } : null,
-                    )
-                  }
-                />
-                <span>Enabled</span>
-              </label>
-            </div>
+        <TabsContent value="general" className="space-y-6">
+          <div className="border rounded-lg p-6 space-y-6 bg-white shadow-sm">
+            {editing ? (
+              <>
+                <div className="space-y-4">
+                  <div>
+                    <Label className="block text-sm font-medium mb-1">Bot Name</Label>
+                    <Input
+                      value={formData?.name || ""}
+                      onChange={(e) =>
+                        setFormData((prev) =>
+                          prev ? { ...prev, name: e.target.value } : null,
+                        )
+                      }
+                    />
+                  </div>
 
-            <div>
-              <Label className="block text-sm font-medium mb-1">
-                Entry Flow
-              </Label>
-              <p className="text-xs text-gray-500 mb-2">
-                The first flow that runs when a user sends a message via
-                webchat. Without one, only AI responds.
-              </p>
-              <Select
-                value={formData?.entryFlow ?? "__none__"}
-                onValueChange={(value) =>
-                  setFormData((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          entryFlow: value === "__none__" ? null : value,
-                        }
-                      : null,
-                  )
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="None (AI fallback only)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">
-                    None (AI fallback only)
-                  </SelectItem>
-                  {flows.map((flow) => (
-                    <SelectItem key={flow.id} value={flow.id}>
-                      {flow.name}
-                      {!flow.isActive ? " (inactive)" : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {flows.length === 0 && (
-                <p className="text-xs text-gray-400 mt-1">
-                  No flows yet.{" "}
-                  <Link href="/flows" className="text-blue-600 hover:underline">
-                    Create one in Flows →
-                  </Link>
-                </p>
-              )}
-            </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="bot-enabled"
+                      checked={formData?.status ?? false}
+                      onChange={(e) =>
+                        setFormData((prev) =>
+                          prev ? { ...prev, status: e.target.checked } : null,
+                        )
+                      }
+                    />
+                    <Label htmlFor="bot-enabled">Enabled</Label>
+                  </div>
 
-            <div className="flex gap-2">
-              <Button onClick={handleSave}>Save Changes</Button>
-              <Button variant="outline" onClick={() => setEditing(false)}>
-                Cancel
-              </Button>
-            </div>
-          </>
-        ) : (
-          <>
-            <div>
-              <p className="text-sm text-gray-600">Channels</p>
-              <div className="mt-2 mb-3 flex flex-wrap gap-2">
-                {visibleChannelOptions.map((option) => {
-                  const exists = bot.channels.some(
-                    (channel) => channel.type === option.type,
-                  );
-                  return (
-                    <Button
-                      key={option.type}
-                      size="sm"
-                      variant="outline"
-                      onClick={() => void handleAddChannel(option.type)}
-                      disabled={exists || addingChannelType !== null}
-                    >
-                      {addingChannelType === option.type
-                        ? `Adding ${option.label}...`
-                        : exists
-                          ? `${option.label} Added`
-                          : `Add ${option.label}`}
-                    </Button>
-                  );
-                })}
-              </div>
-              {visibleBotChannels?.length === 0 ? (
-                <p className="font-medium">No channels configured</p>
-              ) : (
-                <div className="mt-2 space-y-2">
-                  {visibleBotChannels?.map((channel) => {
-                    const href = channelConfigHref(channel.type);
-                    return (
-                      <div
-                        key={channel.id}
-                        className="rounded border px-3 py-2"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="font-medium">
-                            {channelLabel(channel.type)}
-                          </p>
-                          <div className="flex items-center gap-3">
-                            {href ? (
-                              <Link
-                                href={href}
-                                className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
-                              >
-                                Configure
-                              </Link>
-                            ) : null}
-                            <button
-                              type="button"
-                              onClick={() =>
-                                void handleRemoveChannel(
-                                  channel.id,
-                                  channel.type,
-                                )
+                  <div>
+                    <Label className="block text-sm font-medium mb-1">
+                      Entry Flow
+                    </Label>
+                    <p className="text-xs text-gray-500 mb-2">
+                      Default flow for webchat or when no channel flow is assigned.
+                    </p>
+                    <Select
+                      value={formData?.entryFlow ?? "__none__"}
+                      onValueChange={(value) =>
+                        setFormData((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                entryFlow: value === "__none__" ? null : value,
                               }
-                              disabled={deletingChannelId === channel.id}
-                              className="text-sm text-red-600 hover:text-red-700 disabled:opacity-60"
+                            : null,
+                        )
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="None (AI fallback only)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">
+                          None (AI fallback only)
+                        </SelectItem>
+                        {flows.map((flow) => (
+                          <SelectItem key={flow.id} value={flow.id}>
+                            {flow.name}
+                            {!flow.isActive ? " (inactive)" : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-4">
+                  <Button onClick={handleSave} disabled={saving}>
+                    {saving ? "Saving..." : "Save Changes"}
+                  </Button>
+                  <Button variant="outline" onClick={() => setEditing(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-8">
+                  <div className="space-y-1">
+                    <p className="text-sm text-gray-500">Status</p>
+                    <Badge variant={bot.enabled ? "secondary" : "outline"} className={bot.enabled ? "bg-green-100 text-green-800 border-none" : ""}>
+                      {bot.enabled ? "Enabled" : "Disabled"}
+                    </Badge>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm text-gray-500">Created</p>
+                    <p className="font-medium text-sm">
+                      {new Date(bot.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t">
+                  <p className="text-sm font-medium mb-2">Default Entry Flow</p>
+                  <p className="text-xs text-gray-500 mb-3">
+                    If no specific channel flow is assigned, ReplyBase uses this.
+                  </p>
+                  {bot.entryFlow ? (
+                    <div className="flex items-center gap-2 text-sm">
+                      <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                      <span className="font-medium">
+                        {flows.find((f) => f.id === bot.entryFlow)?.name ??
+                          bot.entryFlow}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-2 text-sm">
+                      <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                      <span className="text-amber-700">
+                        No entry flow set. Bot uses AI fallback by default.
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-8 border-t">
+                   <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleDeleteBot}
+                    disabled={deletingBot}
+                  >
+                    {deletingBot ? "Deleting..." : "Delete Bot"}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="channels">
+          {activeChannel ? (
+            renderChannelConfig()
+          ) : (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Available Channels</CardTitle>
+                  <CardDescription>
+                    Add channels to connect this bot to different platforms.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-3">
+                    {visibleChannelOptions.map((option) => {
+                      const exists = bot.channels.some(
+                        (channel) => channel.type === option.type,
+                      );
+                      return (
+                        <Button
+                          key={option.type}
+                          variant="outline"
+                          onClick={() => handleAddChannel(option.type)}
+                          disabled={exists || addingChannelType !== null}
+                        >
+                          {addingChannelType === option.type
+                            ? `Adding...`
+                            : exists
+                              ? `${option.label} (Added)`
+                              : `Add ${option.label}`}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="space-y-4">
+                <h3 className="font-semibold px-1 text-lg">Configured Channels</h3>
+                {bot.channels.length === 0 ? (
+                  <p className="text-sm text-muted-foreground px-1 italic">No channels configured yet.</p>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {bot.channels.map((channel) => (
+                      <Card key={channel.id} className="overflow-hidden shadow-sm">
+                         <div className="p-4 flex flex-col h-full">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-bold">{channelLabel(channel.type)}</h4>
+                            <Badge variant={channel.isActive ? "secondary" : "outline"} className={channel.isActive ? "bg-green-50 text-green-700 border-green-100" : ""}>
+                              {channel.isActive ? "Active" : "Inactive"}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground mb-4 truncate">{channel.name}</p>
+                          <div className="flex items-center gap-2 mt-auto pt-2">
+                            <Button
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => setActiveChannel(channel.type as ChannelType)}
                             >
-                              {deletingChannelId === channel.id
-                                ? "Removing..."
-                                : "Remove"}
-                            </button>
+                              Configure
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => handleRemoveChannel(channel.id, channel.type)}
+                              disabled={deletingChannelId === channel.id}
+                            >
+                              {deletingChannelId === channel.id ? "..." : "Remove"}
+                            </Button>
                           </div>
                         </div>
-                        <p className="text-xs text-gray-500">{channel.name}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-
-            <div>
-              <p className="text-sm text-gray-600">Status</p>
-              <span
-                className={`inline-block px-2 py-1 rounded text-sm ${
-                  bot.enabled
-                    ? "bg-green-100 text-green-800"
-                    : "bg-red-100 text-red-800"
-                }`}
-              >
-                {bot.enabled ? "Enabled" : "Disabled"}
-              </span>
-            </div>
-
-            <div className="pt-4 border-t">
-              <p className="text-sm font-medium mb-2">Entry Flow</p>
-              <p className="text-xs text-gray-500 mb-3">
-                When a user sends a message via webchat, ReplyBase runs this
-                flow first. If no flow is set, only the AI fallback responds.
-              </p>
-              {bot.entryFlow ? (
-                <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
-                  <span className="font-medium">
-                    {flows.find((f) => f.id === bot.entryFlow)?.name ??
-                      bot.entryFlow}
-                  </span>
-                </div>
-              ) : (
-                <div className="flex items-start gap-2 text-sm">
-                  <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-                  <span className="text-amber-700">
-                    No entry flow set. Webchat messages will receive AI fallback
-                    responses only.
-                  </span>
-                </div>
-              )}
-              <Link
-                href="/flows"
-                className="text-xs text-blue-600 hover:underline mt-2 block"
-              >
-                Manage flows →
-              </Link>
-            </div>
-
-            <div className="flex gap-2 pt-4">
-              <Button onClick={() => setEditing(true)}>Edit</Button>
-              <Button
-                variant="destructive"
-                onClick={() => void handleDeleteBot()}
-                disabled={deletingBot}
-              >
-                {deletingBot ? "Deleting..." : "Delete Bot"}
-              </Button>
-            </div>
-          </>
-        )}
-      </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
+  );
+}
+
+export default function BotDetailPage() {
+  return (
+    <Suspense fallback={<div className="p-8">Loading bot details...</div>}>
+      <BotDetailContent />
+    </Suspense>
   );
 }
