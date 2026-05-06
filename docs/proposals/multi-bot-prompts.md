@@ -4,7 +4,7 @@ These prompts are designed to be executed sequentially by an AI developer to tra
 
 ---
 
-## Stage 1: Database & Schema Refactor
+## Stage 1: Database & Schema Refactor ✅
 **Goal**: Update the Prisma schema to support multiple channels of the same type per bot and ensure bot-centricity.
 
 > "Update the Prisma schema to support multiple channels of the same type per bot and ensure bot-centricity.
@@ -15,7 +15,7 @@ These prompts are designed to be executed sequentially by an AI developer to tra
 
 ---
 
-## Stage 2: Bot-Specific Channel APIs
+## Stage 2: Bot-Specific Channel APIs ✅
 **Goal**: Refactor the backend API routes for WhatsApp, Telegram, and Webchat to be bot-specific.
 
 > "Refactor the backend API routes for WhatsApp, Telegram, and Webchat to be bot-specific.
