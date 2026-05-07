@@ -71,9 +71,9 @@ async function handleMessagingEvent(event: any) {
     const pageId = event.recipient?.id;
     if (!senderPsid || !pageId) return;
 
-    // Multi-bot lookup: Find the specific FacebookPage record using the pageId
+    // Multi-bot lookup: Find the specific FacebookPage record using the pageId (facebookId field)
     const pageRecord = await prisma.facebookPage.findFirst({
-      where: { id: pageId },
+      where: { facebookId: pageId },
       include: { bot: true }
     });
 
