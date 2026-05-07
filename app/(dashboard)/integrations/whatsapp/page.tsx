@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { useEffect, useState, useMemo } from "react";
 import {
-  CheckCircle2,
   Loader2,
-  MessageCircle,
-  ShieldAlert,
+  CheckCircle2,
+  AlertTriangle,
   Unplug,
+  MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,51 +26,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { isChannelVisibleInUi } from "@/lib/channel-config";
+import { toast } from "sonner";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
+import { BotSelector } from "@/components/bot-selector";
 import {
-  ChannelBotSelectorCard,
-  ChannelGuidanceCard,
-  ChannelPageHeader,
-} from "@/components/channels/channel-ui";
-import {
-  ChannelActivityLogCard,
   ChannelFlowAssignmentCard,
+  ChannelActivityLogCard,
 } from "@/components/channels/channel-sections";
-
-export const dynamic = "force-dynamic";
-
-type ProviderId = "meta_cloud" | "twilio" | "360dialog";
-
-interface FlowOption {
-  id: string;
-  name: string;
-  isActive: boolean;
-}
-
-interface ChannelFlowAssignment {
-  id: string;
-  flowId: string;
-  flow?: {
-    id: string;
-    name: string;
-    isActive: boolean;
-  };
-}
-
-interface BotChannel {
-  id: string;
-  name: string;
-  type: string;
-  flowAssignments?: ChannelFlowAssignment | null;
-}
-
-interface WebhookLogEntry {
-  id: string;
-  type: string;
-  event: string;
-  createdAt: string;
-}
+import Link from "next/link";
 
 interface Bot {
   id: string;
@@ -81,94 +42,103 @@ interface Bot {
 
 interface WhatsAppStatus {
   connected: boolean;
-  provider?: string | null;
   channel?: {
     id: string;
     name: string;
     channelId: string;
     updatedAt: string;
   };
+  provider?: string;
   local?: {
-    webhookUrl?: string | null;
-    lastWebhookEventAt?: string | null;
-    lastInboundMessageAt?: string | null;
-    lastStatusEventAt?: string | null;
-    metaPhoneNumberId?: string | null;
-    twilioFromNumber?: string | null;
+    webhookUrl?: string;
+    lastInboundMessageAt?: string;
+    lastStatusEventAt?: string;
   };
   compliance?: {
     notes?: string[];
   };
 }
 
-const PROVIDER_LABELS: Record<ProviderId, string> = {
+interface BotChannel {
+  id: string;
+  type: string;
+  name: string;
+  flowAssignments?: {
+    flow: {
+      id: string;
+      name: string;
+    };
+  };
+}
+
+interface FlowOption {
+  id: string;
+  name: string;
+}
+
+const PROVIDER_LABELS: Record<string, string> = {
   meta_cloud: "Meta Cloud API",
   twilio: "Twilio",
   "360dialog": "360dialog",
 };
 
+type ProviderId = "meta_cloud" | "twilio" | "360dialog";
+
 export default function WhatsAppIntegrationPage() {
-  const { confirm } = useConfirmation();
-  const router = useRouter();
-  const channelVisible = isChannelVisibleInUi("whatsapp");
+  const { confirm, alert } = useConfirmation();
+
+  // State for bot selection
   const [bots, setBots] = useState<Bot[]>([]);
-  const [selectedBotId, setSelectedBotId] = useState("");
-  const [provider, setProvider] = useState<ProviderId>("meta_cloud");
-  const [status, setStatus] = useState<WhatsAppStatus | null>(null);
+  const [selectedBotId, setSelectedBotId] = useState<string | null>(null);
   const [loadingBots, setLoadingBots] = useState(true);
+
+  // State for integration status
+  const [status, setStatus] = useState<WhatsAppStatus | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(false);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [isLogsLoading, setIsLogsLoading] = useState(false);
+
+  // Connection form state
+  const [provider, setProvider] = useState<ProviderId>("meta_cloud");
+  const [channelName, setChannelName] = useState("");
+  const [metaAccessToken, setMetaAccessToken] = useState("");
+  const [metaPhoneNumberId, setMetaPhoneNumberId] = useState("");
+  const [metaBusinessId, setMetaBusinessId] = useState("");
+  const [metaAppSecret, setMetaAppSecret] = useState("");
+  const [twilioSid, setTwilioSid] = useState("");
+  const [twilioAuthToken, setTwilioAuthToken] = useState("");
+  const [twilioFrom, setTwilioFrom] = useState("");
+  const [dialogApiKey, setDialogApiKey] = useState("");
+  const [dialogChannelId, setDialogChannelId] = useState("");
+
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
 
   // Flow assignment state
   const [flows, setFlows] = useState<FlowOption[]>([]);
   const [isFlowsLoading, setIsFlowsLoading] = useState(false);
-  const [whatsappChannel, setWhatsappChannel] = useState<BotChannel | null>(
-    null,
-  );
-  const [assignedFlow, setAssignedFlow] = useState<FlowOption | null>(null);
-  const [selectedFlowId, setSelectedFlowId] = useState("");
+  const [selectedFlowId, setSelectedFlowId] = useState<string>("");
   const [isAssigningFlow, setIsAssigningFlow] = useState(false);
   const [isUnassigningFlow, setIsUnassigningFlow] = useState(false);
-
-  // Logs state
-  const [logs, setLogs] = useState<WebhookLogEntry[]>([]);
-  const [isLogsLoading, setIsLogsLoading] = useState(false);
-
-  const [channelName, setChannelName] = useState("");
-  const [metaAccessToken, setMetaAccessToken] = useState("");
-  const [metaPhoneNumberId, setMetaPhoneNumberId] = useState("");
-  const [metaBusinessId, setMetaBusinessId] = useState("");
-  const [metaAppSecret, setMetaAppSecret] = useState("");
-
-  const [twilioSid, setTwilioSid] = useState("");
-  const [twilioAuthToken, setTwilioAuthToken] = useState("");
-  const [twilioFrom, setTwilioFrom] = useState("");
-
-  const [dialogApiKey, setDialogApiKey] = useState("");
-  const [dialogChannelId, setDialogChannelId] = useState("");
-
-  const handleSelectBot = (id: string) => {
-    setSelectedBotId(id);
-    if (!id) {
-      setStatus(null);
-      setLogs([]);
-      setFlows([]);
-      setWhatsappChannel(null);
-      setAssignedFlow(null);
-      setSelectedFlowId("");
-    }
-  };
+  const [botChannels, setBotChannels] = useState<BotChannel[]>([]);
 
   useEffect(() => {
-    if (!channelVisible) {
-      router.replace("/");
-      return;
-    }
-
     void loadBots();
-  }, [channelVisible, router]);
+    void loadFlows();
+  }, []);
 
+  useEffect(() => {
+    if (selectedBotId) {
+      void loadStatus(selectedBotId);
+      void loadWhatsAppChannel(selectedBotId);
+    } else {
+      setStatus(null);
+      setLogs([]);
+      setBotChannels([]);
+    }
+  }, [selectedBotId]);
+
+  // Periodic status refresh
   useEffect(() => {
     if (!selectedBotId) return;
 
@@ -178,61 +148,34 @@ export default function WhatsAppIntegrationPage() {
       setLoadingStatus(true);
       try {
         const res = await fetch(
-          `/api/whatsapp/status?botId=${encodeURIComponent(selectedBotId)}`,
+          \`/api/bots/\${selectedBotId}/channels/whatsapp/status?botId=\${encodeURIComponent(selectedBotId)}\`,
         );
         const data = (await res.json()) as WhatsAppStatus;
         if (cancelled) return;
         setStatus(data);
         if (data.connected && data.channel?.id) {
           const logsRes = await fetch(
-            `/api/whatsapp/logs?channelId=${data.channel.id}&limit=15`,
+            \`/api/bots/\${selectedBotId}/channels/whatsapp/logs?channelId=\${data.channel.id}&limit=15\`,
           );
           const logsData = await logsRes.json();
           if (!cancelled) setLogs(logsData.logs || []);
         }
-      } catch {
-        if (!cancelled) toast.error("Failed to load WhatsApp status");
+      } catch (error) {
+        console.error("Failed to load status:", error);
       } finally {
         if (!cancelled) setLoadingStatus(false);
       }
     };
 
-    run();
-    void loadFlows();
-    void loadWhatsAppChannel(selectedBotId);
+    const interval = setInterval(() => {
+      void run();
+    }, 30000);
 
     return () => {
       cancelled = true;
+      clearInterval(interval);
     };
   }, [selectedBotId]);
-
-  const canConnect = useMemo(() => {
-    if (!selectedBotId) {
-      return false;
-    }
-
-    if (provider === "meta_cloud") {
-      return Boolean(metaAccessToken.trim() && metaPhoneNumberId.trim());
-    }
-
-    if (provider === "twilio") {
-      return Boolean(
-        twilioSid.trim() && twilioAuthToken.trim() && twilioFrom.trim(),
-      );
-    }
-
-    return Boolean(dialogApiKey.trim() && dialogChannelId.trim());
-  }, [
-    selectedBotId,
-    provider,
-    metaAccessToken,
-    metaPhoneNumberId,
-    twilioSid,
-    twilioAuthToken,
-    twilioFrom,
-    dialogApiKey,
-    dialogChannelId,
-  ]);
 
   async function loadBots() {
     setLoadingBots(true);
@@ -241,17 +184,13 @@ export default function WhatsAppIntegrationPage() {
       const data = await res.json();
       const list: Bot[] = Array.isArray(data.bots)
         ? data.bots
-        : Array.isArray(data.projects)
-          ? data.projects.flatMap((project: { bots?: Bot[] }) =>
-              Array.isArray(project?.bots) ? project.bots : [],
-            )
-          : [];
-
+        : [];
       setBots(list);
-      if (list.length === 1) {
-        handleSelectBot(list[0].id);
+      if (list.length > 0) {
+        setSelectedBotId(list[0].id);
       }
-    } catch {
+    } catch (error) {
+      console.error("Failed to load bots:", error);
       toast.error("Failed to load bots");
     } finally {
       setLoadingBots(false);
@@ -262,15 +201,15 @@ export default function WhatsAppIntegrationPage() {
     setLoadingStatus(true);
     try {
       const res = await fetch(
-        `/api/whatsapp/status?botId=${encodeURIComponent(botId)}`,
+        \`/api/bots/\${botId}/channels/whatsapp/status?botId=\${encodeURIComponent(botId)}\`,
       );
       const data = (await res.json()) as WhatsAppStatus;
       setStatus(data);
       if (data.connected && data.channel?.id) {
         void loadLogs(data.channel.id);
       }
-    } catch {
-      toast.error("Failed to load WhatsApp status");
+    } catch (error) {
+      console.error("Failed to load status:", error);
     } finally {
       setLoadingStatus(false);
     }
@@ -286,12 +225,11 @@ export default function WhatsAppIntegrationPage() {
         ? data.flows.map((flow: FlowOption) => ({
             id: flow.id,
             name: flow.name,
-            isActive: flow.isActive,
           }))
         : [];
       setFlows(flowList);
-    } catch {
-      toast.error("Failed to load active flows");
+    } catch (error) {
+      console.error("Error fetching flows:", error);
     } finally {
       setIsFlowsLoading(false);
     }
@@ -299,69 +237,63 @@ export default function WhatsAppIntegrationPage() {
 
   async function loadWhatsAppChannel(botId: string) {
     try {
-      const res = await fetch(`/api/bots/${botId}/channels`);
+      const res = await fetch(\`/api/bots/\${botId}/channels\`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load channels");
       const channels: BotChannel[] = Array.isArray(data.channels)
         ? data.channels
         : [];
-      const channel =
-        channels.find((c) => c.type?.toLowerCase() === "whatsapp") || null;
-      const activeAssignment = channel?.flowAssignments;
-      setWhatsappChannel(channel);
-      setAssignedFlow(
-        activeAssignment?.flow
-          ? {
-              id: activeAssignment.flow.id,
-              name: activeAssignment.flow.name,
-              isActive: activeAssignment.flow.isActive,
-            }
-          : null,
-      );
-      setSelectedFlowId(activeAssignment?.flowId || "");
-    } catch {
-      setWhatsappChannel(null);
-      setAssignedFlow(null);
-      setSelectedFlowId("");
+      setBotChannels(channels.filter((c) => c.type === "whatsapp"));
+    } catch (error) {
+      console.error("Error loading channels:", error);
     }
   }
 
+  const whatsappChannel = useMemo(() => {
+    return botChannels[0] || null;
+  }, [botChannels]);
+
+  const assignedFlow = useMemo(() => {
+    return whatsappChannel?.flowAssignments?.flow || null;
+  }, [whatsappChannel]);
+
+  const targetChannelId = whatsappChannel?.id || status?.channel?.id;
+
   async function loadLogs(channelId: string) {
+    if (!selectedBotId) return;
     setIsLogsLoading(true);
     try {
       const res = await fetch(
-        `/api/whatsapp/logs?channelId=${channelId}&limit=15`,
+        \`/api/bots/\${selectedBotId}/channels/whatsapp/logs?channelId=\${channelId}&limit=15\`,
       );
       const data = await res.json();
       setLogs(data.logs || []);
     } catch {
-      // Non-critical
+      console.error("Failed to load logs");
     } finally {
       setIsLogsLoading(false);
     }
   }
 
-  async function handleAssignFlow() {
-    const targetChannelId = status?.channel?.id || whatsappChannel?.id;
-    if (!targetChannelId) {
-      toast.error("Connect WhatsApp first to assign a flow");
-      return;
-    }
-    if (!selectedFlowId) {
+  const handleAssignFlow = async () => {
+    if (!targetChannelId || !selectedFlowId) {
       toast.error("Select a flow to assign");
       return;
     }
     setIsAssigningFlow(true);
     try {
-      const res = await fetch(`/api/flows/${selectedFlowId}/assign`, {
+      const res = await fetch(\`/api/flows/\${selectedFlowId}/assign\`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ channelId: targetChannelId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to assign flow");
-      toast.success("Flow assigned to WhatsApp channel");
-      await loadWhatsAppChannel(selectedBotId);
+
+      toast.success("Flow assigned to channel");
+      if (selectedBotId) {
+        void loadWhatsAppChannel(selectedBotId);
+      }
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to assign flow",
@@ -369,24 +301,26 @@ export default function WhatsAppIntegrationPage() {
     } finally {
       setIsAssigningFlow(false);
     }
-  }
+  };
 
-  async function handleUnassignFlow() {
-    const targetChannelId = status?.channel?.id || whatsappChannel?.id;
-    if (!targetChannelId || !assignedFlow?.id) {
+  const handleUnassignFlow = async () => {
+    if (!targetChannelId || !assignedFlow) {
       toast.error("No assigned flow found");
       return;
     }
     setIsUnassigningFlow(true);
     try {
       const res = await fetch(
-        `/api/flows/${assignedFlow.id}/assign?channelId=${encodeURIComponent(targetChannelId)}`,
+        \`/api/flows/\${assignedFlow.id}/assign?channelId=\${encodeURIComponent(targetChannelId)}\`,
         { method: "DELETE" },
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to unassign flow");
-      toast.success("Flow unassigned from WhatsApp channel");
-      await loadWhatsAppChannel(selectedBotId);
+
+      toast.success("Flow unassigned from channel");
+      if (selectedBotId) {
+        void loadWhatsAppChannel(selectedBotId);
+      }
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to unassign flow",
@@ -394,18 +328,26 @@ export default function WhatsAppIntegrationPage() {
     } finally {
       setIsUnassigningFlow(false);
     }
-  }
+  };
 
-  async function handleConnect() {
-    if (!canConnect) {
-      toast.error("Fill all required fields");
-      return;
-    }
+  const handleSelectBot = (botId: string) => {
+    setSelectedBotId(botId);
+  };
+
+  const canConnect =
+    selectedBotId &&
+    (provider === "meta_cloud"
+      ? metaAccessToken && metaPhoneNumberId
+      : provider === "twilio"
+        ? twilioSid && twilioAuthToken && twilioFrom
+        : dialogApiKey && dialogChannelId);
+
+  const handleConnect = async () => {
+    if (!selectedBotId) return;
 
     setConnecting(true);
     try {
-      const payload: Record<string, unknown> = {
-        botId: selectedBotId,
+      let payload: any = {
         provider,
         channelName: channelName.trim() || undefined,
       };
@@ -417,24 +359,20 @@ export default function WhatsAppIntegrationPage() {
           businessAccountId: metaBusinessId.trim() || undefined,
           appSecret: metaAppSecret.trim() || undefined,
         };
-      }
-
-      if (provider === "twilio") {
+      } else if (provider === "twilio") {
         payload.credentials = {
           accountSid: twilioSid.trim(),
           authToken: twilioAuthToken.trim(),
           fromNumber: twilioFrom.trim(),
         };
-      }
-
-      if (provider === "360dialog") {
+      } else if (provider === "360dialog") {
         payload.credentials = {
           apiKey: dialogApiKey.trim(),
           channelId: dialogChannelId.trim(),
         };
       }
 
-      const res = await fetch("/api/whatsapp/connect", {
+      const res = await fetch(\`/api/bots/\${selectedBotId}/channels/whatsapp/connect\`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -445,81 +383,75 @@ export default function WhatsAppIntegrationPage() {
         throw new Error(data.error || "Failed to connect WhatsApp");
       }
 
-      toast.success("WhatsApp integration connected");
-      await loadStatus(selectedBotId);
+      toast.success("WhatsApp connected successfully!");
+      void loadStatus(selectedBotId);
+      void loadWhatsAppChannel(selectedBotId);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Connection failed");
+      console.error("Connect error:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to connect WhatsApp",
+      );
     } finally {
       setConnecting(false);
     }
-  }
+  };
 
-  async function handleDisconnect() {
-    if (!status?.channel?.id) {
-      return;
-    }
+  const handleDisconnect = async () => {
+    if (!status?.channel?.id || !selectedBotId) return;
 
     const confirmed = await confirm({
       title: "Disconnect WhatsApp",
       description:
-        "Disconnect this WhatsApp integration? Incoming and outgoing messages will stop until reconnected.",
+        "Are you sure you want to disconnect this WhatsApp integration? Incoming messages will no longer be processed by the AI.",
       confirmText: "Disconnect",
       variant: "destructive",
     });
+
     if (!confirmed) {
       return;
     }
 
     setDisconnecting(true);
     try {
-      const res = await fetch("/api/whatsapp/disconnect", {
+      const res = await fetch(\`/api/bots/\${selectedBotId}/channels/whatsapp/disconnect\`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ channelId: status.channel.id }),
       });
 
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data.error || "Failed to disconnect");
+        const data = await res.json();
+        throw new Error(data.error || "Failed to disconnect WhatsApp");
       }
 
-      toast.success("WhatsApp integration disconnected");
-      await loadStatus(selectedBotId);
+      toast.success("WhatsApp disconnected.");
+      void loadStatus(selectedBotId);
+      void loadWhatsAppChannel(selectedBotId);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Disconnect failed");
+      console.error("Disconnect error:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to disconnect WhatsApp integration",
+      );
     } finally {
       setDisconnecting(false);
     }
-  }
-
-  if (!channelVisible) {
-    return null;
-  }
+  };
 
   const connected = Boolean(status?.connected);
 
   return (
     <div className="space-y-6">
-      <ChannelPageHeader
-        title="WhatsApp Business"
-        description="Connect official WhatsApp Business Platform providers only."
-      />
+      <div>
+        <h1 className="text-3xl font-bold">WhatsApp Integration</h1>
+        <p className="text-muted-foreground">
+          Connect your WhatsApp Business account to automate customer
+          conversations.
+        </p>
+      </div>
 
-      <ChannelGuidanceCard
-        title="Compliance Requirements"
-        description="Personal WhatsApp automation and WhatsApp Web scraping are not supported."
-        icon={ShieldAlert}
-        bullets={[
-          "1. Use Meta Cloud API or an official BSP provider.",
-          "2. Respect the 24-hour customer service window for free-form replies.",
-          "3. Use template messages when the service window has expired.",
-        ]}
-      />
-
-      <ChannelBotSelectorCard
-        title="Select Bot"
-        description="Choose which ReplyBase bot this WhatsApp connection belongs to."
-        loading={loadingBots}
+      <BotSelector
         bots={bots}
         selectedBotId={selectedBotId}
         onSelectBot={handleSelectBot}

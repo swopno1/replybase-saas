@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import {
+  Loader2,
+  CheckCircle2,
+  AlertTriangle,
+  Unplug,
+  Send,
+  RefreshCw,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,57 +20,18 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import {
-  CheckCircle2,
-  XCircle,
-  Loader2,
-  Send,
-  RefreshCw,
-  Trash2,
-  AlertCircle,
-  PlugZap,
-} from "lucide-react";
 import { toast } from "sonner";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
+import { BotSelector } from "@/components/bot-selector";
 import {
-  ChannelBotSelectorCard,
-  ChannelGuidanceCard,
-  ChannelPageHeader,
-} from "@/components/channels/channel-ui";
-import {
-  ChannelActivityLogCard,
   ChannelFlowAssignmentCard,
+  ChannelActivityLogCard,
 } from "@/components/channels/channel-sections";
-
-export const dynamic = "force-dynamic";
+import Link from "next/link";
 
 interface Bot {
   id: string;
   name: string;
-}
-
-interface FlowOption {
-  id: string;
-  name: string;
-  isActive: boolean;
-}
-
-interface ChannelFlowAssignment {
-  id: string;
-  flowId: string;
-  flow?: {
-    id: string;
-    name: string;
-    isActive: boolean;
-  };
-}
-
-interface BotChannel {
-  id: string;
-  name: string;
-  type: string;
-  flowAssignments?: ChannelFlowAssignment | null;
 }
 
 interface TelegramStatus {
@@ -71,81 +40,88 @@ interface TelegramStatus {
     id: string;
     name: string;
     channelId: string;
+    type: string;
     updatedAt: string;
   };
-  bot?: {
-    id: string;
-    name: string;
-  };
   local?: {
-    webhookConnected: boolean;
-    webhookUrl?: string | null;
-    lastWebhookSetAt?: string | null;
-    lastWebhookEventAt?: string | null;
-    lastInboundMessageAt?: string | null;
-    lastDeliverySuccessAt?: string | null;
-    lastDeliveryError?: string | null;
-    lastDeliveryErrorAt?: string | null;
-    lastWebhookError?: string | null;
-    lastWebhookErrorAt?: string | null;
-    lastProcessedUpdateId?: number | null;
+    webhookUrl?: string;
+    webhookConnected?: boolean;
+    lastInboundMessageAt?: string;
+    lastDeliverySuccessAt?: string;
+    lastWebhookError?: string;
   };
   webhook?: {
     url: string;
+    has_custom_certificate: boolean;
     pending_update_count: number;
-    last_error_message?: string;
     last_error_date?: number;
+    last_error_message?: string;
   };
-  webhookError?: string;
 }
 
-interface WebhookLogEntry {
+interface BotChannel {
   id: string;
   type: string;
-  event: string;
-  createdAt: string;
+  name: string;
+  flowAssignments?: {
+    flow: {
+      id: string;
+      name: string;
+    };
+  };
+}
+
+interface FlowOption {
+  id: string;
+  name: string;
 }
 
 export default function TelegramIntegrationPage() {
   const { confirm } = useConfirmation();
+
+  // State for bot selection
   const [bots, setBots] = useState<Bot[]>([]);
-  const [selectedBotId, setSelectedBotId] = useState("");
+  const [selectedBotId, setSelectedBotId] = useState<string | null>(null);
+  const [isBotsLoading, setIsBotsLoading] = useState(true);
+
+  // State for integration status
+  const [status, setStatus] = useState<TelegramStatus | null>(null);
+  const [isStatusLoading, setIsStatusLoading] = useState(false);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [isLogsLoading, setIsLogsLoading] = useState(false);
+
+  // Connection form state
   const [botToken, setBotToken] = useState("");
   const [channelName, setChannelName] = useState("");
-  const [status, setStatus] = useState<TelegramStatus | null>(null);
-  const [isBotsLoading, setIsBotsLoading] = useState(true);
-  const [isStatusLoading, setIsStatusLoading] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
+
+  // Flow assignment state
   const [flows, setFlows] = useState<FlowOption[]>([]);
   const [isFlowsLoading, setIsFlowsLoading] = useState(false);
-  const [telegramChannel, setTelegramChannel] = useState<BotChannel | null>(
-    null,
-  );
-  const [assignedFlow, setAssignedFlow] = useState<FlowOption | null>(null);
-  const [selectedFlowId, setSelectedFlowId] = useState("");
+  const [selectedFlowId, setSelectedFlowId] = useState<string>("");
   const [isAssigningFlow, setIsAssigningFlow] = useState(false);
   const [isUnassigningFlow, setIsUnassigningFlow] = useState(false);
-  const [logs, setLogs] = useState<WebhookLogEntry[]>([]);
-  const [isLogsLoading, setIsLogsLoading] = useState(false);
-
-  const handleSelectBot = (id: string) => {
-    setSelectedBotId(id);
-    if (!id) {
-      setStatus(null);
-      setLogs([]);
-      setFlows([]);
-      setTelegramChannel(null);
-      setAssignedFlow(null);
-      setSelectedFlowId("");
-    }
-  };
+  const [botChannels, setBotChannels] = useState<BotChannel[]>([]);
 
   useEffect(() => {
-    loadBots();
+    void loadBots();
+    void loadFlows();
   }, []);
 
+  useEffect(() => {
+    if (selectedBotId) {
+      void loadStatus(selectedBotId);
+      void loadTelegramChannel(selectedBotId);
+    } else {
+      setStatus(null);
+      setLogs([]);
+      setBotChannels([]);
+    }
+  }, [selectedBotId]);
+
+  // Periodic status refresh
   useEffect(() => {
     if (!selectedBotId) return;
 
@@ -154,30 +130,31 @@ export default function TelegramIntegrationPage() {
     const run = async () => {
       setIsStatusLoading(true);
       try {
-        const res = await fetch(`/api/telegram/status?botId=${selectedBotId}`);
+        const res = await fetch(\`/api/bots/\${selectedBotId}/channels/telegram/status?botId=\${selectedBotId}\`);
         const data = await res.json();
         if (cancelled) return;
         setStatus(data);
         if (data.connected && data.channel?.id) {
           const logsRes = await fetch(
-            `/api/telegram/logs?channelId=${data.channel.id}&limit=15`,
+            \`/api/bots/\${selectedBotId}/channels/telegram/logs?channelId=\${data.channel.id}&limit=15\`,
           );
           const logsData = await logsRes.json();
           if (!cancelled) setLogs(logsData.logs || []);
         }
-      } catch {
-        if (!cancelled) toast.error("Failed to load Telegram status");
+      } catch (error) {
+        console.error("Failed to load status:", error);
       } finally {
         if (!cancelled) setIsStatusLoading(false);
       }
     };
 
-    run();
-    void loadFlows();
-    void loadTelegramChannel(selectedBotId);
+    const interval = setInterval(() => {
+      void run();
+    }, 30000);
 
     return () => {
       cancelled = true;
+      clearInterval(interval);
     };
   }, [selectedBotId]);
 
@@ -188,17 +165,13 @@ export default function TelegramIntegrationPage() {
       const data = await res.json();
       const list: Bot[] = Array.isArray(data.bots)
         ? data.bots
-        : Array.isArray(data.projects)
-          ? data.projects.flatMap((project: { bots?: Bot[] }) =>
-              Array.isArray(project?.bots) ? project.bots : [],
-            )
-          : [];
+        : [];
       setBots(list);
-      if (list.length === 1) {
-        handleSelectBot(list[0].id);
+      if (list.length > 0) {
+        setSelectedBotId(list[0].id);
       }
-    } catch {
-      toast.error("Failed to load bots");
+    } catch (error) {
+      console.error("Failed to load bots:", error);
     } finally {
       setIsBotsLoading(false);
     }
@@ -207,14 +180,14 @@ export default function TelegramIntegrationPage() {
   const loadStatus = async (botId: string) => {
     setIsStatusLoading(true);
     try {
-      const res = await fetch(`/api/telegram/status?botId=${botId}`);
+      const res = await fetch(\`/api/bots/\${botId}/channels/telegram/status?botId=\${botId}\`);
       const data = await res.json();
       setStatus(data);
       if (data.connected && data.channel?.id) {
-        loadLogs(data.channel.id);
+        void loadLogs(data.channel.id);
       }
-    } catch {
-      toast.error("Failed to load Telegram status");
+    } catch (error) {
+      console.error("Failed to load status:", error);
     } finally {
       setIsStatusLoading(false);
     }
@@ -234,13 +207,11 @@ export default function TelegramIntegrationPage() {
         ? data.flows.map((flow: FlowOption) => ({
             id: flow.id,
             name: flow.name,
-            isActive: flow.isActive,
           }))
         : [];
-
       setFlows(flowList);
-    } catch {
-      toast.error("Failed to load active flows");
+    } catch (error) {
+      console.error("Error fetching flows:", error);
     } finally {
       setIsFlowsLoading(false);
     }
@@ -248,7 +219,7 @@ export default function TelegramIntegrationPage() {
 
   const loadTelegramChannel = async (botId: string) => {
     try {
-      const res = await fetch(`/api/bots/${botId}/channels`);
+      const res = await fetch(\`/api/bots/\${botId}/channels\`);
       const data = await res.json();
 
       if (!res.ok) {
@@ -258,57 +229,43 @@ export default function TelegramIntegrationPage() {
       const channels: BotChannel[] = Array.isArray(data.channels)
         ? data.channels
         : [];
-      const channel =
-        channels.find((item) => item.type?.toLowerCase() === "telegram") ||
-        null;
-
-      const activeAssignment = channel?.flowAssignments;
-
-      setTelegramChannel(channel);
-      setAssignedFlow(
-        activeAssignment?.flow
-          ? {
-              id: activeAssignment.flow.id,
-              name: activeAssignment.flow.name,
-              isActive: activeAssignment.flow.isActive,
-            }
-          : null,
-      );
-      setSelectedFlowId(activeAssignment?.flowId || "");
-    } catch {
-      setTelegramChannel(null);
-      setAssignedFlow(null);
-      setSelectedFlowId("");
+      setBotChannels(channels.filter((c) => c.type === "telegram"));
+    } catch (error) {
+      console.error("Error loading channels:", error);
     }
   };
 
-  const handleAssignFlow = async () => {
-    const targetChannelId = status?.channel?.id || telegramChannel?.id;
-    if (!targetChannelId) {
-      toast.error("Connect Telegram first to assign a flow");
-      return;
-    }
+  const telegramChannel = useMemo(() => {
+    return botChannels[0] || null;
+  }, [botChannels]);
 
-    if (!selectedFlowId) {
+  const assignedFlow = useMemo(() => {
+    return telegramChannel?.flowAssignments?.flow || null;
+  }, [telegramChannel]);
+
+  const targetChannelId = telegramChannel?.id || status?.channel?.id;
+
+  const handleAssignFlow = async () => {
+    if (!targetChannelId || !selectedFlowId) {
       toast.error("Select a flow to assign");
       return;
     }
 
     setIsAssigningFlow(true);
     try {
-      const res = await fetch(`/api/flows/${selectedFlowId}/assign`, {
+      const res = await fetch(\`/api/flows/\${selectedFlowId}/assign\`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ channelId: targetChannelId }),
       });
 
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to assign flow");
-      }
+      if (!res.ok) throw new Error(data.error || "Failed to assign flow");
 
-      toast.success("Flow assigned to Telegram channel");
-      await loadTelegramChannel(selectedBotId);
+      toast.success("Flow assigned to channel");
+      if (selectedBotId) {
+        void loadTelegramChannel(selectedBotId);
+      }
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to assign flow",
@@ -319,8 +276,7 @@ export default function TelegramIntegrationPage() {
   };
 
   const handleUnassignFlow = async () => {
-    const targetChannelId = status?.channel?.id || telegramChannel?.id;
-    if (!targetChannelId || !assignedFlow?.id) {
+    if (!targetChannelId || !assignedFlow) {
       toast.error("No assigned flow found");
       return;
     }
@@ -328,19 +284,18 @@ export default function TelegramIntegrationPage() {
     setIsUnassigningFlow(true);
     try {
       const res = await fetch(
-        `/api/flows/${assignedFlow.id}/assign?channelId=${encodeURIComponent(targetChannelId)}`,
+        \`/api/flows/\${assignedFlow.id}/assign?channelId=\${encodeURIComponent(targetChannelId)}\`,
         {
           method: "DELETE",
         },
       );
-
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to unassign flow");
-      }
+      if (!res.ok) throw new Error(data.error || "Failed to unassign flow");
 
-      toast.success("Flow unassigned from Telegram channel");
-      await loadTelegramChannel(selectedBotId);
+      toast.success("Flow unassigned from channel");
+      if (selectedBotId) {
+        void loadTelegramChannel(selectedBotId);
+      }
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to unassign flow",
@@ -351,15 +306,16 @@ export default function TelegramIntegrationPage() {
   };
 
   const loadLogs = async (channelId: string) => {
+    if (!selectedBotId) return;
     setIsLogsLoading(true);
     try {
       const res = await fetch(
-        `/api/telegram/logs?channelId=${channelId}&limit=15`,
+        \`/api/bots/\${selectedBotId}/channels/telegram/logs?channelId=\${channelId}&limit=15\`,
       );
       const data = await res.json();
       setLogs(data.logs || []);
     } catch {
-      // Non-critical — silently fail
+      console.error("Failed to load logs");
     } finally {
       setIsLogsLoading(false);
     }
@@ -367,17 +323,16 @@ export default function TelegramIntegrationPage() {
 
   const handleConnect = async () => {
     if (!selectedBotId || !botToken.trim()) {
-      toast.error("Please select a bot and enter a bot token");
+      toast.error("Token and Bot selection are required");
       return;
     }
 
     setIsConnecting(true);
     try {
-      const res = await fetch("/api/telegram/connect", {
+      const res = await fetch(\`/api/bots/\${selectedBotId}/channels/telegram/connect\`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          botId: selectedBotId,
           botToken: botToken.trim(),
           channelName: channelName.trim() || undefined,
         }),
@@ -385,19 +340,15 @@ export default function TelegramIntegrationPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        const validationDetail = Array.isArray(data.details)
-          ? data.details[0]?.message
-          : null;
-        throw new Error(
-          validationDetail || data.error || "Failed to connect Telegram bot",
-        );
+        throw new Error(data.error || "Failed to connect Telegram");
       }
 
-      toast.success(`Connected @${data.bot?.username || "bot"} successfully`);
+      toast.success("Telegram connected successfully!");
       setBotToken("");
-      setChannelName("");
-      await loadStatus(selectedBotId);
+      void loadStatus(selectedBotId);
+      void loadTelegramChannel(selectedBotId);
     } catch (error) {
+      console.error("Connect error:", error);
       toast.error(
         error instanceof Error ? error.message : "Failed to connect Telegram",
       );
@@ -407,11 +358,12 @@ export default function TelegramIntegrationPage() {
   };
 
   const handleDisconnect = async () => {
-    if (!status?.channel?.id) return;
+    if (!status?.channel?.id || !selectedBotId) return;
+
     const confirmed = await confirm({
-      title: "Disconnect Telegram Bot",
+      title: "Disconnect Telegram",
       description:
-        "Are you sure you want to disconnect this Telegram bot? The webhook will be removed.",
+        "Are you sure you want to disconnect this Telegram bot? It will stop responding to messages.",
       confirmText: "Disconnect",
       variant: "destructive",
     });
@@ -419,23 +371,24 @@ export default function TelegramIntegrationPage() {
 
     setIsDisconnecting(true);
     try {
-      const res = await fetch("/api/telegram/disconnect", {
+      const res = await fetch(\`/api/bots/\${selectedBotId}/channels/telegram/disconnect\`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ channelId: status.channel.id }),
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to disconnect");
+        const data = await res.json();
+        throw new Error(data.error || "Failed to disconnect Telegram");
       }
 
-      toast.success("Telegram bot disconnected");
-      setLogs([]);
-      await loadStatus(selectedBotId);
+      toast.success("Telegram disconnected.");
+      void loadStatus(selectedBotId);
+      void loadTelegramChannel(selectedBotId);
     } catch (error) {
+      console.error("Disconnect error:", error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to disconnect",
+        error instanceof Error ? error.message : "Failed to disconnect Telegram",
       );
     } finally {
       setIsDisconnecting(false);
@@ -443,10 +396,10 @@ export default function TelegramIntegrationPage() {
   };
 
   const handleReconnect = async () => {
-    if (!status?.channel?.id) return;
+    if (!status?.channel?.id || !selectedBotId) return;
     setIsReconnecting(true);
     try {
-      const res = await fetch("/api/telegram/reconnect", {
+      const res = await fetch(\`/api/bots/\${selectedBotId}/channels/telegram/reconnect\`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ channelId: status.channel.id }),
@@ -457,9 +410,10 @@ export default function TelegramIntegrationPage() {
         throw new Error(data.error || "Failed to reconnect webhook");
       }
 
-      toast.success("Webhook reconnected successfully");
-      await loadStatus(selectedBotId);
+      toast.success("Webhook re-registered successfully!");
+      void loadStatus(selectedBotId);
     } catch (error) {
+      console.error("Reconnect error:", error);
       toast.error(
         error instanceof Error ? error.message : "Failed to reconnect webhook",
       );
@@ -468,473 +422,203 @@ export default function TelegramIntegrationPage() {
     }
   };
 
-  const isConnected = status?.connected === true;
-  const hasWebhookError = Boolean(
-    status?.webhook?.last_error_message ||
-    status?.webhookError ||
-    status?.local?.lastWebhookError ||
-    status?.local?.lastDeliveryError,
-  );
+  const connected = Boolean(status?.connected);
 
   return (
     <div className="space-y-6">
-      <ChannelPageHeader
-        title="Telegram Bot"
-        description="Connect your Telegram bot to enable AI auto-replies"
-      />
+      <div>
+        <h1 className="text-3xl font-bold">Telegram Integration</h1>
+        <p className="text-muted-foreground">
+          Connect your Telegram bot to automate conversations.
+        </p>
+      </div>
 
-      <ChannelGuidanceCard
-        title="Effective Response Mode"
-        description="How ReplyBase responds to Telegram messages for the selected bot."
-        icon={Send}
-        bullets={[
-          "1. Telegram commands such as /start, /help, and /settings use built-in replies.",
-          "2. For other messages, an active channel-assigned flow runs first.",
-          "3. If no channel flow is assigned, the bot entry flow is used when configured.",
-          "4. If no flow handles the message, AI generates the reply.",
-          "5. If AI is unavailable, users receive a safe fallback message and the error is logged in Webhook Activity.",
-        ]}
-      />
-
-      <ChannelBotSelectorCard
-        title="Select Bot"
-        description="Choose which ReplyBase bot will handle Telegram replies."
-        loading={isBotsLoading}
+      <BotSelector
         bots={bots}
         selectedBotId={selectedBotId}
-        onSelectBot={handleSelectBot}
-        createBotHref="/bots/new"
+        onSelectBot={setSelectedBotId}
       />
 
-      {/* Status / Connect area */}
       {selectedBotId && (
         <>
-          {isStatusLoading ? (
-            <Card>
-              <CardContent className="flex items-center justify-center py-12">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </CardContent>
-            </Card>
-          ) : isConnected ? (
-            /* Connected State */
-            <div className="space-y-4">
-              <Card className="border-green-500/40 bg-green-500/5">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
-                    Telegram Bot Connected
-                  </CardTitle>
-                  <CardDescription>
-                    Your bot is active and receiving messages
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
-                        Channel
-                      </div>
-                      <div className="text-sm font-medium">
-                        {status.channel?.name}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
-                        Telegram Bot ID
-                      </div>
-                      <div className="text-sm font-mono">
-                        {status.channel?.channelId}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
-                        ReplyBase Bot
-                      </div>
-                      <div className="text-sm">{status.bot?.name}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
-                        Webhook
-                      </div>
-                      <Badge
-                        variant={hasWebhookError ? "destructive" : "secondary"}
-                        className={
-                          hasWebhookError
-                            ? ""
-                            : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                        }
-                      >
-                        {hasWebhookError ? (
-                          <>
-                            <XCircle className="mr-1 h-3 w-3" />
-                            Error
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle2 className="mr-1 h-3 w-3" />
-                            Active
-                          </>
-                        )}
-                      </Badge>
-                    </div>
-                    <div>
-                      <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
-                        Last Updated
-                      </div>
-                      <div className="text-sm">
-                        {new Date(
-                          status.channel?.updatedAt ?? "",
-                        ).toLocaleString()}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
-                        Last Webhook Event
-                      </div>
-                      <div className="text-sm">
-                        {status.local?.lastWebhookEventAt
-                          ? new Date(
-                              status.local.lastWebhookEventAt,
-                            ).toLocaleString()
-                          : "No events yet"}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
-                        Last Delivery Success
-                      </div>
-                      <div className="text-sm">
-                        {status.local?.lastDeliverySuccessAt
-                          ? new Date(
-                              status.local.lastDeliverySuccessAt,
-                            ).toLocaleString()
-                          : "No successful delivery yet"}
-                      </div>
-                    </div>
-                  </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Send className="h-5 w-5" />
+                Bot Configuration
+              </CardTitle>
+              <CardDescription>
+                Enter your Telegram Bot Token from @BotFather.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="botToken">Bot Token</Label>
+                <Input
+                  id="botToken"
+                  type="password"
+                  value={botToken}
+                  onChange={(e) => setBotToken(e.target.value)}
+                  placeholder="123456789:ABCDEF..."
+                  className="max-w-md"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Your token is encrypted before being stored.
+                </p>
+              </div>
 
-                  {/* Webhook details */}
-                  {status.webhook && (
-                    <>
-                      <Separator />
-                      <div className="space-y-2">
-                        <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                          Webhook URL
-                        </div>
-                        <div className="text-xs font-mono bg-muted rounded px-3 py-2 break-all">
-                          {status.webhook.url}
-                        </div>
-                        {status.webhook.pending_update_count > 0 && (
-                          <div className="flex items-center gap-2 text-xs text-amber-600">
-                            <AlertCircle className="h-3.5 w-3.5" />
-                            {status.webhook.pending_update_count} pending
-                            update(s) in queue. This is usually temporary; if it
-                            remains stuck, use Reconnect Webhook.
-                          </div>
-                        )}
-                        {status.webhook.last_error_message && (
-                          <div className="flex items-start gap-2 text-xs text-destructive">
-                            <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                            Last error: {status.webhook.last_error_message}
-                          </div>
-                        )}
-                        {status.local?.lastProcessedUpdateId !== null &&
-                          status.local?.lastProcessedUpdateId !== undefined && (
-                            <div className="text-xs text-muted-foreground">
-                              Last processed update ID:{" "}
-                              {status.local.lastProcessedUpdateId}
-                            </div>
-                          )}
-                      </div>
-                    </>
-                  )}
+              <div className="space-y-2">
+                <Label htmlFor="channelName">Display Name (optional)</Label>
+                <Input
+                  id="channelName"
+                  value={channelName}
+                  onChange={(e) => setChannelName(e.target.value)}
+                  placeholder="My Support Bot"
+                  className="max-w-md"
+                />
+              </div>
 
-                  {status.webhookError && !status.webhook && (
-                    <div className="flex items-start gap-2 text-xs text-destructive">
-                      <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                      Webhook check failed: {status.webhookError}
-                    </div>
-                  )}
-
-                  {status.local?.lastWebhookError && (
-                    <div className="flex items-start gap-2 text-xs text-destructive">
-                      <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                      Last webhook setup error: {status.local.lastWebhookError}
-                    </div>
-                  )}
-
-                  {status.local?.lastDeliveryError && (
-                    <div className="flex items-start gap-2 text-xs text-destructive">
-                      <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                      Last delivery error: {status.local.lastDeliveryError}
-                    </div>
-                  )}
-
-                  <p className="text-xs text-muted-foreground">
-                    Last Webhook Event shows when Telegram last sent an update
-                    to ReplyBase. Last Delivery Success shows when ReplyBase
-                    last sent a reply back to Telegram.
-                  </p>
-
-                  <Separator />
-
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => loadStatus(selectedBotId)}
-                      disabled={isStatusLoading}
-                    >
-                      <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-                      Refresh Status
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      title="Re-register webhook if delivery is failing, the token rotated, or pending updates remain stuck"
-                      onClick={handleReconnect}
-                      disabled={isReconnecting}
-                    >
-                      {isReconnecting ? (
-                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <PlugZap className="mr-1.5 h-3.5 w-3.5" />
-                      )}
-                      Reconnect Webhook
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={handleDisconnect}
-                      disabled={isDisconnecting}
-                    >
-                      {isDisconnecting ? (
-                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                      )}
-                      Disconnect Bot
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Reconnect with a different token */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Update Bot Token</CardTitle>
-                  <CardDescription>
-                    Re-connect with a new or rotated bot token
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="newBotToken">New Bot Token</Label>
-                    <Input
-                      id="newBotToken"
-                      type="password"
-                      aria-label="Telegram bot token from BotFather"
-                      placeholder="123456789:ABCDEFghIjkLMNO-pQRSTUVWxYZ123456"
-                      value={botToken}
-                      onChange={(e) => setBotToken(e.target.value)}
-                      className="font-mono max-w-lg"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Use the full token from BotFather. Keep this secret.
-                    </p>
-                  </div>
-                  <Button
-                    onClick={handleConnect}
-                    disabled={isConnecting || !botToken.trim()}
-                    size="sm"
-                  >
-                    {isConnecting ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                    )}
-                    Update Token
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <ChannelFlowAssignmentCard
-                title="Telegram Flow Assignment"
-                description="Assign an active flow to this Telegram channel. Channel assignment takes priority over bot entry flow."
-                selectLabel="Assigned Flow"
-                selectId="telegramFlowSelect"
-                flows={flows}
-                isFlowsLoading={isFlowsLoading}
-                selectedFlowId={selectedFlowId}
-                onSelectFlow={setSelectedFlowId}
-                assignedFlowName={assignedFlow?.name}
-                unassignedDescription="No channel flow is assigned. Bot entry flow and AI fallback are used."
-                onAssign={handleAssignFlow}
-                onUnassign={handleUnassignFlow}
-                isAssigning={isAssigningFlow}
-                isUnassigning={isUnassigningFlow}
-                assignDisabled={
-                  !selectedFlowId ||
-                  isAssigningFlow ||
-                  !status?.connected ||
-                  assignedFlow?.id === selectedFlowId
-                }
-                unassignDisabled={
-                  !assignedFlow || !status?.connected || isUnassigningFlow
-                }
-              />
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">How to Test</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-1.5 text-sm text-muted-foreground">
-                  <p>1. Open Telegram and search for your bot by username.</p>
-                  <p>
-                    2. Tap <strong className="text-foreground">Start</strong> or
-                    send <code className="bg-muted px-1 rounded">/start</code>.
-                  </p>
-                  <p>
-                    3. Send any message. ReplyBase should respond in a few
-                    seconds.
-                  </p>
-                  <p>
-                    4. Open Conversations to confirm inbound and outbound
-                    messages were saved.
-                  </p>
-                  <p>
-                    5. Open Contacts to confirm the Telegram profile was
-                    created.
-                  </p>
-                  <p>
-                    6. If your flow captures lead fields, check Leads for the
-                    new record.
-                  </p>
-                  <p>
-                    Current mode is command replies plus flow-first runtime
-                    (channel assignment, then entry flow), with AI fallback.
-                  </p>
-                  <p>
-                    If no reply appears, check Recent Webhook Activity below and
-                    use Reconnect Webhook.
-                  </p>
-                </CardContent>
-              </Card>
-
-              <ChannelActivityLogCard
-                logs={logs}
-                isLoading={isLogsLoading}
-                onRefresh={() => {
-                  if (status.channel?.id) {
-                    void loadLogs(status.channel.id);
-                  }
-                }}
-                emptyText="No events recorded yet. Send your bot a message to see activity here."
-              />
-            </div>
-          ) : (
-            /* Not Connected State */
-            <Card className="border-primary/50 bg-primary/5">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Send className="h-5 w-5 text-primary" />
-                  Connect Your Telegram Bot
-                </CardTitle>
-                <CardDescription>
-                  Create a bot with @BotFather, then paste its token below to
-                  connect one Telegram bot per ReplyBase bot.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="botToken">Bot Token</Label>
-                    <Input
-                      id="botToken"
-                      type="password"
-                      aria-label="Telegram bot token from BotFather"
-                      placeholder="123456789:ABCDEFghIjkLMNO-pQRSTUVWxYZ123456"
-                      value={botToken}
-                      onChange={(e) => setBotToken(e.target.value)}
-                      className="font-mono"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Token format is usually number:secret (for example,
-                      123456789:ABC...). Get this from{" "}
-                      <a
-                        href="https://t.me/botfather"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="underline text-primary"
-                      >
-                        @BotFather
-                      </a>{" "}
-                      after creating a new bot. Never share this token.
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="channelName">
-                      Channel Name{" "}
-                      <span className="text-muted-foreground font-normal">
-                        (optional)
-                      </span>
-                    </Label>
-                    <Input
-                      id="channelName"
-                      placeholder="My Telegram Bot"
-                      value={channelName}
-                      onChange={(e) => setChannelName(e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Optional dashboard label. If left blank, ReplyBase uses
-                      your Telegram bot username from the API.
-                    </p>
-                  </div>
-                </div>
-
+              <div className="flex flex-wrap gap-3">
                 <Button
                   onClick={handleConnect}
-                  size="lg"
-                  disabled={isConnecting || !botToken.trim()}
-                  className="w-full sm:w-auto"
+                  disabled={!botToken.trim() || isConnecting}
                 >
                   {isConnecting ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
-                    <Send className="mr-2 h-4 w-4" />
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
                   )}
-                  Connect Bot
+                  {connected ? "Update Connection" : "Connect Telegram"}
                 </Button>
 
-                <Separator />
+                {connected && (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={handleReconnect}
+                      disabled={isReconnecting}
+                    >
+                      {isReconnecting ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                      )}
+                      Refresh Webhook
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={handleDisconnect}
+                      disabled={isDisconnecting}
+                    >
+                      {isDisconnecting ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Unplug className="mr-2 h-4 w-4" />
+                      )}
+                      Disconnect
+                    </Button>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-                <div className="space-y-2">
-                  <div className="text-sm font-medium">Setup Instructions</div>
-                  <ol className="space-y-1.5 text-sm text-muted-foreground list-decimal list-inside">
-                    <li>
-                      Open Telegram and message{" "}
-                      <strong className="text-foreground">@BotFather</strong>
-                    </li>
-                    <li>
-                      Send{" "}
-                      <code className="bg-muted px-1 rounded">/newbot</code> and
-                      follow the prompts
-                    </li>
-                    <li>Copy the bot token BotFather gives you</li>
-                    <li>
-                      Paste the token above and click{" "}
-                      <strong className="text-foreground">Connect Bot</strong>
-                    </li>
-                    <li>ReplyBase sets up the webhook automatically</li>
-                  </ol>
-                </div>
+          {connected && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Status</CardTitle>
+                <CardDescription>
+                  Live connection status and webhook diagnostics.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                {isStatusLoading && !status ? (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading status...
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">Connected</Badge>
+                      <span className="font-medium">
+                        {status?.channel?.name}
+                      </span>
+                    </div>
 
-                <p className="text-xs text-muted-foreground pt-2">
-                  Your bot token is encrypted at rest and never logged in
-                  plaintext.
-                </p>
+                    <div className="grid gap-2 text-muted-foreground">
+                      <p>
+                        Webhook:{" "}
+                        <span className="text-foreground">
+                          {status?.local?.webhookConnected
+                            ? "Connected"
+                            : "Disconnected"}
+                        </span>
+                      </p>
+                      <p>
+                        Last inbound:{" "}
+                        <span className="text-foreground">
+                          {status?.local?.lastInboundMessageAt || "Never"}
+                        </span>
+                      </p>
+                      {status?.webhook?.pending_update_count !== undefined && (
+                        <p>
+                          Pending updates:{" "}
+                          <span className="text-foreground">
+                            {status.webhook.pending_update_count}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+
+                    {status?.local?.lastWebhookError && (
+                      <div className="rounded-md bg-destructive/10 p-3 text-destructive flex gap-2">
+                        <AlertTriangle className="h-4 w-4 shrink-0" />
+                        <div>
+                          <p className="font-medium">Last Webhook Error</p>
+                          <p className="text-xs">
+                            {status.local.lastWebhookError}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </CardContent>
             </Card>
+          )}
+
+          <ChannelFlowAssignmentCard
+            title="Telegram Flow Assignment"
+            description="Assign an active flow to this Telegram bot. Channel assignment takes priority over bot entry flow."
+            selectLabel="Assigned Flow"
+            selectId="telegramFlowSelect"
+            flows={flows}
+            isFlowsLoading={isFlowsLoading}
+            selectedFlowId={selectedFlowId}
+            onSelectFlow={setSelectedFlowId}
+            assignedFlowName={assignedFlow?.name}
+            unassignedDescription="No channel flow is assigned. Bot entry flow and AI fallback are used."
+            onAssign={handleAssignFlow}
+            onUnassign={handleUnassignFlow}
+            isAssigning={isAssigningFlow}
+            isUnassigning={isUnassigningFlow}
+            assignDisabled={
+              !selectedFlowId ||
+              isAssigningFlow ||
+              !connected ||
+              assignedFlow?.id === selectedFlowId
+            }
+            unassignDisabled={!assignedFlow || !connected || isUnassigningFlow}
+          />
+
+          {connected && targetChannelId && (
+            <ChannelActivityLogCard
+              logs={logs}
+              isLoading={isLogsLoading}
+              onRefresh={() => void loadLogs(targetChannelId)}
+              emptyText="No activity recorded yet."
+            />
           )}
         </>
       )}
