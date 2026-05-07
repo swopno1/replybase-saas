@@ -58,7 +58,7 @@ interface FlowOption {
 interface ChannelLog {
   id: string;
   type: string;
-  message: string;
+  event: string;
   createdAt: string;
 }
 
