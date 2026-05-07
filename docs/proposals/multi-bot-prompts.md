@@ -25,7 +25,7 @@ These prompts are designed to be executed sequentially by an AI developer to tra
 
 ---
 
-## Stage 3: Integration UI Migration
+## Stage 3: Integration UI Migration ✅
 **Goal**: Redesign the Integration UI to be part of the Bot management flow.
 
 > "Redesign the Integration UI to be part of the Bot management flow.
@@ -46,7 +46,7 @@ These prompts are designed to be executed sequentially by an AI developer to tra
 
 ---
 
-## Stage 5: Subscription Enforcement
+## Stage 5: Subscription Enforcement ✅
 **Goal**: Implement strict limit enforcement for the multi-bot feature.
 
 > "Implement strict limit enforcement for the multi-bot feature.

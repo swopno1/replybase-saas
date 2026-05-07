@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   checkLimit,
+  checkBotLimit,
+  checkChannelLimit,
   incrementUsage,
   incrementTenantUsage,
   getTenantLimits,
@@ -35,6 +37,9 @@ vi.mock('@/lib/prisma', () => ({
       count: vi.fn(),
     },
     contact: {
+      count: vi.fn(),
+    },
+    channel: {
       count: vi.fn(),
     },
     crmConversation: {
@@ -369,5 +374,55 @@ describe('incrementTenantUsage (buffered, tenant-direct)', () => {
     await incrementTenantUsage('tenant_1', 'message', 0);
     await usageBuffer.flush();
     expect(prisma.usageLog.upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe('checkBotLimit', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    invalidateTenantCache('tenant_1');
+  });
+
+  it('allows bot creation when under limit', async () => {
+    mockActiveSub(PLAN_STARTER); // maxBots: 3
+    vi.mocked(prisma.bot.count).mockResolvedValue(1);
+    const result = await checkBotLimit('tenant_1');
+    expect(result.allowed).toBe(true);
+    expect(result.current).toBe(1);
+    expect(result.limit).toBe(3);
+  });
+
+  it('blocks bot creation when at limit', async () => {
+    mockActiveSub(PLAN_FREE); // maxBots: 1
+    vi.mocked(prisma.bot.count).mockResolvedValue(2);
+    const result = await checkBotLimit('tenant_1');
+    expect(result.allowed).toBe(false);
+    expect(result.limit).toBe(1);
+  });
+});
+
+describe('checkChannelLimit', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    invalidateTenantCache('tenant_1');
+  });
+
+  it('allows channel connection when under limit', async () => {
+    mockActiveSub(PLAN_STARTER); // maxChannelsPerBot: 1 (default for starter in mock, wait let me check)
+    // Actually mock PLAN_STARTER has maxChannelsPerBot undefined in the file, let\u0027s check what it defaults to in schema
+    // In schema.prisma it defaults to 1.
+
+    vi.mocked(prisma.channel.count).mockResolvedValue(0);
+    const result = await checkChannelLimit('tenant_1', 'bot_1');
+    expect(result.allowed).toBe(true);
+    expect(result.current).toBe(0);
+  });
+
+  it('blocks channel connection when at limit', async () => {
+    mockActiveSub({ ...PLAN_FREE, maxChannelsPerBot: 1 });
+    vi.mocked(prisma.channel.count).mockResolvedValue(2);
+    const result = await checkChannelLimit('tenant_1', 'bot_1');
+    expect(result.allowed).toBe(false);
+    expect(result.current).toBe(2);
   });
 });

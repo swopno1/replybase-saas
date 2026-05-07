@@ -64,7 +64,7 @@ const CHANNEL_OPTIONS: Array<{
 
 function isBotChannelVisible(channelType: string): boolean {
   if (channelType === "web") return isChannelVisibleInUi("webchat");
-  if (["telegram", "facebook", "whatsapp"].includes(channelType)) return isChannelVisibleInUi(channelType as any);
+  if (["telegram", "facebook", "whatsapp"].includes(channelType)) return isChannelVisibleInUi(channelType as any /* eslint-disable-line @typescript-eslint/no-explicit-any */);
   return true;
 }
 
@@ -114,8 +114,13 @@ export default function BotDetailPage() {
   };
 
   useEffect(() => {
-    void fetchBot();
-    void fetchFlows();
+    if (botId) {
+      setTimeout(() => {
+        void fetchBot();
+        void fetchFlows();
+        void fetchChannels();
+      }, 0);
+    }
   }, [botId]);
 
   const handleSave = async () => {

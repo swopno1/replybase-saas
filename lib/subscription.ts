@@ -339,6 +339,26 @@ export async function getTenantUsage(tenantId: string) {
   };
 }
 
+/**
+ * Check if a bot can add more channels based on the plan's maxChannelsPerBot limit.
+ */
+export async function checkChannelLimit(tenantId: string, botId: string) {
+  const limits = await getTenantLimits(tenantId);
+  const channelCount = await prisma.channel.count({
+    where: { botId, isActive: true },
+  });
+
+  const status = getUsageStatus(channelCount, limits.maxChannelsPerBot);
+
+  return {
+    allowed: status.allowed,
+    limit: limits.maxChannelsPerBot,
+    current: channelCount,
+    planName: limits.displayName || limits.name,
+    status,
+  }
+}
+
 export async function checkBotLimit(tenantId: string) {
   const limits = await getTenantLimits(tenantId);
   const botCount = await prisma.bot.count({
