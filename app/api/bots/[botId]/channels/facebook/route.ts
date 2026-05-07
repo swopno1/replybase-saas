@@ -118,7 +118,7 @@ export async function POST(
     let webhookSubscribed = false;
     try {
       const subUrl = getFacebookGraphUrl(
-        \`\${pageId}/subscribed_apps\`,
+        `\${pageId}/subscribed_apps`,
         accessToken,
         {
           subscribed_fields: "messages,messaging_postbacks,messaging_optins,messaging_referrals",

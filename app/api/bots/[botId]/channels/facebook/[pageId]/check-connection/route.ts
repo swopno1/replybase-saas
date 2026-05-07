@@ -41,7 +41,7 @@ export async function GET(
     const meData = await meRes.json();
     const tokenValid = meRes.ok;
 
-    const subUrl = getFacebookGraphUrl(\`\${pageId}/subscribed_apps\`, facebookPage.accessToken);
+    const subUrl = getFacebookGraphUrl(`\${pageId}/subscribed_apps`, facebookPage.accessToken);
     const subRes = await fetch(subUrl);
     let webhookSubscribed = false;
     if (subRes.ok) {

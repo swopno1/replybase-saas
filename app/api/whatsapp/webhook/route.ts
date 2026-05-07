@@ -5,7 +5,6 @@ import { Prisma } from "@prisma/client";
 import logger from "@/lib/logger";
 import {
   decryptWhatsAppCredentialEnvelope,
-  getStringFromJsonConfig,
 } from "@/lib/whatsapp-channel-credentials";
 import { messageQueue } from "@/lib/queue";
 import {
@@ -80,13 +79,16 @@ function getAppSecretFallback(): string | null {
   );
 }
 
-async function getActiveWhatsAppChannels(): Promise<WhatsAppChannelWithBot[]> {
-  const rows = await prisma.channel.findMany({
+async function getChannelByMetaPhoneId(
+  phoneNumberId: string,
+): Promise<WhatsAppChannelWithBot | null> {
+  return await prisma.channel.findFirst({
     where: {
       type: "whatsapp",
       isActive: true,
       enabled: true,
       killSwitch: false,
+      channelId: phoneNumberId,
     },
     include: {
       bot: {
@@ -98,51 +100,33 @@ async function getActiveWhatsAppChannels(): Promise<WhatsAppChannelWithBot[]> {
         },
       },
     },
-  });
-
-  return rows as WhatsAppChannelWithBot[];
+  }) as WhatsAppChannelWithBot | null;
 }
 
-function getMetaPhoneNumberId(payload: MetaWebhookPayload): string | null {
-  for (const entry of payload.entry || []) {
-    for (const change of entry.changes || []) {
-      const value = change.value;
-      if (!value) {
-        continue;
-      }
-      if (value.metadata?.phone_number_id) {
-        return value.metadata.phone_number_id;
-      }
-    }
-  }
-
-  return null;
-}
-
-function getChannelByMetaPhoneId(
-  channels: WhatsAppChannelWithBot[],
-  phoneNumberId: string,
-): WhatsAppChannelWithBot | null {
-  for (const channel of channels) {
-    const config = (channel.config || {}) as Prisma.JsonObject;
-    const configuredPhoneId = config.metaPhoneNumberId;
-
-    if (
-      typeof configuredPhoneId === "string" &&
-      configuredPhoneId === phoneNumberId
-    ) {
-      return channel;
-    }
-  }
-
-  return null;
-}
-
-function getChannelByTwilioToNumber(
-  channels: WhatsAppChannelWithBot[],
+async function getChannelByTwilioToNumber(
   toNumber: string,
-): WhatsAppChannelWithBot | null {
+): Promise<WhatsAppChannelWithBot | null> {
   const normalized = normalizeWhatsAppE164(toNumber);
+
+  // We perform a slightly more expensive lookup for Twilio because we store it in JSON
+  // In a future Stage, we should move twilioFromNumber to Channel.channelId
+  const channels = await prisma.channel.findMany({
+    where: {
+      type: "whatsapp",
+      isActive: true,
+      enabled: true,
+    },
+    include: {
+      bot: {
+        select: {
+          id: true,
+          tenantId: true,
+          name: true,
+          entryFlow: true,
+        },
+      },
+    },
+  }) as WhatsAppChannelWithBot[];
 
   for (const channel of channels) {
     const config = (channel.config || {}) as Prisma.JsonObject;
@@ -159,6 +143,10 @@ function getChannelByTwilioToNumber(
   return null;
 }
 
+function getMetaPhoneNumberId(payload: MetaWebhookPayload): string | null {
+  return payload.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id || null;
+}
+
 async function ensureContactAndConversation(params: {
   channel: WhatsAppChannelWithBot;
   waId: string;
@@ -168,26 +156,25 @@ async function ensureContactAndConversation(params: {
   messageId: string;
   timestamp?: string;
 }) {
-  // Use messageId as jobId for BullMQ idempotency.
-  // This ensures that if Meta retries the webhook, we don't process the same message twice.
   await messageQueue.add(
     "whatsapp-message",
-    { type: "whatsapp", payload: params },
+    {
+      type: "whatsapp",
+      botId: params.channel.botId,
+      payload: params
+    },
     { jobId: `whatsapp:${params.messageId}` }
   );
 
-  // Log the event asynchronously for audit purposes
   prisma.webhookLog.create({
     data: {
       type: "message",
       source: "whatsapp",
       event: `meta_message:${params.messageId}`,
-      data: { channelId: params.channel.id } as Prisma.InputJsonValue,
+      data: { channelId: params.channel.id, botId: params.channel.botId } as Prisma.InputJsonValue,
     },
     select: { id: true },
-  }).catch(() => {
-    /* audit logging is best-effort */
-  });
+  }).catch(() => {});
 }
 
 async function processMetaPayload(params: {
@@ -195,22 +182,8 @@ async function processMetaPayload(params: {
   bodyText: string;
   signature: string | null;
 }) {
-  // Meta sends this field on every webhook to identify the product area.
-  // Reject anything that is not a WhatsApp Business Account notification so
-  // that cross-product webhooks (Instagram, Messenger) never trigger replies.
   if (params.payload.object !== "whatsapp_business_account") {
-    return NextResponse.json(
-      { received: true, ignored: true },
-      { status: 200 },
-    );
-  }
-
-  const channels = await getActiveWhatsAppChannels();
-  if (channels.length === 0) {
-    return NextResponse.json(
-      { received: true, matched: false },
-      { status: 200 },
-    );
+    return NextResponse.json({ received: true, ignored: true }, { status: 200 });
   }
 
   const phoneNumberId = getMetaPhoneNumberId(params.payload);
@@ -218,42 +191,22 @@ async function processMetaPayload(params: {
     return NextResponse.json({ received: true, parsed: true }, { status: 200 });
   }
 
-  const channel = getChannelByMetaPhoneId(channels, phoneNumberId);
-  if (!channel) {
-    return NextResponse.json(
-      { received: true, matched: false },
-      { status: 200 },
-    );
-  }
-
-  if (!channel.accessToken) {
-    return NextResponse.json(
-      { received: true, matched: false },
-      { status: 200 },
-    );
+  const channel = await getChannelByMetaPhoneId(phoneNumberId);
+  if (!channel || !channel.accessToken) {
+    return NextResponse.json({ received: true, matched: false }, { status: 200 });
   }
 
   const envelope = decryptWhatsAppCredentialEnvelope(channel.accessToken);
   if (envelope.provider !== "meta_cloud") {
-    return NextResponse.json(
-      { received: true, matched: false },
-      { status: 200 },
-    );
+    return NextResponse.json({ received: true, matched: false }, { status: 200 });
   }
 
-  const appSecret =
-    (envelope.credentials as { appSecret?: string }).appSecret ||
-    getAppSecretFallback();
+  const appSecret = (envelope.credentials as { appSecret?: string }).appSecret || getAppSecretFallback();
   if (appSecret) {
     if (!params.signature) {
       return NextResponse.json({ error: "Missing signature" }, { status: 403 });
     }
-
-    const isValid = verifyWebhookSignature(
-      params.bodyText,
-      params.signature,
-      appSecret,
-    );
+    const isValid = verifyWebhookSignature(params.bodyText, params.signature, appSecret);
     if (!isValid) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
     }
@@ -262,35 +215,24 @@ async function processMetaPayload(params: {
   for (const entry of params.payload.entry || []) {
     for (const change of entry.changes || []) {
       const value = change.value;
-      if (!value) {
-        continue;
-      }
+      if (!value) continue;
 
       const statusesToLog = [];
       let hasStatuses = false;
 
       for (const status of value.statuses || []) {
-        if (!status.id) {
-          continue;
-        }
-
+        if (!status.id) continue;
         statusesToLog.push({
           type: "delivery",
           source: "whatsapp",
           event: `meta_status:${status.id}:${status.status || "unknown"}`,
-          data: {
-            channelId: channel.id,
-            status,
-          } as Prisma.InputJsonValue,
+          data: { channelId: channel.id, botId: channel.botId, status } as Prisma.InputJsonValue,
         });
         hasStatuses = true;
       }
 
       if (hasStatuses) {
-        await prisma.webhookLog.createMany({
-          data: statusesToLog,
-        });
-
+        await prisma.webhookLog.createMany({ data: statusesToLog });
         const currentConfig = (channel.config || {}) as Prisma.JsonObject;
         await prisma.channel.update({
           where: { id: channel.id },
@@ -305,17 +247,9 @@ async function processMetaPayload(params: {
       }
 
       for (const message of value.messages || []) {
-        if (
-          message.type !== "text" ||
-          !message.text?.body ||
-          !message.from ||
-          !message.id
-        ) {
+        if (message.type !== "text" || !message.text?.body || !message.from || !message.id) {
           continue;
         }
-
-        // Process asynchronously. Since we are on a DigitalOcean Droplet (Node.js runtime),
-        // we can safely fire-and-forget without @vercel/functions waitUntil.
         ensureContactAndConversation({
           channel,
           waId: message.from,
@@ -325,10 +259,7 @@ async function processMetaPayload(params: {
           messageId: message.id,
           timestamp: message.timestamp,
         }).catch((err) => {
-          logger.error(
-            { error: err },
-            "[WhatsApp Webhook] Async processing error",
-          );
+          logger.error({ error: err }, "[WhatsApp Webhook] Async processing error");
         });
       }
     }
@@ -349,34 +280,20 @@ async function processTwilioPayload(
   const messageStatus = params.get("MessageStatus");
 
   if (!to) {
-    return NextResponse.json(
-      { received: true, parsed: false },
-      { status: 200 },
-    );
+    return NextResponse.json({ received: true, parsed: false }, { status: 200 });
   }
 
-  const channels = await getActiveWhatsAppChannels();
-  const channel = getChannelByTwilioToNumber(channels, to);
-
+  const channel = await getChannelByTwilioToNumber(to);
   if (!channel || !channel.accessToken) {
-    return NextResponse.json(
-      { received: true, matched: false },
-      { status: 200 },
-    );
+    return NextResponse.json({ received: true, matched: false }, { status: 200 });
   }
 
-  const credentialsEnvelope = decryptWhatsAppCredentialEnvelope(
-    channel.accessToken,
-  );
+  const credentialsEnvelope = decryptWhatsAppCredentialEnvelope(channel.accessToken);
   if (credentialsEnvelope.provider !== "twilio") {
-    return NextResponse.json(
-      { received: true, matched: false },
-      { status: 200 },
-    );
+    return NextResponse.json({ received: true, matched: false }, { status: 200 });
   }
 
-  const authToken = (credentialsEnvelope.credentials as { authToken: string })
-    .authToken;
+  const authToken = (credentialsEnvelope.credentials as { authToken: string }).authToken;
   const isValid = verifyTwilioSignature({
     authToken,
     signature,
@@ -385,10 +302,7 @@ async function processTwilioPayload(
   });
 
   if (!isValid) {
-    return NextResponse.json(
-      { error: "Invalid Twilio signature" },
-      { status: 403 },
-    );
+    return NextResponse.json({ error: "Invalid Twilio signature" }, { status: 403 });
   }
 
   if (messageStatus && messageSid) {
@@ -397,25 +311,16 @@ async function processTwilioPayload(
         type: "delivery",
         source: "whatsapp",
         event: `twilio_status:${messageSid}:${messageStatus}`,
-        data: {
-          channelId: channel.id,
-          messageStatus,
-        } as Prisma.InputJsonValue,
+        data: { channelId: channel.id, botId: channel.botId, messageStatus } as Prisma.InputJsonValue,
       },
     });
-
     return NextResponse.json({ received: true, status: true }, { status: 200 });
   }
 
   if (!from || !messageSid || !body.trim()) {
-    return NextResponse.json(
-      { received: true, parsed: false },
-      { status: 200 },
-    );
+    return NextResponse.json({ received: true, parsed: false }, { status: 200 });
   }
 
-  // Process asynchronously. Since we are on a DigitalOcean Droplet (Node.js runtime),
-  // we can safely fire-and-forget without @vercel/functions waitUntil.
   ensureContactAndConversation({
     channel,
     waId: from,
@@ -423,21 +328,15 @@ async function processTwilioPayload(
     inboundText: body,
     messageId: messageSid,
   }).catch((err) => {
-    logger.error(
-      { error: err },
-      "[WhatsApp Webhook] Async Twilio processing error",
-    );
+    logger.error({ error: err }, "[WhatsApp Webhook] Async Twilio processing error");
   });
 
   return new NextResponse("<Response></Response>", {
     status: 200,
-    headers: {
-      "Content-Type": "text/xml",
-    },
+    headers: { "Content-Type": "text/xml" },
   });
 }
 
-// Meta webhook verification handshake.
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
   const mode = searchParams.get("hub.mode");
@@ -446,16 +345,12 @@ export async function GET(req: NextRequest) {
 
   const verifyToken = getVerifyToken();
   if (!verifyToken) {
-    return NextResponse.json(
-      { error: "Webhook verify token is not configured" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Webhook verify token is not configured" }, { status: 500 });
   }
 
   if (mode === "subscribe" && token === verifyToken && challenge) {
     return new NextResponse(challenge, { status: 200 });
   }
-
   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 }
 
@@ -464,24 +359,16 @@ export async function POST(req: NextRequest) {
     const contentType = req.headers.get("content-type") || "";
     const bodyText = await req.text();
 
-    // Twilio sends x-www-form-urlencoded by default.
     if (contentType.includes("application/x-www-form-urlencoded")) {
       const params = new URLSearchParams(bodyText);
-      return processTwilioPayload(
-        params,
-        req.url,
-        req.headers.get("x-twilio-signature"),
-      );
+      return processTwilioPayload(params, req.url, req.headers.get("x-twilio-signature"));
     }
 
     let payload: MetaWebhookPayload;
     try {
       payload = JSON.parse(bodyText || "{}") as MetaWebhookPayload;
     } catch {
-      return NextResponse.json(
-        { received: true, parsed: false },
-        { status: 200 },
-      );
+      return NextResponse.json({ received: true, parsed: false }, { status: 200 });
     }
 
     return processMetaPayload({

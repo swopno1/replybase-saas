@@ -23,19 +23,11 @@ export async function GET() {
 
   try {
     const bots = await prisma.bot.findMany({
-      where: {
-        tenantId: session.user.tenantId,
-      },
+      where: { tenantId: session.user.tenantId },
       orderBy: { createdAt: "desc" },
       include: {
         channels: {
-          select: {
-            id: true,
-            type: true,
-            name: true,
-            enabled: true,
-            isActive: true,
-          },
+          select: { id: true, type: true, name: true, enabled: true, isActive: true },
           orderBy: { createdAt: "asc" },
         },
       },
@@ -50,21 +42,9 @@ export async function GET() {
       channels: bot.channels,
     }));
 
-    // Mock project structure to satisfy frontend expected interface
-    const projects = [
-      {
-        id: "default",
-        name: "My Bots",
-        bots: mappedBots,
-      },
-    ];
-
-    return NextResponse.json({ projects });
+    return NextResponse.json({ bots: mappedBots });
   } catch {
-    return NextResponse.json(
-      { error: "Failed to fetch bots" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to fetch bots" }, { status: 500 });
   }
 }
 
@@ -74,7 +54,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // 1. Check Limits
   const limitStatus = await checkBotLimit(session.user.tenantId);
   if (!limitStatus.allowed) {
     return NextResponse.json(
@@ -90,10 +69,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const parsed = createBotSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Invalid input", details: parsed.error.issues },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Invalid input", details: parsed.error.issues }, { status: 400 });
     }
 
     const { name, channel, context } = parsed.data;
@@ -103,7 +79,7 @@ export async function POST(req: NextRequest) {
       try {
         parsedContext = JSON.parse(context);
       } catch {
-        parsedContext = context; // fallback to plain text if not valid JSON
+        parsedContext = context;
       }
     }
     const bot = await prisma.bot.create({
@@ -115,9 +91,10 @@ export async function POST(req: NextRequest) {
         entryFlow: parsed.data.entryFlow,
         channels: {
           create: {
+            tenantId: session.user.tenantId,
             type: normalizedChannelType,
             name: "Default Channel",
-            channelId: normalizedChannelType === "web" ? null : "default",
+            channelId: normalizedChannelType === "web" ? null : `default-${Date.now()}`,
             enabled: true,
           },
         },
@@ -137,9 +114,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ bot });
   } catch (error) {
     console.error("Bot creation error", error);
-    return NextResponse.json(
-      { error: "Failed to create bot" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to create bot" }, { status: 500 });
   }
 }

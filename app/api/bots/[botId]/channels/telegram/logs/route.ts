@@ -5,12 +5,6 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = 'force-dynamic';
 
-
-
-
-/**
- * GET /api/bots/[botId]/channels/telegram/logs?channelId=<id>&limit=<n>
- */
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ botId: string }> },
@@ -37,10 +31,7 @@ export async function GET(
     const limit = Math.min(parseInt(limitParam || "20", 10), 100);
 
     if (!channelId) {
-      return NextResponse.json(
-        { error: "channelId is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "channelId is required" }, { status: 400 });
     }
 
     const channel = await prisma.channel.findFirst({
@@ -61,13 +52,13 @@ export async function GET(
       where: {
         source: "telegram",
         OR: [
-          { event: \`inbound:\${channelId}\` },
-          { event: \`outbound:\${channelId}\` },
-          { event: \`outbound_error:\${channelId}\` },
-          { event: \`webhook_setup:\${channelId}\` },
-          { event: \`webhook_setup_error:\${channelId}\` },
-          { event: \`webhook_reconnect:\${channelId}\` },
-          { event: \`webhook_reconnect_error:\${channelId}\` },
+          { event: `inbound:${channelId}` },
+          { event: `outbound:${channelId}` },
+          { event: `outbound_error:${channelId}` },
+          { event: `webhook_setup:${channelId}` },
+          { event: `webhook_setup_error:${channelId}` },
+          { event: `webhook_reconnect:${channelId}` },
+          { event: `webhook_reconnect_error:${channelId}` },
         ],
       },
       orderBy: { createdAt: "desc" },
@@ -83,9 +74,6 @@ export async function GET(
     return NextResponse.json({ logs });
   } catch (error) {
     console.error("[Telegram Logs] Error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch logs" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to fetch logs" }, { status: 500 });
   }
 }

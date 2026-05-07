@@ -46,7 +46,7 @@ export async function DELETE(
     if (facebookPage.webhookSubscribed && facebookPage.accessToken) {
       try {
         const unsubUrl = getFacebookGraphUrl(
-          \`\${pageId}/subscribed_apps\`,
+          `\${pageId}/subscribed_apps`,
           facebookPage.accessToken,
         );
         await fetch(unsubUrl, { method: "DELETE" });

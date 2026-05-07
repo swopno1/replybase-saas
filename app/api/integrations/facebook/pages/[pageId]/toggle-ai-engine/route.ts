@@ -4,9 +4,6 @@ import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = 'force-dynamic';
 
-
-
-
 export const POST = withAuthAndTenant(
   async ({ tenantId }, req: NextRequest, context) => {
     try {
@@ -16,28 +13,18 @@ export const POST = withAuthAndTenant(
       const { enabled } = body;
 
       if (!pageId || typeof enabled !== "boolean") {
-        return NextResponse.json(
-          { error: "Missing required fields: pageId, enabled" },
-          { status: 400 },
-        );
+        return NextResponse.json({ error: "Missing required fields: pageId, enabled" }, { status: 400 });
       }
 
-      // Verify the page belongs to the tenant
       const page = await prisma.facebookPage.findFirst({
-        where: {
-          id: pageId,
-          tenantId: tenantId,
-        },
+        where: { id: pageId, tenantId },
       });
 
       if (!page) {
-        return NextResponse.json(
-          { error: "Page not found or access denied" },
-          { status: 404 },
-        );
+        return NextResponse.json({ error: "Page not found" }, { status: 404 });
       }
 
-      const updateData: { engineConnected: boolean; botId?: string | null } = {
+      const updateData: { engineConnected: boolean; botId?: string } = {
         engineConnected: enabled,
       };
 
@@ -48,12 +35,8 @@ export const POST = withAuthAndTenant(
         });
 
         if (!defaultBot) {
-          return NextResponse.json(
-            { error: "No bot found for this tenant" },
-            { status: 400 },
-          );
+          return NextResponse.json({ error: "No bot found" }, { status: 400 });
         }
-
         updateData.botId = defaultBot.id;
       }
 
@@ -62,16 +45,10 @@ export const POST = withAuthAndTenant(
         data: updateData,
       });
 
-      return NextResponse.json({
-        success: true,
-        message: enabled ? "AI enabled for page" : "AI disabled for page",
-      });
+      return NextResponse.json({ success: true });
     } catch (error) {
       console.error("[Toggle AI Engine API] Error:", error);
-      return NextResponse.json(
-        { error: "Internal server error" },
-        { status: 500 },
-      );
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
   },
 );

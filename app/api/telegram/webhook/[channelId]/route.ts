@@ -13,25 +13,9 @@ import {
   getTelegramText,
   getTelegramUserDisplayName,
   getTelegramUserId,
-  isTelegramCommand,
-  normalizeTelegramText,
 } from "@/lib/telegram-utils";
 
 export const dynamic = "force-dynamic";
-
-function getCommandReply(commandText: string): string | null {
-  const command = commandText.split(" ")[0]?.toLowerCase();
-
-  if (command === "/help") {
-    return "You can ask me questions directly. Use /settings to view integration settings in ReplyBase.";
-  }
-
-  if (command === "/settings") {
-    return "Settings are managed in your ReplyBase dashboard under Telegram integration.";
-  }
-
-  return null;
-}
 
 async function updateTelegramChannelConfig(
   channelId: string,
@@ -57,9 +41,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ channelId: string }> },
 ) {
+  const { channelId } = await params;
   try {
-    const { channelId } = await params;
-
     const channel = await prisma.channel.findFirst({
       where: {
         id: channelId,
@@ -80,157 +63,65 @@ export async function POST(
     });
 
     if (!channel || !channel.bot) {
-      await prisma.webhookLog
-        .create({
-          data: {
-            type: "skipped",
-            source: "telegram",
-            event: `skip_inactive:${channelId}`,
-            data: {
-              reason: "channel_not_found_or_inactive",
-            } as Prisma.InputJsonValue,
-          },
-        })
-        .catch(() => {
-          // Best effort only.
-        });
+      await prisma.webhookLog.create({
+        data: {
+          type: "skipped",
+          source: "telegram",
+          event: `skip_inactive:${channelId}`,
+          data: { reason: "channel_not_found_or_inactive" } as Prisma.InputJsonValue,
+        },
+      }).catch(() => {});
       return NextResponse.json({ success: true }, { status: 200 });
     }
 
     let config = (channel.config as Prisma.JsonObject | null) || {};
-    const expectedSecret =
-      typeof config.webhookSecret === "string" ? config.webhookSecret : null;
+    const expectedSecret = typeof config.webhookSecret === "string" ? config.webhookSecret : null;
     const secretHeader = req.headers.get("x-telegram-bot-api-secret-token");
 
     if (!expectedSecret) {
-      await prisma.webhookLog
-        .create({
-          data: {
-            type: "security_error",
-            source: "telegram",
-            event: `missing_secret:${channelId}`,
-            data: {
-              reason: "webhook_secret_not_configured",
-            } as Prisma.InputJsonValue,
-          },
-        })
-        .catch(() => {
-          // Best effort only.
-        });
-
-      return NextResponse.json(
-        { error: "Webhook secret is not configured" },
-        { status: 403 },
-      );
+      return NextResponse.json({ error: "Webhook secret is not configured" }, { status: 403 });
     }
 
-    // Use timing-safe comparison to prevent secret oracle timing attacks.
     const matches =
       secretHeader !== null &&
       secretHeader.length === expectedSecret.length &&
-      crypto.timingSafeEqual(
-        Buffer.from(secretHeader),
-        Buffer.from(expectedSecret),
-      );
-    if (!matches) {
-      await prisma.webhookLog
-        .create({
-          data: {
-            type: "security_error",
-            source: "telegram",
-            event: `invalid_secret:${channelId}`,
-            data: {
-              reason: "invalid_webhook_secret_header",
-            } as Prisma.InputJsonValue,
-          },
-        })
-        .catch(() => {
-          // Best effort only.
-        });
-
-      return NextResponse.json(
-        { error: "Invalid webhook secret" },
-        { status: 403 },
-      );
-    }
+      crypto.timingSafeEqual(Buffer.from(secretHeader), Buffer.from(expectedSecret));
+    if (!matches) return NextResponse.json({ error: "Invalid webhook secret" }, { status: 403 });
 
     const update = (await req.json()) as TelegramUpdate;
-    const eventAt = new Date().toISOString();
-
     const updateId = update.update_id;
     if (typeof updateId === "number") {
       const eventKey = `update:${channelId}:${updateId}`;
       const existing = await prisma.webhookLog.findFirst({
-        where: {
-          source: "telegram",
-          event: eventKey,
-        },
+        where: { source: "telegram", event: eventKey },
         select: { id: true },
       });
 
-      if (existing) {
-        return NextResponse.json(
-          { success: true, duplicate: true },
-          { status: 200 },
-        );
-      }
+      if (existing) return NextResponse.json({ success: true, duplicate: true }, { status: 200 });
 
       await prisma.webhookLog.create({
         data: {
           type: "update",
           source: "telegram",
           event: eventKey,
-          data: update as unknown as Prisma.InputJsonValue,
+          data: { ...update, botId: channel.botId } as unknown as Prisma.InputJsonValue,
         },
       });
     }
 
     config = await updateTelegramChannelConfig(channel.id, config, {
       webhookConnected: true,
-      lastWebhookEventAt: eventAt,
+      lastWebhookEventAt: new Date().toISOString(),
       lastProcessedUpdateId: typeof updateId === "number" ? updateId : null,
     });
 
     const tokenEncrypted = channel.accessToken;
-    if (!tokenEncrypted) {
-      await prisma.webhookLog
-        .create({
-          data: {
-            type: "config_error",
-            source: "telegram",
-            event: `missing_token:${channelId}`,
-            data: {
-              reason: "missing_encrypted_token",
-            } as Prisma.InputJsonValue,
-          },
-        })
-        .catch(() => {
-          // Best effort only.
-        });
-      return NextResponse.json({ success: true }, { status: 200 });
-    }
+    if (!tokenEncrypted) return NextResponse.json({ success: true }, { status: 200 });
 
     let token: string;
     try {
       token = decryptTelegramToken(tokenEncrypted);
     } catch (error) {
-      await prisma.webhookLog
-        .create({
-          data: {
-            type: "config_error",
-            source: "telegram",
-            event: `decrypt_token_error:${channelId}`,
-            data: {
-              reason:
-                error instanceof Error
-                  ? error.message
-                  : "Unable to decrypt token",
-            } as Prisma.InputJsonValue,
-          },
-        })
-        .catch(() => {
-          // Best effort only.
-        });
       return NextResponse.json({ success: false }, { status: 500 });
     }
 
@@ -243,40 +134,27 @@ export async function POST(
     const messageText = getTelegramText(update);
 
     if (!chatId || !userId || !messageText) {
-      return NextResponse.json(
-        { success: true, skipped: true },
-        { status: 200 },
-      );
+      return NextResponse.json({ success: true, skipped: true }, { status: 200 });
     }
 
     const userName = getTelegramUserDisplayName(update);
 
     await messageQueue.add("telegram-message", {
       type: "telegram",
+      botId: channel.botId,
       payload: { channel, update, chatId, userId, messageText, userName },
     });
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
-    const { channelId } = await params;
-    await prisma.webhookLog
-      .create({
-        data: {
-          type: "internal_error",
-          source: "telegram",
-          event: `internal_error:${channelId}`,
-          data: {
-            error:
-              error instanceof Error ? error.message : "Unknown internal error",
-          } as Prisma.InputJsonValue,
-        },
-      })
-      .catch(() => {
-        // Best effort only.
-      });
-
-    console.error("[Telegram Webhook] Error:", error);
-    // Return 500 so Telegram retries transient failures; de-dup uses update_id.
+    await prisma.webhookLog.create({
+      data: {
+        type: "internal_error",
+        source: "telegram",
+        event: `internal_error:${channelId}`,
+        data: { error: error instanceof Error ? error.message : "Unknown error" } as Prisma.InputJsonValue,
+      },
+    }).catch(() => {});
     return NextResponse.json({ success: false }, { status: 500 });
   }
 }

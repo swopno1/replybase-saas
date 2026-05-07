@@ -21,7 +21,8 @@ function getCommandReply(commandText: string): string | null {
 }
 
 export async function processTelegramJob(payload: any) {
-  const { channel, update, chatId, userId, messageText, userName } = payload;
+  const { channel, update, chatId, userId, messageText, userName, botId } = payload;
+  const targetBotId = botId || channel.botId;
   const tenantId = channel.bot.tenantId;
 
   const tokenEncrypted = channel.accessToken;
@@ -51,7 +52,7 @@ export async function processTelegramJob(payload: any) {
   }
 
   let conversation = await prisma.crmConversation.findFirst({
-    where: { contactId: contact.id, botId: channel.bot.id, channel: "telegram" },
+    where: { contactId: contact.id, botId: targetBotId, channel: "telegram" },
   });
 
   if (!conversation) {
@@ -59,7 +60,7 @@ export async function processTelegramJob(payload: any) {
       data: {
         tenantId,
         contactId: contact.id,
-        botId: channel.bot.id,
+        botId: targetBotId,
         channel: "telegram",
       },
     });
@@ -75,13 +76,19 @@ export async function processTelegramJob(payload: any) {
     },
   });
 
+  // Bot Status check
+  const bot = await prisma.bot.findUnique({
+    where: { id: targetBotId },
+    select: { enabled: true, entryFlow: true }
+  });
+  if (!bot || !bot.enabled) return;
+
   const commandName = messageText.split(" ")[0]?.toLowerCase();
   const isStartCommand = commandName === "/start";
   let replyText = isStartCommand ? null : getCommandReply(messageText);
   let replySource: "system" | "flow" | "ai" = replyText ? "system" : "ai";
 
   if (!replyText) {
-    // Try Flow
     try {
       const flowResult = await executeBotEntryFlowFirst({
         tenantId,
@@ -89,7 +96,7 @@ export async function processTelegramJob(payload: any) {
         scopeKey: `telegram:${channel.id}`,
         message: messageText,
         channelId: channel.id,
-        entryFlow: channel.bot.entryFlow,
+        entryFlow: bot.entryFlow ?? undefined,
         variables: { channel: "telegram", chatId, userId, userName },
       });
 
@@ -143,7 +150,7 @@ export async function processTelegramJob(payload: any) {
       });
 
       const aiStream = await aiFallback({
-        botId: channel.bot.id,
+        botId: targetBotId,
         conversationId: conversation.id,
         messages: aiMessages,
         planName: subscription?.plan?.name || "free",
@@ -182,7 +189,7 @@ export async function processTelegramJob(payload: any) {
   });
 
   await Promise.allSettled([
-    recordMilestoneEvent(channel.bot.tenantId, "first-channel", { channelType: "telegram", channelId: channel.id }),
-    recordMilestoneEvent(channel.bot.tenantId, "first-automated-reply", { channelType: "telegram", source: replySource }),
+    recordMilestoneEvent(tenantId, "first-channel", { channelType: "telegram", channelId: channel.id }),
+    recordMilestoneEvent(tenantId, "first-automated-reply", { channelType: "telegram", source: replySource }),
   ]);
 }
