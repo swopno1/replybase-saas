@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { normalizeWhatsAppE164 } from '@/lib/whatsapp-provider';
 import { prisma } from "@/lib/prisma";
 import { encryptWhatsAppCredentialEnvelope } from "@/lib/whatsapp-channel-credentials";
 import { getTenantLimits } from "@/lib/subscription";
@@ -47,7 +48,7 @@ export async function POST(
       credentials,
     });
 
-    const channelId = provider === "meta_cloud" ? credentials.metaPhoneNumberId : credentials.twilioFromNumber;
+    const channelId = provider === "meta_cloud" ? credentials.metaPhoneNumberId : normalizeWhatsAppE164(credentials.twilioFromNumber);
 
     const channel = await prisma.channel.create({
       data: {

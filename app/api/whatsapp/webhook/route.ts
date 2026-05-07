@@ -108,13 +108,12 @@ async function getChannelByTwilioToNumber(
 ): Promise<WhatsAppChannelWithBot | null> {
   const normalized = normalizeWhatsAppE164(toNumber);
 
-  // We perform a slightly more expensive lookup for Twilio because we store it in JSON
-  // In a future Stage, we should move twilioFromNumber to Channel.channelId
-  const channels = await prisma.channel.findMany({
+  return await prisma.channel.findFirst({
     where: {
       type: "whatsapp",
       isActive: true,
       enabled: true,
+      channelId: normalized,
     },
     include: {
       bot: {
@@ -126,21 +125,7 @@ async function getChannelByTwilioToNumber(
         },
       },
     },
-  }) as WhatsAppChannelWithBot[];
-
-  for (const channel of channels) {
-    const config = (channel.config || {}) as Prisma.JsonObject;
-    const configuredFrom = config.twilioFromNumber;
-
-    if (
-      typeof configuredFrom === "string" &&
-      normalizeWhatsAppE164(configuredFrom) === normalized
-    ) {
-      return channel;
-    }
-  }
-
-  return null;
+  }) as WhatsAppChannelWithBot | null;
 }
 
 function getMetaPhoneNumberId(payload: MetaWebhookPayload): string | null {
