@@ -54,20 +54,23 @@ export async function GET(
       return NextResponse.json({ error: "Bot not found" }, { status: 404 });
     }
 
-    const channels = await prisma.channel.findMany({
-      where: { botId },
-      include: {
-        flowAssignments: {
-          where: { isActive: true },
-          include: {
-            flow: { select: { id: true, name: true, isActive: true } },
+    const [channels, limitStatus] = await Promise.all([
+      prisma.channel.findMany({
+        where: { botId },
+        include: {
+          flowAssignments: {
+            where: { isActive: true },
+            include: {
+              flow: { select: { id: true, name: true, isActive: true } },
+            },
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        orderBy: { createdAt: "desc" },
+      }),
+      checkChannelLimit(user.tenantId, botId),
+    ]);
 
-    return NextResponse.json({ channels });
+    return NextResponse.json({ channels, limitStatus });
   } catch (error) {
     console.error("[Channels API] Error fetching channels:", error);
     return NextResponse.json({ error: "Failed to fetch channels" }, { status: 500 });

@@ -5,11 +5,9 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { decryptTelegramToken } from "@/lib/telegram-crypto";
 import { getTelegramWebhookInfo } from "@/lib/telegram-api";
+import { checkChannelLimit } from "@/lib/subscription";
 
 export const dynamic = 'force-dynamic';
-
-
-
 
 export async function GET(
   req: NextRequest,
@@ -47,21 +45,25 @@ export async function GET(
           bot: { tenantId: user.tenantId },
         };
 
-    const channel = await prisma.channel.findFirst({
-      where: whereClause,
-      include: {
-        bot: {
-          select: { id: true, name: true },
+    const [channel, limitStatus] = await Promise.all([
+      prisma.channel.findFirst({
+        where: whereClause,
+        include: {
+          bot: {
+            select: { id: true, name: true },
+          },
         },
-      },
-      orderBy: {
-        updatedAt: "desc",
-      },
-    });
+        orderBy: {
+          updatedAt: "desc",
+        },
+      }),
+      checkChannelLimit(user.tenantId, botId),
+    ]);
 
     if (!channel) {
       return NextResponse.json({
         connected: false,
+        limitStatus,
       });
     }
 
@@ -134,6 +136,7 @@ export async function GET(
         updatedAt: channel.updatedAt,
       },
       bot: channel.bot,
+      limitStatus,
       local,
       webhook: webhookInfo,
       webhookError,

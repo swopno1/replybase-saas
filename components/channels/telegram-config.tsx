@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Loader2,
   CheckCircle2,
@@ -20,6 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { ChannelLimitWarning } from "@/components/channels/channel-ui";
 import { toast } from "sonner";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
 import {
@@ -56,31 +57,28 @@ interface FlowOption {
 
 interface ChannelLog {
   id: string;
+  type: string;
   event: string;
   createdAt: string;
-  type?: string;
 }
 
 export function TelegramConfig({ botId, channelLimitStatus }: { botId: string; channelLimitStatus?: { allowed: boolean; limit: number } | null }) {
   const { confirm } = useConfirmation();
 
-  // Connection state
+  // State
+  const [status, setStatus] = useState<TelegramStatus | null>(null);
+  const [isStatusLoading, setIsStatusLoading] = useState(false);
   const [botToken, setBotToken] = useState("");
   const [channelName, setChannelName] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
-
-  // Status state
-  const [status, setStatus] = useState<TelegramStatus | null>(null);
-  const [isStatusLoading, setIsStatusLoading] = useState(false);
   const [targetChannelId, setTargetChannelId] = useState<string | null>(null);
 
-  // Flow state
+  // Flow assignment state
   const [flows, setFlows] = useState<FlowOption[]>([]);
   const [isFlowsLoading, setIsFlowsLoading] = useState(false);
   const [selectedFlowId, setSelectedFlowId] = useState("");
-  const [assignedFlow, setAssignedFlow] = useState<FlowOption | null>(null);
   const [isAssigningFlow, setIsAssigningFlow] = useState(false);
   const [isUnassigningFlow, setIsUnassigningFlow] = useState(false);
 
@@ -99,50 +97,32 @@ export function TelegramConfig({ botId, channelLimitStatus }: { botId: string; c
         setStatus(null);
       }
     } catch (error) {
-      console.error("Failed to load Telegram status:", error);
-      setStatus(null);
+      console.error("Failed to load status:", error);
     } finally {
-      setIsStatusLoading(false);
+      setIsStatusLoading(true);
+      setTimeout(() => setIsStatusLoading(false), 500);
     }
   };
 
   const loadTelegramChannel = async (id: string) => {
     try {
-      const res = await fetch(`/api/bots/${id}/channels/telegram`);
+      const res = await fetch(`/api/bots/${id}/channels`);
       if (res.ok) {
         const data = await res.json();
-        if (data.channel) {
-          setTargetChannelId(data.channel.id);
-          setChannelName(data.channel.name || "");
-          if (data.channel.flowAssignments?.length > 0) {
-            setAssignedFlow(data.channel.flowAssignments[0].flow);
-          } else {
-            setAssignedFlow(null);
+        const telegramChannel = data.channels.find(
+          (c: any) => c.type === "telegram",
+        );
+        if (telegramChannel) {
+          setTargetChannelId(telegramChannel.id);
+          if (telegramChannel.flowAssignments?.[0]?.flow) {
+            // No-op, handled by loadStatus normally
           }
-          void loadLogs(data.channel.id);
         } else {
           setTargetChannelId(null);
-          setAssignedFlow(null);
-          setLogs([]);
         }
       }
     } catch (error) {
-      console.error("Failed to load Telegram channel:", error);
-    }
-  };
-
-  const loadLogs = async (channelId: string) => {
-    setIsLogsLoading(true);
-    try {
-      const res = await fetch(`/api/channels/${channelId}/logs`);
-      if (res.ok) {
-        const data = await res.json();
-        setLogs(data.logs || []);
-      }
-    } catch (error) {
-      console.error("Failed to load logs:", error);
-    } finally {
-      setIsLogsLoading(false);
+      console.error("Failed to fetch channels:", error);
     }
   };
 
@@ -161,6 +141,21 @@ export function TelegramConfig({ botId, channelLimitStatus }: { botId: string; c
     }
   };
 
+  const loadLogs = async (channelId: string) => {
+    setIsLogsLoading(true);
+    try {
+      const res = await fetch(`/api/bots/${botId}/channels/telegram/logs?channelId=${channelId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setLogs(data.logs || []);
+      }
+    } catch (error) {
+      console.error("Failed to load logs:", error);
+    } finally {
+      setIsLogsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (botId) {
       setTimeout(() => {
@@ -171,10 +166,16 @@ export function TelegramConfig({ botId, channelLimitStatus }: { botId: string; c
     }
   }, [botId]);
 
+  useEffect(() => {
+    if (targetChannelId) {
+      void loadLogs(targetChannelId);
+    }
+  }, [targetChannelId]);
+
   const handleConnect = async () => {
     if (!botId) return;
 
-    const effectiveLimitStatus = channelLimitStatus || (status as any /* eslint-disable-line @typescript-eslint/no-explicit-any */)?.limitStatus;
+    const effectiveLimitStatus = channelLimitStatus || (status as any)?.limitStatus;
     if (effectiveLimitStatus && !effectiveLimitStatus.allowed) {
       toast.error(`Channel limit reached (${effectiveLimitStatus.limit}). Please upgrade.`);
       return;
@@ -317,8 +318,13 @@ export function TelegramConfig({ botId, channelLimitStatus }: { botId: string; c
 
   const connected = Boolean(status?.connected);
 
+  const assignedFlow = useMemo(() => {
+    return (status as any)?.channel?.flowAssignments?.[0]?.flow;
+  }, [status]);
+
   return (
     <div className="space-y-6">
+      <ChannelLimitWarning limitStatus={channelLimitStatus || (status as any)?.limitStatus} />
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -362,7 +368,7 @@ export function TelegramConfig({ botId, channelLimitStatus }: { botId: string; c
             {!connected ? (
               <Button
                 onClick={handleConnect}
-                disabled={!botToken.trim() || isConnecting}
+                disabled={!botToken.trim() || isConnecting || !(channelLimitStatus || (status as any)?.limitStatus)?.allowed}
               >
                 {isConnecting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

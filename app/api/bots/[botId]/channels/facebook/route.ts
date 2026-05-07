@@ -33,24 +33,27 @@ export async function GET(
     return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
   }
 
-  const pages = await prisma.facebookPage.findMany({
-    where: {
-      tenantId: user.tenantId,
-      botId: botId,
-    },
-    select: {
-      id: true,
-      name: true,
-      facebookId: true,
-      engineConnected: true,
-      createdAt: true,
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+  const [pages, limitStatus] = await Promise.all([
+    prisma.facebookPage.findMany({
+      where: {
+        tenantId: user.tenantId,
+        botId: botId,
+      },
+      select: {
+        id: true,
+        name: true,
+        facebookId: true,
+        engineConnected: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    }),
+    checkChannelLimit(user.tenantId, botId),
+  ]);
 
-  return NextResponse.json({ pages });
+  return NextResponse.json({ pages, limitStatus });
 }
 
 // POST /api/bots/[botId]/channels/facebook - Connect a page to this specific bot
@@ -130,7 +133,7 @@ export async function POST(
     let webhookSubscribed = false;
     try {
       const subUrl = getFacebookGraphUrl(
-        `\${pageId}/subscribed_apps`,
+        `${pageId}/subscribed_apps`,
         accessToken,
         {
           subscribed_fields: "messages,messaging_postbacks,messaging_optins,messaging_referrals",

@@ -22,16 +22,19 @@ export async function GET() {
   }
 
   try {
-    const bots = await prisma.bot.findMany({
-      where: { tenantId: session.user.tenantId },
-      orderBy: { createdAt: "desc" },
-      include: {
-        channels: {
-          select: { id: true, type: true, name: true, enabled: true, isActive: true },
-          orderBy: { createdAt: "asc" },
+    const [bots, limitStatus] = await Promise.all([
+      prisma.bot.findMany({
+        where: { tenantId: session.user.tenantId },
+        orderBy: { createdAt: "desc" },
+        include: {
+          channels: {
+            select: { id: true, type: true, name: true, enabled: true, isActive: true },
+            orderBy: { createdAt: "asc" },
+          },
         },
-      },
-    });
+      }),
+      checkBotLimit(session.user.tenantId),
+    ]);
 
     const mappedBots = bots.map((bot) => ({
       id: bot.id,
@@ -42,8 +45,12 @@ export async function GET() {
       channels: bot.channels,
     }));
 
-    return NextResponse.json({ bots: mappedBots });
-  } catch {
+    return NextResponse.json({
+      bots: mappedBots,
+      limitStatus
+    });
+  } catch (error) {
+    console.error("Failed to fetch bots:", error);
     return NextResponse.json({ error: "Failed to fetch bots" }, { status: 500 });
   }
 }
