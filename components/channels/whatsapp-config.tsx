@@ -64,7 +64,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 
 type ProviderId = "meta_cloud" | "twilio" | "360dialog";
 
-export function WhatsAppConfig({ botId }: { botId: string }) {
+export function WhatsAppConfig({ botId, channelLimitStatus }: { botId: string; channelLimitStatus?: { allowed: boolean; limit: number } | null }) {
   const { confirm, alert } = useConfirmation();
 
   // State for integration status

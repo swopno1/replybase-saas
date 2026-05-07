@@ -61,7 +61,7 @@ interface ChannelLog {
   type?: string;
 }
 
-export function TelegramConfig({ botId }: { botId: string }) {
+export function TelegramConfig({ botId, channelLimitStatus }: { botId: string; channelLimitStatus?: { allowed: boolean; limit: number } | null }) {
   const { confirm } = useConfirmation();
 
   // Connection state

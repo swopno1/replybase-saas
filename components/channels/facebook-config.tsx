@@ -44,12 +44,13 @@ interface FlowOption {
   name: string;
 }
 
-export function FacebookConfig({ botId }: { botId: string }) {
+export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; channelLimitStatus?: { allowed: boolean; limit: number } | null }) {
   const { confirm } = useConfirmation();
 
   // State
   const [pages, setPages] = useState<FacebookPage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [limitStatus, setLimitStatus] = useState<{ allowed: boolean; limit: number } | null>(null);
   const [flows, setFlows] = useState<FlowOption[]>([]);
   const [isFlowsLoading, setIsFlowsLoading] = useState(false);
 
@@ -67,6 +68,7 @@ export function FacebookConfig({ botId }: { botId: string }) {
       if (res.ok) {
         const data = await res.json();
         setPages(data.pages || []);
+        if (data.limitStatus) setLimitStatus(data.limitStatus);
       }
     } catch (error) {
       console.error("Failed to load Facebook pages:", error);
@@ -433,8 +435,8 @@ export function FacebookConfig({ botId }: { botId: string }) {
   );
 }
 
-function Badge({ children, variant = "default", className = "" } /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
-  const variants /* eslint-disable-line @typescript-eslint/no-explicit-any */ = {
+function Badge({ children, variant = "default", className = "" }: { children: React.ReactNode; variant?: string; className?: string }) {
+  const variants: Record<string, string> = {
     default: "bg-primary text-primary-foreground",
     secondary: "bg-secondary text-secondary-foreground",
     outline: "text-foreground border border-input",
@@ -443,6 +445,6 @@ function Badge({ children, variant = "default", className = "" } /* eslint-disab
   return <div className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${variants[variant]} ${className}`}>{children}</div>;
 }
 
-function Label({ children, className = "" } /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
+function Label({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <label className={`text-sm font-medium ${className}`}>{children}</label>;
 }
