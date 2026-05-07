@@ -35,6 +35,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { isChannelVisibleInUi } from "@/lib/channel-config";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
+import { BotSelector } from "@/components/bot-selector";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +62,12 @@ interface FBPage {
   webhookSubscribed?: boolean;
   internalId?: string | null;
   assignedFlow?: AssignedFlow | null;
+  botId?: string | null;
+}
+
+interface Bot {
+  id: string;
+  name: string;
 }
 
 export default function FacebookIntegrationPage() {
@@ -69,10 +76,13 @@ export default function FacebookIntegrationPage() {
   const channelVisible = isChannelVisibleInUi("facebook");
   const [isLoading, setIsLoading] = useState(true);
   const [pages, setPages] = useState<FBPage[]>([]);
-  const [connected, setConnected] = useState(false);
+  const [accountConnected, setAccountConnected] = useState(false);
   const [statusMap, setStatusMap] = useState<
     Record<string, string | undefined>
   >({});
+
+  const [bots, setBots] = useState<Bot[]>([]);
+  const [selectedBotId, setSelectedBotId] = useState<string | null>(null);
 
   // Flow assignment state
   const [flows, setFlows] = useState<FlowOption[]>([]);
@@ -94,55 +104,48 @@ export default function FacebookIntegrationPage() {
       router.replace("/");
       return;
     }
+    loadBots();
     fetchPages();
   }, [channelVisible, router]);
 
-  if (!channelVisible) {
-    return null;
-  }
+  const loadBots = async () => {
+    try {
+      const res = await fetch("/api/bots");
+      const data = await res.json();
+      if (data.bots && data.bots.length > 0) {
+        setBots(data.bots);
+        setSelectedBotId(data.bots[0].id);
+      }
+    } catch (e) {
+      console.error("Failed to load bots", e);
+    }
+  };
 
   const fetchPages = async () => {
     try {
       setIsLoading(true);
-      const pagesResponse = await fetch("/api/integrations/facebook/pages");
+      const pagesResponse = await fetch("/api/facebook/user-pages");
 
       const data = await pagesResponse.json();
       if (!pagesResponse.ok) {
         const errMsg =
           typeof data?.error === "string"
             ? data.error
-            : "Failed to load Facebook pages";
+            : "Failed to fetch Facebook pages";
         throw new Error(errMsg);
       }
 
-      if (data.connected) {
-        setConnected(true);
-        setPages(data.pages || []);
-        // Seed selected-flow map from any existing assignments
-        const initialFlowMap: Record<string, string> = {};
-        for (const page of data.pages || []) {
-          if (page.assignedFlow?.flowId) {
-            initialFlowMap[page.id] = page.assignedFlow.flowId;
-          }
-        }
-        setSelectedFlowIdMap(initialFlowMap);
-        await loadFlows();
-      } else {
-        setConnected(false);
-        setPages([]);
-        if (data.reason === "stale_token") {
-          toast.error(
-            "Your Facebook session has expired. Please reconnect your account.",
-          );
-        }
+      setPages(data.pages || []);
+      setAccountConnected(data.connected || false);
+
+      if (data.reason === "stale_token") {
+        toast.error("Facebook connection expired. Please reconnect.");
       }
-    } catch (e) {
-      console.error(e);
-      setConnected(false);
-      setPages([]);
-      const message =
-        e instanceof Error ? e.message : "Failed to load Facebook pages";
-      toast.error(message);
+    } catch (error) {
+      console.error("Error fetching pages:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to load pages",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -162,98 +165,118 @@ export default function FacebookIntegrationPage() {
           }))
         : [];
       setFlows(flowList);
-    } catch {
-      toast.error("Failed to load flows");
+    } catch (error) {
+      console.error("Error fetching flows:", error);
     } finally {
       setIsFlowsLoading(false);
     }
   };
 
+  useEffect(() => {
+    if (accountConnected) {
+      loadFlows();
+    }
+  }, [accountConnected]);
+
   const handleConnectPage = async (page: FBPage) => {
+    if (!selectedBotId) {
+      toast.error("Please select a bot first");
+      return;
+    }
+
     setStatusMap((prev) => ({ ...prev, [page.id]: "loading" }));
     try {
-      const res = await fetch("/api/integrations/facebook", {
+      const res = await fetch(`/api/bots/${selectedBotId}/channels/facebook`, {
         method: "POST",
         body: JSON.stringify({
           pageId: page.id,
           pageName: page.name,
           accessToken: page.access_token,
-          accessTokenOnly: true,
         }),
-        headers: { "Content-Type": "application/json" },
       });
+
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || "Failed to connect page");
       }
-      setStatusMap((prev) => ({ ...prev, [page.id]: "success" }));
-      toast.success(`Successfully connected ${page.name}`);
-      await fetchPages();
+
+      toast.success(\`Connected \${page.name}\`);
+      fetchPages();
     } catch (error) {
       console.error("Error connecting page:", error);
-      setStatusMap((prev) => ({ ...prev, [page.id]: "error" }));
       toast.error(
         error instanceof Error ? error.message : "Failed to connect page",
       );
+    } finally {
+      setStatusMap((prev) => ({ ...prev, [page.id]: undefined }));
     }
   };
 
   const handleUnlinkPage = async (page: FBPage) => {
+    const internalPageId = page.internalId;
+    const botIdOfPage = page.botId || selectedBotId;
+
+    if (!internalPageId || !botIdOfPage) return;
+
     const confirmed = await confirm({
-      title: "Unlink Page",
-      description: `Are you sure you want to unlink "${page.name}"? You can reconnect it later.`,
-      confirmText: "Unlink",
+      title: "Unlink Facebook Page",
+      description: \`Are you sure you want to unlink \"\${page.name}\"? This will delete all conversation history and leads associated with this page.\`,
+      confirmText: "Unlink Page",
       variant: "destructive",
     });
+
     if (!confirmed) return;
+
     setStatusMap((prev) => ({ ...prev, [page.id]: "unlinking" }));
     try {
-      const res = await fetch(`/api/integrations/facebook/pages/${page.id}`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-      });
+      const res = await fetch(
+        \`/api/bots/\${botIdOfPage}/channels/facebook/\${page.id}\`,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+        },
+      );
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || "Failed to unlink page");
       }
-      setStatusMap((prev) => ({ ...prev, [page.id]: undefined }));
-      toast.success(`Successfully unlinked ${page.name}`);
-      await fetchPages();
+
+      toast.success(\`Unlinked \${page.name}\`);
+      fetchPages();
     } catch (error) {
       console.error("Error unlinking page:", error);
-      setStatusMap((prev) => ({ ...prev, [page.id]: "error" }));
       toast.error(
         error instanceof Error ? error.message : "Failed to unlink page",
       );
+    } finally {
+      setStatusMap((prev) => ({ ...prev, [page.id]: undefined }));
     }
   };
 
-  const handleUnlinkAllPages = async () => {
+  const handleDisconnect = async () => {
     const confirmed = await confirm({
-      title: "Disconnect Facebook Account",
+      title: "Disconnect Facebook",
       description:
-        "This will remove all connected pages, their flow assignments, and revoke ReplyBase&apos;s access from your Meta account. You can reconnect at any time.",
-      confirmText: "Disconnect All",
+        "This will disconnect your Facebook account and UNLINK ALL pages. All Facebook conversation history will be deleted.",
+      confirmText: "Disconnect Account",
       variant: "destructive",
     });
     if (!confirmed) return;
 
     try {
       setIsLoading(true);
-      const res = await fetch("/api/integrations/facebook", {
-        method: "DELETE",
+      const res = await fetch("/api/facebook/disconnect", {
+        method: "POST",
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Failed to disconnect Facebook account");
       }
-      setConnected(false);
-      setPages([]);
-      setSelectedFlowIdMap({});
-      toast.success("Facebook account disconnected successfully");
-      await fetchPages();
+
+      toast.success("Facebook account disconnected");
+      fetchPages();
     } catch (error) {
-      console.error("Error disconnecting Facebook account:", error);
+      console.error("Error disconnecting:", error);
       toast.error(
         error instanceof Error
           ? error.message
@@ -266,26 +289,25 @@ export default function FacebookIntegrationPage() {
 
   const handleAssignFlow = async (page: FBPage) => {
     const internalPageId = page.internalId;
-    if (!internalPageId) {
-      toast.error("Connect the page first before assigning a flow");
-      return;
-    }
     const flowId = selectedFlowIdMap[page.id];
+
+    if (!internalPageId) return;
     if (!flowId) {
       toast.error("Select a flow to assign");
       return;
     }
     setAssigningMap((prev) => ({ ...prev, [page.id]: true }));
     try {
-      const res = await fetch(`/api/flows/${flowId}/assign`, {
+      const res = await fetch(\`/api/flows/\${flowId}/assign\`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pageId: internalPageId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to assign flow");
-      toast.success(`Flow assigned to ${page.name}`);
-      await fetchPages();
+
+      toast.success(\`Flow assigned to \${page.name}\`);
+      fetchPages();
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to assign flow",
@@ -297,22 +319,24 @@ export default function FacebookIntegrationPage() {
 
   const handleUnassignFlow = async (page: FBPage) => {
     const internalPageId = page.internalId;
-    const assignedFlowId = page.assignedFlow?.flowId;
-    if (!internalPageId || !assignedFlowId) {
+    const assignedFlowId = page.assignedFlow?.id;
+
+    if (!internalPageId) return;
+    if (!assignedFlowId) {
       toast.error("No assigned flow found");
       return;
     }
     setUnassigningMap((prev) => ({ ...prev, [page.id]: true }));
     try {
       const res = await fetch(
-        `/api/flows/${assignedFlowId}/assign?pageId=${encodeURIComponent(internalPageId)}`,
+        \`/api/flows/\${assignedFlowId}/assign?pageId=\${encodeURIComponent(internalPageId)}\`,
         { method: "DELETE" },
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to unassign flow");
-      toast.success(`Flow unassigned from ${page.name}`);
-      setSelectedFlowIdMap((prev) => ({ ...prev, [page.id]: "" }));
-      await fetchPages();
+
+      toast.success(\`Flow unassigned from \${page.name}\`);
+      fetchPages();
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to unassign flow",
@@ -323,630 +347,374 @@ export default function FacebookIntegrationPage() {
   };
 
   const handleCheckConnection = async (page: FBPage) => {
+    const botIdOfPage = page.botId || selectedBotId;
+    if (!botIdOfPage) return;
+
     setCheckingMap((prev) => ({ ...prev, [page.id]: true }));
     setDiagnosticResult((prev) => ({ ...prev, [page.id]: undefined }));
     try {
       const res = await fetch(
-        `/api/integrations/facebook/pages/${page.id}/check-connection`,
+        \`/api/bots/\${botIdOfPage}/channels/facebook/\${page.id}/check-connection\`,
       );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to check connection");
 
       setDiagnosticResult((prev) => ({ ...prev, [page.id]: data }));
-
-      if (data.tokenValid && data.webhookSubscribed) {
-        toast.success(`Connection for ${page.name} is healthy!`);
-      } else if (!data.tokenValid) {
-        toast.error(`Session for ${page.name} has expired. Please reconnect.`);
-      } else if (!data.webhookSubscribed) {
-        toast.warning(
-          `${page.name} is connected but not receiving webhook events.`,
-        );
-      }
-      await fetchPages();
+      toast.success("Diagnostics complete");
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to check connection",
+        error instanceof Error ? error.message : "Failed to run diagnostics",
       );
     } finally {
       setCheckingMap((prev) => ({ ...prev, [page.id]: false }));
     }
   };
 
-  const connectedPagesCount = pages.filter(
-    (p) => p.connected || p.engineConnected,
-  ).length;
-  const activePagesCount = pages.filter((p) => p.engineConnected).length;
-
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <Link href="/">
-          <Button variant="ghost" size="sm" className="mb-4">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Dashboard
-          </Button>
-        </Link>
-        <h1 className="text-3xl font-bold tracking-tight">Facebook Pages</h1>
-        <p className="text-muted-foreground mt-1">
-          Connect your Facebook Pages, assign flows, and enable AI auto-replies
-        </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link href="/bots">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <h1 className="text-3xl font-bold">Facebook Integration</h1>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Effective Response Mode</CardTitle>
-          <CardDescription>
-            How ReplyBase decides what responds to incoming Facebook messages.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p>
-            1. If an active flow is assigned to the page, that flow handles the
-            message first.
-          </p>
-          <p>
-            2. If no active flow handles the message and AI is enabled for the
-            page, AI generates the reply.
-          </p>
-          <p>
-            3. If neither flow nor AI is active, no automated reply is sent.
-          </p>
-        </CardContent>
-      </Card>
-
-      {isLoading ? (
-        <Card>
-          <CardContent className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </CardContent>
-        </Card>
-      ) : !connected ? (
-        /* Not Connected State */
-        <Card className="border-primary/50 bg-primary/5">
+      {!accountConnected ? (
+        <Card className="max-w-2xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <FacebookLogo className="h-5 w-5 text-primary" />
-              Connect Your Facebook Account
+              <FacebookLogo className="h-6 w-6" />
+              Connect your Facebook Account
             </CardTitle>
             <CardDescription>
-              Link your Facebook account to access and manage your Facebook
-              Pages
+              Connect your Facebook account to manage your pages and automate
+              your messages.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              You&apos;ll need to authorize ReplyBase to access your Facebook
-              Pages and send messages on your behalf.
-            </p>
+            <div className="rounded-lg bg-blue-50 p-4 text-sm text-blue-800">
+              <p className="font-semibold mb-1">Requirements:</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>You must have a Facebook Business Page</li>
+                <li>You must be an admin of the page</li>
+                <li>You must grant all requested permissions</li>
+              </ul>
+            </div>
             <Button
-              onClick={() => signIn("facebook", { callbackUrl: "/integrations/facebook" })}
-              size="lg"
-              className="w-full sm:w-auto bg-[#1877F2] hover:bg-[#166fe5] text-white"
+              className="w-full sm:w-auto"
+              onClick={() => signIn("facebook")}
             >
               <FacebookLogo className="mr-2 h-4 w-4" />
-              Continue with Facebook
+              Sign in with Facebook
             </Button>
-            <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground pt-2 border-t mt-4">
-              <a
-                href="https://replybase.co.uk/privacy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:underline flex items-center gap-1"
-              >
-                <ShieldCheck className="h-3 w-3" />
-                Privacy Policy
-              </a>
-              <a
-                href="https://replybase.co.uk/terms"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:underline flex items-center gap-1"
-              >
-                <FileText className="h-3 w-3" />
-                Terms of Service
-              </a>
-            </div>
-            <div className="text-[10px] text-muted-foreground leading-relaxed">
-              By connecting, you agree to our Terms and Privacy Policy. We only
-              request permissions for pages you manage and messaging
-              capabilities required for ReplyBase to function.
-            </div>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-6">
-          {/* Summary Card */}
-          {pages.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Connection Summary</CardTitle>
-                <CardDescription>
-                  Overview of your Facebook Pages
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div>
-                    <div className="text-2xl font-bold">{pages.length}</div>
-                    <div className="text-sm text-muted-foreground">
-                      Total Pages
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold">
-                      {connectedPagesCount}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      Connected
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold">{activePagesCount}</div>
-                    <div className="text-sm text-muted-foreground">
-                      AI Enabled
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground mb-1">
+                Connected Facebook Account
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                onClick={handleDisconnect}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Disconnect Account
+              </Button>
+            </div>
 
-          {/* Pages List */}
+            <div className="w-full sm:w-64">
+              <BotSelector
+                bots={bots}
+                selectedBotId={selectedBotId}
+                onSelectBot={(id) => setSelectedBotId(id)}
+              />
+            </div>
+          </div>
+
           <Card>
             <CardHeader>
               <CardTitle>Your Facebook Pages</CardTitle>
               <CardDescription>
-                Connect pages, assign flows, and enable AI responses per page.
+                Select which pages you want to connect to ReplyBase.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {pages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <FacebookLogo className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium mb-2">No pages found</h3>
-                  <p className="text-sm text-muted-foreground mb-4 max-w-md">
-                    We couldn&apos;t find any Facebook Pages associated with
-                    your account. Make sure you&apos;re an admin of at least one
-                    Facebook Page.
+              {isLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : pages.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No Facebook pages found.</p>
+                  <p className="text-sm">
+                    Make sure you are an admin of at least one page.
                   </p>
-                  <Button variant="outline" onClick={() => signIn("facebook", { callbackUrl: "/integrations/facebook" })}>
-                    Re-connect Facebook Account
-                  </Button>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {pages.map((page) => {
-                    const isConnected = page.connected || page.engineConnected;
-                    const isEngineConnected = page.engineConnected;
-                    const isWebhookSubscribed = page.webhookSubscribed ?? false;
-                    const isPageLoading = statusMap[page.id] === "loading";
-                    const isError = statusMap[page.id] === "error";
-                    const isAssigning = assigningMap[page.id] ?? false;
-                    const isUnassigning = unassigningMap[page.id] ?? false;
-                    const isChecking = checkingMap[page.id] ?? false;
-                    const pageDiagnostics = diagnosticResult[page.id];
-                    const selectedFlowId = selectedFlowIdMap[page.id] ?? "";
-
-                    return (
-                      <div
-                        key={page.id}
-                        className="border rounded-lg p-4 space-y-4 hover:bg-muted/30 transition-colors"
-                      >
-                        {/* Page header row */}
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-start gap-3 flex-1 min-w-0">
-                            <div className="mt-0.5">
-                              {isEngineConnected ? (
-                                <CheckCircle2 className="h-5 w-5 text-green-500" />
-                              ) : isConnected ? (
-                                <CheckCircle2 className="h-5 w-5 text-blue-500" />
-                              ) : (
-                                <FacebookLogo className="h-5 w-5 text-muted-foreground" />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="font-semibold">{page.name}</div>
-                              <div className="text-xs text-muted-foreground mt-0.5">
-                                {page.category}
-                              </div>
-                              <div className="flex flex-wrap items-center gap-2 mt-2">
-                                {isEngineConnected && (
-                                  <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
-                                    <CheckCircle2 className="h-3 w-3" />
-                                    AI Enabled
-                                  </span>
-                                )}
-                                {isConnected && !isEngineConnected && (
-                                  <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-                                    Connected
-                                  </span>
-                                )}
-                                {page.assignedFlow && (
-                                  <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
-                                    <Zap className="h-3 w-3" />
-                                    Flow: {page.assignedFlow.name}
-                                  </span>
-                                )}
-                                {isConnected && (
-                                  <span
-                                    className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full ${
-                                      isWebhookSubscribed
-                                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300"
-                                        : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
-                                    }`}
-                                  >
-                                    {isWebhookSubscribed ? (
-                                      <>
-                                        <CheckCircle2 className="h-3 w-3" />
-                                        Receiving messages
-                                      </>
-                                    ) : (
-                                      <>
-                                        <XCircle className="h-3 w-3" />
-                                        Not receiving messages
-                                      </>
-                                    )}
-                                  </span>
-                                )}
-                                {isError && (
-                                  <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
-                                    <XCircle className="h-3 w-3" />
-                                    Connection Failed
-                                  </span>
-                                )}
-                              </div>
-                            </div>
+                <div className="divide-y">
+                  {pages.map((page) => (
+                    <div
+                      key={page.id}
+                      className="py-6 first:pt-0 last:pb-0 space-y-4"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
+                            {page.name.charAt(0)}
                           </div>
-
-                          {/* Action buttons */}
-                          <div className="shrink-0">
-                            {isPageLoading ? (
-                              <Button disabled size="sm">
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Connecting...
-                              </Button>
-                            ) : statusMap[page.id] === "unlinking" ? (
-                              <Button disabled size="sm">
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Unlinking...
-                              </Button>
-                            ) : isEngineConnected ? (
-                              <div className="flex gap-2">
-                                <Link href="/ai-status">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-xs"
-                                  >
-                                    Manage AI
-                                    <ExternalLink className="ml-1 h-3 w-3" />
-                                  </Button>
-                                </Link>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleCheckConnection(page)}
-                                  disabled={isChecking}
-                                  title="Check Connection"
-                                >
-                                  {isChecking ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <ShieldCheck className="h-4 w-4" />
-                                  )}
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleUnlinkPage(page)}
-                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ) : isConnected ? (
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleCheckConnection(page)}
-                                  disabled={isChecking}
-                                  title="Check Connection"
-                                >
-                                  {isChecking ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <ShieldCheck className="h-4 w-4" />
-                                  )}
-                                </Button>
-                                <Link href="/ai-status">
-                                  <Button variant="default" size="sm">
-                                    Enable AI
-                                  </Button>
-                                </Link>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleUnlinkPage(page)}
-                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <Button
-                                size="sm"
-                                onClick={() => handleConnectPage(page)}
-                                disabled={isPageLoading}
-                              >
-                                Connect
-                              </Button>
-                            )}
+                          <div>
+                            <h3 className="font-semibold">{page.name}</h3>
+                            <p className="text-xs text-muted-foreground font-mono">
+                              ID: {page.id}
+                            </p>
                           </div>
                         </div>
 
-                        {/* Diagnostics Details */}
-                        {pageDiagnostics && (
-                          <div
-                            className={`mt-4 p-3 rounded-md text-sm border ${
-                              pageDiagnostics.tokenValid &&
-                              pageDiagnostics.webhookSubscribed
-                                ? "bg-green-50 border-green-200 text-green-800"
-                                : "bg-amber-50 border-amber-200 text-amber-800"
-                            }`}
-                          >
-                            <div className="font-semibold mb-1 flex items-center gap-2">
-                              <ShieldCheck className="h-4 w-4" />
-                              Diagnostic Results
-                            </div>
-                            <ul className="space-y-1 list-disc list-inside">
-                              <li>
-                                Token Validity:{" "}
-                                {pageDiagnostics.tokenValid ? (
-                                  <span className="text-green-600 font-medium">
-                                    Valid
-                                  </span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {page.connected ? (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-amber-600 hover:text-amber-700"
+                                onClick={() => handleCheckConnection(page)}
+                                disabled={checkingMap[page.id]}
+                              >
+                                {checkingMap[page.id] ? (
+                                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
                                 ) : (
-                                  <span className="text-red-600 font-medium">
-                                    Expired / Invalid
+                                  <ShieldCheck className="mr-2 h-3 w-3" />
+                                )}
+                                Diagnostics
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-red-600 hover:text-red-700"
+                                onClick={() => handleUnlinkPage(page)}
+                                disabled={statusMap[page.id] === "unlinking"}
+                              >
+                                {statusMap[page.id] === "unlinking" ? (
+                                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Trash2 className="mr-2 h-3 w-3" />
+                                )}
+                                Unlink
+                              </Button>
+                              <Badge variant="secondary" className="gap-1">
+                                <CheckCircle2 className="h-3 w-3 text-green-600" />
+                                Connected
+                                {page.botId && (
+                                  <span className="opacity-70 ml-1">
+                                    (Bot: {bots.find(b => b.id === page.botId)?.name || page.botId})
                                   </span>
                                 )}
-                              </li>
-                              <li>
-                                Webhook Subscription:{" "}
-                                {pageDiagnostics.webhookSubscribed ? (
-                                  <span className="text-green-600 font-medium">
-                                    Active
-                                  </span>
-                                ) : (
-                                  <span className="text-red-600 font-medium">
-                                    Inactive
-                                  </span>
-                                )}
-                              </li>
-                              {pageDiagnostics.missingPermissions?.length >
-                                0 && (
-                                <li className="text-red-700">
-                                  Missing Permissions:{" "}
-                                  {pageDiagnostics.missingPermissions.join(
-                                    ", ",
-                                  )}
-                                </li>
+                              </Badge>
+                            </>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={() => handleConnectPage(page)}
+                              disabled={
+                                statusMap[page.id] === "loading" ||
+                                !selectedBotId
+                              }
+                            >
+                              {statusMap[page.id] === "loading" ? (
+                                <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                              ) : (
+                                <Zap className="mr-2 h-3 w-3" />
                               )}
-                            </ul>
-                            {!pageDiagnostics.tokenValid && (
-                              <p className="mt-2 text-xs">
-                                <strong>Action:</strong> Click &quot;Re-connect
-                                Facebook Account&quot; at the bottom of the
-                                page to refresh your session.
-                              </p>
-                            )}
-                            {pageDiagnostics.tokenValid &&
-                              !pageDiagnostics.webhookSubscribed && (
-                                <p className="mt-2 text-xs">
-                                  <strong>Action:</strong> Try unlinking this
-                                  page and then connecting it again to restore
-                                  the webhook subscription.
-                                </p>
-                              )}
-                          </div>
-                        )}
+                              Connect Page
+                            </Button>
+                          )}
+                        </div>
+                      </div>
 
-                        {/* Flow assignment section — only for connected pages */}
-                        {isConnected && (
-                          <div className="border-t pt-3 space-y-2">
-                            <div className="text-xs font-medium text-muted-foreground">
-                              Flow Assignment
-                            </div>
-                            {page.assignedFlow ? (
-                              <div className="flex items-center gap-3">
-                                <div className="flex-1 text-sm">
-                                  <span className="text-muted-foreground">
-                                    Active flow:
-                                  </span>{" "}
-                                  <span className="font-medium">
-                                    {page.assignedFlow.name}
+                      {page.connected && (
+                        <div className="grid gap-4 sm:grid-cols-2 mt-4 ml-13">
+                          {/* Flow Assignment Section */}
+                          <Card className="bg-slate-50 border-none shadow-none">
+                            <CardContent className="pt-4 space-y-3">
+                              <div className="space-y-1">
+                                <Label className="text-xs">
+                                  Page Flow Assignment
+                                </Label>
+                                <div className="flex gap-2">
+                                  <Select
+                                    value={
+                                      selectedFlowIdMap[page.id] ||
+                                      page.assignedFlow?.id ||
+                                      ""
+                                    }
+                                    onValueChange={(val) =>
+                                      setSelectedFlowIdMap((prev) => ({
+                                        ...prev,
+                                        [page.id]: val,
+                                      }))
+                                    }
+                                  >
+                                    <SelectTrigger className="h-8 text-xs bg-white">
+                                      <SelectValue placeholder="Select flow" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {flows.map((f) => (
+                                        <SelectItem
+                                          key={f.id}
+                                          value={f.id}
+                                          className="text-xs"
+                                        >
+                                          {f.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <Button
+                                    size="sm"
+                                    className="h-8 px-2 text-[10px]"
+                                    onClick={() => handleAssignFlow(page)}
+                                    disabled={
+                                      assigningMap[page.id] ||
+                                      !selectedFlowIdMap[page.id] ||
+                                      selectedFlowIdMap[page.id] ===
+                                        page.assignedFlow?.id
+                                    }
+                                  >
+                                    {assigningMap[page.id] ? (
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      "Assign"
+                                    )}
+                                  </Button>
+                                  {page.assignedFlow && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-8 px-2 text-[10px] text-red-600"
+                                      onClick={() => handleUnassignFlow(page)}
+                                      disabled={unassigningMap[page.id]}
+                                    >
+                                      {unassigningMap[page.id] ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                      ) : (
+                                        "Unassign"
+                                      )}
+                                    </Button>
+                                  )}
+                                </div>
+                                {page.assignedFlow ? (
+                                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-1">
+                                    <CheckCircle2 className="h-2 w-2 text-green-600" />
+                                    Active: {page.assignedFlow.name}
+                                  </p>
+                                ) : (
+                                  <p className="text-[10px] text-muted-foreground mt-1">
+                                    No flow assigned.
+                                  </p>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+
+                          {/* Diagnostics result if any */}
+                          {diagnosticResult[page.id] && (
+                            <Card className="bg-white border-none shadow-sm">
+                              <CardContent className="pt-4 space-y-2 text-[10px]">
+                                <div className="flex justify-between">
+                                  <span>Token Valid:</span>
+                                  <span
+                                    className={
+                                      diagnosticResult[page.id].tokenValid
+                                        ? "text-green-600"
+                                        : "text-red-600"
+                                    }
+                                  >
+                                    {diagnosticResult[page.id].tokenValid
+                                      ? "Yes"
+                                      : "No"}
                                   </span>
                                 </div>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleUnassignFlow(page)}
-                                  disabled={isUnassigning}
-                                >
-                                  {isUnassigning ? (
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                  ) : (
-                                    "Remove flow"
-                                  )}
-                                </Button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <Select
-                                  value={selectedFlowId}
-                                  onValueChange={(val) =>
-                                    setSelectedFlowIdMap((prev) => ({
-                                      ...prev,
-                                      [page.id]: val,
-                                    }))
-                                  }
-                                  disabled={
-                                    isFlowsLoading || flows.length === 0
-                                  }
-                                >
-                                  <SelectTrigger className="h-8 text-xs flex-1">
-                                    <SelectValue
-                                      placeholder={
-                                        isFlowsLoading
-                                          ? "Loading flows..."
-                                          : flows.length === 0
-                                            ? "No active flows available"
-                                            : "Select a flow..."
-                                      }
-                                    />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {flows.map((flow) => (
-                                      <SelectItem key={flow.id} value={flow.id}>
-                                        {flow.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleAssignFlow(page)}
-                                  disabled={
-                                    !selectedFlowId ||
-                                    isAssigning ||
-                                    isFlowsLoading
-                                  }
-                                >
-                                  {isAssigning ? (
-                                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                  ) : (
-                                    <Zap className="mr-1 h-3 w-3" />
-                                  )}
-                                  Assign
-                                </Button>
-                              </div>
-                            )}
-                            {flows.length === 0 && !isFlowsLoading && (
-                              <p className="text-xs text-muted-foreground">
-                                No active flows found. Flows must be set to{" "}
-                                <strong>Active</strong> before they can be
-                                assigned.{" "}
-                                <Link
-                                  href="/flows"
-                                  className="underline hover:text-foreground"
-                                >
-                                  Go to Flows
-                                </Link>{" "}
-                                and activate or create one.
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                                <div className="flex justify-between">
+                                  <span>Webhook Subscribed:</span>
+                                  <span
+                                    className={
+                                      diagnosticResult[page.id]
+                                        .webhookSubscribed
+                                        ? "text-green-600"
+                                        : "text-red-600"
+                                    }
+                                  >
+                                    {diagnosticResult[page.id].webhookSubscribed
+                                      ? "Yes"
+                                      : "No"}
+                                  </span>
+                                </div>
+                                {diagnosticResult[page.id].missingPermissions
+                                  ?.length > 0 && (
+                                  <div className="text-red-600 pt-1">
+                                    <p className="font-bold">
+                                      Missing Permissions:
+                                    </p>
+                                    <ul className="list-disc pl-3">
+                                      {diagnosticResult[page.id].missingPermissions.map(
+                                        (p: string) => (
+                                          <li key={p}>{p}</li>
+                                        ),
+                                      )}
+                                    </ul>
+                                  </div>
+                                )}
+                              </CardContent>
+                            </Card>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
           </Card>
-
-          {/* Info Card */}
-          <Card className="border-dashed">
-            <CardHeader>
-              <CardTitle className="text-sm">Next Steps & Legal</CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground space-y-4">
-              <div className="space-y-2">
-                <p>
-                  After connecting a page, assign a <strong>Flow</strong> to
-                  handle automated conversations, or go to{" "}
-                  <strong>AI Status</strong> to enable AI replies.
-                </p>
-                <p>
-                  A flow takes priority over AI. If a flow is assigned and
-                  active, it handles messages first.
-                </p>
-              </div>
-
-              <div className="pt-4 border-t space-y-3">
-                <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium">
-                  <a
-                    href="https://replybase.co.uk/privacy"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:underline flex items-center gap-1 text-primary"
-                  >
-                    <ShieldCheck className="h-3 w-3" />
-                    Privacy Policy
-                  </a>
-                  <a
-                    href="https://replybase.co.uk/terms"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:underline flex items-center gap-1 text-primary"
-                  >
-                    <FileText className="h-3 w-3" />
-                    Terms of Service
-                  </a>
-                </div>
-                <div className="text-[10px] leading-relaxed">
-                  ReplyBase complies with Meta&apos;s Platform Policy. We only
-                  request permissions for pages you manage and messaging
-                  capabilities required for ReplyBase to function. You can
-                  request data deletion at any time through our support or via
-                  the Meta App settings.
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Action Buttons */}
-          <div className="flex flex-col gap-4">
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="destructive"
-                onClick={handleUnlinkAllPages}
-                disabled={!connected}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Disconnect All
-              </Button>
-              <Button variant="outline" onClick={() => signIn("facebook", { callbackUrl: "/integrations/facebook" })}>
-                Re-connect Facebook Account
-              </Button>
-            </div>
-
-            <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground pt-4 border-t">
-              <a
-                href="https://replybase.co.uk/privacy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:underline flex items-center gap-1"
-              >
-                <ShieldCheck className="h-3 w-3" />
-                Privacy Policy
-              </a>
-              <a
-                href="https://replybase.co.uk/terms"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:underline flex items-center gap-1"
-              >
-                <FileText className="h-3 w-3" />
-                Terms of Service
-              </a>
-            </div>
-          </div>
         </div>
       )}
     </div>
   );
+}
+
+function Badge({
+  children,
+  variant = "default",
+  className = "",
+}: {
+  children: React.ReactNode;
+  variant?: "default" | "secondary" | "outline" | "destructive";
+  className?: string;
+}) {
+  const variants = {
+    default: "bg-primary text-primary-foreground",
+    secondary: "bg-secondary text-secondary-foreground",
+    outline: "text-foreground border border-input",
+    destructive: "bg-destructive text-destructive-foreground",
+  };
+
+  return (
+    <div
+      className={\`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 \${variants[variant]} \${className}\`}
+    >
+      {children}
+    </div>
+  );
+}
+
+function Label({ children, className = "" }: { children: React.ReactNode, className?: string }) {
+  return <label className={\`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 \${className}\`}>{children}</label>
 }

@@ -20,18 +20,21 @@ export const dynamic = 'force-dynamic';
 
 
 const connectSchema = z.object({
-  botId: z.string().min(1),
   botToken: z.string().min(10),
   channelName: z.string().min(1).optional(),
 });
 
-export async function POST(req: NextRequest) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ botId: string }> },
+) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { botId } = await params;
     const body = await req.json();
     const validated = connectSchema.parse(body);
     const normalizedToken = validated.botToken.trim();
@@ -56,7 +59,7 @@ export async function POST(req: NextRequest) {
     }
 
     const bot = await prisma.bot.findFirst({
-      where: { id: validated.botId, tenantId: user.tenantId },
+      where: { id: botId, tenantId: user.tenantId },
       select: { id: true },
     });
 
@@ -68,7 +71,7 @@ export async function POST(req: NextRequest) {
 
     const encryptedToken = encryptTelegramToken(normalizedToken);
     const defaultName =
-      validated.channelName || `Telegram @${profile.username || profile.id}`;
+      validated.channelName || \`Telegram @\${profile.username || profile.id}\`;
 
     const telegramBotId = String(profile.id);
 
@@ -99,8 +102,8 @@ export async function POST(req: NextRequest) {
 
     let channel = await prisma.channel.findFirst({
       where: {
-        botId: bot.id,
         type: "telegram",
+        channelId: telegramBotId,
       },
     });
     const nowIso = new Date().toISOString();
@@ -115,7 +118,7 @@ export async function POST(req: NextRequest) {
       if (channelCount >= limits.maxChannelsPerBot) {
         return NextResponse.json(
           {
-            error: `Channel limit reached (max ${limits.maxChannelsPerBot} per bot on your plan)`,
+            error: \`Channel limit reached (max \${limits.maxChannelsPerBot} per bot on your plan)\`,
           },
           { status: 403 },
         );
@@ -139,6 +142,7 @@ export async function POST(req: NextRequest) {
               botFirstName: profile.first_name || null,
               provisioningStartedAt: nowIso,
             } as Prisma.JsonObject,
+            tenantId: user.tenantId,
           },
         });
         createdChannelId = channel.id;
@@ -149,8 +153,8 @@ export async function POST(req: NextRequest) {
         ) {
           channel = await prisma.channel.findFirst({
             where: {
-              botId: bot.id,
               type: "telegram",
+              channelId: telegramBotId,
             },
           });
         }
@@ -167,11 +171,11 @@ export async function POST(req: NextRequest) {
     const host = forwardedHost || req.headers.get("host");
     const inferredOrigin =
       forwardedProto && host
-        ? `${forwardedProto}://${host}`
+        ? \`\${forwardedProto}://\${host}\`
         : req.nextUrl.origin;
     const baseUrl =
       process.env.TELEGRAM_WEBHOOK_BASE_URL?.trim() || inferredOrigin;
-    const webhookUrl = `${baseUrl.replace(/\/$/, "")}/api/telegram/webhook/${channel.id}`;
+    const webhookUrl = \`\${baseUrl.replace(/\/$/, "")}/api/telegram/webhook/\${channel.id}\`;
 
     if (!webhookUrl.startsWith("https://")) {
       await recordTelegramWebhookSetupLog({
@@ -249,6 +253,7 @@ export async function POST(req: NextRequest) {
     const updatedChannel = await prisma.channel.update({
       where: { id: channel.id },
       data: {
+        botId: bot.id,
         name: defaultName,
         channelId: telegramBotId,
         accessToken: encryptedToken,

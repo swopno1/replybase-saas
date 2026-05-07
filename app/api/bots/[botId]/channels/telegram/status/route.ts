@@ -11,13 +11,17 @@ export const dynamic = 'force-dynamic';
 
 
 
-export async function GET(req: NextRequest) {
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ botId: string }> },
+) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { botId } = await params;
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: { tenantId: true },
@@ -29,16 +33,16 @@ export async function GET(req: NextRequest) {
 
     const searchParams = req.nextUrl.searchParams;
     const channelId = searchParams.get("channelId");
-    const botId = searchParams.get("botId");
 
     const whereClause: Prisma.ChannelWhereInput = channelId
       ? {
           id: channelId,
+          botId,
           type: "telegram",
           bot: { tenantId: user.tenantId },
         }
       : {
-          botId: botId || undefined,
+          botId,
           type: "telegram",
           bot: { tenantId: user.tenantId },
         };

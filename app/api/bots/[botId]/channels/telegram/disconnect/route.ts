@@ -4,20 +4,30 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { deleteTelegramWebhook } from "@/lib/telegram-api";
+import { decryptTelegramToken } from "@/lib/telegram-crypto";
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
+
+
+
 
 const disconnectSchema = z.object({
   channelId: z.string().min(1),
+  dropPendingUpdates: z.boolean().optional(),
 });
 
-export async function POST(req: NextRequest) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ botId: string }> },
+) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { botId } = await params;
     const body = await req.json();
     const validated = disconnectSchema.parse(body);
 
@@ -33,16 +43,31 @@ export async function POST(req: NextRequest) {
     const channel = await prisma.channel.findFirst({
       where: {
         id: validated.channelId,
-        type: "whatsapp",
-        bot: { tenantId: user.tenantId },
+        botId,
+        type: "telegram",
+        bot: {
+          tenantId: user.tenantId,
+        },
       },
     });
 
     if (!channel) {
       return NextResponse.json(
-        { error: "WhatsApp channel not found" },
+        { error: "Telegram channel not found" },
         { status: 404 },
       );
+    }
+
+    if (channel.accessToken) {
+      try {
+        const token = decryptTelegramToken(channel.accessToken);
+        await deleteTelegramWebhook(
+          token,
+          Boolean(validated.dropPendingUpdates),
+        );
+      } catch (error) {
+        console.warn("[Telegram Disconnect] Failed to delete webhook:", error);
+      }
     }
 
     const currentConfig = (channel.config as Prisma.JsonObject | null) || {};
@@ -53,11 +78,13 @@ export async function POST(req: NextRequest) {
         isActive: false,
         enabled: false,
         killSwitch: true,
-        accessToken: null,
         config: {
           ...currentConfig,
-          disconnectedAt: new Date().toISOString(),
           webhookConnected: false,
+          webhookSecret: null,
+          lastWebhookError: null,
+          lastWebhookErrorAt: null,
+          disconnectedAt: new Date().toISOString(),
         } as Prisma.JsonObject,
       },
     });
@@ -71,14 +98,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.error("[WhatsApp Disconnect] Error:", error);
+    console.error("[Telegram Disconnect] Error:", error);
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to disconnect WhatsApp integration",
-      },
+        error: "Failed to disconnect Telegram" },
       { status: 500 },
     );
   }

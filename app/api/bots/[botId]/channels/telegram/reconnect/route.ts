@@ -19,20 +19,19 @@ const reconnectSchema = z.object({
 });
 
 /**
- * POST /api/telegram/reconnect
- *
- * Re-registers the Telegram webhook for an already-connected channel using the
- * stored (encrypted) bot token.  Useful when Telegram marks the webhook as
- * failed or when the public URL changes (e.g. after a deployment/domain change).
- * No need to re-enter the bot token.
+ * POST /api/bots/[botId]/channels/telegram/reconnect
  */
-export async function POST(req: NextRequest) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ botId: string }> },
+) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { botId } = await params;
     const body = await req.json();
     const validated = reconnectSchema.parse(body);
 
@@ -48,6 +47,7 @@ export async function POST(req: NextRequest) {
     const channel = await prisma.channel.findFirst({
       where: {
         id: validated.channelId,
+        botId,
         type: "telegram",
         bot: { tenantId: user.tenantId },
       },
@@ -79,11 +79,11 @@ export async function POST(req: NextRequest) {
     const host = forwardedHost || req.headers.get("host");
     const inferredOrigin =
       forwardedProto && host
-        ? `${forwardedProto}://${host}`
+        ? \`\${forwardedProto}://\${host}\`
         : req.nextUrl.origin;
     const baseUrl =
       process.env.TELEGRAM_WEBHOOK_BASE_URL?.trim() || inferredOrigin;
-    const webhookUrl = `${baseUrl.replace(/\/$/, "")}/api/telegram/webhook/${channel.id}`;
+    const webhookUrl = \`\${baseUrl.replace(/\/$/, "")}/api/telegram/webhook/\${channel.id}\`;
 
     if (!webhookUrl.startsWith("https://")) {
       await recordTelegramWebhookSetupLog({

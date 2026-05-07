@@ -16,7 +16,6 @@ import { encryptWhatsAppCredentialEnvelope } from "@/lib/whatsapp-channel-creden
 export const dynamic = "force-dynamic";
 
 const metaSchema = z.object({
-  botId: z.string().min(1),
   provider: z.literal("meta_cloud"),
   channelName: z.string().min(1).optional(),
   credentials: z.object({
@@ -28,7 +27,6 @@ const metaSchema = z.object({
 });
 
 const twilioSchema = z.object({
-  botId: z.string().min(1),
   provider: z.literal("twilio"),
   channelName: z.string().min(1).optional(),
   credentials: z.object({
@@ -39,7 +37,6 @@ const twilioSchema = z.object({
 });
 
 const dialogSchema = z.object({
-  botId: z.string().min(1),
   provider: z.literal("360dialog"),
   channelName: z.string().min(1).optional(),
   credentials: z.object({
@@ -60,19 +57,23 @@ function resolveWebhookBaseUrl(req: NextRequest): string {
   const host = forwardedHost || req.headers.get("host");
 
   if (forwardedProto && host) {
-    return `${forwardedProto}://${host}`;
+    return \`\${forwardedProto}://\${host}\`;
   }
 
   return req.nextUrl.origin;
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ botId: string }> },
+) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { botId } = await params;
     const body = await req.json();
     const validated = connectSchema.parse(body);
 
@@ -86,7 +87,7 @@ export async function POST(req: NextRequest) {
     }
 
     const bot = await prisma.bot.findFirst({
-      where: { id: validated.botId, tenantId: user.tenantId },
+      where: { id: botId, tenantId: user.tenantId },
       select: { id: true, name: true },
     });
 
@@ -124,29 +125,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const existingChannel = await prisma.channel.findFirst({
-      where: {
-        botId: bot.id,
-        type: "whatsapp",
-      },
-      select: { id: true },
-    });
-
-    if (!existingChannel) {
-      const limits = await getTenantLimits(user.tenantId);
-      const channelCount = await prisma.channel.count({
-        where: { botId: bot.id },
-      });
-
-      if (channelCount >= limits.maxChannelsPerBot) {
-        return NextResponse.json(
-          {
-            error: `Channel limit reached (max ${limits.maxChannelsPerBot} per bot on your plan)`,
-          },
-          { status: 403 },
-        );
-      }
-    }
+    const channelId =
+      validated.provider === "meta_cloud"
+        ? validated.credentials.phoneNumberId
+        : validated.provider === "twilio"
+          ? twilioFromNumber!
+          : validated.credentials.channelId;
 
     const encryptedPayload = encryptWhatsAppCredentialEnvelope({
       provider: validated.provider,
@@ -156,7 +140,7 @@ export async function POST(req: NextRequest) {
     const baseUrl =
       process.env.WHATSAPP_WEBHOOK_BASE_URL?.trim() ||
       resolveWebhookBaseUrl(req);
-    const webhookUrl = `${baseUrl.replace(/\/$/, "")}/api/whatsapp/webhook`;
+    const webhookUrl = \`\${baseUrl.replace(/\/$/, "")}/api/whatsapp/webhook\`;
 
     const nowIso = new Date().toISOString();
     const providerLabel: Record<WhatsAppProvider, string> = {
@@ -167,7 +151,7 @@ export async function POST(req: NextRequest) {
 
     const channelName =
       validated.channelName?.trim() ||
-      `WhatsApp (${providerLabel[validated.provider as WhatsAppProvider]})`;
+      \`WhatsApp (\${providerLabel[validated.provider as WhatsAppProvider]})\`;
 
     const config: Prisma.JsonObject = {
       provider: validated.provider,
@@ -198,35 +182,26 @@ export async function POST(req: NextRequest) {
 
     const channel = await prisma.channel.upsert({
       where: {
-        botId_type: {
-          botId: bot.id,
+        type_channelId: {
           type: "whatsapp",
+          channelId: channelId,
         },
       },
       create: {
         botId: bot.id,
         type: "whatsapp",
         name: channelName,
-        channelId:
-          validated.provider === "meta_cloud"
-            ? validated.credentials.phoneNumberId
-            : validated.provider === "twilio"
-              ? twilioFromNumber
-              : validated.credentials.channelId,
+        channelId: channelId,
         accessToken: encryptedPayload,
         isActive: true,
         enabled: true,
         killSwitch: false,
         config,
+        tenantId: user.tenantId,
       },
       update: {
+        botId: bot.id,
         name: channelName,
-        channelId:
-          validated.provider === "meta_cloud"
-            ? validated.credentials.phoneNumberId
-            : validated.provider === "twilio"
-              ? twilioFromNumber
-              : validated.credentials.channelId,
         accessToken: encryptedPayload,
         isActive: true,
         enabled: true,

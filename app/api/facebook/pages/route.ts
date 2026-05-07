@@ -6,17 +6,9 @@ import { isChannelEnabled } from "@/lib/channel-config";
 
 export const dynamic = 'force-dynamic';
 
-
-
-
-// GET /api/facebook/pages - Get connected Facebook pages
 export async function GET() {
-  // Check if Facebook channel is enabled
   if (!isChannelEnabled("facebook")) {
-    return NextResponse.json(
-      { error: "Facebook channel is not enabled" },
-      { status: 403 },
-    );
+    return NextResponse.json({ error: "Facebook channel disabled" }, { status: 403 });
   }
 
   try {
@@ -35,27 +27,16 @@ export async function GET() {
     }
 
     const pages = await prisma.facebookPage.findMany({
-      where: {
-        tenantId: user.tenantId,
+      where: { tenantId: user.tenantId },
+      include: {
+        bot: { select: { id: true, name: true } },
       },
-      select: {
-        id: true,
-        name: true,
-        facebookId: true,
-        engineConnected: true,
-        createdAt: true,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: { createdAt: "desc" },
     });
 
     return NextResponse.json({ pages });
   } catch (error) {
     console.error("[Facebook Pages API] Error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch pages" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to fetch pages" }, { status: 500 });
   }
 }
