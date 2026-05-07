@@ -44,12 +44,13 @@ interface FlowOption {
   name: string;
 }
 
-export function FacebookConfig({ botId }: { botId: string }) {
+export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; channelLimitStatus?: { allowed: boolean; limit: number } | null }) {
   const { confirm } = useConfirmation();
 
   // State
   const [pages, setPages] = useState<FacebookPage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [limitStatus, setLimitStatus] = useState<{ allowed: boolean; limit: number } | null>(null);
   const [flows, setFlows] = useState<FlowOption[]>([]);
   const [isFlowsLoading, setIsFlowsLoading] = useState(false);
 
@@ -58,7 +59,7 @@ export function FacebookConfig({ botId }: { botId: string }) {
   const [assigningMap, setAssigningMap] = useState<Record<string, boolean>>({});
   const [unassigningMap, setUnassigningMap] = useState<Record<string, boolean>>({});
   const [selectedFlowIdMap, setSelectedFlowIdMap] = useState<Record<string, string>>({});
-  const [diagnosticResult, setDiagnosticResult] = useState<Record<string, any>>({});
+  const [diagnosticResult, setDiagnosticResult] = useState<Record<string, any /* eslint-disable-line @typescript-eslint/no-explicit-any */>>({});
 
   const loadPages = async (id: string) => {
     setLoading(true);
@@ -67,6 +68,7 @@ export function FacebookConfig({ botId }: { botId: string }) {
       if (res.ok) {
         const data = await res.json();
         setPages(data.pages || []);
+        if (data.limitStatus) setLimitStatus(data.limitStatus);
       }
     } catch (error) {
       console.error("Failed to load Facebook pages:", error);
@@ -92,8 +94,10 @@ export function FacebookConfig({ botId }: { botId: string }) {
 
   useEffect(() => {
     if (botId) {
-      void loadPages(botId);
-      void loadFlows();
+      setTimeout(() => {
+        void loadPages(botId);
+        void loadFlows();
+      }, 0);
     }
   }, [botId]);
 
@@ -119,6 +123,12 @@ export function FacebookConfig({ botId }: { botId: string }) {
 
   const handleConnectPage = async (page: FacebookPage) => {
     if (!botId) return;
+
+    const effectiveLimitStatus = channelLimitStatus || limitStatus;
+    if (effectiveLimitStatus && !effectiveLimitStatus.allowed) {
+      toast.error(`Channel limit reached (${effectiveLimitStatus.limit}). Please upgrade.`);
+      return;
+    }
 
     setStatusMap((prev) => ({ ...prev, [page.id]: "loading" }));
     try {
@@ -425,8 +435,8 @@ export function FacebookConfig({ botId }: { botId: string }) {
   );
 }
 
-function Badge({ children, variant = "default", className = "" }: any) {
-  const variants: any = {
+function Badge({ children, variant = "default", className = "" }: { children: React.ReactNode; variant?: string; className?: string }) {
+  const variants: Record<string, string> = {
     default: "bg-primary text-primary-foreground",
     secondary: "bg-secondary text-secondary-foreground",
     outline: "text-foreground border border-input",
@@ -435,6 +445,6 @@ function Badge({ children, variant = "default", className = "" }: any) {
   return <div className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${variants[variant]} ${className}`}>{children}</div>;
 }
 
-function Label({ children, className = "" }: any) {
+function Label({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <label className={`text-sm font-medium ${className}`}>{children}</label>;
 }

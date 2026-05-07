@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { getTenantLimits } from "@/lib/subscription";
+import { getTenantLimits, checkChannelLimit } from "@/lib/subscription";
 import { authOptions } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
@@ -102,12 +102,13 @@ export async function POST(
       return NextResponse.json({ error: "Bot not found" }, { status: 404 });
     }
 
-    const limits = await getTenantLimits(user.tenantId);
-    const channelCount = await prisma.channel.count({ where: { botId } });
-
-    if (channelCount >= limits.maxChannelsPerBot) {
+    const limitStatus = await checkChannelLimit(user.tenantId, botId);
+    if (!limitStatus.allowed) {
       return NextResponse.json(
-        { error: `Channel limit reached (max ${limits.maxChannelsPerBot} per bot)` },
+        {
+          error: "Channel limit reached",
+          details: `You have reached the maximum of ${limitStatus.limit} channels per bot on the ${limitStatus.planName} plan. Please upgrade.`,
+        },
         { status: 403 },
       );
     }

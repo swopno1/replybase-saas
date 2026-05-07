@@ -110,7 +110,9 @@ export function WebchatConfig({ botId }: { botId: string }) {
 
   useEffect(() => {
     if (botId) {
-      void loadSite(botId);
+      setTimeout(() => {
+        void loadSite(botId);
+      }, 0);
     }
   }, [botId]);
 

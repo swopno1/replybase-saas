@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { recordWebhookSetupLog } from "@/lib/webhook-setup-log";
 import { isChannelEnabled } from "@/lib/channel-config";
 import { getFacebookGraphUrl } from "@/lib/server/facebook-utils";
+import { checkChannelLimit } from "@/lib/subscription";
 
 export const dynamic = "force-dynamic";
 
@@ -78,6 +79,17 @@ export async function POST(
   });
   if (!bot) {
     return NextResponse.json({ error: "Bot not found" }, { status: 404 });
+  }
+
+  const limitStatus = await checkChannelLimit(tenantId, botId);
+  if (!limitStatus.allowed) {
+    return NextResponse.json(
+      {
+        error: "Channel limit reached",
+        details: `You have reached the maximum of ${limitStatus.limit} channels per bot on the ${limitStatus.planName} plan. Please upgrade.`,
+      },
+      { status: 403 },
+    );
   }
 
   const { pageId, pageName, accessToken } = await req.json();

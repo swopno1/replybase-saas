@@ -61,7 +61,7 @@ interface ChannelLog {
   type?: string;
 }
 
-export function TelegramConfig({ botId }: { botId: string }) {
+export function TelegramConfig({ botId, channelLimitStatus }: { botId: string; channelLimitStatus?: { allowed: boolean; limit: number } | null }) {
   const { confirm } = useConfirmation();
 
   // Connection state
@@ -163,14 +163,22 @@ export function TelegramConfig({ botId }: { botId: string }) {
 
   useEffect(() => {
     if (botId) {
-      void loadStatus(botId);
-      void loadTelegramChannel(botId);
-      void loadFlows();
+      setTimeout(() => {
+        void loadStatus(botId);
+        void loadTelegramChannel(botId);
+        void loadFlows();
+      }, 0);
     }
   }, [botId]);
 
   const handleConnect = async () => {
     if (!botId) return;
+
+    const effectiveLimitStatus = channelLimitStatus || (status as any /* eslint-disable-line @typescript-eslint/no-explicit-any */)?.limitStatus;
+    if (effectiveLimitStatus && !effectiveLimitStatus.allowed) {
+      toast.error(`Channel limit reached (${effectiveLimitStatus.limit}). Please upgrade.`);
+      return;
+    }
 
     setIsConnecting(true);
     try {

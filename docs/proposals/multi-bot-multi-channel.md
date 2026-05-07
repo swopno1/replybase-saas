@@ -53,9 +53,9 @@ To support multiple bots/channels of the same type, we must improve the lookup l
 
 ---
 
-## 4. Subscription & Entitlements
+## 4. Subscription & Entitlements ✅
 
-The `Plan` model already contains `maxBots` and `maxChannelsPerBot`. These should be strictly enforced:
+The `Plan` model already contains `maxBots` and `maxChannelsPerBot`. These are strictly enforced:
 - **Bot Creation**: Check `tenant.bots.count() < plan.maxBots`.
 - **Channel Connection**: Check `bot.channels.count() < plan.maxChannelsPerBot`.
 

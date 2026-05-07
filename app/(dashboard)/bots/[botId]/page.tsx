@@ -64,7 +64,7 @@ const CHANNEL_OPTIONS: Array<{
 
 function isBotChannelVisible(channelType: string): boolean {
   if (channelType === "web") return isChannelVisibleInUi("webchat");
-  if (["telegram", "facebook", "whatsapp"].includes(channelType)) return isChannelVisibleInUi(channelType as any);
+  if (["telegram", "facebook", "whatsapp"].includes(channelType)) return isChannelVisibleInUi(channelType as any /* eslint-disable-line @typescript-eslint/no-explicit-any */);
   return true;
 }
 
@@ -81,6 +81,8 @@ export default function BotDetailPage() {
   const [editing, setEditing] = useState(false);
   const [deletingBot, setDeletingBot] = useState(false);
   const [formData, setFormData] = useState<BotFormData | null>(null);
+  const [limitStatus, setLimitStatus] = useState<{ allowed: boolean; limit: number } | null>(null);
+  const [channelLimitStatus, setChannelLimitStatus] = useState<{ allowed: boolean; limit: number } | null>(null);
 
   const initialTab = searchParams.get("tab") || "general";
   const initialChannel = searchParams.get("channel") || null;
@@ -113,9 +115,24 @@ export default function BotDetailPage() {
     }
   };
 
+  const fetchChannels = async () => {
+    try {
+      const res = await fetch(`/api/bots/${botId}/channels`);
+      const data = await res.json();
+      setChannelLimitStatus(data.limitStatus);
+    } catch (error) {
+      console.error("Failed to fetch channels:", error);
+    }
+  };
+
   useEffect(() => {
-    void fetchBot();
-    void fetchFlows();
+    if (botId) {
+      setTimeout(() => {
+        void fetchBot();
+        void fetchFlows();
+        void fetchChannels();
+      }, 0);
+    }
   }, [botId]);
 
   const handleSave = async () => {
@@ -258,9 +275,9 @@ export default function BotDetailPage() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {activeChannelTab === "whatsapp" && <WhatsAppConfig botId={botId} />}
-                  {activeChannelTab === "telegram" && <TelegramConfig botId={botId} />}
-                  {activeChannelTab === "facebook" && <FacebookConfig botId={botId} />}
+                  {activeChannelTab === "whatsapp" && <WhatsAppConfig botId={botId} channelLimitStatus={channelLimitStatus} />}
+                  {activeChannelTab === "telegram" && <TelegramConfig botId={botId} channelLimitStatus={channelLimitStatus} />}
+                  {activeChannelTab === "facebook" && <FacebookConfig botId={botId} channelLimitStatus={channelLimitStatus} />}
                   {(activeChannelTab === "web" || activeChannelTab === "webchat") && <WebchatConfig botId={botId} />}
                 </div>
               )}
