@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkBotLimit } from "@/lib/subscription";
 
 export const dynamic = 'force-dynamic';
 
@@ -25,16 +26,19 @@ export async function GET(
     return NextResponse.json({ error: "No tenant found" }, { status: 403 });
   }
 
-  const bot = await prisma.bot.findFirst({
-    where: { id: botId, tenantId: user.tenantId },
-    include: { channels: true },
-  });
+  const [bot, limitStatus] = await Promise.all([
+    prisma.bot.findFirst({
+      where: { id: botId, tenantId: user.tenantId },
+      include: { channels: true },
+    }),
+    checkBotLimit(user.tenantId),
+  ]);
 
   if (!bot) {
     return NextResponse.json({ error: "Bot not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ bot });
+  return NextResponse.json({ bot, limitStatus });
 }
 
 export async function PATCH(
@@ -108,7 +112,7 @@ export async function DELETE(
     return NextResponse.json({ error: "Bot not found" }, { status: 404 });
   }
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.(async (tx) => {
     // Note: FacebookPage requires botId (String, not String?), so we delete them.
     await tx.facebookPage.deleteMany({ where: { botId } });
     await tx.crmConversation.updateMany({ where: { botId }, data: { botId: null } });

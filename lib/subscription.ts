@@ -359,6 +359,8 @@ export async function checkChannelLimit(tenantId: string, botId: string) {
   }
 }
 
+export const checkBotLimits = checkBotLimit;
+
 export async function checkBotLimit(tenantId: string) {
   const limits = await getTenantLimits(tenantId);
   const botCount = await prisma.bot.count({

@@ -8,6 +8,7 @@ import {
   getStringFromJsonConfig,
 } from "@/lib/whatsapp-channel-credentials";
 import { maskSecret } from "@/lib/whatsapp-provider";
+import { checkChannelLimit } from "@/lib/subscription";
 
 export const dynamic = "force-dynamic";
 
@@ -46,21 +47,24 @@ export async function GET(
           bot: { tenantId: user.tenantId },
         };
 
-    const channel = await prisma.channel.findFirst({
-      where: whereClause,
-      include: {
-        bot: {
-          select: {
-            id: true,
-            name: true,
+    const [channel, limitStatus] = await Promise.all([
+      prisma.channel.findFirst({
+        where: whereClause,
+        include: {
+          bot: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
         },
-      },
-      orderBy: { updatedAt: "desc" },
-    });
+        orderBy: { updatedAt: "desc" },
+      }),
+      checkChannelLimit(user.tenantId, botId),
+    ]);
 
     if (!channel) {
-      return NextResponse.json({ connected: false });
+      return NextResponse.json({ connected: false, limitStatus });
     }
 
     const config = (channel.config as Prisma.JsonObject | null) || {};
@@ -120,6 +124,7 @@ export async function GET(
         updatedAt: channel.updatedAt,
       },
       bot: channel.bot,
+      limitStatus,
       provider,
       local: {
         webhookUrl: getStringFromJsonConfig(config, "webhookUrl"),

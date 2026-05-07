@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+import { ChannelLimitWarning } from "@/components/channels/channel-ui";
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -299,6 +300,7 @@ export function WhatsAppConfig({ botId, channelLimitStatus }: { botId: string; c
 
   const assignedFlow = useMemo(() => {
     return (status as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ /* TODO: Fix type */)?.channel?.flowAssignments?.[0]?.flow;
+      <ChannelLimitWarning limitStatus={channelLimitStatus || (status as any)?.limitStatus} />
   }, [status]);
 
   return (
@@ -441,7 +443,7 @@ export function WhatsAppConfig({ botId, channelLimitStatus }: { botId: string; c
             {!connected ? (
               <Button
                 onClick={handleConnect}
-                disabled={!canConnect || connecting}
+                disabled={!canConnect || connecting || !(channelLimitStatus || (status as any)?.limitStatus)?.allowed}
               >
                 {connecting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

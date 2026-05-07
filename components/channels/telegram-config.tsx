@@ -20,6 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { ChannelLimitWarning } from "@/components/channels/channel-ui";
 import { toast } from "sonner";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
 import {
@@ -318,6 +319,7 @@ export function TelegramConfig({ botId, channelLimitStatus }: { botId: string; c
   const connected = Boolean(status?.connected);
 
   return (
+      <ChannelLimitWarning limitStatus={channelLimitStatus || (status as any)?.limitStatus} />
     <div className="space-y-6">
       <Card>
         <CardHeader>
@@ -362,7 +364,7 @@ export function TelegramConfig({ botId, channelLimitStatus }: { botId: string; c
             {!connected ? (
               <Button
                 onClick={handleConnect}
-                disabled={!botToken.trim() || isConnecting}
+                disabled={!botToken.trim() || isConnecting || !(channelLimitStatus || (status as any)?.limitStatus)?.allowed}
               >
                 {isConnecting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

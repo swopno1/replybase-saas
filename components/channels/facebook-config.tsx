@@ -20,6 +20,7 @@ import {
 import {
   Select,
   SelectContent,
+import { ChannelLimitWarning } from "@/components/channels/channel-ui";
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -236,6 +237,7 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
   };
 
   return (
+      <ChannelLimitWarning limitStatus={channelLimitStatus || limitStatus} />
     <div className="space-y-6">
       <Card>
         <CardHeader>
@@ -295,7 +297,7 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
                             size="sm"
                             variant="destructive"
                             onClick={() => handleDisconnectPage(page)}
-                            disabled={statusMap[page.id] === "loading"}
+                            disabled={statusMap[page.id] === "loading" || !(channelLimitStatus || limitStatus)?.allowed}
                           >
                             {statusMap[page.id] === "loading" ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
@@ -312,7 +314,7 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
                         <Button
                           size="sm"
                           onClick={() => handleConnectPage(page)}
-                          disabled={statusMap[page.id] === "loading"}
+                          disabled={statusMap[page.id] === "loading" || !(channelLimitStatus || limitStatus)?.allowed}
                         >
                           {statusMap[page.id] === "loading" ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
