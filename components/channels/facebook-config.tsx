@@ -20,11 +20,11 @@ import {
 import {
   Select,
   SelectContent,
-import { ChannelLimitWarning } from "@/components/channels/channel-ui";
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ChannelLimitWarning } from "@/components/channels/channel-ui";
 import { toast } from "sonner";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
 import { FacebookLogo } from "@/components/icons/MetaIcons";
@@ -52,20 +52,20 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
   const [pages, setPages] = useState<FacebookPage[]>([]);
   const [loading, setLoading] = useState(true);
   const [limitStatus, setLimitStatus] = useState<{ allowed: boolean; limit: number } | null>(null);
+  const [statusMap, setStatusMap] = useState<Record<string, "idle" | "loading" | "diagnosing">>({});
+  const [diagnosticResult, setDiagnosticResult] = useState<Record<string, { tokenValid: boolean; webhookSubscribed: boolean }>>({});
+
+  // Flow assignment state
   const [flows, setFlows] = useState<FlowOption[]>([]);
   const [isFlowsLoading, setIsFlowsLoading] = useState(false);
-
-  // Status/Action states
-  const [statusMap, setStatusMap] = useState<Record<string, string>>({});
+  const [selectedFlowIdMap, setSelectedFlowIdMap] = useState<Record<string, string>>({});
   const [assigningMap, setAssigningMap] = useState<Record<string, boolean>>({});
   const [unassigningMap, setUnassigningMap] = useState<Record<string, boolean>>({});
-  const [selectedFlowIdMap, setSelectedFlowIdMap] = useState<Record<string, string>>({});
-  const [diagnosticResult, setDiagnosticResult] = useState<Record<string, any /* eslint-disable-line @typescript-eslint/no-explicit-any */>>({});
 
   const loadPages = async (id: string) => {
     setLoading(true);
     try {
-      const res = await fetch("/api/integrations/facebook/pages");
+      const res = await fetch(`/api/bots/${id}/channels/facebook`);
       if (res.ok) {
         const data = await res.json();
         setPages(data.pages || []);
@@ -105,17 +105,17 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
   const handleFacebookLogin = () => {
     const width = 600;
     const height = 700;
-    const left = window.screenX + (window.innerWidth - width) / 2;
-    const top = window.screenY + (window.innerHeight - height) / 2;
+    const left = window.screen.width / 2 - width / 2;
+    const top = window.screen.height / 2 - height / 2;
 
-    const popup = window.open(
-      "/api/auth/facebook",
-      "Facebook Login",
-      `width=${width},height=${height},left=${left},top=${top}`,
+    window.open(
+      "/api/integrations/facebook/auth",
+      "facebook-auth",
+      `width=${width},height=${height},top=${top},left=${left}`
     );
 
     const interval = setInterval(() => {
-      if (popup?.closed) {
+      if (window.closed) {
         clearInterval(interval);
         void loadPages(botId);
       }
@@ -133,12 +133,13 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
 
     setStatusMap((prev) => ({ ...prev, [page.id]: "loading" }));
     try {
-      const res = await fetch("/api/integrations/facebook/pages/connect", {
+      const res = await fetch(`/api/bots/${botId}/channels/facebook`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pageId: page.id,
-          botId: botId,
+          pageName: page.name,
+          accessToken: "legacy_handled_on_backend", // In a real flow, this might come from FB SDK
         }),
       });
 
@@ -149,14 +150,14 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
     } catch (error) {
       toast.error("Failed to connect page");
     } finally {
-      setStatusMap((prev) => ({ ...prev, [page.id]: "" }));
+      setStatusMap((prev) => ({ ...prev, [page.id]: "idle" }));
     }
   };
 
   const handleDisconnectPage = async (page: FacebookPage) => {
     const confirmed = await confirm({
       title: "Disconnect Page",
-      description: `Are you sure you want to disconnect "${page.name}"? This bot will stop responding to messages on this page.`,
+      description: `Are you sure you want to disconnect "${page.name}"?`,
       confirmText: "Disconnect",
       variant: "destructive",
     });
@@ -165,20 +166,38 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
 
     setStatusMap((prev) => ({ ...prev, [page.id]: "loading" }));
     try {
-      const res = await fetch("/api/integrations/facebook/pages/disconnect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pageId: page.id }),
+      const res = await fetch(`/api/bots/${botId}/channels/facebook/${page.id}`, {
+        method: "DELETE",
       });
 
       if (!res.ok) throw new Error("Failed to disconnect page");
 
-      toast.success("Page disconnected");
+      toast.success(`Page "${page.name}" disconnected.`);
       void loadPages(botId);
     } catch (error) {
       toast.error("Failed to disconnect page");
     } finally {
-      setStatusMap((prev) => ({ ...prev, [page.id]: "" }));
+      setStatusMap((prev) => ({ ...prev, [page.id]: "idle" }));
+    }
+  };
+
+  const handleRunDiagnostics = async (page: FacebookPage) => {
+    setStatusMap((prev) => ({ ...prev, [page.id]: "diagnosing" }));
+    try {
+      const res = await fetch(`/api/bots/${botId}/channels/facebook/${page.id}/check-connection`);
+      if (res.ok) {
+        const data = await res.json();
+        setDiagnosticResult((prev) => ({ ...prev, [page.id]: data }));
+        if (data.tokenValid && data.webhookSubscribed) {
+          toast.success("Connection is healthy!");
+        } else {
+          toast.error("Connection issues detected.");
+        }
+      }
+    } catch (error) {
+      toast.error("Failed to run diagnostics");
+    } finally {
+      setStatusMap((prev) => ({ ...prev, [page.id]: "idle" }));
     }
   };
 
@@ -188,10 +207,10 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
 
     setAssigningMap((prev) => ({ ...prev, [page.id]: true }));
     try {
-      const res = await fetch(`/api/integrations/facebook/pages/${page.id}/flows`, {
+      const res = await fetch(`/api/bots/${botId}/channels/facebook/${page.id}/toggle-ai-engine`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ flowId }),
+        body: JSON.stringify({ flowId, enabled: true }),
       });
 
       if (!res.ok) throw new Error("Failed to assign flow");
@@ -207,12 +226,14 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
   const handleUnassignFlow = async (page: FacebookPage) => {
     setUnassigningMap((prev) => ({ ...prev, [page.id]: true }));
     try {
-      const res = await fetch(`/api/integrations/facebook/pages/${page.id}/flows`, {
-        method: "DELETE",
+      const res = await fetch(`/api/bots/${botId}/channels/facebook/${page.id}/toggle-ai-engine`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: false }),
       });
 
       if (!res.ok) throw new Error("Failed to unassign flow");
-      toast.success("Flow unassigned");
+      toast.success("Flow unassigned.");
       void loadPages(botId);
     } catch (error) {
       toast.error("Failed to unassign flow");
@@ -221,36 +242,18 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
     }
   };
 
-  const handleRunDiagnostics = async (page: FacebookPage) => {
-    setStatusMap((prev) => ({ ...prev, [page.id]: "diagnosing" }));
-    try {
-      const res = await fetch(`/api/integrations/facebook/pages/${page.id}/diagnostics`);
-      if (!res.ok) throw new Error("Diagnostics failed");
-      const data = await res.json();
-      setDiagnosticResult((prev) => ({ ...prev, [page.id]: data }));
-      toast.success("Diagnostics completed");
-    } catch (error) {
-      toast.error("Failed to run diagnostics");
-    } finally {
-      setStatusMap((prev) => ({ ...prev, [page.id]: "" }));
-    }
-  };
-
   return (
-      <ChannelLimitWarning limitStatus={channelLimitStatus || limitStatus} />
     <div className="space-y-6">
+      <ChannelLimitWarning limitStatus={channelLimitStatus || limitStatus} />
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <FacebookLogo className="h-5 w-5" />
-                Facebook Integration
-              </CardTitle>
-              <CardDescription>
-                Connect Facebook Pages to this bot.
-              </CardDescription>
-            </div>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle className="text-base">Facebook Pages</CardTitle>
+            <CardDescription>
+              Manage which Facebook pages are connected to this bot.
+            </CardDescription>
+          </div>
+          <div className="flex gap-2">
             <Button onClick={handleFacebookLogin} variant="outline" size="sm">
               <RefreshCw className="mr-2 h-4 w-4" />
               Refresh Pages
@@ -297,7 +300,7 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
                             size="sm"
                             variant="destructive"
                             onClick={() => handleDisconnectPage(page)}
-                            disabled={statusMap[page.id] === "loading" || !(channelLimitStatus || limitStatus)?.allowed}
+                            disabled={statusMap[page.id] === "loading"}
                           >
                             {statusMap[page.id] === "loading" ? (
                               <Loader2 className="h-4 w-4 animate-spin" />

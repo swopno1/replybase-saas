@@ -112,7 +112,7 @@ export async function DELETE(
     return NextResponse.json({ error: "Bot not found" }, { status: 404 });
   }
 
-  await prisma.(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     // Note: FacebookPage requires botId (String, not String?), so we delete them.
     await tx.facebookPage.deleteMany({ where: { botId } });
     await tx.crmConversation.updateMany({ where: { botId }, data: { botId: null } });

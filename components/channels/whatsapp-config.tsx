@@ -20,12 +20,12 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
-import { ChannelLimitWarning } from "@/components/channels/channel-ui";
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { ChannelLimitWarning } from "@/components/channels/channel-ui";
 import { toast } from "sonner";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
 import {
@@ -106,21 +106,18 @@ export function WhatsAppConfig({ botId, channelLimitStatus }: { botId: string; c
   const loadStatus = async (id: string) => {
     setLoadingStatus(true);
     try {
-      const response = await fetch(`/api/bots/${id}/channels/whatsapp/status`);
-      if (response.ok) {
-        const data = await response.json();
+      const res = await fetch(`/api/bots/${id}/channels/whatsapp/status`);
+      if (res.ok) {
+        const data = await res.json();
         setStatus(data);
-        if (data.connected && data.channel) {
-          setChannelName(data.channel.name || "");
-          if (data.provider) setProvider(data.provider as ProviderId);
+        if (data.channel?.id) {
           void loadLogs(data.channel.id);
         }
       } else {
         setStatus(null);
       }
     } catch (error) {
-      console.error("Failed to load WhatsApp status:", error);
-      setStatus(null);
+      console.error("Failed to load status:", error);
     } finally {
       setLoadingStatus(false);
     }
@@ -129,13 +126,13 @@ export function WhatsAppConfig({ botId, channelLimitStatus }: { botId: string; c
   const loadLogs = async (channelId: string) => {
     setIsLogsLoading(true);
     try {
-      const response = await fetch(`/api/channels/${channelId}/logs`);
-      if (response.ok) {
-        const data = await response.json();
-        setLogs((data.logs || []) as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ /* TODO: Fix type */[]);
+      const res = await fetch(`/api/bots/${botId}/channels/whatsapp/logs?channelId=${channelId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setLogs(data.logs || []);
       }
     } catch (error) {
-      console.error("Failed to load channel logs:", error);
+      console.error("Failed to load logs:", error);
     } finally {
       setIsLogsLoading(false);
     }
@@ -144,9 +141,9 @@ export function WhatsAppConfig({ botId, channelLimitStatus }: { botId: string; c
   const loadFlows = async () => {
     setIsFlowsLoading(true);
     try {
-      const response = await fetch("/api/flows?type=my");
-      if (response.ok) {
-        const data = await response.json();
+      const res = await fetch("/api/flows?type=my");
+      if (res.ok) {
+        const data = await res.json();
         setFlows(data.flows || []);
       }
     } catch (error) {
@@ -204,13 +201,12 @@ export function WhatsAppConfig({ botId, channelLimitStatus }: { botId: string; c
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || "Failed to connect WhatsApp");
+        throw new Error(error.error || "Failed to connect");
       }
 
-      toast.success("WhatsApp connected successfully");
+      toast.success("WhatsApp connected successfully!");
       void loadStatus(botId);
     } catch (error) {
-      console.error("Connection error:", error);
       toast.error(error instanceof Error ? error.message : "Connection failed");
     } finally {
       setConnecting(false);
@@ -218,11 +214,11 @@ export function WhatsAppConfig({ botId, channelLimitStatus }: { botId: string; c
   };
 
   const handleDisconnect = async () => {
-    if (!botId || !status?.channel?.id) return;
+    if (!status?.channel?.id || !botId) return;
 
     const confirmed = await confirm({
       title: "Disconnect WhatsApp",
-      description: "Are you sure you want to disconnect this WhatsApp channel? Incoming messages will no longer be processed.",
+      description: "Are you sure you want to disconnect? You will no longer receive or send messages through this channel.",
       confirmText: "Disconnect",
       variant: "destructive",
     });
@@ -231,21 +227,18 @@ export function WhatsAppConfig({ botId, channelLimitStatus }: { botId: string; c
 
     setDisconnecting(true);
     try {
-      const response = await fetch(`/api/bots/${botId}/channels/whatsapp/disconnect`, {
+      const res = await fetch(`/api/bots/${botId}/channels/whatsapp/disconnect`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channelId: status.channel.id }),
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to disconnect WhatsApp");
-      }
+      if (!res.ok) throw new Error("Failed to disconnect");
 
-      toast.success("WhatsApp disconnected");
-      setStatus(null);
-      setLogs([]);
+      toast.success("WhatsApp disconnected.");
+      void loadStatus(botId);
     } catch (error) {
-      console.error("Disconnect error:", error);
-      toast.error(error instanceof Error ? error.message : "Disconnect failed");
+      toast.error("Failed to disconnect");
     } finally {
       setDisconnecting(false);
     }
@@ -256,14 +249,14 @@ export function WhatsAppConfig({ botId, channelLimitStatus }: { botId: string; c
 
     setIsAssigningFlow(true);
     try {
-      const response = await fetch(`/api/channels/${status.channel.id}/flows`, {
+      const res = await fetch(`/api/channels/${status.channel.id}/flows`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ flowId: selectedFlowId }),
       });
 
-      if (!response.ok) throw new Error("Failed to assign flow");
-      toast.success("Flow assigned successfully");
+      if (!res.ok) throw new Error("Failed to assign flow");
+      toast.success("Flow assigned successfully!");
       void loadStatus(botId);
     } catch (error) {
       toast.error("Failed to assign flow");
@@ -277,12 +270,12 @@ export function WhatsAppConfig({ botId, channelLimitStatus }: { botId: string; c
 
     setIsUnassigningFlow(true);
     try {
-      const response = await fetch(`/api/channels/${status.channel.id}/flows`, {
+      const res = await fetch(`/api/channels/${status.channel.id}/flows`, {
         method: "DELETE",
       });
 
-      if (!response.ok) throw new Error("Failed to unassign flow");
-      toast.success("Flow unassigned");
+      if (!res.ok) throw new Error("Failed to unassign flow");
+      toast.success("Flow unassigned.");
       void loadStatus(botId);
     } catch (error) {
       toast.error("Failed to unassign flow");
@@ -300,11 +293,11 @@ export function WhatsAppConfig({ botId, channelLimitStatus }: { botId: string; c
 
   const assignedFlow = useMemo(() => {
     return (status as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ /* TODO: Fix type */)?.channel?.flowAssignments?.[0]?.flow;
-      <ChannelLimitWarning limitStatus={channelLimitStatus || (status as any)?.limitStatus} />
   }, [status]);
 
   return (
     <div className="space-y-6">
+      <ChannelLimitWarning limitStatus={channelLimitStatus || (status as any)?.limitStatus} />
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
