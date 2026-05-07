@@ -8,9 +8,6 @@ import { authOptions } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
 
-
-
-
 const createChannelSchema = z
   .object({
     type: z.enum(["facebook", "whatsapp", "web", "telegram"]),
@@ -29,7 +26,6 @@ const createChannelSchema = z
     }
   });
 
-// GET: List channels for a bot
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ botId: string }> },
@@ -41,17 +37,15 @@ export async function GET(
     }
 
     const { botId } = await params;
-
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      include: { tenant: true },
+      select: { tenantId: true },
     });
 
     if (!user?.tenantId) {
       return NextResponse.json({ error: "No tenant found" }, { status: 403 });
     }
 
-    // Verify ownership via tenant
     const bot = await prisma.bot.findFirst({
       where: { id: botId, tenantId: user.tenantId },
     });
@@ -66,13 +60,7 @@ export async function GET(
         flowAssignments: {
           where: { isActive: true },
           include: {
-            flow: {
-              select: {
-                id: true,
-                name: true,
-                isActive: true,
-              },
-            },
+            flow: { select: { id: true, name: true, isActive: true } },
           },
         },
       },
@@ -82,14 +70,10 @@ export async function GET(
     return NextResponse.json({ channels });
   } catch (error) {
     console.error("[Channels API] Error fetching channels:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch channels" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to fetch channels" }, { status: 500 });
   }
 }
 
-// POST: Create a new channel
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ botId: string }> },
@@ -101,17 +85,15 @@ export async function POST(
     }
 
     const { botId } = await params;
-
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      include: { tenant: true },
+      select: { tenantId: true },
     });
 
     if (!user?.tenantId) {
       return NextResponse.json({ error: "No tenant found" }, { status: 403 });
     }
 
-    // Verify ownership via tenant
     const bot = await prisma.bot.findFirst({
       where: { id: botId, tenantId: user.tenantId },
     });
@@ -120,29 +102,24 @@ export async function POST(
       return NextResponse.json({ error: "Bot not found" }, { status: 404 });
     }
 
-    // Check channel limit
     const limits = await getTenantLimits(user.tenantId);
-    const channelCount = await prisma.channel.count({
-      where: { botId },
-    });
+    const channelCount = await prisma.channel.count({ where: { botId } });
 
     if (channelCount >= limits.maxChannelsPerBot) {
       return NextResponse.json(
-        {
-          error: `Channel limit reached (max ${limits.maxChannelsPerBot} per bot)`,
-        },
+        { error: `Channel limit reached (max ${limits.maxChannelsPerBot} per bot)` },
         { status: 403 },
       );
     }
 
     const body = await req.json();
     const validated = createChannelSchema.parse(body);
-    const normalizedType = validated.type;
 
     const channel = await prisma.channel.create({
       data: {
+        tenantId: user.tenantId,
         botId,
-        type: normalizedType,
+        type: validated.type,
         name: validated.name,
         channelId: validated.channelId || null,
         accessToken: validated.accessToken || null,
@@ -155,16 +132,9 @@ export async function POST(
     return NextResponse.json({ channel }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Invalid input", details: error.issues },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Invalid input", details: error.issues }, { status: 400 });
     }
-
     console.error("[Channels API] Error creating channel:", error);
-    return NextResponse.json(
-      { error: "Failed to create channel" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to create channel" }, { status: 500 });
   }
 }

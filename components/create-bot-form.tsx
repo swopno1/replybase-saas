@@ -16,7 +16,7 @@ export function CreateBotForm({ projectId }: CreateBotFormProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    channel: "webhook",
+    channel: "web",
     status: true,
   });
 
@@ -29,7 +29,6 @@ export function CreateBotForm({ projectId }: CreateBotFormProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          projectId,
           ...formData,
         }),
       });
@@ -67,16 +66,16 @@ export function CreateBotForm({ projectId }: CreateBotFormProps) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-1">Channel</label>
+        <label className="block text-sm font-medium mb-1">Primary Channel</label>
         <select
           value={formData.channel}
-          onChange={(e) =>
-            setFormData({ ...formData, channel: e.target.value })
-          }
+          onChange={(e) => setFormData({ ...formData, channel: e.target.value })}
           className="w-full px-3 py-2 border rounded-md"
         >
-          <option value="webhook">Web Chat</option>
-          <option value="slack">Slack (Coming Soon)</option>
+          <option value="web">Web Chat</option>
+          <option value="whatsapp">WhatsApp</option>
+          <option value="telegram">Telegram</option>
+          <option value="facebook">Facebook</option>
         </select>
       </div>
 
@@ -85,9 +84,7 @@ export function CreateBotForm({ projectId }: CreateBotFormProps) {
           <input
             type="checkbox"
             checked={formData.status}
-            onChange={(e) =>
-              setFormData({ ...formData, status: e.target.checked })
-            }
+            onChange={(e) => setFormData({ ...formData, status: e.target.checked })}
           />
           <span className="text-sm">Enable bot</span>
         </label>

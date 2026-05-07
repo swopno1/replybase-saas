@@ -6,17 +6,11 @@ const QUEUE_NAME = "message-processing";
 
 const isBuild = process.env.NEXT_PHASE === "phase-production-build";
 
-// BullMQ needs dedicated connections for the Queue and Worker to avoid
-// blocking other commands. We duplicate the main connection and attach
-// error listeners to prevent unsilenced connection errors from flooding the console.
 const getQueueConnection = () => {
   if (isBuild || !redis) return undefined;
-  // If redis is already a proxy/mock, it will return a mock
   const conn = redis.duplicate ? redis.duplicate() : redis;
   if (conn.on) {
-    conn.on("error", () => {
-      /* Silenced — handled by the main redis instance logger */
-    });
+    conn.on("error", () => {});
   }
   return conn;
 };
@@ -27,10 +21,7 @@ export const messageQueue = isBuild
       connection: getQueueConnection(),
       defaultJobOptions: {
         attempts: 3,
-        backoff: {
-          type: "exponential",
-          delay: 1000,
-        },
+        backoff: { type: "exponential", delay: 1000 },
         removeOnComplete: true,
         removeOnFail: false,
       },
@@ -38,6 +29,7 @@ export const messageQueue = isBuild
 
 export interface MessageJobData {
   type: "whatsapp" | "facebook" | "telegram";
+  botId: string;
   payload: any;
 }
 
@@ -47,25 +39,19 @@ export const setupWorker = () => {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job<MessageJobData>) => {
-      const { type, payload } = job.data;
-      logger.info({ jobId: job.id, type }, "[Worker] Processing message job");
+      const { type, botId, payload } = job.data;
+      logger.info({ jobId: job.id, type, botId }, "[Worker] Processing message job");
 
       try {
         if (type === "whatsapp") {
-          const { processWhatsAppJob } = await import(
-            "@/lib/services/whatsapp-worker"
-          );
-          await processWhatsAppJob(payload);
+          const { processWhatsAppJob } = await import("@/lib/services/whatsapp-worker");
+          await processWhatsAppJob({ ...payload, botId });
         } else if (type === "facebook") {
-          const { processFacebookJob } = await import(
-            "@/lib/services/facebook-worker"
-          );
-          await processFacebookJob(payload);
+          const { processFacebookJob } = await import("@/lib/services/facebook-worker");
+          await processFacebookJob({ ...payload, botId });
         } else if (type === "telegram") {
-          const { processTelegramJob } = await import(
-            "@/lib/services/telegram-worker"
-          );
-          await processTelegramJob(payload);
+          const { processTelegramJob } = await import("@/lib/services/telegram-worker");
+          await processTelegramJob({ ...payload, botId });
         }
       } catch (error) {
         logger.error({ jobId: job.id, error }, "[Worker] Job failed");

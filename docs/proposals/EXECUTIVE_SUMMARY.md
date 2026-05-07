@@ -20,7 +20,7 @@ We will move the "Integrations" configuration directly into the "Bot" management
 - **Phase 1**: Database schema refactor and data migration. ✅
 - **Phase 2**: Refactoring backend APIs to be bot-scoped. ✅
 - **Phase 3**: Migrating the Integration UI into the Bot Detail pages.
-- **Phase 4**: Updating Webhook handlers and background workers for multi-bot routing.
+- **Phase 4**: Updating Webhook handlers and background workers for multi-bot routing. ✅
 - **Phase 5**: Enabling strict subscription limit enforcement.
 
 ## Documentation Included

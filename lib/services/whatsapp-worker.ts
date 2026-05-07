@@ -17,14 +17,18 @@ import { Prisma } from "@prisma/client";
 import logger from "@/lib/logger";
 
 export async function processWhatsAppJob(payload: any) {
-  const { channel, waId, profileName, rawPhone, inboundText, messageId, timestamp } = payload;
+  const { channel, waId, profileName, rawPhone, inboundText, messageId, timestamp, botId } = payload;
+
+  // Use botId from payload for multi-bot isolation
+  const targetBotId = botId || channel.botId;
+  const tenantId = channel.bot.tenantId;
 
   const normalizedWaId = normalizeWhatsAppAddress(waId);
   const normalizedPhone = rawPhone ? normalizeWhatsAppE164(rawPhone) : null;
 
   let contact = await prisma.contact.findFirst({
     where: {
-      tenantId: channel.bot.tenantId,
+      tenantId: tenantId,
       identities: { some: { type: "whatsapp_wa_id", value: normalizedWaId } },
     },
   });
@@ -32,7 +36,7 @@ export async function processWhatsAppJob(payload: any) {
   if (!contact) {
     contact = await prisma.contact.create({
       data: {
-        tenantId: channel.bot.tenantId,
+        tenantId: tenantId,
         name: profileName || null,
         phone: normalizedPhone,
         identities: {
@@ -46,15 +50,15 @@ export async function processWhatsAppJob(payload: any) {
   }
 
   let conversation = await prisma.crmConversation.findFirst({
-    where: { contactId: contact.id, botId: channel.botId, channel: "whatsapp" },
+    where: { contactId: contact.id, botId: targetBotId, channel: "whatsapp" },
   });
 
   if (!conversation) {
     conversation = await prisma.crmConversation.create({
       data: {
-        tenantId: channel.bot.tenantId,
+        tenantId: tenantId,
         contactId: contact.id,
-        botId: channel.botId,
+        botId: targetBotId,
         channel: "whatsapp",
       },
     });
@@ -62,7 +66,7 @@ export async function processWhatsAppJob(payload: any) {
 
   await prisma.crmMessage.create({
     data: {
-      tenantId: channel.bot.tenantId,
+      tenantId: tenantId,
       conversationId: conversation.id,
       direction: "inbound",
       content: inboundText,
@@ -105,19 +109,25 @@ export async function processWhatsAppJob(payload: any) {
     },
   });
 
-  // Resolving credentials
   if (!channel.accessToken) return;
   const envelope = decryptWhatsAppCredentialEnvelope(channel.accessToken);
 
-  // Try Flow first
   try {
+    // Check for bot status (enabled/disabled)
+    const bot = await prisma.bot.findUnique({
+      where: { id: targetBotId },
+      select: { enabled: true, entryFlow: true }
+    });
+
+    if (!bot || !bot.enabled) return;
+
     const flowResult = await executeBotEntryFlowFirst({
-      tenantId: channel.bot.tenantId,
+      tenantId: tenantId,
       contactId: contact.id,
       scopeKey: `whatsapp:${channel.id}`,
       message: inboundText,
       channelId: channel.id,
-      entryFlow: channel.bot.entryFlow ?? undefined,
+      entryFlow: bot.entryFlow ?? undefined,
       variables: { channel: "whatsapp", waId: normalizedWaId },
     });
 
@@ -135,7 +145,7 @@ export async function processWhatsAppJob(payload: any) {
           if (sendResult.success) {
             await prisma.crmMessage.create({
               data: {
-                tenantId: channel.bot.tenantId,
+                tenantId: tenantId,
                 conversationId: conversation.id,
                 direction: "outbound",
                 content: resp.text,
@@ -147,8 +157,8 @@ export async function processWhatsAppJob(payload: any) {
       }
 
       await Promise.allSettled([
-        recordMilestoneEvent(channel.bot.tenantId, "first-channel", { channelType: "whatsapp", channelId: channel.id }),
-        recordMilestoneEvent(channel.bot.tenantId, "first-automated-reply", { channelType: "whatsapp", source: "flow" }),
+        recordMilestoneEvent(tenantId, "first-channel", { channelType: "whatsapp", channelId: channel.id }),
+        recordMilestoneEvent(tenantId, "first-automated-reply", { channelType: "whatsapp", source: "flow" }),
       ]);
       return;
     }
@@ -171,12 +181,12 @@ export async function processWhatsAppJob(payload: any) {
     }));
 
     const subscription = await prisma.subscription.findUnique({
-      where: { tenantId: channel.bot.tenantId },
+      where: { tenantId: tenantId },
       select: { plan: { select: { name: true } } },
     });
 
     const aiStream = await aiFallback({
-      botId: channel.botId,
+      botId: targetBotId,
       conversationId: conversation.id,
       messages: aiMessages,
       planName: subscription?.plan?.name || "free",
@@ -193,7 +203,7 @@ export async function processWhatsAppJob(payload: any) {
     if (sendResult.success) {
       await prisma.crmMessage.create({
         data: {
-          tenantId: channel.bot.tenantId,
+          tenantId: tenantId,
           conversationId: conversation.id,
           direction: "outbound",
           content: replyText,
@@ -202,8 +212,8 @@ export async function processWhatsAppJob(payload: any) {
       });
 
       await Promise.allSettled([
-        recordMilestoneEvent(channel.bot.tenantId, "first-channel", { channelType: "whatsapp", channelId: channel.id }),
-        recordMilestoneEvent(channel.bot.tenantId, "first-automated-reply", { channelType: "whatsapp", source: "ai" }),
+        recordMilestoneEvent(tenantId, "first-channel", { channelType: "whatsapp", channelId: channel.id }),
+        recordMilestoneEvent(tenantId, "first-automated-reply", { channelType: "whatsapp", source: "ai" }),
       ]);
     }
   } catch (aiError) {

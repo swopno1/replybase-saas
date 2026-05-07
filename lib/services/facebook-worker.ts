@@ -11,7 +11,7 @@ import { getFacebookGraphUrl } from "@/lib/server/facebook-utils";
 import logger from "@/lib/logger";
 
 export async function processFacebookJob(payload: any) {
-  const { senderPsid, pageId, messageText } = payload;
+  const { senderPsid, pageId, messageText, botId } = payload;
 
   const facebookPage = await prisma.facebookPage.findUnique({
     where: { facebookId: pageId },
@@ -19,9 +19,11 @@ export async function processFacebookJob(payload: any) {
 
   if (!facebookPage || !facebookPage.tenantId) return;
 
+  const targetBotId = botId || facebookPage.botId;
+  if (!targetBotId) return;
+
   const { tenantId, accessToken } = facebookPage;
 
-  // 2. Fetch user profile (optional)
   let userName: string | undefined;
   try {
     const profileUrl = getFacebookGraphUrl(senderPsid, accessToken, {
@@ -35,7 +37,6 @@ export async function processFacebookJob(payload: any) {
     }
   } catch {}
 
-  // 3. Find or create Contact
   let contact = await prisma.contact.findFirst({
     where: {
       tenantId,
@@ -53,40 +54,41 @@ export async function processFacebookJob(payload: any) {
     });
   }
 
-  // 4. Find or create Conversation
-  let conversation: any = null;
-  if (facebookPage.botId) {
-    conversation = await prisma.crmConversation.findFirst({
-      where: { contactId: contact.id, facebookPageId: facebookPage.id },
-    });
-    if (!conversation) {
-      conversation = await prisma.crmConversation.create({
-        data: {
-          tenantId,
-          contactId: contact.id,
-          channel: "facebook",
-          botId: facebookPage.botId,
-          facebookPageId: facebookPage.id,
-        },
-      });
-    }
-  }
+  let conversation = await prisma.crmConversation.findFirst({
+    where: { contactId: contact.id, botId: targetBotId, channel: "facebook" },
+  });
 
-  if (conversation) {
-    await prisma.crmMessage.create({
+  if (!conversation) {
+    conversation = await prisma.crmConversation.create({
       data: {
         tenantId,
-        conversationId: conversation.id,
-        direction: "inbound",
-        content: messageText,
-        source: "human",
+        contactId: contact.id,
+        channel: "facebook",
+        botId: targetBotId,
+        facebookPageId: facebookPage.id,
       },
     });
   }
 
-  if (conversation?.botPaused) return;
+  await prisma.crmMessage.create({
+    data: {
+      tenantId,
+      conversationId: conversation.id,
+      direction: "inbound",
+      content: messageText,
+      source: "human",
+    },
+  });
 
-  // 6. Try Flow
+  if (conversation.botPaused) return;
+
+  // Bot Status check
+  const bot = await prisma.bot.findUnique({
+    where: { id: targetBotId },
+    select: { enabled: true }
+  });
+  if (!bot || !bot.enabled) return;
+
   try {
     const flowAssignment = await prisma.flowAssignment.findFirst({
       where: { pageId: facebookPage.id, isActive: true },
@@ -111,17 +113,15 @@ export async function processFacebookJob(payload: any) {
           await sendFacebookSenderAction(accessToken, senderPsid, "typing_off");
         } else if (resp.type === "text" && resp.text) {
           await sendTextMessage(accessToken, senderPsid, resp.text);
-          if (conversation) {
-            await prisma.crmMessage.create({
-              data: {
-                tenantId,
-                conversationId: conversation.id,
-                direction: "outbound",
-                content: resp.text,
-                source: "flow",
-              },
-            });
-          }
+          await prisma.crmMessage.create({
+            data: {
+              tenantId,
+              conversationId: conversation.id,
+              direction: "outbound",
+              content: resp.text,
+              source: "flow",
+            },
+          });
         }
       }
       await Promise.allSettled([
@@ -134,74 +134,53 @@ export async function processFacebookJob(payload: any) {
     logger.error({ error }, "[Facebook Worker] Flow error");
   }
 
-  // 7. AI fallback
+  // AI fallback
   try {
-    if (facebookPage.botId && conversation) {
-      const subscription = await prisma.subscription.findUnique({
-        where: { tenantId },
-        select: { plan: { select: { name: true } } },
+    const subscription = await prisma.subscription.findUnique({
+      where: { tenantId },
+      select: { plan: { select: { name: true } } },
+    });
+    const plan = subscription?.plan?.name || "free";
+
+    const lastMessages = await prisma.crmMessage.findMany({
+      where: { conversationId: conversation.id },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: { content: true, source: true },
+    });
+    const aiMessages: ModelMessage[] = lastMessages.reverse().map((msg) => ({
+      role: msg.source === "human" ? "user" : "assistant",
+      content: msg.content,
+    }));
+
+    const { aiFallback } = await import("@/lib/ai-fallback");
+    const aiStream = await aiFallback({
+      botId: targetBotId,
+      conversationId: conversation.id,
+      messages: aiMessages,
+      planName: plan,
+    });
+
+    const aiText = aiStream && "text" in aiStream ? await aiStream.text : String(aiStream ?? "");
+
+    if (aiText.trim()) {
+      await sendTextMessage(accessToken, senderPsid, aiText.trim());
+      await prisma.crmMessage.create({
+        data: {
+          tenantId,
+          conversationId: conversation.id,
+          direction: "outbound",
+          content: aiText.trim(),
+          source: "ai",
+        },
       });
-      const plan = subscription?.plan?.name || "free";
-
-      const lastMessages = await prisma.crmMessage.findMany({
-        where: { conversationId: conversation.id },
-        orderBy: { createdAt: "desc" },
-        take: 10,
-        select: { content: true, source: true },
-      });
-      const aiMessages: ModelMessage[] = lastMessages.reverse().map((msg) => ({
-        role: msg.source === "human" ? "user" : "assistant",
-        content: msg.content,
-      }));
-
-      const { aiFallback } = await import("@/lib/ai-fallback");
-      const aiStream = await aiFallback({
-        botId: facebookPage.botId,
-        conversationId: conversation.id,
-        messages: aiMessages,
-        planName: plan,
-      });
-
-      const aiText = aiStream && "text" in aiStream ? await aiStream.text : String(aiStream ?? "");
-
-      if (aiText.trim()) {
-        await sendTextMessage(accessToken, senderPsid, aiText.trim());
-        await prisma.crmMessage.create({
-          data: {
-            tenantId,
-            conversationId: conversation.id,
-            direction: "outbound",
-            content: aiText.trim(),
-            source: "ai",
-          },
-        });
-        await Promise.allSettled([
-          recordMilestoneEvent(tenantId, "first-channel", { channelType: "facebook", pageId: facebookPage.id }),
-          recordMilestoneEvent(tenantId, "first-automated-reply", { channelType: "facebook", source: "ai" }),
-        ]);
-        return;
-      }
+      await Promise.allSettled([
+        recordMilestoneEvent(tenantId, "first-channel", { channelType: "facebook", pageId: facebookPage.id }),
+        recordMilestoneEvent(tenantId, "first-automated-reply", { channelType: "facebook", source: "ai" }),
+      ]);
+      return;
     }
   } catch (aiError) {
     logger.error({ error: aiError }, "[Facebook Worker] AI error");
   }
-
-  // 8. Static fallback
-  const fallbackMessage = "All of our agents are currently busy or offline. Please leave your email address, and we'll get back to you as soon as possible.";
-  await sendTextMessage(accessToken, senderPsid, fallbackMessage);
-  if (conversation) {
-    await prisma.crmMessage.create({
-      data: {
-        tenantId,
-        conversationId: conversation.id,
-        direction: "outbound",
-        content: fallbackMessage,
-        source: "ai",
-      },
-    });
-  }
-  await Promise.allSettled([
-    recordMilestoneEvent(tenantId, "first-channel", { channelType: "facebook", pageId: facebookPage.id }),
-    recordMilestoneEvent(tenantId, "first-automated-reply", { channelType: "facebook", source: "ai" }),
-  ]);
 }

@@ -1,28 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { z } from "zod";
-import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getMe, setTelegramWebhook } from "@/lib/telegram-api";
 import { encryptTelegramToken } from "@/lib/telegram-crypto";
-import { recordTelegramWebhookSetupLog } from "@/lib/telegram-webhook-setup-log";
-import {
-  generateWebhookSecret,
-  isLikelyTelegramBotToken,
-  maskTelegramToken,
-} from "@/lib/telegram-utils";
 import { getTenantLimits } from "@/lib/subscription";
+import crypto from "crypto";
 
 export const dynamic = 'force-dynamic';
-
-
-
-
-const connectSchema = z.object({
-  botToken: z.string().min(10),
-  channelName: z.string().min(1).optional(),
-});
 
 export async function POST(
   req: NextRequest,
@@ -35,20 +20,6 @@ export async function POST(
     }
 
     const { botId } = await params;
-    const body = await req.json();
-    const validated = connectSchema.parse(body);
-    const normalizedToken = validated.botToken.trim();
-
-    if (!isLikelyTelegramBotToken(normalizedToken)) {
-      return NextResponse.json(
-        {
-          error:
-            "Invalid Telegram bot token format. Expected something like 123456789:ABCDEF...",
-        },
-        { status: 400 },
-      );
-    }
-
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: { tenantId: true },
@@ -58,259 +29,83 @@ export async function POST(
       return NextResponse.json({ error: "No tenant found" }, { status: 403 });
     }
 
-    const bot = await prisma.bot.findFirst({
+    const validatedBot = await prisma.bot.findFirst({
       where: { id: botId, tenantId: user.tenantId },
-      select: { id: true },
     });
 
-    if (!bot) {
+    if (!validatedBot) {
       return NextResponse.json({ error: "Bot not found" }, { status: 404 });
     }
 
-    const profile = await getMe(normalizedToken);
+    const body = await req.json();
+    const { botToken, channelName } = body;
 
-    const encryptedToken = encryptTelegramToken(normalizedToken);
-    const defaultName =
-      validated.channelName || \`Telegram @\${profile.username || profile.id}\`;
+    if (!botToken) {
+      return NextResponse.json({ error: "Bot token is required" }, { status: 400 });
+    }
 
-    const telegramBotId = String(profile.id);
+    let profile;
+    try {
+      profile = await getMe(botToken);
+    } catch (e) {
+      return NextResponse.json({ error: "Invalid Telegram bot token" }, { status: 400 });
+    }
 
-    // Prevent binding one Telegram bot token to multiple ReplyBase bots in the same tenant.
-    const existingByTelegramBot = await prisma.channel.findFirst({
-      where: {
-        type: "telegram",
-        channelId: telegramBotId,
-        bot: {
-          tenantId: user.tenantId,
-        },
-      },
-      select: {
-        id: true,
-        botId: true,
-      },
+    const limits = await getTenantLimits(user.tenantId);
+    const currentChannels = await prisma.channel.count({
+      where: { botId, type: "telegram", isActive: true },
     });
 
-    if (existingByTelegramBot && existingByTelegramBot.botId !== bot.id) {
+    if (currentChannels >= limits.maxChannelsPerBot) {
       return NextResponse.json(
-        {
-          error:
-            "This Telegram bot is already connected to another ReplyBase bot in your workspace. Disconnect it first before reconnecting here.",
-        },
-        { status: 409 },
+        { error: `Channel limit reached (max ${limits.maxChannelsPerBot} per bot on your plan)` },
+        { status: 403 },
       );
     }
 
-    let channel = await prisma.channel.findFirst({
-      where: {
-        type: "telegram",
-        channelId: telegramBotId,
-      },
-    });
-    const nowIso = new Date().toISOString();
-    let createdChannelId: string | null = null;
+    const encryptedToken = encryptTelegramToken(botToken);
+    const webhookSecret = crypto.randomBytes(32).toString("hex");
 
-    // Only check the channel limit when creating a new channel, not when updating.
-    if (!channel) {
-      const limits = await getTenantLimits(user.tenantId);
-      const channelCount = await prisma.channel.count({
-        where: { botId: bot.id },
-      });
-      if (channelCount >= limits.maxChannelsPerBot) {
-        return NextResponse.json(
-          {
-            error: \`Channel limit reached (max \${limits.maxChannelsPerBot} per bot on your plan)\`,
-          },
-          { status: 403 },
-        );
-      }
-    }
+    const name = channelName || `Telegram @${profile.username || profile.id}`;
 
-    if (!channel) {
-      try {
-        channel = await prisma.channel.create({
-          data: {
-            botId: bot.id,
-            type: "telegram",
-            name: defaultName,
-            channelId: telegramBotId,
-            isActive: false,
-            enabled: false,
-            killSwitch: true,
-            config: {
-              telegramBotId,
-              botUsername: profile.username || null,
-              botFirstName: profile.first_name || null,
-              provisioningStartedAt: nowIso,
-            } as Prisma.JsonObject,
-            tenantId: user.tenantId,
-          },
-        });
-        createdChannelId = channel.id;
-      } catch (error) {
-        if (
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === "P2002"
-        ) {
-          channel = await prisma.channel.findFirst({
-            where: {
-              type: "telegram",
-              channelId: telegramBotId,
-            },
-          });
-        }
-
-        if (!channel) {
-          throw error;
-        }
-      }
-    }
-
-    const webhookSecret = generateWebhookSecret();
-    const forwardedProto = req.headers.get("x-forwarded-proto");
-    const forwardedHost = req.headers.get("x-forwarded-host");
-    const host = forwardedHost || req.headers.get("host");
-    const inferredOrigin =
-      forwardedProto && host
-        ? \`\${forwardedProto}://\${host}\`
-        : req.nextUrl.origin;
-    const baseUrl =
-      process.env.TELEGRAM_WEBHOOK_BASE_URL?.trim() || inferredOrigin;
-    const webhookUrl = \`\${baseUrl.replace(/\/$/, "")}/api/telegram/webhook/\${channel.id}\`;
-
-    if (!webhookUrl.startsWith("https://")) {
-      await recordTelegramWebhookSetupLog({
+    const channel = await prisma.channel.create({
+      data: {
         tenantId: user.tenantId,
-        botId: bot.id,
-        channelId: channel.id,
-        event: "connect_webhook",
-        outcome: "setup_error",
-        webhookUrl,
-        reason: "Telegram requires an HTTPS webhook URL",
-      });
-
-      return NextResponse.json(
-        {
-          error:
-            "Telegram requires an HTTPS webhook URL. Set TELEGRAM_WEBHOOK_BASE_URL to your public HTTPS domain (or tunnel URL) and try again.",
-          details: {
-            webhookUrl,
-          },
+        botId,
+        type: "telegram",
+        name,
+        channelId: String(profile.id),
+        accessToken: encryptedToken,
+        config: {
+          username: profile.username,
+          firstName: profile.first_name,
+          webhookSecret,
         },
-        { status: 400 },
-      );
-    }
+      },
+    });
+
+    const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
+    const forwardedProto = req.headers.get("x-forwarded-proto") || "https";
+    const baseUrl = host.includes("localhost") ? "http://localhost:3000" : `${forwardedProto}://${host}`;
+    const webhookUrl = `${baseUrl.replace(/\/$/, "")}/api/telegram/webhook/${channel.id}`;
 
     try {
       await setTelegramWebhook({
-        token: normalizedToken,
+        token: botToken,
         webhookUrl,
-        secretToken: webhookSecret,
-        allowedUpdates: ["message", "callback_query"],
+        secretToken: webhookSecret
       });
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Failed to set Telegram webhook";
-
-      if (createdChannelId) {
-        await prisma.channel
-          .delete({ where: { id: createdChannelId } })
-          .catch(() => {
-            // Ignore cleanup failures and surface the original webhook error.
-          });
-      } else if (channel) {
-        const currentConfig =
-          (channel.config as Prisma.JsonObject | null) || {};
-        await prisma.channel.update({
-          where: { id: channel.id },
-          data: {
-            config: {
-              ...currentConfig,
-              lastWebhookError: message,
-              lastWebhookErrorAt: nowIso,
-              webhookConnected: false,
-            } as Prisma.JsonObject,
-          },
-        });
-      }
-
-      await recordTelegramWebhookSetupLog({
-        tenantId: user.tenantId,
-        botId: bot.id,
-        channelId: channel?.id,
-        event: "connect_webhook",
-        outcome: "setup_error",
-        webhookUrl,
-        reason: message,
+    } catch (e) {
+      await prisma.channel.update({
+        where: { id: channel.id },
+        data: { isActive: false },
       });
-
-      throw error;
+      return NextResponse.json({ error: "Failed to set Telegram webhook" }, { status: 500 });
     }
 
-    const currentConfig = (channel.config as Prisma.JsonObject | null) || {};
-
-    const updatedChannel = await prisma.channel.update({
-      where: { id: channel.id },
-      data: {
-        botId: bot.id,
-        name: defaultName,
-        channelId: telegramBotId,
-        accessToken: encryptedToken,
-        isActive: true,
-        enabled: true,
-        killSwitch: false,
-        config: {
-          ...currentConfig,
-          telegramBotId,
-          botUsername: profile.username || null,
-          botFirstName: profile.first_name || null,
-          connectedAt: currentConfig.connectedAt || nowIso,
-          webhookSecret,
-          webhookUrl,
-          webhookConnected: true,
-          lastWebhookSetAt: nowIso,
-          lastWebhookError: null,
-          lastWebhookErrorAt: null,
-        } as Prisma.JsonObject,
-      },
-    });
-
-    await recordTelegramWebhookSetupLog({
-      tenantId: user.tenantId,
-      botId: bot.id,
-      channelId: updatedChannel.id,
-      event: "connect_webhook",
-      outcome: "setup_success",
-      webhookUrl,
-    });
-
-    return NextResponse.json({
-      success: true,
-      channelId: updatedChannel.id,
-      bot: {
-        id: profile.id,
-        username: profile.username,
-        firstName: profile.first_name,
-      },
-      webhookUrl,
-      tokenMasked: maskTelegramToken(normalizedToken),
-    });
+    return NextResponse.json({ success: true, channelId: channel.id });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Invalid input", details: error.issues },
-        { status: 400 },
-      );
-    }
-
     console.error("[Telegram Connect] Error:", error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "Failed to connect Telegram",
-      },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

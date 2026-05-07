@@ -3,11 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
-/**
- * GET /api/bots/[botId]/channels/whatsapp/logs?channelId=<id>&limit=<n>
- */
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ botId: string }> },
@@ -34,40 +31,17 @@ export async function GET(
     const limit = Math.min(parseInt(limitParam || "20", 10), 100);
 
     if (!channelId) {
-      return NextResponse.json(
-        { error: "channelId is required" },
-        { status: 400 },
-      );
-    }
-
-    const channel = await prisma.channel.findFirst({
-      where: {
-        id: channelId,
-        botId,
-        type: "whatsapp",
-        bot: { tenantId: user.tenantId },
-      },
-      select: { id: true },
-    });
-
-    if (!channel) {
-      return NextResponse.json({ error: "Channel not found" }, { status: 404 });
+      return NextResponse.json({ error: "channelId is required" }, { status: 400 });
     }
 
     const logs = await prisma.webhookLog.findMany({
       where: {
         source: "whatsapp",
         OR: [
-          {
-            event: { startsWith: \`meta_message:\` },
-            data: { path: ["channelId"], equals: channelId },
-          },
-          {
-            event: { startsWith: \`twilio_status:\` },
-            data: { path: ["channelId"], equals: channelId },
-          },
-          { event: \`send_error:\${channelId}\` },
-          { event: \`meta_status_event:\${channelId}\` },
+          { event: { startsWith: `meta_message:` }, data: { path: ["channelId"], equals: channelId } },
+          { event: { startsWith: `twilio_status:` }, data: { path: ["channelId"], equals: channelId } },
+          { event: `send_error:${channelId}` },
+          { event: `meta_status_event:${channelId}` },
         ],
       },
       orderBy: { createdAt: "desc" },
@@ -83,9 +57,6 @@ export async function GET(
     return NextResponse.json({ logs });
   } catch (error) {
     console.error("[WhatsApp Logs] Error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch logs" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to fetch logs" }, { status: 500 });
   }
 }

@@ -1,0 +1,33 @@
+
+> replybase-saas@0.1.0 build
+> prisma generate && next build
+
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+
+✔ Generated Prisma Client (v7.8.0) to ./node_modules/.pnpm/@prisma+client@7.8.0_prisma@7.8.0_@types+react-dom@19.2.3_@types+react@19.2.14__@types+_b6bb2e12383cdc60609c5de8db9e0265/node_modules/@prisma/client in 821ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+
+▲ Next.js 16.2.4 (Turbopack)
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 20.7s
+  Running TypeScript ...
+Failed to type check.
+
+./app/api/integrations/facebook/route.ts:56:7
+Type error: Type '{ facebookId: string; name: string; accessToken: any; tenantId: string; engineConnected: false; }' is not assignable to type '(Without<FacebookPageCreateInput, FacebookPageUncheckedCreateInput> & FacebookPageUncheckedCreateInput) | (Without<...> & FacebookPageCreateInput)'.
+  Type '{ facebookId: string; name: string; accessToken: any; tenantId: string; engineConnected: false; }' is not assignable to type 'Without<FacebookPageCreateInput, FacebookPageUncheckedCreateInput> & FacebookPageUncheckedCreateInput'.
+    Property 'botId' is missing in type '{ facebookId: string; name: string; accessToken: any; tenantId: string; engineConnected: false; }' but required in type 'FacebookPageUncheckedCreateInput'.
+
+  [90m54 |[0m         accessToken: accessToken,
+  [90m55 |[0m       },
+[31m[1m>[0m [90m56 |[0m       create: {
+  [90m   |[0m       [31m[1m^[0m
+  [90m57 |[0m         facebookId: verifiedPageId,
+  [90m58 |[0m         name: verifiedPageName,
+  [90m59 |[0m         accessToken: accessToken,
+Next.js build worker exited with code: 1 and signal: null

@@ -1,67 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { getServerSession } from "next-auth";
-import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getTenantLimits } from "@/lib/subscription";
-import {
-  type WhatsAppProvider,
-  type WhatsAppProviderCredentials,
-  validateWhatsAppProviderConnection,
-  normalizeWhatsAppE164,
-} from "@/lib/whatsapp-provider";
 import { encryptWhatsAppCredentialEnvelope } from "@/lib/whatsapp-channel-credentials";
+import { getTenantLimits } from "@/lib/subscription";
 
-export const dynamic = "force-dynamic";
-
-const metaSchema = z.object({
-  provider: z.literal("meta_cloud"),
-  channelName: z.string().min(1).optional(),
-  credentials: z.object({
-    accessToken: z.string().min(10),
-    phoneNumberId: z.string().min(1),
-    businessAccountId: z.string().optional(),
-    appSecret: z.string().min(8).optional(),
-  }),
-});
-
-const twilioSchema = z.object({
-  provider: z.literal("twilio"),
-  channelName: z.string().min(1).optional(),
-  credentials: z.object({
-    accountSid: z.string().min(10),
-    authToken: z.string().min(8),
-    fromNumber: z.string().min(8),
-  }),
-});
-
-const dialogSchema = z.object({
-  provider: z.literal("360dialog"),
-  channelName: z.string().min(1).optional(),
-  credentials: z.object({
-    apiKey: z.string().min(8),
-    channelId: z.string().min(1),
-  }),
-});
-
-const connectSchema = z.discriminatedUnion("provider", [
-  metaSchema,
-  twilioSchema,
-  dialogSchema,
-]);
-
-function resolveWebhookBaseUrl(req: NextRequest): string {
-  const forwardedProto = req.headers.get("x-forwarded-proto");
-  const forwardedHost = req.headers.get("x-forwarded-host");
-  const host = forwardedHost || req.headers.get("host");
-
-  if (forwardedProto && host) {
-    return \`\${forwardedProto}://\${host}\`;
-  }
-
-  return req.nextUrl.origin;
-}
+export const dynamic = 'force-dynamic';
 
 export async function POST(
   req: NextRequest,
@@ -74,9 +18,6 @@ export async function POST(
     }
 
     const { botId } = await params;
-    const body = await req.json();
-    const validated = connectSchema.parse(body);
-
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: { tenantId: true },
@@ -86,160 +27,46 @@ export async function POST(
       return NextResponse.json({ error: "No tenant found" }, { status: 403 });
     }
 
-    const bot = await prisma.bot.findFirst({
-      where: { id: botId, tenantId: user.tenantId },
-      select: { id: true, name: true },
+    const body = await req.json();
+    const { provider, name, ...credentials } = body;
+
+    const limits = await getTenantLimits(user.tenantId);
+    const currentChannels = await prisma.channel.count({
+      where: { botId, type: "whatsapp", isActive: true },
     });
 
-    if (!bot) {
-      return NextResponse.json({ error: "Bot not found" }, { status: 404 });
-    }
-
-    let twilioFromNumber: string | null = null;
-    let credentials: WhatsAppProviderCredentials;
-
-    if (validated.provider === "twilio") {
-      twilioFromNumber = normalizeWhatsAppE164(
-        validated.credentials.fromNumber,
-      );
-      credentials = {
-        ...validated.credentials,
-        fromNumber: twilioFromNumber,
-      };
-    } else {
-      credentials = validated.credentials;
-    }
-
-    const validationResult = await validateWhatsAppProviderConnection({
-      provider: validated.provider as WhatsAppProvider,
-      credentials,
-    });
-
-    if (!validationResult.valid) {
+    if (currentChannels >= limits.maxChannelsPerBot) {
       return NextResponse.json(
-        {
-          error:
-            validationResult.error || "Failed to validate WhatsApp connection",
-        },
-        { status: 400 },
+        { error: `Channel limit reached (max ${limits.maxChannelsPerBot} per bot)` },
+        { status: 403 },
       );
     }
 
-    const channelId =
-      validated.provider === "meta_cloud"
-        ? validated.credentials.phoneNumberId
-        : validated.provider === "twilio"
-          ? twilioFromNumber!
-          : validated.credentials.channelId;
-
-    const encryptedPayload = encryptWhatsAppCredentialEnvelope({
-      provider: validated.provider,
+    const encryptedToken = encryptWhatsAppCredentialEnvelope({
+      provider,
       credentials,
     });
 
-    const baseUrl =
-      process.env.WHATSAPP_WEBHOOK_BASE_URL?.trim() ||
-      resolveWebhookBaseUrl(req);
-    const webhookUrl = \`\${baseUrl.replace(/\/$/, "")}/api/whatsapp/webhook\`;
+    const channelId = provider === "meta_cloud" ? credentials.metaPhoneNumberId : credentials.twilioFromNumber;
 
-    const nowIso = new Date().toISOString();
-    const providerLabel: Record<WhatsAppProvider, string> = {
-      meta_cloud: "Meta Cloud API",
-      twilio: "Twilio",
-      "360dialog": "360dialog",
-    };
-
-    const channelName =
-      validated.channelName?.trim() ||
-      \`WhatsApp (\${providerLabel[validated.provider as WhatsAppProvider]})\`;
-
-    const config: Prisma.JsonObject = {
-      provider: validated.provider,
-      providerLabel: providerLabel[validated.provider as WhatsAppProvider],
-      webhookUrl,
-      webhookConnected: true,
-      connectedAt: nowIso,
-      updatedAt: nowIso,
-      lastWebhookEventAt: null,
-      lastInboundMessageAt: null,
-      lastStatusEventAt: null,
-    };
-
-    if (validated.provider === "meta_cloud") {
-      config.metaPhoneNumberId = validated.credentials.phoneNumberId;
-      if (validated.credentials.businessAccountId) {
-        config.metaBusinessAccountId = validated.credentials.businessAccountId;
-      }
-    }
-
-    if (validated.provider === "twilio" && twilioFromNumber) {
-      config.twilioFromNumber = twilioFromNumber;
-    }
-
-    if (validated.provider === "360dialog") {
-      config.dialogChannelId = validated.credentials.channelId;
-    }
-
-    const channel = await prisma.channel.upsert({
-      where: {
-        type_channelId: {
-          type: "whatsapp",
-          channelId: channelId,
-        },
-      },
-      create: {
-        botId: bot.id,
-        type: "whatsapp",
-        name: channelName,
-        channelId: channelId,
-        accessToken: encryptedPayload,
-        isActive: true,
-        enabled: true,
-        killSwitch: false,
-        config,
+    const channel = await prisma.channel.create({
+      data: {
         tenantId: user.tenantId,
-      },
-      update: {
-        botId: bot.id,
-        name: channelName,
-        accessToken: encryptedPayload,
-        isActive: true,
-        enabled: true,
-        killSwitch: false,
-        config,
+        botId,
+        type: "whatsapp",
+        name: name || "WhatsApp",
+        channelId: String(channelId),
+        accessToken: encryptedToken,
+        config: {
+          provider,
+          ...credentials,
+        },
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      channel: {
-        id: channel.id,
-        name: channel.name,
-        provider: validated.provider,
-        webhookUrl,
-      },
-      compliance: {
-        policy:
-          "Only WhatsApp Business Platform providers are supported (Meta Cloud API, Twilio, 360dialog). Personal WhatsApp automation is not supported.",
-      },
-    });
+    return NextResponse.json({ success: true, channelId: channel.id });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Invalid input", details: error.issues },
-        { status: 400 },
-      );
-    }
-
     console.error("[WhatsApp Connect] Error:", error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to connect WhatsApp integration",
-      },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
