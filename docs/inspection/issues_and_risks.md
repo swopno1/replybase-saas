@@ -22,3 +22,4 @@
 - **DB Connection Exhaustion**: Still a consideration in high-traffic serverless scenarios; connection pooling is active but requires monitoring.
 - **Provider Quotas**: Simple AI fallback is implemented, but a more robust multi-key rotation strategy is still a potential future improvement.
 - **Scaling to Millions of messages**: While async processing helps, a dedicated message queue (e.g. SQS/BullMQ) should be considered for extreme scale.
+- **Lead Data Siloing (NEW)**: Leads captured in ReplyBase are not automatically pushed to external CRMs, increasing churn risk for enterprise clients who require real-time data sync.
