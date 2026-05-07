@@ -61,3 +61,5 @@
 - **Advanced Flow UI**: The backend supports complex flows, but the visual builder UI is not fully present in the inspected dashboard routes (likely using JSON-based templates for now).
 - **Multi-Agent Collaboration**: Assignments are present (`CrmConversation.assigneeId`), but advanced features like agent-to-agent transfers or collision detection are minimal.
 - **Lead Export Gaps**: As noted in memory, the UI doesn't always strictly disable export buttons based on subscription flags.
+- **External CRM Integrations (Missing)**: No native real-time integration with HubSpot, Salesforce, or Zapier. Leads are "siloed" within ReplyBase.
+- **AI Lead Enrichment (Missing)**: Captured leads contain raw enquiry text but lack structured "High Signal" data (budget, urgency) that AI could extract automatically.

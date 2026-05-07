@@ -22,3 +22,4 @@
 2.  **WhatsApp Onboarding Improvements**: Mature the WhatsApp integration UI to match the Facebook/Telegram experience.
 3.  **Multi-Agent Features**: Add agent collision detection and advanced conversation assignment logic.
 4.  **Advanced Analytics**: Expand the admin dashboard with more granular tenant-level health and performance metrics.
+5.  **Lead Connect & Action Engine**: Implement real-time outbound webhooks and AI lead enrichment to integrate with external CRMs and automation tools.
