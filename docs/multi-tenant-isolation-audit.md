@@ -14,9 +14,10 @@
 - **Impact**: Bypasses the automatic `tenantId` injection. If a developer forgets a manual `where: { tenantId }` filter, data leakage occurs.
 
 ### High Risk: Execution Logs & Tenant Context
-- **Findings**: The `ExecutionLog` model lacks a direct `tenantId` field. It relies on a join to the `Bot` model (`botId`).
+- **Findings**: The `ExecutionLog` model lacked a direct `tenantId` field. It relied on a join to the `Bot` model (`botId`).
 - **Impact**: Queries for logs must always join through `Bot`. If a query is run against `ExecutionLog` directly (e.g., for global analytics), it could inadvertently access data across tenants.
 - **Remediation**: Add `tenantId` directly to the `ExecutionLog` model for faster, safer querying.
+- **Status**: **RESOLVED**. `tenantId` has been added to `ExecutionLog` model with relations and indexed correctly. `lib/execution-logger.ts` updated to query and insert directly using `tenantId`.
 
 ### Medium Risk: Webhook Routing
 - **Findings**: Facebook/WhatsApp webhooks are public endpoints. They resolve `tenantId` by looking up the `pageId` or `phoneNumberId`.
@@ -39,9 +40,11 @@ await db.bot.update({
 });
 ```
 
+- **Status**: **RESOLVED**. All critical mutation endpoints (`bots`, `leads`, `contacts`, `conversations`) have been migrated to use `tenantId` directly in `update` and `delete` `where` clauses, utilizing Prisma's compound unique constraints (e.g., `@@unique([id, tenantId])`).
+
 ---
 
 ## 4. Verdict
-The isolation architecture is **Professional Grade** but needs **Consistency Hardening**.
-- **Confidence Level**: 85%
-- **Critical Remediation**: Migrate all mutations to include `tenantId` in the `where` clause, and add `tenantId` to the `ExecutionLog` model.
+The isolation architecture is **Professional Grade** and has undergone **Consistency Hardening**.
+- **Confidence Level**: 95%
+- **Critical Remediation**: **Completed**. All core mutations now include `tenantId` in the `where` clause, and `tenantId` has been fully integrated into the `ExecutionLog` model.

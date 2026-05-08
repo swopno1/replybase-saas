@@ -8,6 +8,7 @@ export type WebhookSetupLogInput = {
     | "reconnect_webhook"
     | "page_connect"
     | "page_disconnect"
+    | "page_reconnect"
     | "webchat_configure";
   outcome: "setup_success" | "setup_error";
   tenantId: string;

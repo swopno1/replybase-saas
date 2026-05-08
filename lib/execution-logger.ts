@@ -1,6 +1,7 @@
 import { prisma } from './prisma';
 
 export interface ExecutionLogData {
+  tenantId: string;
   botId: string;
   userId: string;
   sessionId?: string;
@@ -21,6 +22,7 @@ export async function logExecution(data: ExecutionLogData) {
   try {
     await prisma.executionLog.create({
       data: {
+        tenantId: data.tenantId,
         botId: data.botId,
         userId: data.userId,
         sessionId: data.sessionId || null,
@@ -75,15 +77,8 @@ export async function getTenantExecutionLogs(
   limit: number = 100,
   offset: number = 0
 ) {
-  const bots = await prisma.bot.findMany({
-    where: { tenantId },
-    select: { id: true },
-  });
-
-  const botIds = bots.map((b) => b.id);
-
   return prisma.executionLog.findMany({
-    where: { botId: { in: botIds } },
+    where: { tenantId },
     orderBy: { createdAt: 'desc' },
     take: limit,
     skip: offset,

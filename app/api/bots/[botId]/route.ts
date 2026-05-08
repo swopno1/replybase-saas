@@ -10,7 +10,7 @@ export const GET = withAuthAndTenant(
 
     const [bot, limitStatus] = await Promise.all([
       db.bot.findFirst({
-        where: { id: botId as string },
+        where: { id: botId as string, tenantId },
         include: { channels: true },
       }),
       checkBotLimit(tenantId),
@@ -76,8 +76,7 @@ export const DELETE = withAuthAndTenant(
         await tx.facebookPage.deleteMany({ where: { botId: id, tenantId } });
         await tx.crmConversation.updateMany({ where: { botId: id, tenantId }, data: { botId: null } });
 
-        // ExecutionLog does not have tenantId field in schema
-        await tx.executionLog.deleteMany({ where: { botId: id } });
+        await tx.executionLog.deleteMany({ where: { botId: id, tenantId } });
 
         await tx.webChatSite.deleteMany({ where: { botId: id, tenantId } });
         await tx.channel.deleteMany({ where: { botId: id, tenantId } });

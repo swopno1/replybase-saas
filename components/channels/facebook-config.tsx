@@ -202,6 +202,40 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
     }
   };
 
+  const handleReconnectPage = async (page: FacebookPage) => {
+    const diag = diagnosticResult[page.id];
+    
+    // If token is invalid, we must re-authenticate
+    if (diag && !diag.tokenValid) {
+      handleFacebookLogin();
+      return;
+    }
+
+    setStatusMap((prev) => ({ ...prev, [page.id]: "loading" }));
+    try {
+      const res = await fetch(`/api/bots/${botId}/channels/facebook/reconnect`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pageId: page.id }),
+      });
+
+      if (res.ok) {
+        toast.success("Connection restored!");
+        void handleRunDiagnostics(page);
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Failed to reconnect");
+        if (data.reauthRequired) {
+           handleFacebookLogin();
+        }
+      }
+    } catch (error) {
+      toast.error("Failed to reconnect");
+    } finally {
+      setStatusMap((prev) => ({ ...prev, [page.id]: "idle" }));
+    }
+  };
+
   const handleAssignFlow = async (page: FacebookPage) => {
     const flowId = selectedFlowIdMap[page.id];
     if (!flowId) return;
@@ -374,6 +408,24 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
                                 {diagnosticResult[page.id].webhookSubscribed ? "Yes" : "No"}
                               </span>
                             </div>
+                            {(!diagnosticResult[page.id].tokenValid || !diagnosticResult[page.id].webhookSubscribed) && (
+                              <div className="pt-2 border-t mt-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full h-7 text-[10px]"
+                                  onClick={() => handleReconnectPage(page)}
+                                  disabled={statusMap[page.id] === "loading"}
+                                >
+                                  {statusMap[page.id] === "loading" ? (
+                                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                  ) : (
+                                    <RefreshCw className="h-3 w-3 mr-1" />
+                                  )}
+                                  Reconnect / Fix
+                                </Button>
+                              </div>
+                            )}
                           </CardContent>
                         </Card>
                       )}

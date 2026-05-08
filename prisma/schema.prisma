@@ -103,6 +103,7 @@ model Tenant {
   users                     User[]
   webChatSites              WebChatSite[]
   webhookSubscriptions      WebhookSubscription[]
+  executionLogs             ExecutionLog[]
 
   @@map("tenants")
 }
@@ -363,6 +364,7 @@ model Channel {
 
 model ExecutionLog {
   id            String   @id @default(cuid())
+  tenantId      String
   botId         String
   userId        String
   sessionId     String?
@@ -377,7 +379,9 @@ model ExecutionLog {
   createdAt     DateTime @default(now())
   bot           Bot      @relation(fields: [botId], references: [id])
   user          User     @relation(fields: [userId], references: [id])
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId])
   @@index([botId, createdAt])
   @@index([userId, createdAt])
   @@index([sessionId])
