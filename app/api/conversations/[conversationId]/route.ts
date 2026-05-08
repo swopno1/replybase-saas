@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 import { ConversationStatus } from "@prisma/client";
@@ -12,84 +11,72 @@ const updateConversationSchema = z.object({
   botPaused: z.boolean().optional(),
 });
 
-async function getConversation(conversationId: string, tenantId: string) {
-  return await prisma.crmConversation.findFirst({
-    where: {
-      id: conversationId,
-      contact: {
-        tenantId: tenantId,
-      },
-    },
-    include: {
-      messages: {
-        orderBy: {
-          createdAt: "asc",
-        },
-      },
-      internalNotes: {
-        orderBy: {
-          createdAt: "asc",
+// GET: Retrieve a specific conversation
+export const GET = withAuthAndTenant(
+  async ({ tenantId }, request, context, db) => {
+    const { conversationId } = await context.params;
+    try {
+      const conversation = await db.crmConversation.findFirst({
+        where: {
+          id: conversationId as string,
+          tenantId
         },
         include: {
-          author: {
+          messages: {
+            orderBy: {
+              createdAt: "asc",
+            },
+          },
+          internalNotes: {
+            orderBy: {
+              createdAt: "asc",
+            },
+            include: {
+              author: {
+                select: {
+                  id: true,
+                  name: true,
+                  image: true,
+                },
+              },
+            },
+          },
+          assignee: {
             select: {
               id: true,
               name: true,
               image: true,
             },
           },
-        },
-      },
-      assignee: {
-        select: {
-          id: true,
-          name: true,
-          image: true,
-        },
-      },
-      contact: {
-        include: {
-          leads: {
+          contact: {
+            include: {
+              leads: {
+                orderBy: {
+                  createdAt: "desc",
+                },
+                take: 1,
+              },
+            },
+          },
+          webChatSessions: {
             orderBy: {
-              createdAt: "desc",
+              lastSeenAt: "desc",
             },
             take: 1,
-          },
-        },
-      },
-      webChatSessions: {
-        orderBy: {
-          lastSeenAt: "desc",
-        },
-        take: 1,
-        select: {
-          id: true,
-          visitorId: true,
-          lastSeenAt: true,
-          site: {
             select: {
               id: true,
-              name: true,
+              visitorId: true,
+              lastSeenAt: true,
+              site: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
             },
           },
         },
-      },
-    },
-  });
-}
-
-// GET: Retrieve a specific conversation
-export const GET: (
-  request: NextRequest,
-  context: { params: Promise<Record<string, string | string[]>> },
-) => Promise<Response> = withAuthAndTenant(
-  async ({ tenantId }, request, context) => {
-    const { conversationId } = await context.params;
-    try {
-      const conversation = await getConversation(
-        conversationId as string,
-        tenantId,
-      );
+      });
 
       if (!conversation) {
         return NextResponse.json(
@@ -110,29 +97,15 @@ export const GET: (
 );
 
 // PUT: Update a specific conversation
-export const PUT: (
-  request: NextRequest,
-  context: { params: Promise<Record<string, string | string[]>> },
-) => Promise<Response> = withAuthAndTenant(
-  async ({ tenantId }, request, context) => {
+export const PUT = withAuthAndTenant(
+  async ({ tenantId }, request, context, db) => {
     const { conversationId } = await context.params;
     try {
-      const conversation = await getConversation(
-        conversationId as string,
-        tenantId,
-      );
-      if (!conversation) {
-        return NextResponse.json(
-          { error: "Conversation not found" },
-          { status: 404 },
-        );
-      }
-
       const body = await request.json();
       const validated = updateConversationSchema.parse(body);
 
-      const updatedConversation = await prisma.crmConversation.update({
-        where: { id: conversationId as string },
+      const updatedConversation = await db.crmConversation.update({
+        where: { id: conversationId as string, tenantId },
         data: {
           ...validated,
         },
@@ -146,6 +119,13 @@ export const PUT: (
           { status: 400 },
         );
       }
+      // Prisma error for not found (P2025)
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2025') {
+         return NextResponse.json(
+          { error: "Conversation not found" },
+          { status: 404 },
+        );
+      }
       console.error("[Conversations API] Error updating conversation:", error);
       return NextResponse.json(
         { error: "Failed to update conversation" },
@@ -156,42 +136,44 @@ export const PUT: (
 );
 
 // DELETE: Delete a specific conversation
-export const DELETE: (
-  request: NextRequest,
-  context: { params: Promise<Record<string, string | string[]>> },
-) => Promise<Response> = withAuthAndTenant(
-  async ({ tenantId }, request, context) => {
+export const DELETE = withAuthAndTenant(
+  async ({ tenantId }, request, context, db) => {
     const { conversationId } = await context.params;
     try {
-      const conversation = await getConversation(
-        conversationId as string,
-        tenantId,
-      );
-      if (!conversation) {
-        return NextResponse.json(
-          { error: "Conversation not found" },
-          { status: 404 },
-        );
-      }
-
       const id = conversationId as string;
 
-      await prisma.$transaction(async (tx) => {
+      await db.$transaction(async (tx) => {
+        // Verify ownership
+        const conversation = await tx.crmConversation.findFirst({
+           where: { id, tenantId },
+           select: { id: true }
+        });
+
+        if (!conversation) {
+          throw new Error("NOT_FOUND");
+        }
+
         await tx.crmMessage.deleteMany({
-          where: { conversationId: id },
+          where: { conversationId: id, tenantId },
         });
 
         await tx.internalNote.deleteMany({
-          where: { conversationId: id },
+          where: { conversationId: id, tenantId },
         });
 
         await tx.crmConversation.delete({
-          where: { id },
+          where: { id, tenantId },
         });
       });
 
       return NextResponse.json({ success: true }, { status: 200 });
     } catch (error) {
+      if (error instanceof Error && error.message === "NOT_FOUND") {
+        return NextResponse.json(
+          { error: "Conversation not found" },
+          { status: 404 },
+        );
+      }
       console.error("[Conversations API] Error deleting conversation:", error);
       return NextResponse.json(
         { error: "Failed to delete conversation" },

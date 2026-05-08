@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAuthAndTenant } from "@/lib/route-helpers";
-import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -9,28 +8,17 @@ const updateLeadSchema = z.object({
   status: z.string(),
 });
 
-export const PATCH: (
-  request: NextRequest,
-  context: { params: Promise<Record<string, string | string[]>> },
-) => Promise<Response> = withAuthAndTenant(
-  async ({ tenantId }, request, context) => {
+export const PATCH = withAuthAndTenant(
+  async ({ tenantId }, request, context, db) => {
     try {
       const { leadId } = await context.params;
       const id = String(leadId);
 
-      const lead = await prisma.lead.findFirst({
-        where: { id, tenantId },
-      });
-
-      if (!lead) {
-        return NextResponse.json({ error: "Lead not found" }, { status: 404 });
-      }
-
       const body = await request.json();
       const validated = updateLeadSchema.parse(body);
 
-      const updatedLead = await prisma.lead.update({
-        where: { id },
+      const updatedLead = await db.lead.update({
+        where: { id, tenantId },
         data: { status: validated.status },
       });
 
@@ -38,6 +26,13 @@ export const PATCH: (
     } catch (error) {
       if (error instanceof z.ZodError) {
         return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+      // Prisma error for not found (P2025)
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2025') {
+         return NextResponse.json(
+          { error: "Lead not found" },
+          { status: 404 },
+        );
       }
       console.error("[Leads API] Error updating lead:", error);
       return NextResponse.json(
@@ -48,35 +43,25 @@ export const PATCH: (
   },
 );
 
-export const DELETE: (
-  request: NextRequest,
-  context: { params: Promise<Record<string, string | string[]>> },
-) => Promise<Response> = withAuthAndTenant(
-  async ({ tenantId }, request, context) => {
+export const DELETE = withAuthAndTenant(
+  async ({ tenantId }, request, context, db) => {
     try {
       const { leadId } = await context.params;
       const id = String(leadId);
 
-      const lead = await prisma.lead.findFirst({
-        where: {
-          id,
-          tenantId,
-        },
-        select: {
-          id: true,
-        },
-      });
-
-      if (!lead) {
-        return NextResponse.json({ error: "Lead not found" }, { status: 404 });
-      }
-
-      await prisma.lead.delete({
-        where: { id },
+      await db.lead.delete({
+        where: { id, tenantId },
       });
 
       return NextResponse.json({ success: true });
     } catch (error) {
+      // Prisma error for not found (P2025)
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2025') {
+         return NextResponse.json(
+          { error: "Lead not found" },
+          { status: 404 },
+        );
+      }
       console.error("[Leads API] Error deleting lead:", error);
       return NextResponse.json(
         { error: "Failed to delete lead" },
