@@ -26,13 +26,39 @@ export async function POST(
       return NextResponse.json({ error: "Facebook page not found" }, { status: 404 });
     }
 
-    const { enabled } = await req.json();
+    const { enabled, flowId } = await req.json();
+
+    // 1. Update the engine connection status on the page
     const updated = await prisma.facebookPage.update({
       where: { id: facebookPage.id },
       data: { engineConnected: enabled },
     });
 
-    return NextResponse.json({ success: true, engineConnected: updated.engineConnected });
+    // 2. Manage the FlowAssignment
+    if (enabled && flowId) {
+      // Create or update the assignment
+      await prisma.flowAssignment.upsert({
+        where: { pageId: facebookPage.id },
+        update: { flowId, isActive: true },
+        create: {
+          pageId: facebookPage.id,
+          flowId,
+          isActive: true,
+        },
+      });
+    } else if (!enabled) {
+      // Deactivate the assignment if engine is disabled
+      await prisma.flowAssignment.updateMany({
+        where: { pageId: facebookPage.id },
+        data: { isActive: false },
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      engineConnected: updated.engineConnected,
+      flowId: enabled ? flowId : null,
+    });
   } catch (error) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }

@@ -9,7 +9,12 @@ import {
   Copy,
   ChevronDown,
   CheckCircle2,
+  Zap,
 } from "lucide-react";
+import {
+  ChannelFlowAssignmentCard,
+  ChannelActivityLogCard,
+} from "@/components/channels/channel-sections";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -80,6 +85,74 @@ export function WebchatConfig({
     Array<{ id: string; role: "user" | "bot"; text: string }>
   >([]);
 
+  // Flow assignment state
+  const [flows, setFlows] = useState<FlowOption[]>([]);
+  const [isFlowsLoading, setIsFlowsLoading] = useState(false);
+  const [selectedFlowId, setSelectedFlowId] = useState("");
+  const [isAssigningFlow, setIsAssigningFlow] = useState(false);
+  const [isUnassigningFlow, setIsUnassigningFlow] = useState(false);
+
+  const loadFlows = async () => {
+    setIsFlowsLoading(true);
+    try {
+      const res = await fetch("/api/flows?type=my");
+      if (res.ok) {
+        const data = await res.json();
+        setFlows(data.flows || []);
+      }
+    } catch (error) {
+      console.error("Failed to load flows:", error);
+    } finally {
+      setIsFlowsLoading(false);
+    }
+  };
+
+  const handleAssignFlow = async () => {
+    if (!channelId || !selectedFlowId) return;
+
+    setIsAssigningFlow(true);
+    try {
+      const res = await fetch(`/api/channels/${channelId}/flows`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ flowId: selectedFlowId }),
+      });
+
+      if (!res.ok) throw new Error("Failed to assign flow");
+      toast.success("Flow assigned successfully!");
+      void loadSite(botId);
+    } catch (error) {
+      toast.error("Failed to assign flow");
+    } finally {
+      setIsAssigningFlow(false);
+    }
+  };
+
+  const handleUnassignFlow = async () => {
+    if (!channelId) return;
+
+    setIsUnassigningFlow(true);
+    try {
+      const res = await fetch(`/api/channels/${channelId}/flows`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) throw new Error("Failed to unassign flow");
+      toast.success("Flow unassigned.");
+      void loadSite(botId);
+    } catch (error) {
+      toast.error("Failed to unassign flow");
+    } finally {
+      setIsUnassigningFlow(false);
+    }
+  };
+
+  const assignedFlow = useMemo(() => {
+    // Check if channel exists and has flow assignments
+    // Note: the backend site object includes channel data
+    return (site as any)?.channel?.flowAssignments?.[0]?.flow;
+  }, [site]);
+
   const loadSite = async (id: string) => {
     if (!channelId) {
       setLoading(false);
@@ -133,6 +206,7 @@ export function WebchatConfig({
     if (botId) {
       setTimeout(() => {
         void loadSite(botId);
+        void loadFlows();
       }, 0);
     }
   }, [botId, channelId]);
@@ -272,6 +346,29 @@ export function WebchatConfig({
         </Card>
       </div>
 
+      <ChannelFlowAssignmentCard
+        title="Channel Flow Assignment"
+        description="Assign an active flow to the selected web channel. Channel assignment takes precedence over bot entry flow."
+        selectLabel="Assigned Flow"
+        selectId="webchatFlowSelect"
+        flows={flows}
+        isFlowsLoading={isFlowsLoading}
+        selectedFlowId={selectedFlowId}
+        onSelectFlow={setSelectedFlowId}
+        assignedFlowName={assignedFlow?.name}
+        unassignedDescription="No channel flow is assigned. Bot entry flow or AI fallback applies."
+        onAssign={handleAssignFlow}
+        onUnassign={handleUnassignFlow}
+        isAssigning={isAssigningFlow}
+        isUnassigning={isUnassigningFlow}
+        assignDisabled={
+          !selectedFlowId ||
+          isAssigningFlow ||
+          assignedFlow?.id === selectedFlowId
+        }
+        unassignDisabled={!assignedFlow || isUnassigningFlow}
+      />
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Live Preview</CardTitle>
@@ -281,30 +378,40 @@ export function WebchatConfig({
         </CardHeader>
         <CardContent>
           <div className="relative h-64 rounded-lg border bg-slate-50 p-4 overflow-hidden">
-            <div className={`absolute bottom-4 ${position === "left" ? "left-4" : "right-4"} w-64`}>
+            <div
+              className={`absolute bottom-4 ${position === "left" ? "left-4" : "right-4"} w-64`}
+            >
               {isPreviewOpen && (
-                <div className="rounded-lg border bg-white shadow-lg overflow-hidden flex flex-col h-48">
-                  <div className="px-3 py-2 text-white text-xs font-bold" style={{ backgroundColor: themeColor }}>
+                <div className="flex h-48 flex-col overflow-hidden rounded-lg border bg-white shadow-lg">
+                  <div
+                    className="px-3 py-2 text-xs font-bold text-white"
+                    style={{ backgroundColor: themeColor }}
+                  >
                     {title}
                   </div>
-                  <div className="flex-1 p-2 overflow-y-auto space-y-2">
-                    <div className="bg-slate-100 p-2 rounded text-[10px]">{welcomeMessage}</div>
-                    {previewMessages.map(m => (
-                      <div key={m.id} className={`p-2 rounded text-[10px] ${m.role === 'user' ? 'bg-blue-100 ml-4' : 'bg-slate-100 mr-4'}`}>
+                  <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                    <div className="rounded bg-slate-100 p-2 text-[10px]">
+                      {welcomeMessage}
+                    </div>
+                    {previewMessages.map((m) => (
+                      <div
+                        key={m.id}
+                        className={`rounded p-2 text-[10px] ${m.role === "user" ? "ml-4 bg-blue-100" : "mr-4 bg-slate-100"}`}
+                      >
                         {m.text}
                       </div>
                     ))}
                   </div>
-                  <div className="p-2 border-t flex gap-1">
+                  <div className="flex gap-1 border-t p-2">
                     <input
-                      className="flex-1 text-[10px] border rounded px-2 outline-none"
+                      className="flex-1 rounded border px-2 text-[10px] outline-none"
                       placeholder="Type..."
                       value={previewDraft}
-                      onChange={e => setPreviewDraft(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handlePreviewSend()}
+                      onChange={(e) => setPreviewDraft(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handlePreviewSend()}
                     />
                     <button
-                      className="px-2 py-1 text-white rounded text-[10px]"
+                      className="rounded px-2 py-1 text-[10px] text-white"
                       style={{ backgroundColor: themeColor }}
                       onClick={handlePreviewSend}
                     >
@@ -314,7 +421,7 @@ export function WebchatConfig({
                 </div>
               )}
               <Button
-                className="rounded-full h-10 w-10 p-0 ml-auto flex mt-2"
+                className="ml-auto mt-2 flex h-10 w-10 rounded-full p-0"
                 style={{ backgroundColor: themeColor }}
                 onClick={() => setIsPreviewOpen(!isPreviewOpen)}
               >
@@ -326,4 +433,9 @@ export function WebchatConfig({
       </Card>
     </div>
   );
+}
+
+interface FlowOption {
+  id: string;
+  name: string;
 }
