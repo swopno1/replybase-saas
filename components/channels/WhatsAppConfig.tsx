@@ -328,7 +328,7 @@ export function WhatsAppConfig({ botId }: WhatsAppConfigProps) {
       </Card>
       {status && <Card><CardHeader><CardTitle>Status</CardTitle></CardHeader><CardContent><Badge>{connected ? "Connected" : "Disconnected"}</Badge><p className="text-sm mt-2">Provider: {status.provider || "-"}</p></CardContent></Card>}
       <ChannelFlowAssignmentCard title="Flow" description="Assign flow" selectLabel="Flow" selectId="wa-flow" flows={flows} isFlowsLoading={isFlowsLoading} selectedFlowId={selectedFlowId} onSelectFlow={setSelectedFlowId} assignedFlowName={assignedFlow?.name} unassignedDescription="No flow" onAssign={handleAssignFlow} onUnassign={handleUnassignFlow} isAssigning={isAssigningFlow} isUnassigning={isUnassigningFlow} assignDisabled={!selectedFlowId || isAssigningFlow || !connected} unassignDisabled={!assignedFlow || !connected} />
-      {connected && <ChannelActivityLogCard logs={logs} isLoading={isLogsLoading} onRefresh={() => status.channel?.id && loadLogs(status.channel.id)} emptyText="No logs" />}
+      {connected && <ChannelActivityLogCard logs={logs} isLoading={isLogsLoading} onRefresh={() => status?.channel?.id && loadLogs(status.channel.id)} emptyText="No logs" />}
     </div>
   );
 }

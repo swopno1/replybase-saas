@@ -25,7 +25,7 @@ export function FacebookConfig({ botId }: { botId: string }) {
       const data = await res.json();
       setConnected(data.connected);
       setPages(data.pages || []);
-    } finally { setLoading(setLoading(false)); }
+    } finally { setLoading(false); }
   }
 
   return (
