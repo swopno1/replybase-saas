@@ -70,3 +70,21 @@ During deployment, the error `P3005` was observed. This occurs when `prisma migr
 ### Actions Taken:
 - Updated `Dockerfile` to use Prisma `7.8.0` to match `package.json`.
 - Standardized migration command to `npx prisma migrate deploy`.
+
+
+---
+
+## 5. Deployment Fixes & Database Migration
+### Issue: Migration Error P3005
+During deployment, the error `P3005` was observed. This occurs when `npx prisma migrate deploy` is run against a database that already has a schema but no migration history (baseline issue).
+
+### Required Manual Action for First Deploy:
+To fix this, you must run the following command **once** against your production database:
+```bash
+npx prisma migrate resolve --applied 20260130130900_init
+```
+After running this, subsequent deployments will work automatically as they will find the migration history in the `_prisma_migrations` table.
+
+### Actions Taken in Code:
+- Synchronized Prisma version to `7.8.0` in `Dockerfile`.
+- Hardened the `CMD` in `Dockerfile` to use `npx prisma migrate deploy`.
