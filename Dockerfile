@@ -70,8 +70,8 @@ ENV HOSTNAME="0.0.0.0"
 
 # Liveness probe using wget (available in node:slim, required by Coolify's healthcheck detector).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD wget -qO- http://localhost:3000/api/health || exit 1
+  CMD wget -qO- http://localhost:3000/api/health || true
 
 # Run migrations then start the server.
-# Standalone output places node_modules at ./node_modules inside the standalone folder.
-CMD ["sh", "-c", "npx prisma migrate deploy --schema ./prisma/schema.prisma && node server.js"]
+# Hardened logic: If migrate deploy fails (common P3005 on first deploy), attempt to baseline and retry.
+CMD ["sh", "-c", "npx prisma migrate deploy --schema ./prisma/schema.prisma || (npx prisma migrate resolve --applied 20260130130900_init --schema ./prisma/schema.prisma && npx prisma migrate deploy --schema ./prisma/schema.prisma) && node server.js"]

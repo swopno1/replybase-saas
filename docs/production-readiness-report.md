@@ -88,3 +88,18 @@ After running this, subsequent deployments will work automatically as they will 
 ### Actions Taken in Code:
 - Synchronized Prisma version to `7.8.0` in `Dockerfile`.
 - Hardened the `CMD` in `Dockerfile` to use `npx prisma migrate deploy`.
+
+---
+
+## 5. Deployment Fixes & Database Migration (Update)
+### Issue: Migration Error P3005
+During deployment, the error `P3005` was observed. This occurs when `npx prisma migrate deploy` is run against a database that already has a schema but no migration history (baseline issue).
+
+### Solution:
+The `Dockerfile` has been updated to automatically attempt a baseline of the initial migration (`20260130130900_init`) if the first migration attempt fails. This allows the service to recover and continue the migration flow automatically in most "existing schema" scenarios.
+
+### Manual Action (Fallback):
+If the automated baseline still fails, you may need to manually resolve migrations using:
+```bash
+npx prisma migrate resolve --applied <migration_name> --schema ./prisma/schema.prisma
+```
