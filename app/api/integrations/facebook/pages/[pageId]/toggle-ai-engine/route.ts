@@ -1,11 +1,10 @@
-import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = 'force-dynamic';
 
 export const POST = withAuthAndTenant(
-  async ({ tenantId }, req: NextRequest, context) => {
+  async ({ tenantId }, req: NextRequest, context, db) => {
     try {
       const params = await context.params;
       const body = await req.json();
@@ -16,7 +15,7 @@ export const POST = withAuthAndTenant(
         return NextResponse.json({ error: "Missing required fields: pageId, enabled" }, { status: 400 });
       }
 
-      const page = await prisma.facebookPage.findFirst({
+      const page = await db.facebookPage.findFirst({
         where: { id: pageId, tenantId },
       });
 
@@ -29,7 +28,7 @@ export const POST = withAuthAndTenant(
       };
 
       if (enabled && !page.botId) {
-        const defaultBot = await prisma.bot.findFirst({
+        const defaultBot = await db.bot.findFirst({
           where: { tenantId },
           select: { id: true },
         });
@@ -40,8 +39,8 @@ export const POST = withAuthAndTenant(
         updateData.botId = defaultBot.id;
       }
 
-      await prisma.facebookPage.update({
-        where: { id: pageId },
+      await db.facebookPage.update({
+        where: { id: pageId, tenantId },
         data: updateData,
       });
 

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 
@@ -11,21 +10,14 @@ const updateContactSchema = z.object({
   phone: z.string().max(20).optional(),
 });
 
-async function getContact(contactId: string, tenantId: string) {
-  return await prisma.contact.findFirst({
-    where: { id: contactId, tenantId },
-  });
-}
-
 // GET: Retrieve a specific contact
-export const GET: (
-  request: NextRequest,
-  context: { params: Promise<Record<string, string | string[]>> },
-) => Promise<Response> = withAuthAndTenant(
-  async ({ tenantId }, request, context) => {
+export const GET = withAuthAndTenant(
+  async ({ tenantId }, request, context, db) => {
     const { contactId } = await context.params;
     try {
-      const contact = await getContact(contactId as string, tenantId);
+      const contact = await db.contact.findFirst({
+        where: { id: contactId as string, tenantId },
+      });
       if (!contact) {
         return NextResponse.json(
           { error: "Contact not found" },
@@ -44,26 +36,17 @@ export const GET: (
 );
 
 // PUT: Update a specific contact
-export const PUT: (
-  request: NextRequest,
-  context: { params: Promise<Record<string, string | string[]>> },
-) => Promise<Response> = withAuthAndTenant(
-  async ({ tenantId }, request, context) => {
+export const PUT = withAuthAndTenant(
+  async ({ tenantId }, request, context, db) => {
     const { contactId } = await context.params;
     try {
-      const contact = await getContact(contactId as string, tenantId);
-      if (!contact) {
-        return NextResponse.json(
-          { error: "Contact not found" },
-          { status: 404 },
-        );
-      }
+      const id = contactId as string;
 
       const body = await request.json();
       const validated = updateContactSchema.parse(body);
 
-      const updatedContact = await prisma.contact.update({
-        where: { id: contactId as string },
+      const updatedContact = await db.contact.update({
+        where: { id, tenantId },
         data: validated,
       });
 
@@ -73,6 +56,13 @@ export const PUT: (
         return NextResponse.json(
           { error: "Invalid input", details: error.issues },
           { status: 400 },
+        );
+      }
+      // Prisma error for not found (P2025)
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2025') {
+         return NextResponse.json(
+          { error: "Contact not found" },
+          { status: 404 },
         );
       }
       console.error("[Contacts API] Error updating contact:", error);
@@ -85,53 +75,58 @@ export const PUT: (
 );
 
 // DELETE: Delete a specific contact
-export const DELETE: (
-  request: NextRequest,
-  context: { params: Promise<Record<string, string | string[]>> },
-) => Promise<Response> = withAuthAndTenant(
-  async ({ tenantId }, request, context) => {
+export const DELETE = withAuthAndTenant(
+  async ({ tenantId }, request, context, db) => {
     const { contactId } = await context.params;
     try {
-      const contact = await getContact(contactId as string, tenantId);
-      if (!contact) {
-        return NextResponse.json(
-          { error: "Contact not found" },
-          { status: 404 },
-        );
-      }
-
       const id = contactId as string;
 
-      await prisma.$transaction(async (tx) => {
+      await db.$transaction(async (tx) => {
+        // Verify ownership first within transaction
+        const contact = await tx.contact.findFirst({
+           where: { id, tenantId },
+           select: { id: true }
+        });
+
+        if (!contact) {
+          throw new Error("NOT_FOUND");
+        }
+
         // Keep lead history but detach it from the deleted contact.
         await tx.lead.updateMany({
-          where: { contactId: id },
+          where: { contactId: id, tenantId },
           data: { contactId: null },
         });
 
         await tx.crmMessage.deleteMany({
-          where: { conversation: { contactId: id } },
+          where: { conversation: { contactId: id, tenantId } },
         });
 
         await tx.internalNote.deleteMany({
-          where: { conversation: { contactId: id } },
+          where: { conversation: { contactId: id, tenantId } },
         });
 
         await tx.crmConversation.deleteMany({
-          where: { contactId: id },
+          where: { contactId: id, tenantId },
         });
 
         await tx.contactIdentity.deleteMany({
-          where: { contactId: id },
+          where: { contactId: id, tenantId },
         });
 
         await tx.contact.delete({
-          where: { id },
+          where: { id, tenantId },
         });
       });
 
       return NextResponse.json({ success: true }, { status: 200 });
     } catch (error) {
+      if (error instanceof Error && error.message === "NOT_FOUND") {
+        return NextResponse.json(
+          { error: "Contact not found" },
+          { status: 404 },
+        );
+      }
       console.error("[Contacts API] Error deleting contact:", error);
       return NextResponse.json(
         { error: "Failed to delete contact" },

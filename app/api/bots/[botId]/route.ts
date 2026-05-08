@@ -1,126 +1,93 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 import { checkBotLimit } from "@/lib/subscription";
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ botId: string }> },
-) {
-  const { botId } = await params;
-  const session = await getServerSession(authOptions);
+export const GET = withAuthAndTenant(
+  async ({ tenantId }, req, context, db) => {
+    const { botId } = await context.params;
 
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const [bot, limitStatus] = await Promise.all([
+      db.bot.findFirst({
+        where: { id: botId as string },
+        include: { channels: true },
+      }),
+      checkBotLimit(tenantId),
+    ]);
+
+    if (!bot) {
+      return NextResponse.json({ error: "Bot not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ bot, limitStatus });
   }
+);
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { tenantId: true },
-  });
+export const PATCH = withAuthAndTenant(
+  async ({ tenantId }, req, context, db) => {
+    const { botId } = await context.params;
+    const body = await req.json();
+    const { name, enabled, entryFlowId } = body;
 
-  if (!user?.tenantId) {
-    return NextResponse.json({ error: "No tenant found" }, { status: 403 });
+    try {
+      const bot = await db.bot.update({
+        where: { id: botId as string, tenantId },
+        data: {
+          ...(name && { name }),
+          ...(enabled !== undefined && { enabled: Boolean(enabled) }),
+          ...(entryFlowId !== undefined && { entryFlow: entryFlowId || null }),
+        },
+      });
+
+      return NextResponse.json({ bot });
+    } catch (error) {
+       // Prisma error for not found (P2025)
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2025') {
+         return NextResponse.json(
+          { error: "Bot not found" },
+          { status: 404 },
+        );
+      }
+      console.error("[Bots API] Error updating bot:", error);
+      return NextResponse.json({ error: "Failed to update bot" }, { status: 500 });
+    }
   }
+);
 
-  const [bot, limitStatus] = await Promise.all([
-    prisma.bot.findFirst({
-      where: { id: botId, tenantId: user.tenantId },
-      include: { channels: true },
-    }),
-    checkBotLimit(user.tenantId),
-  ]);
+export const DELETE = withAuthAndTenant(
+  async ({ tenantId }, req, context, db) => {
+    const { botId } = await context.params;
+    const id = botId as string;
 
-  if (!bot) {
-    return NextResponse.json({ error: "Bot not found" }, { status: 404 });
+    try {
+      await db.$transaction(async (tx) => {
+        // Verify ownership
+        const bot = await tx.bot.findFirst({
+          where: { id, tenantId },
+          select: { id: true }
+        });
+
+        if (!bot) {
+          throw new Error("NOT_FOUND");
+        }
+
+        // Note: FacebookPage requires botId (String, not String?), so we delete them.
+        await tx.facebookPage.deleteMany({ where: { botId: id, tenantId } });
+        await tx.crmConversation.updateMany({ where: { botId: id, tenantId }, data: { botId: null } });
+        await tx.executionLog.deleteMany({ where: { botId: id, tenantId } });
+        await tx.webChatSite.deleteMany({ where: { botId: id, tenantId } });
+        await tx.channel.deleteMany({ where: { botId: id, tenantId } });
+        await tx.bot.delete({ where: { id, tenantId } });
+      });
+
+      return NextResponse.json({ success: true });
+    } catch (error) {
+      if (error instanceof Error && error.message === "NOT_FOUND") {
+        return NextResponse.json({ error: "Bot not found" }, { status: 404 });
+      }
+      console.error("[Bots API] Error deleting bot:", error);
+      return NextResponse.json({ error: "Failed to delete bot" }, { status: 500 });
+    }
   }
-
-  return NextResponse.json({ bot, limitStatus });
-}
-
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ botId: string }> },
-) {
-  const { botId } = await params;
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { tenantId: true },
-  });
-
-  if (!user?.tenantId) {
-    return NextResponse.json({ error: "No tenant found" }, { status: 403 });
-  }
-
-  const existingBot = await prisma.bot.findFirst({
-    where: { id: botId, tenantId: user.tenantId },
-  });
-
-  if (!existingBot) {
-    return NextResponse.json({ error: "Bot not found" }, { status: 404 });
-  }
-
-  const body = await req.json();
-  const { name, enabled, entryFlowId } = body;
-
-  const bot = await prisma.bot.update({
-    where: { id: botId },
-    data: {
-      ...(name && { name }),
-      ...(enabled !== undefined && { enabled: Boolean(enabled) }),
-      ...(entryFlowId !== undefined && { entryFlow: entryFlowId || null }),
-    },
-  });
-
-  return NextResponse.json({ bot });
-}
-
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ botId: string }> },
-) {
-  const { botId } = await params;
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { tenantId: true },
-  });
-
-  if (!user?.tenantId) {
-    return NextResponse.json({ error: "No tenant found" }, { status: 403 });
-  }
-
-  const bot = await prisma.bot.findFirst({
-    where: { id: botId, tenantId: user.tenantId },
-  });
-
-  if (!bot) {
-    return NextResponse.json({ error: "Bot not found" }, { status: 404 });
-  }
-
-  await prisma.$transaction(async (tx) => {
-    // Note: FacebookPage requires botId (String, not String?), so we delete them.
-    await tx.facebookPage.deleteMany({ where: { botId } });
-    await tx.crmConversation.updateMany({ where: { botId }, data: { botId: null } });
-    await tx.executionLog.deleteMany({ where: { botId } });
-    await tx.webChatSite.deleteMany({ where: { botId } });
-    await tx.channel.deleteMany({ where: { botId } });
-    await tx.bot.delete({ where: { id: botId } });
-  });
-
-  return NextResponse.json({ success: true });
-}
+);
