@@ -389,7 +389,7 @@ export default function BillingTabContent() {
                     <span className="font-bold text-sm">Monthly AI Responses</span>
                   </div>
                   <span className="text-xs font-medium text-muted-foreground">
-                    <span className="text-foreground font-bold">{(usage?.monthlyMessages ?? 0).toLocaleString()}</span> / {usage?.monthlyMessageLimit === 999999999 ? "∞" : (usage?.monthlyMessageLimit ?? 0).toLocaleString()}
+                    <span className="text-foreground font-bold">{(usage?.monthlyMessages ?? 0).toLocaleString()}</span> / {(!usage?.monthlyMessageLimit || usage?.monthlyMessageLimit >= 999999) ? "∞" : usage.monthlyMessageLimit.toLocaleString()}
                   </span>
                 </div>
                 <Progress 
@@ -397,7 +397,9 @@ export default function BillingTabContent() {
                   className="h-2.5 bg-muted/50"
                   indicatorClassName={getUsageColor(usage?.monthlyMessages || 0, usage?.monthlyMessageLimit || 1)}
                 />
-                <p className="text-[11px] text-muted-foreground">Reset on {new Date(subscription?.currentPeriodEnd || "").toLocaleDateString()}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Reset on {subscription?.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : "next billing cycle"}
+                </p>
               </div>
 
               {/* Automation Usage */}
@@ -408,7 +410,7 @@ export default function BillingTabContent() {
                     <span className="font-bold text-sm">Flow Executions (Monthly)</span>
                   </div>
                   <span className="text-xs font-medium text-muted-foreground">
-                    <span className="text-foreground font-bold">{(usage?.monthlyFlowExecutions ?? 0).toLocaleString()}</span> / {usage?.flowExecutionCap === 999999999 ? "∞" : (usage?.flowExecutionCap ?? 0).toLocaleString()}
+                    <span className="text-foreground font-bold">{(usage?.monthlyFlowExecutions ?? 0).toLocaleString()}</span> / {(!usage?.flowExecutionCap || usage?.flowExecutionCap >= 999999) ? "∞" : usage.flowExecutionCap.toLocaleString()}
                   </span>
                 </div>
                 <Progress 
@@ -416,7 +418,9 @@ export default function BillingTabContent() {
                   className="h-2.5 bg-muted/50"
                   indicatorClassName={getUsageColor(usage?.monthlyFlowExecutions ?? 0, usage?.flowExecutionCap || 1)}
                 />
-                <p className="text-[11px] text-muted-foreground">Resets at the start of each billing cycle</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Reset on {subscription?.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : "next billing cycle"}
+                </p>
               </div>
 
               <div className="bg-primary/5 rounded-xl p-4 border border-primary/10 flex items-start gap-3">
