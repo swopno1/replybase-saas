@@ -54,11 +54,14 @@ interface WebchatDiagnostics {
 
 export function WebchatConfig({
   botId,
-  channelId,
+  channelId: initialChannelId,
+  channelLimitStatus,
 }: {
   botId: string;
   channelId?: string;
+  channelLimitStatus?: { allowed: boolean; limit: number } | null;
 }) {
+  const [channelId, setChannelId] = useState<string | undefined>(initialChannelId);
   const [site, setSite] = useState<WebchatSite | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -209,18 +212,50 @@ export function WebchatConfig({
         void loadFlows();
       }, 0);
     }
-  }, [botId, channelId]);
+  }, [botId, channelId, initialChannelId]);
+
+  useEffect(() => {
+    if (initialChannelId !== channelId) {
+      setChannelId(initialChannelId);
+    }
+  }, [initialChannelId]);
 
   const handleSave = async () => {
-    if (!channelId) return;
     setSaving(true);
     try {
+      let currentChannelId = channelId;
+
+      // If no channelId exists, we need to create the web channel first
+      if (!currentChannelId) {
+        if (channelLimitStatus && !channelLimitStatus.allowed) {
+          throw new Error(`Channel limit reached. Please upgrade your plan to connect more channels.`);
+        }
+
+        const channelRes = await fetch(`/api/bots/${botId}/channels`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "web",
+            name: name || "Webchat",
+          }),
+        });
+
+        if (!channelRes.ok) {
+          const errorData = await channelRes.json();
+          throw new Error(errorData.error || "Failed to create web channel");
+        }
+        
+        const channelData = await channelRes.json();
+        currentChannelId = channelData.channel.id;
+        setChannelId(currentChannelId);
+      }
+
       const res = await fetch(`/api/bots/${botId}/webchat-site`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          channelId,
-          name,
+          channelId: currentChannelId,
+          name: name || "Webchat",
           allowedDomains: url ? [url] : [],
           themeConfig: {
             themeColor,
@@ -231,12 +266,17 @@ export function WebchatConfig({
         }),
       });
 
-      if (!res.ok) throw new Error("Failed to save webchat site");
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to save webchat site");
+      }
+      
       const data = await res.json();
       setSite(data.site);
       toast.success("Webchat settings saved!");
     } catch (error) {
-      toast.error("Failed to save settings");
+      console.error("Save error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to save settings");
     } finally {
       setSaving(false);
     }
@@ -258,6 +298,7 @@ export function WebchatConfig({
 
   return (
     <div className="space-y-6">
+      <ChannelLimitWarning limitStatus={channelLimitStatus} />
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>

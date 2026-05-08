@@ -43,9 +43,9 @@ export const OnboardingSchema = z.object({
     businessModel: z.string().max(100),
   }),
   offer: z.object({
-    description: z.string().max(1000),
+    description: z.string().max(5000),
     targetCustomers: z.array(z.string()),
-    mainProducts: z.string().max(1000),
+    mainProducts: z.string().max(5000),
   }),
   chatbotGoals: z.object({
     conversionGoal: z.enum(CONVERSION_GOALS),
@@ -54,8 +54,8 @@ export const OnboardingSchema = z.object({
     escalationPreference: z.enum(ESCALATION_PREFERENCES),
   }),
   context: z.object({
-    commonQuestions: z.string().max(2000),
-    otherInfo: z.string().max(2000).optional(),
+    commonQuestions: z.string().max(5000),
+    otherInfo: z.string().max(5000).optional(),
   }),
 });
 
@@ -79,32 +79,32 @@ export const LegacyOnboardingSchema = z.object({
   kyc: z.object({
     name: z.string().min(1).max(100),
     company: z.string().min(1).max(100),
-    contactInfo: z.string().max(200),
-    location: z.string().max(100),
+    contactInfo: z.string().max(500),
+    location: z.string().max(200),
   }),
   businessBasics: z.object({
     industry: z.string().max(100),
     subIndustry: z.string().max(100).optional(),
-    companySize: z.string().max(50),
+    companySize: z.string().max(100),
     website: z.string().max(255).optional(),
     businessModel: z.string().max(100),
   }),
   productDetails: z.object({
-    offer: z.string().max(1000),
+    offer: z.string().max(5000),
     targetCustomers: z.array(z.string()),
   }),
   productSpecifics: z.object({
-    mainProducts: z.string().max(1000),
-    pricing: z.string().max(500),
-    usps: z.string().max(1000),
+    mainProducts: z.string().max(5000),
+    pricing: z.string().max(1000),
+    usps: z.string().max(2000),
   }),
   supportSales: z.object({
-    commonQuestions: z.string().max(2000),
-    painPoints: z.string().max(1000),
-    salesProcess: z.string().max(1000),
+    commonQuestions: z.string().max(5000),
+    painPoints: z.string().max(2000),
+    salesProcess: z.string().max(2000),
   }),
   additionalContext: z.object({
-    otherInfo: z.string().max(2000).optional(),
+    otherInfo: z.string().max(5000).optional(),
   }),
 });
 

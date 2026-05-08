@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { OnboardingProgress } from "./onboarding-ui";
 import { toast } from "sonner";
-import { Loader2, ChevronDown, Sparkles, Target, MessageSquare, Zap, Phone, Mail, Globe, Calendar, Users } from "lucide-react";
+import { Loader2, ChevronDown, Sparkles, Target, MessageSquare, Zap, Phone, Mail, Globe, Calendar, Users, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { OnboardingData } from "@/types/shared/onboarding";
 
@@ -236,6 +236,22 @@ export function OnboardingModal({
     setOpen(newOpen);
   };
 
+  const CharacterCount = ({ current, max, softMax }: { current: number; max: number; softMax?: number }) => {
+    const isOverSoft = softMax && current > softMax;
+    const isOverHard = current >= max;
+
+    return (
+      <div className={cn(
+        "text-[10px] mt-1 flex justify-end items-center gap-1.5 transition-colors",
+        isOverHard ? "text-destructive font-bold" : isOverSoft ? "text-amber-500" : "text-muted-foreground/50"
+      )}>
+        {isOverSoft && !isOverHard && <AlertCircle className="h-2.5 w-2.5" />}
+        <span>{current.toLocaleString()} / {max.toLocaleString()}</span>
+        {isOverSoft && !isOverHard && <span>(Getting long, try to keep it concise)</span>}
+      </div>
+    );
+  };
+
   // ─── Step Renderers ─────────────────────────────────────────────────────────
 
   const renderStep0_Business = () => (
@@ -250,7 +266,9 @@ export function OnboardingModal({
           value={data.business.name || ""}
           onChange={(e) => updateData("business", "name", e.target.value)}
           placeholder="John Doe"
+          maxLength={100}
         />
+        <CharacterCount current={data.business.name.length} max={100} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="company" className="text-xs uppercase tracking-widest text-primary/70">
@@ -262,7 +280,9 @@ export function OnboardingModal({
           value={data.business.company || ""}
           onChange={(e) => updateData("business", "company", e.target.value)}
           placeholder="Acme Inc."
+          maxLength={100}
         />
+        <CharacterCount current={data.business.company.length} max={100} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="industry" className="text-xs uppercase tracking-widest text-primary/70">
@@ -333,7 +353,9 @@ export function OnboardingModal({
           value={data.business.website || ""}
           onChange={(e) => updateData("business", "website", e.target.value)}
           placeholder="https://example.com"
+          maxLength={255}
         />
+        <CharacterCount current={(data.business.website || "").length} max={255} />
       </div>
     </div>
   );
@@ -350,7 +372,9 @@ export function OnboardingModal({
           value={data.offer.description || ""}
           onChange={(e) => updateData("offer", "description", e.target.value)}
           placeholder="Describe your main products or services..."
+          maxLength={5000}
         />
+        <CharacterCount current={data.offer.description.length} max={5000} softMax={3000} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="mainProducts" className="text-xs uppercase tracking-widest text-primary/70">
@@ -362,7 +386,9 @@ export function OnboardingModal({
           value={data.offer.mainProducts || ""}
           onChange={(e) => updateData("offer", "mainProducts", e.target.value)}
           placeholder="List your top products and their key features..."
+          maxLength={5000}
         />
+        <CharacterCount current={data.offer.mainProducts.length} max={5000} softMax={3000} />
       </div>
       <div className="space-y-2">
         <Label className="text-xs uppercase tracking-widest text-primary/70">
@@ -523,7 +549,9 @@ export function OnboardingModal({
           value={data.context.commonQuestions || ""}
           onChange={(e) => updateData("context", "commonQuestions", e.target.value)}
           placeholder="e.g. What are your prices? Do you offer refunds? How long does delivery take?"
+          maxLength={5000}
         />
+        <CharacterCount current={data.context.commonQuestions.length} max={5000} softMax={3000} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="otherInfo" className="text-xs uppercase tracking-widest text-primary/70">
@@ -535,7 +563,9 @@ export function OnboardingModal({
           value={data.context.otherInfo || ""}
           onChange={(e) => updateData("context", "otherInfo", e.target.value)}
           placeholder="Any other details to help personalize your chatbot..."
+          maxLength={5000}
         />
+        <CharacterCount current={(data.context.otherInfo || "").length} max={5000} softMax={3000} />
       </div>
       <div className="flex items-start gap-3 p-4 rounded-lg bg-primary/5 border border-primary/10">
         <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />

@@ -17,24 +17,29 @@ export async function POST(req: NextRequest) {
     const requestEmail = body.email?.trim().toLowerCase();
     const sessionEmail = session?.user?.email?.trim().toLowerCase();
 
-    if (!apiAuth.authenticated && !sessionEmail) {
-      return NextResponse.json(
-        { error: "Unauthorized. Sign in or provide a valid API key" },
-        { status: 401 },
-      );
+    // Determine the email to subscribe. For public marketing signups, 
+    // we allow unauthenticated requests if an email is provided in the body.
+    let email: string | undefined;
+    let source: string = body.source || "web";
+
+    if (apiAuth.authenticated) {
+      // API key authentication
+      email = requestEmail;
+      source = body.source || "api";
+    } else if (sessionEmail) {
+      // Session authentication - can use session email or a provided email
+      email = requestEmail || sessionEmail;
+      source = requestEmail ? "web" : "account";
+    } else if (requestEmail) {
+      // Public signup (e.g. from footer)
+      email = requestEmail;
+      source = "web";
     }
 
-    const email = apiAuth.authenticated ? requestEmail : sessionEmail;
-    const source = apiAuth.authenticated ? body.source : "account";
-
-    if (
-      !apiAuth.authenticated &&
-      requestEmail &&
-      requestEmail !== sessionEmail
-    ) {
+    if (!email) {
       return NextResponse.json(
-        { error: "Forbidden. You can only subscribe your own account email" },
-        { status: 403 },
+        { error: "Email is required" },
+        { status: 400 },
       );
     }
 

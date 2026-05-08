@@ -282,6 +282,7 @@ export default function BotDetailPage() {
                     <WebchatConfig
                       botId={botId}
                       channelId={bot.channels.find((c) => c.type === "web")?.id}
+                      channelLimitStatus={channelLimitStatus}
                     />
                   )}
                 </div>
