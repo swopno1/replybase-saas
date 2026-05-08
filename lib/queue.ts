@@ -28,7 +28,7 @@ export const messageQueue = isBuild
     });
 
 export interface MessageJobData {
-  type: "whatsapp" | "facebook" | "telegram";
+  type: "whatsapp" | "facebook" | "telegram" | "lead_enrichment";
   botId: string;
   payload: any;
 }
@@ -52,6 +52,19 @@ export const setupWorker = () => {
         } else if (type === "telegram") {
           const { processTelegramJob } = await import("@/lib/services/telegram-worker");
           await processTelegramJob({ ...payload, botId });
+        } else if (type === "lead_enrichment") {
+          const { LeadEnrichmentService } = await import("@/lib/services/lead-enrichment");
+          const { dispatchWebhook } = await import("@/lib/services/webhook-dispatcher");
+          const { prisma: db } = await import("@/lib/prisma");
+
+          const enrichmentService = new LeadEnrichmentService(db);
+          const insights = await enrichmentService.enrichLead(payload.leadId);
+
+          // Dispatch lead.created webhook after enrichment
+          await dispatchWebhook(payload.tenantId, "lead.created", {
+            ...payload.leadData,
+            insights: insights || null,
+          });
         }
       } catch (error) {
         logger.error({ jobId: job.id, error }, "[Worker] Job failed");

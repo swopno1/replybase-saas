@@ -1,0 +1,196 @@
+
+> replybase-saas@0.1.0 build /app
+> prisma generate && next build
+
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+
+✔ Generated Prisma Client (v7.8.0) to ./node_modules/.pnpm/@prisma+client@7.8.0_prisma@7.8.0_@types+react-dom@19.2.3_@types+react@19.2.14__@types+_b6bb2e12383cdc60609c5de8db9e0265/node_modules/@prisma/client in 818ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+
+▲ Next.js 16.2.4 (Turbopack)
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 22.8s
+  Running TypeScript ...
+  Finished TypeScript in 30.0s ...
+  Collecting page data using 3 workers ...
+⚠️  Some environment variables are missing during build time. This is expected in some CI/Docker environments.
+⚠️  Some environment variables are missing during build time. This is expected in some CI/Docker environments.
+⚠️  Some environment variables are missing during build time. This is expected in some CI/Docker environments.
+⚠️  Some environment variables are missing during build time. This is expected in some CI/Docker environments.
+⚠️  Some environment variables are missing during build time. This is expected in some CI/Docker environments.
+⚠️  Some environment variables are missing during build time. This is expected in some CI/Docker environments.
+  Generating static pages using 3 workers (0/39) ...
+  Generating static pages using 3 workers (9/39)
+  Generating static pages using 3 workers (19/39)
+  Generating static pages using 3 workers (29/39)
+✓ Generating static pages using 3 workers (39/39) in 714ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ○ /_not-found
+├ ƒ /activity
+├ ƒ /admin
+├ ƒ /admin/analytics
+├ ƒ /admin/flows/[id]/edit
+├ ƒ /admin/kpi-health
+├ ƒ /admin/onboarding
+├ ƒ /admin/segmented-analytics
+├ ƒ /admin/subscribers
+├ ƒ /admin/subscribers/[id]
+├ ƒ /admin/tests
+├ ƒ /admin/users
+├ ƒ /admin/webchat-monitoring
+├ ƒ /admin/webchat-rollout
+├ ƒ /admin/webhook-logs
+├ ƒ /api/activities
+├ ƒ /api/admin/flows
+├ ƒ /api/admin/flows/[id]
+├ ƒ /api/admin/kpi-health
+├ ƒ /api/admin/plans
+├ ƒ /api/admin/segmented-kpis
+├ ƒ /api/admin/subscribers
+├ ƒ /api/admin/subscribers/[id]
+├ ƒ /api/admin/tests
+├ ƒ /api/admin/users
+├ ƒ /api/admin/users/[userId]
+├ ƒ /api/admin/webchat-rollout
+├ ƒ /api/admin/webhook-logs
+├ ƒ /api/ai/chat
+├ ƒ /api/analytics
+├ ƒ /api/analytics/onboarding-milestones
+├ ƒ /api/auth/[...nextauth]
+├ ƒ /api/auth/forgot-password
+├ ƒ /api/auth/register
+├ ƒ /api/auth/reset-password
+├ ƒ /api/billing
+├ ƒ /api/billing/cancel
+├ ƒ /api/billing/checkout
+├ ƒ /api/billing/portal
+├ ƒ /api/billing/subscription
+├ ƒ /api/billing/subscription/[id]
+├ ƒ /api/billing/verify-session
+├ ƒ /api/billing/webhook
+├ ƒ /api/bots
+├ ƒ /api/bots/[botId]
+├ ƒ /api/bots/[botId]/channels
+├ ƒ /api/bots/[botId]/channels/[channelId]
+├ ƒ /api/bots/[botId]/channels/facebook
+├ ƒ /api/bots/[botId]/channels/facebook/[pageId]
+├ ƒ /api/bots/[botId]/channels/facebook/[pageId]/check-connection
+├ ƒ /api/bots/[botId]/channels/facebook/[pageId]/toggle-ai-engine
+├ ƒ /api/bots/[botId]/channels/telegram/connect
+├ ƒ /api/bots/[botId]/channels/telegram/disconnect
+├ ƒ /api/bots/[botId]/channels/telegram/health
+├ ƒ /api/bots/[botId]/channels/telegram/logs
+├ ƒ /api/bots/[botId]/channels/telegram/reconnect
+├ ƒ /api/bots/[botId]/channels/telegram/status
+├ ƒ /api/bots/[botId]/channels/whatsapp/connect
+├ ƒ /api/bots/[botId]/channels/whatsapp/disconnect
+├ ƒ /api/bots/[botId]/channels/whatsapp/logs
+├ ƒ /api/bots/[botId]/channels/whatsapp/status
+├ ƒ /api/bots/[botId]/webchat-site
+├ ƒ /api/bots/[botId]/webchat-site/diagnostics
+├ ƒ /api/contacts
+├ ƒ /api/contacts/[contactId]
+├ ƒ /api/conversations
+├ ƒ /api/conversations/[conversationId]
+├ ƒ /api/conversations/[conversationId]/messages
+├ ƒ /api/conversations/[conversationId]/notes
+├ ƒ /api/conversations/[conversationId]/suggest-reply
+├ ƒ /api/cron/expired-trials
+├ ƒ /api/cron/process-data-deletions
+├ ƒ /api/cron/prune-logs
+├ ƒ /api/cron/prune-sessions
+├ ƒ /api/cron/trial-reminders
+├ ƒ /api/data-deletion/request
+├ ƒ /api/data-deletion/status
+├ ƒ /api/execution-logs
+├ ƒ /api/facebook/data-deletion
+├ ƒ /api/facebook/deauthorize
+├ ƒ /api/facebook/disconnect
+├ ƒ /api/facebook/pages
+├ ƒ /api/facebook/user-pages
+├ ƒ /api/facebook/webhook
+├ ƒ /api/flows
+├ ƒ /api/flows/[id]
+├ ƒ /api/flows/[id]/assign
+├ ƒ /api/flows/[id]/clone
+├ ƒ /api/flows/[id]/duplicate
+├ ƒ /api/flows/from-template
+├ ƒ /api/health
+├ ƒ /api/integrations/facebook
+├ ƒ /api/integrations/facebook/pages
+├ ƒ /api/integrations/facebook/pages/[pageId]
+├ ƒ /api/integrations/facebook/pages/[pageId]/check-connection
+├ ƒ /api/integrations/facebook/pages/[pageId]/toggle-ai-engine
+├ ƒ /api/leads
+├ ƒ /api/leads/[leadId]
+├ ƒ /api/meta/setup-status
+├ ƒ /api/newsletter/subscribe
+├ ƒ /api/newsletter/unsubscribe
+├ ƒ /api/onboarding
+├ ƒ /api/public/leads
+├ ƒ /api/settings/webhooks
+├ ƒ /api/system-health
+├ ƒ /api/telegram/webhook/[channelId]
+├ ƒ /api/tenant/ai-settings
+├ ƒ /api/tenant/channels
+├ ƒ /api/tenant/lead-notifications
+├ ƒ /api/tenant/lead-notifications/test
+├ ƒ /api/usage
+├ ƒ /api/user/data-export
+├ ƒ /api/users
+├ ƒ /api/users/account
+├ ƒ /api/users/password
+├ ƒ /api/users/profile
+├ ƒ /api/webchat/config
+├ ƒ /api/webchat/events
+├ ƒ /api/webchat/init
+├ ƒ /api/webchat/message
+├ ƒ /api/webchat/messages
+├ ƒ /api/whatsapp/webhook
+├ ○ /auth/forgot-password
+├ ƒ /auth/login
+├ ƒ /auth/register
+├ ƒ /billing
+├ ƒ /billing/success
+├ ƒ /bots
+├ ƒ /bots/[botId]
+├ ƒ /bots/new
+├ ƒ /contacts
+├ ƒ /conversations
+├ ƒ /conversations/[conversationId]
+├ ƒ /data-deletion-status
+├ ƒ /flows
+├ ƒ /flows/[id]/edit
+├ ƒ /flows/[id]/settings
+├ ○ /icon.png
+├ ƒ /integrations/facebook
+├ ƒ /integrations/telegram
+├ ƒ /integrations/webchat
+├ ƒ /integrations/webchat/test
+├ ƒ /integrations/whatsapp
+├ ƒ /leads
+├ ○ /manifest.webmanifest
+├ ○ /opengraph-image.png
+├ ƒ /pricing
+├ ○ /robots.txt
+├ ƒ /settings
+├ ƒ /settings/account
+├ ƒ /settings/billing
+├ ƒ /settings/channels
+├ ○ /sitemap.xml
+├ ○ /twitter-image.png
+└ ○ /webchat-e2e
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand

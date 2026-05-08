@@ -273,6 +273,33 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Queue AI Enrichment and Outbound Webhooks reliably via BullMQ
+    try {
+      const { messageQueue } = await import("@/lib/queue");
+      if (messageQueue) {
+        await messageQueue.add("lead-enrichment", {
+          type: "lead_enrichment",
+          botId: site.bot.id,
+          payload: {
+            tenantId: site.bot.tenantId,
+            leadId: lead.id,
+            leadData: {
+              id: lead.id,
+              name,
+              email,
+              phone,
+              source: leadSource,
+              enquiry: parsed.data.enquiry,
+              metadata: parsed.data.metadata || {},
+              createdAt: lead.createdAt,
+            }
+          },
+        });
+      }
+    } catch (err) {
+      console.error("[Public Leads API] Failed to queue lead enrichment:", err);
+    }
+
     return NextResponse.json(
       {
         success: true,
