@@ -79,7 +79,7 @@ export const DELETE = withAuthAndTenant(
     if (!isChannelEnabled("facebook")) return NextResponse.json({ error: "Disabled" }, { status: 403 });
 
     try {
-      const account = await db.account.findFirst({ where: { userId, provider: "facebook", tenantId } });
+      const account = await db.account.findFirst({ where: { userId, provider: "facebook" } });
       if (account?.access_token) {
         try {
           const revokeUrl = getFacebookGraphUrl("me/permissions", account.access_token);
@@ -94,13 +94,13 @@ export const DELETE = withAuthAndTenant(
 
       await db.$transaction([
         db.crmMessage.deleteMany({ where: { conversationId: { in: conversationIds }, tenantId } }),
-        db.flowAssignment.deleteMany({ where: { pageId: { in: pageIds }, tenantId } }),
+        db.flowAssignment.deleteMany({ where: { pageId: { in: pageIds } } }),
         db.crmConversation.deleteMany({ where: { facebookPageId: { in: pageIds }, tenantId } }),
         db.lead.deleteMany({ where: { pageId: { in: pageIds }, tenantId } }),
-        db.flowSession.deleteMany({ where: { pageId: { in: pageIds }, tenantId } }),
+        db.flowSession.deleteMany({ where: { pageId: { in: pageIds } } }),
         db.onboardingSession.deleteMany({ where: { facebookPageId: { in: pageIds }, tenantId } }),
         db.facebookPage.deleteMany({ where: { tenantId } }),
-        db.account.deleteMany({ where: { userId, provider: "facebook", tenantId } }),
+        db.account.deleteMany({ where: { userId, provider: "facebook" } }),
       ]);
 
       return NextResponse.json({ success: true });

@@ -110,8 +110,9 @@ export const DELETE = withAuthAndTenant(
           where: { contactId: id, tenantId },
         });
 
+        // ContactIdentity does not have tenantId field
         await tx.contactIdentity.deleteMany({
-          where: { contactId: id, tenantId },
+          where: { contactId: id },
         });
 
         await tx.contact.delete({

@@ -75,7 +75,10 @@ export const DELETE = withAuthAndTenant(
         // Note: FacebookPage requires botId (String, not String?), so we delete them.
         await tx.facebookPage.deleteMany({ where: { botId: id, tenantId } });
         await tx.crmConversation.updateMany({ where: { botId: id, tenantId }, data: { botId: null } });
-        await tx.executionLog.deleteMany({ where: { botId: id, tenantId } });
+
+        // ExecutionLog does not have tenantId field in schema
+        await tx.executionLog.deleteMany({ where: { botId: id } });
+
         await tx.webChatSite.deleteMany({ where: { botId: id, tenantId } });
         await tx.channel.deleteMany({ where: { botId: id, tenantId } });
         await tx.bot.delete({ where: { id, tenantId } });

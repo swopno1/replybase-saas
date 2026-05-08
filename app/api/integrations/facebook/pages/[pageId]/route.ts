@@ -49,7 +49,6 @@ export const DELETE = withAuthAndTenant(
         await tx.flowAssignment.deleteMany({
           where: {
             pageId: facebookPage.id,
-            tenantId
           },
         });
 
@@ -90,7 +89,6 @@ export const DELETE = withAuthAndTenant(
         await tx.flowSession.deleteMany({
           where: {
             pageId: facebookPage.id,
-            tenantId
           },
         });
 
