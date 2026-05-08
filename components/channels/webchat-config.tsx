@@ -25,13 +25,13 @@ import { toast } from "sonner";
 
 interface WebchatSite {
   id: string;
-  url: string;
   name: string | null;
-  botId: string;
-  themeColor: string | null;
-  title: string | null;
-  welcomeMessage: string | null;
-  position: string | null;
+  publicKey: string;
+  secretKey: string;
+  allowedDomains: string[];
+  themeConfig: Record<string, any>;
+  channelId: string | null;
+  isActive: boolean;
 }
 
 interface WebchatDiagnostics {
@@ -94,14 +94,16 @@ export function WebchatConfig({
         const data = await res.json();
         if (data.site) {
           setSite(data.site);
-          setUrl(data.site.url || "");
+          const domains = data.site.allowedDomains || [];
+          setUrl(domains[0] || "");
           setName(data.site.name || "");
-          setThemeColor(data.site.themeColor || "#0f172a");
-          setTitle(data.site.title || "Chat with us");
+          const theme = data.site.themeConfig || {};
+          setThemeColor(theme.themeColor || "#0f172a");
+          setTitle(theme.title || "Chat with us");
           setWelcomeMessage(
-            data.site.welcomeMessage || "Hello! How can we help you today?",
+            theme.welcomeMessage || "Hello! How can we help you today?",
           );
-          setPosition(data.site.position || "right");
+          setPosition(theme.position || "right");
           void loadDiagnostics(id);
         }
       }
@@ -144,12 +146,14 @@ export function WebchatConfig({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           channelId,
-          url,
           name,
-          themeColor,
-          title,
-          welcomeMessage,
-          position,
+          allowedDomains: url ? [url] : [],
+          themeConfig: {
+            themeColor,
+            title,
+            welcomeMessage,
+            position,
+          },
         }),
       });
 
