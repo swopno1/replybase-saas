@@ -989,7 +989,7 @@ function SettingsTabsInner() {
                         )}
                         {aiSettings.aiProvider === "gemini" && (
                           <>
-                            <option value="gemini-1.5-pro">
+                            <option value="gemini-1.5-pro-latest">
                               Gemini 1.5 Pro (Advanced)
                             </option>
                             <option value="gemini-1.5-flash">

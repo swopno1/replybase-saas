@@ -68,7 +68,7 @@ export function getAiModel({
       // Task-specific defaults for the available Gemini versions
       let defaultModel = "gemini-1.5-flash"; 
       if (task === "onboarding") {
-        defaultModel = "gemini-1.5-pro"; 
+        defaultModel = "gemini-1.5-pro-latest"; 
       }
 
       return client(model || defaultModel);
