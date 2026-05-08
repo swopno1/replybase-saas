@@ -104,7 +104,7 @@ function buildLeadSummaryHtml(input: NewLeadNotificationInput): string {
             </table>
           </div>
 
-          <p style="margin:24px 0 0; font-size:15px; line-height:1.75;">You can view and manage all your leads directly in the <a href="${REPLYBASE_SITE_URL}/dashboard" style="color:#2563eb; text-decoration:none; font-weight:600;">ReplyBase Dashboard</a>.</p>
+          <p style="margin:24px 0 0; font-size:15px; line-height:1.75;">You can view and manage all your leads directly in the <a href="https://app.replybase.co.uk/" style="color:#2563eb; text-decoration:none; font-weight:600;">ReplyBase Dashboard</a>.</p>
         </div>
 
         <div style="padding:24px 32px 32px; border-top:1px solid #e5e7eb; background:#fcfcfd;">
