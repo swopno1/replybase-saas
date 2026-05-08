@@ -9,6 +9,7 @@ import {
 } from "@/lib/webchat-cors";
 import { isOriginAllowedForSite } from "@/lib/webchat";
 import { getWebchatRolloutDecision } from "@/lib/webchat-rollout";
+import logger from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -165,7 +166,7 @@ export async function GET(request: NextRequest) {
       { headers: createWebchatCorsHeaders(request) },
     );
   } catch (error) {
-    console.error("[Webchat Messages] Failed to fetch manual replies:", error);
+    logger.error({ err: error }, "[Webchat Messages] Failed to fetch manual replies");
     return NextResponse.json(
       { error: "Failed to fetch webchat messages" },
       { status: 500, headers: createWebchatCorsHeaders(request) },
