@@ -1,50 +1,25 @@
-# Multi-Tenant Isolation Audit: ReplyBase SaaS
+# Multi-Tenant Isolation Audit
 
-## 1. Isolation Strategy
-**Mechanism**: Logical isolation via `tenantId` discriminator on all primary entities.
-**Enforcement**:
-- **Prisma Extension**: `lib/prisma-tenant.ts` automatically injects `tenantId` into `where`, `create`, and `update` arguments.
-- **Middleware Scoping**: `withAuthAndTenant` route helper ensures every request is context-bound to the logged-in user's `tenantId`.
+**Date:** 2026-05-08
+**Status:** **HIGH RISK (Architectural Vigilance Required)**
+**Auditor:** QA Director / Malicious Tenant Persona
 
----
+## 1. The "Malicious Tenant" Threat Model
+A malicious tenant (Tenant A) signs up for a free account. They extract their session token and begin fuzzing the `/api/` endpoints, replacing their `tenantId` or `botId` with UUIDs belonging to Tenant B.
 
-## 2. Risk Assessment
-### High Risk: Mixed Client Usage
-- **Findings**: Some API routes import the global `prisma` client directly instead of using the scoped client provided by the middleware.
-- **Impact**: Bypasses the automatic `tenantId` injection. If a developer forgets a manual `where: { tenantId }` filter, data leakage occurs.
+## 2. Prisma Query Isolation
+*   **Findings:** The codebase uses standard Prisma queries (`prisma.model.findFirst`). 
+*   **Vulnerability Pattern:** Any query that looks up a resource by its ID *without* compounding it with the `tenantId` is vulnerable to IDOR (Insecure Direct Object Reference).
+    *   *Example of Vulnerable Code:* `prisma.crmConversation.findUnique({ where: { id: req.body.conversationId } })`
+    *   *Example of Secure Code:* `prisma.crmConversation.findFirst({ where: { id: req.body.conversationId, tenantId: session.user.tenantId } })`
+*   **Audit Results:** While `lib/prisma-tenant.ts` was introduced, direct `prisma.*` usage is still widespread. The `bot-entry-flow-engine.ts` heavily relies on `contactId` and `scopeKey` without explicitly querying by `tenantId` in every internal step. While `contactId` acts as a pseudo-barrier, it is structurally weaker than a hard `tenantId` constraint.
 
-### High Risk: Execution Logs & Tenant Context
-- **Findings**: The `ExecutionLog` model lacked a direct `tenantId` field. It relied on a join to the `Bot` model (`botId`).
-- **Impact**: Queries for logs must always join through `Bot`. If a query is run against `ExecutionLog` directly (e.g., for global analytics), it could inadvertently access data across tenants.
-- **Remediation**: Add `tenantId` directly to the `ExecutionLog` model for faster, safer querying.
-- **Status**: **RESOLVED**. `tenantId` has been added to `ExecutionLog` model with relations and indexed correctly. `lib/execution-logger.ts` updated to query and insert directly using `tenantId`.
+## 3. Dashboard Data Bleed
+*   **Findings:** The dashboard UI fetches data based on the logged-in user.
+*   **Risks:** If an API endpoint (e.g., Export Leads) relies on a client-provided `tenantId` rather than extracting it securely from the server-side session, Tenant A can export Tenant B's leads.
+*   **Verdict:** Enforce a strict backend rule: *Never trust a `tenantId` provided in the request body or query params.* Always derive `tenantId` from the verified JWT/Session.
 
-### Medium Risk: Webhook Routing
-- **Findings**: Facebook/WhatsApp webhooks are public endpoints. They resolve `tenantId` by looking up the `pageId` or `phoneNumberId`.
-- **Impact**: If a malicious user manages to "register" a `pageId` already owned by another tenant (unlikely due to Meta token verification), they could hijack traffic.
-- **Mitigation**: Meta token verification is implemented (`appsecret_proof`), providing strong protection against this.
-
----
-
-## 3. Atomic Mutation Integrity
-Several routes perform "Check then Update" operations:
-1. `findFirst({ where: { id, tenantId } })`
-2. `update({ where: { id }, data })`
-
-**Problem**: If Step 1 passes but contains a logic error, Step 2 is unscoped.
-**Recommendation**: Use **Atomic Scoped Mutations**:
-```typescript
-await db.bot.update({
-  where: { id, tenantId }, // Scoped!
-  data: { ... }
-});
-```
-
-- **Status**: **RESOLVED**. All critical mutation endpoints (`bots`, `leads`, `contacts`, `conversations`) have been migrated to use `tenantId` directly in `update` and `delete` `where` clauses, utilizing Prisma's compound unique constraints (e.g., `@@unique([id, tenantId])`).
-
----
-
-## 4. Verdict
-The isolation architecture is **Professional Grade** and has undergone **Consistency Hardening**.
-- **Confidence Level**: 95%
-- **Critical Remediation**: **Completed**. All core mutations now include `tenantId` in the `where` clause, and `tenantId` has been fully integrated into the `ExecutionLog` model.
+## 4. Cross-Tenant Webhook Leakage
+*   **Findings:** Webhooks arrive globally to `/api/facebook/webhook`.
+*   **Risks:** The webhook must securely map the `recipient.id` (Page ID) to the correct `tenantId` via the database. If this mapping logic is flawed, or if a malicious user claims a Page ID they don't own, messages will route to the wrong tenant.
+*   **Verdict:** The system must strictly verify Meta Page ownership via OAuth access tokens before allowing a tenant to link a Page ID to their `tenantId`.

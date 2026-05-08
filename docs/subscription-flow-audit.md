@@ -1,40 +1,23 @@
-# Subscription & Billing Flow Audit: ReplyBase SaaS
+# Subscription & Billing Flow Audit
 
-## 1. Stripe Integration Lifecycle
-### Status: **READY**
-- **Checkout**: `app/api/billing/checkout/route.ts` correctly handles customer creation/lookup and trial eligibility.
-- **Webhook Handling**: `app/api/billing/webhook/route.ts` handles critical events:
-    - `customer.subscription.updated/deleted` -> Syncs local DB state.
-    - `invoice.payment_succeeded` -> Records revenue (Cents-safe logic).
-    - `invoice.payment_failed` -> Marks status as `PAST_DUE`.
-    - `charge.refunded` -> Cancels subscription immediately.
+**Date:** 2026-05-08
+**Status:** **MEDIUM RISK**
+**Auditor:** Stripe Billing Auditor
 
----
+## 1. Subscription Lifecycle
+*   **Flow:** Marketing Site -> Signup -> Onboarding -> Free Tier / Trial -> Stripe Checkout -> Webhook Sync.
+*   **Strengths:** The recent migration of financial fields to `Int` (cents) eliminates floating-point rounding errors—a critical step for financial compliance. The `UsageBuffer` reduces write amplification.
 
-## 2. Plan Limits & Enforcement
-### Status: **STRONG**
-- **Dual-Layer Caching**: L1 (In-memory, 5m) and L2 (Redis, 1h) caches for tenant limits (`lib/subscription.ts`) ensure high performance under load.
-- **Granular Enforcement**:
-    - **Bot Limit**: `checkBotLimit` enforced during creation.
-    - **Channel Limit**: `checkChannelLimit` enforced per-bot.
-    - **Usage Zones**: `SAFE`, `WARNING`, `GRACE`, `HARD` pattern allows for user-friendly notifications before hard blocks.
+## 2. Webhook Race Conditions
+*   **Threat:** Stripe often fires multiple webhooks simultaneously (e.g., `invoice.payment_succeeded` and `customer.subscription.updated`). 
+*   **Risk:** If the application processes these concurrently without database-level locks, it can result in duplicate revenue logs or corrupted subscription state.
+*   **Verdict:** Ensure `lib/billing-service.ts` uses idempotency keys (like the Stripe Event ID) to silently drop duplicate/concurrent webhook processing.
 
-### Identified Risks:
-- **[Medium] Downgrade Edge Cases**: If a user downgrades from Pro (5 bots) to Starter (1 bot) while having 3 bots active, the system does not currently "freeze" the extra bots automatically. *Recommendation*: Implement a "suspended" state for bots exceeding new plan limits.
-- **[Low] Cache Desync**: L1 cache is per-instance. In a multi-replica deployment, one instance might lag for up to 5 minutes after a subscription change. *Mitigation*: Redis (L2) invalidation is implemented and serves as the source of truth for L1 refreshes.
+## 3. Failed Payment & Downgrade Logic
+*   **Threat:** A user on a premium plan has their credit card expire. Stripe retries for 7 days, then cancels the subscription.
+*   **Risk:** Does ReplyBase immediately revoke premium access when `customer.subscription.deleted` arrives? Yes. However, what happens to the bots and channels they configured that exceed the Free tier limits?
+*   **Verdict:** Implement a "Graceful Degradation" strategy. When downgraded, active flows should not break immediately; instead, pause execution and send a "Payment Failed - Bots Paused" email alert to the user.
 
----
-
-## 3. Financial Integrity
-### Status: **PASS**
-- **Currency**: Handled in GBP/PENCE to avoid floating-point errors.
-- **Revenue Tracking**: `Revenue` model implemented with unique constraint on `stripeInvoiceId` to prevent double-counting.
-- **Trial Abuse**: `trialUsed` flag on the `Tenant` model prevents users from repeatedly starting 14-day trials.
-
----
-
-## 4. Operational Checklist for Launch
-- [ ] Verify all Stripe Product/Price IDs in production `.env`.
-- [ ] Set up Stripe Webhook signing secret.
-- [ ] Confirm `NEXT_PUBLIC_APP_URL` matches the live domain for checkout redirects.
-- [ ] Run `pnpm run seed:stripe` in production to populate `Plan` table.
+## 4. Double Billing & Orphaned Subs
+*   **Threat:** User clicks "Subscribe" multiple times resulting in multiple Checkout Sessions.
+*   **Verdict:** Ensure the application checks if a user already has an active `stripeSubscriptionId` before generating a new Checkout Session. Prevent orphaned subscriptions by tracking session IDs locally.

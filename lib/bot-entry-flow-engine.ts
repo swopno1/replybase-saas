@@ -396,8 +396,8 @@ export async function executeBotEntryFlowFirst(params: {
   // Inject contact identity so flow nodes can gate on contact_is_qualified
   // without hitting the DB again.  "true"/"false" strings are used because
   // the condition evaluator compares values as strings.
-  const contactRecord = await prisma.contact.findUnique({
-    where: { id: params.contactId },
+  const contactRecord = await prisma.contact.findFirst({
+    where: { id: params.contactId, tenantId: params.tenantId },
     select: { name: true, email: true, phone: true },
   });
   mergedVariables.contact_name = contactRecord?.name ?? "";

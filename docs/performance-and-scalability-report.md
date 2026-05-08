@@ -1,41 +1,19 @@
-# Performance and Scalability Report: ReplyBase SaaS
+# Performance & Scalability Report
 
-## 1. Database Layer
-### Current Performance
-- **Prisma usage**: Generally efficient.
-- **Indexing**: Core entities (Leads, Conversations, Messages) have appropriate indices on `tenantId`, `createdAt`, and `contactId`.
-- **N+1 Queries**: A potential bottleneck was identified in WhatsApp status logging and was successfully refactored to use `createMany`.
+**Date:** 2026-05-08
+**Status:** **READY WITH CAUTIONS**
+**Auditor:** Performance Engineer
 
-### Scalability Bottlenecks
-- **Unbounded findMany**: Some routes (e.g., `app/api/conversations/route.ts`) need strict pagination (`take`, `skip`) to handle tenants with 10k+ conversations.
-- **Large Json fields**: The `insights` field on `Lead` and `context` on `Bot` could grow large. Monitoring database size/growth per tenant is recommended.
+## 1. Database Query Efficiency
+*   **Strengths:** Implementing `UsageBuffer` reduces the write amplification on the `Subscription` table, which is critical since message processing is high-frequency.
+*   **Risks (N+1 Queries):** Dashboard tables that list `Conversations` and eagerly map `Messages` or `Contacts` without proper Prisma `include` constraints can cause N+1 query floods.
+*   **Verdict:** Review the dashboard API routes (e.g., `/api/conversations`) and ensure pagination is strictly enforced using `take` and `skip`, and relations are fetched via `include` rather than mapped sequentially.
 
----
+## 2. Worker Queue & Bottlenecks
+*   **Strengths:** BullMQ adoption prevents Webhook API timeouts. 
+*   **Risks:** If the AI provider (OpenAI) experiences high latency, the worker queue will back up. Since AI generation is synchronous within the worker job, 10 slow jobs will block 10 worker threads.
+*   **Verdict:** Implement concurrency limits per-tenant within BullMQ to prevent one viral tenant from consuming all worker threads. Use `concurrency: 50` on the worker instantiation to scale throughput.
 
-## 2. Background Processing (BullMQ)
-### Current Performance
-- **Concurrency**: Default set to 5.
-- **Worker Separation**: Infrastructure supports running workers on dedicated compute nodes, which is vital for high-volume messaging.
-
-### Scalability Recommendations
-- **Job Retention**: Set `removeOnComplete: { age: 3600, count: 1000 }` to prevent Redis memory bloat from old job data.
-- **Retry Strategy**: Ensure exponential backoff is configured for outbound webhooks (`lib/services/webhook-dispatcher.ts`) to handle transient 3rd-party failures.
-
----
-
-## 3. Application Layer (Next.js)
-### Performance Analysis
-- **Streaming**: AI responses are streamed (`toDataStreamResponse`), significantly improving the Time-to-First-Byte for end users.
-- **Caching**: Dual-layer caching for plan limits reduces DB load for every authenticated request.
-
-### Optimization Areas
-- **Bundle Size**: Monitor the size of the Webchat widget (`public/embed/replybase-webchat.js`). It should be kept minimal (< 50KB gzipped) to avoid affecting host site performance.
-- **Serverless Cold Starts**: If deployed to Vercel/Lambda, the initial connection to Prisma and Redis adds 500ms+ latency. Using a connection pooler and warming strategies is advised.
-
----
-
-## 4. Key Metrics for Production
-- **DB Connection Count**: Monitor via `pg_stat_activity`.
-- **Redis Memory Usage**: Monitor to ensure eviction policies (`allkeys-lru`) aren't killing BullMQ data.
-- **AI Latency**: P95 response time for `aiFallback` calls.
-- **Webhook Success Rate**: Percentage of successfully delivered outbound lead webhooks.
+## 3. Serverless vs. Long-Running Processing
+*   **Risks:** Next.js API routes have an execution limit on Vercel (10s on Hobby, 60s on Pro). If deployed to Vercel, the background workers initialized via `instrumentation.ts` will freeze or terminate unexpectedly between requests.
+*   **Verdict:** If hosting on Vercel, offload long-running tasks to Inngest or Upstash QStash. If hosting on a DigitalOcean Droplet / Coolify (which seems to be the case), the current BullMQ architecture is perfectly fine but requires standard PM2/Docker restart policies.

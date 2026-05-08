@@ -1,36 +1,21 @@
-# UI/UX Production Audit: ReplyBase SaaS
+# UI/UX & Onboarding Audit
 
-## 1. Onboarding & Conversion Flow
-### Status: **GOOD**
-- **AI-Assisted Setup**: The multi-step onboarding (`app/api/onboarding/route.ts`) that generates a custom flow and bot context is a high-value feature.
-- **Trial-First Strategy**: "No card required" for trial reduces signup friction.
-- **Empty States**: Most dashboard views have skeleton loaders (`components/skeletons/`), providing a smooth perception of performance.
+**Date:** 2026-05-08
+**Status:** **GO FOR LAUNCH**
+**Auditor:** QA Lead / Growth Engineer
 
-### Conversion Leaks:
-- **[High] Post-Signup Friction**: After registration, users should be immediately dropped into the AI Onboarding flow. *Action*: Verify the `callbackUrl` logic in `middleware.ts` and `auth.ts` directs new users to `/onboarding`.
-- **[Medium] Upgrade CTAs**: While limits are enforced, the "Upgrade" buttons in the dashboard could be more prominent when usage hits the 90% `WARNING` zone.
+## 1. Onboarding Flow (Onboarding V2)
+*   **Strengths:** The migration to Onboarding V2 introduces a much cleaner, multi-tab approach. Users are guided through Bot creation, Channel linkage, and Flow assignment smoothly.
+*   **Friction Points:**
+    *   *Empty States:* If a user connects a Facebook page but has no active Flows, the UI must clearly direct them to create one. The recent updates to `FacebookConfig.tsx` handle this better, but tooltip guidance is crucial.
+    *   *AI Fallback Anxiety:* Users may be hesitant to turn on AI without testing it first.
+*   **Verdict:** Implement a "Test Your Bot" sandbox directly in the dashboard before forcing them to connect a live channel.
 
----
+## 2. Responsiveness & Accessibility
+*   **Strengths:** Shadcn UI components provide solid baseline accessibility (ARIA labels, keyboard navigation).
+*   **Risks:** Complex data tables (Leads, Conversations) break horizontally on mobile devices.
+*   **Verdict:** Ensure all data tables have a mobile-friendly card view, or at minimum, an `overflow-x-auto` wrapper to prevent layout breakage on phones.
 
-## 2. Dashboard & Navigation
-### Status: **PASS**
-- **Mobile Responsiveness**: `use-mobile.ts` hook and responsive sidebar confirm a solid mobile experience.
-- **Accessibility**: Standard Radix UI components (`components/ui/`) provide baseline ARIA compliance.
-
----
-
-## 3. Webchat Widget UX
-### Status: **STRONG**
-- **Visual Integration**: The widget supports brand customization.
-- **Latency**: Streaming responses make the AI feel fast and responsive.
-- **CORS Protection**: Prevents unauthorized domains from hijacking the widget's usage.
-
-### Improvement Areas:
-- **[Medium] Offline State**: If the backend is down or the bot is disabled, the widget should show a clear "Offline" message rather than a generic error.
-- **[Low] File Uploads**: Not currently supported. Users might expect to upload images/documents to the bot.
-
----
-
-## 4. Trust & Compliance
-- **Privacy Policy**: Redirects to `replybase.co.uk/privacy` in middleware—ensure this is live.
-- **Branding**: Legal links and branding are consistent across Facebook/WhatsApp/Webchat UI components.
+## 3. Error States & Fallbacks
+*   **Strengths:** The implementation of `error.tsx` and `not-found.tsx` across the `/(dashboard)` route groups provides UX resilience.
+*   **Verdict:** Ensure that `error.tsx` offers a clear "Retry" or "Contact Support" CTA rather than just a stack trace or generic message.
