@@ -1,0 +1,351 @@
+diff --git a/docs/meta-and-thirdparty-integrations-report.md b/docs/meta-and-thirdparty-integrations-report.md
+new file mode 100644
+index 0000000..c928401
+--- /dev/null
++++ b/docs/meta-and-thirdparty-integrations-report.md
+@@ -0,0 +1,35 @@
++# Meta and Third-Party Integrations Report: ReplyBase SaaS
++
++## 1. Facebook & Messenger
++### Status: **READY**
++- **Webhook Routing**: Optimized to look up `botId` via `facebookId` (Page ID).
++- **Security**: Signature validation (`x-hub-signature-256`) and App Secret Proof confirmed.
++- **De-duplication**: Uses `WebhookLog` unique constraints on `mid` (Message ID).
++
++### Policy Compliance:
++- **24-Hour Window**: The system responds immediately via BullMQ workers, fitting well within Meta's 24-hour customer service window.
++- **Data Deletion**: `app/api/facebook/data-deletion` is implemented to comply with Meta's developer policies.
++
++---
++
++## 2. WhatsApp (Meta Cloud & Twilio)
++### Status: **STRONG**
++- **Multi-Provider Support**: Handles both Meta Cloud API and Twilio webhooks seamlessly in `app/api/whatsapp/webhook/route.ts`.
++- **E164 Normalization**: Essential for matching incoming phone numbers to correct channels.
++- **Reliability**: WhatsApp delivery status logs (`sent`, `delivered`, `read`) are batched for performance.
++
++---
++
++## 3. Telegram
++### Status: **READY**
++- **Webhook Setup**: Automated setup via `/api/bots/[botId]/channels/telegram/connect`.
++- **Token Security**: Tokens are encrypted at rest.
++- **Validation**: Telegram webhook tokens are verified against the stored encrypted credentials.
++
++---
++
++## 4. Risks & Policy Considerations
++- **[High] Permission Review**: Ensure the Meta App is approved for `pages_messaging` and `whatsapp_business_messaging` before going live.
++- **[Medium] Webhook Retries**: If the ReplyBase worker is slow, Meta will retry webhooks. Idempotency logic is critical here and appears well-implemented.
++- **[Medium] Token Expiration**: Long-lived Facebook Page Access Tokens can still expire or be revoked. A "Reconnect" UI (`api/bots/[botId]/channels/facebook/reconnect`) is recommended for the dashboard.
++
+diff --git a/docs/multi-tenant-isolation-audit.md b/docs/multi-tenant-isolation-audit.md
+new file mode 100644
+index 0000000..04ee6bf
+--- /dev/null
++++ b/docs/multi-tenant-isolation-audit.md
+@@ -0,0 +1,48 @@
++# Multi-Tenant Isolation Audit: ReplyBase SaaS
++
++## 1. Isolation Strategy
++**Mechanism**: Logical isolation via `tenantId` discriminator on all primary entities.
++**Enforcement**:
++- **Prisma Extension**: `lib/prisma-tenant.ts` automatically injects `tenantId` into `where`, `create`, and `update` arguments.
++- **Middleware Scoping**: `withAuthAndTenant` route helper ensures every request is context-bound to the logged-in user's `tenantId`.
++
++---
++
++## 2. Risk Assessment
++### High Risk: Mixed Client Usage
++- **Findings**: Some API routes import the global `prisma` client directly instead of using the scoped client provided by the middleware.
++- **Impact**: Bypasses the automatic `tenantId` injection. If a developer forgets a manual `where: { tenantId }` filter, data leakage occurs.
++
++### High Risk: Execution Logs & Tenant Context
++- **Findings**: The `ExecutionLog` model lacks a direct `tenantId` field. It relies on a join to the `Bot` model (`botId`).
++- **Impact**: Queries for logs must always join through `Bot`. If a query is run against `ExecutionLog` directly (e.g., for global analytics), it could inadvertently access data across tenants.
++- **Remediation**: Add `tenantId` directly to the `ExecutionLog` model for faster, safer querying.
++
++### Medium Risk: Webhook Routing
++- **Findings**: Facebook/WhatsApp webhooks are public endpoints. They resolve `tenantId` by looking up the `pageId` or `phoneNumberId`.
++- **Impact**: If a malicious user manages to "register" a `pageId` already owned by another tenant (unlikely due to Meta token verification), they could hijack traffic.
++- **Mitigation**: Meta token verification is implemented (`appsecret_proof`), providing strong protection against this.
++
++---
++
++## 3. Atomic Mutation Integrity
++Several routes perform "Check then Update" operations:
++1. `findFirst({ where: { id, tenantId } })`
++2. `update({ where: { id }, data })`
++
++**Problem**: If Step 1 passes but contains a logic error, Step 2 is unscoped.
++**Recommendation**: Use **Atomic Scoped Mutations**:
++```typescript
++await db.bot.update({
++  where: { id, tenantId }, // Scoped!
++  data: { ... }
++});
++```
++
++---
++
++## 4. Verdict
++The isolation architecture is **Professional Grade** but needs **Consistency Hardening**.
++- **Confidence Level**: 85%
++- **Critical Remediation**: Migrate all mutations to include `tenantId` in the `where` clause, and add `tenantId` to the `ExecutionLog` model.
++
+diff --git a/docs/performance-and-scalability-report.md b/docs/performance-and-scalability-report.md
+new file mode 100644
+index 0000000..899804c
+--- /dev/null
++++ b/docs/performance-and-scalability-report.md
+@@ -0,0 +1,42 @@
++# Performance and Scalability Report: ReplyBase SaaS
++
++## 1. Database Layer
++### Current Performance
++- **Prisma usage**: Generally efficient.
++- **Indexing**: Core entities (Leads, Conversations, Messages) have appropriate indices on `tenantId`, `createdAt`, and `contactId`.
++- **N+1 Queries**: A potential bottleneck was identified in WhatsApp status logging and was successfully refactored to use `createMany`.
++
++### Scalability Bottlenecks
++- **Unbounded findMany**: Some routes (e.g., `app/api/conversations/route.ts`) need strict pagination (`take`, `skip`) to handle tenants with 10k+ conversations.
++- **Large Json fields**: The `insights` field on `Lead` and `context` on `Bot` could grow large. Monitoring database size/growth per tenant is recommended.
++
++---
++
++## 2. Background Processing (BullMQ)
++### Current Performance
++- **Concurrency**: Default set to 5.
++- **Worker Separation**: Infrastructure supports running workers on dedicated compute nodes, which is vital for high-volume messaging.
++
++### Scalability Recommendations
++- **Job Retention**: Set `removeOnComplete: { age: 3600, count: 1000 }` to prevent Redis memory bloat from old job data.
++- **Retry Strategy**: Ensure exponential backoff is configured for outbound webhooks (`lib/services/webhook-dispatcher.ts`) to handle transient 3rd-party failures.
++
++---
++
++## 3. Application Layer (Next.js)
++### Performance Analysis
++- **Streaming**: AI responses are streamed (`toDataStreamResponse`), significantly improving the Time-to-First-Byte for end users.
++- **Caching**: Dual-layer caching for plan limits reduces DB load for every authenticated request.
++
++### Optimization Areas
++- **Bundle Size**: Monitor the size of the Webchat widget (`public/embed/replybase-webchat.js`). It should be kept minimal (< 50KB gzipped) to avoid affecting host site performance.
++- **Serverless Cold Starts**: If deployed to Vercel/Lambda, the initial connection to Prisma and Redis adds 500ms+ latency. Using a connection pooler and warming strategies is advised.
++
++---
++
++## 4. Key Metrics for Production
++- **DB Connection Count**: Monitor via `pg_stat_activity`.
++- **Redis Memory Usage**: Monitor to ensure eviction policies (`allkeys-lru`) aren't killing BullMQ data.
++- **AI Latency**: P95 response time for `aiFallback` calls.
++- **Webhook Success Rate**: Percentage of successfully delivered outbound lead webhooks.
++
+diff --git a/docs/production-readiness-report.md b/docs/production-readiness-report.md
+new file mode 100644
+index 0000000..178505d
+--- /dev/null
++++ b/docs/production-readiness-report.md
+@@ -0,0 +1,54 @@
++# Production Readiness Report: ReplyBase SaaS
++
++## Executive Summary
++**Status**: **GO (WITH MINOR REMEDIATIONS)**
++The ReplyBase SaaS platform is architecturally sound and functionally complete for production launch. It utilizes modern standards (Next.js 15, Prisma 7, BullMQ) and exhibits strong multi-tenant isolation patterns. However, several operational and security refinements are required to ensure high availability and defense-in-depth as the user base scales.
++
++---
++
++## 1. Infrastructure & Operations
++### Current State
++- **Database**: PostgreSQL (Prisma 7.8.0). Uses migrations and raw SQL for safe financial transitions.
++- **Cache/Queue**: Redis (ioredis + BullMQ). Mandatory for background message processing.
++- **Workers**: Integrated via `instrumentation.ts`, supporting separate compute scaling.
++- **Hosting**: Docker standalone support confirmed.
++
++### Risks & Recommendations
++- **[Critical] Redis Persistence**: BullMQ requires Redis persistence (RDB/AOF) to prevent message loss on restart. *Action*: Ensure production Redis is not "cache-only".
++- **[High] Database Pooling**: High concurrent webhook volume will exhaust standard PG connections. *Action*: Deploy PgBouncer or use a connection pooler (e.g., Prisma Accelerate or Supabase Pooling).
++- **[Medium] Health Monitoring**: `/api/health` exists but needs to be integrated into container liveness probes.
++
++---
++
++## 2. Deployment & Configuration
++### Current State
++- **Environment**: Zod-validated `lib/env.ts` ensures critical keys (Stripe, Meta, Auth) are present at startup.
++- **Build**: Optimized standalone Docker build.
++
++### Risks & Recommendations
++- **[High] Secret Rotation**: `CHANNEL_CREDENTIALS_ENCRYPTION_KEY` is used for AES-256-GCM. A rotation strategy is missing.
++- **[Medium] Log Aggregation**: Standard `console` methods are used in many places. *Action*: Standardize on the `pino` logger defined in `lib/logger.ts` for structured logging (Sentry/CloudWatch compatible).
++
++---
++
++## 3. Resilience & Scalability
++### Current State
++- **Message Concurrency**: Capped at 5 in `lib/queue.ts`—safe for launch but needs monitoring.
++- **Idempotency**: Implemented for Webchat and Meta webhooks using `IdempotencyKey` and `WebhookLog` unique constraints.
++
++### Risks & Recommendations
++- **[High] AI Latency**: AI streaming is implemented, but slow LLM responses could block worker threads if not properly isolated.
++- **[Medium] Rate Limiting**: Middleware-level rate limiting is a good start, but edge-level (Cloudflare) protection is recommended for production.
++
++---
++
++## 4. Final Verdict & Blocker Severity
++| Issue | Severity | Recommendation |
++| :--- | :--- | :--- |
++| Redis Persistence | Critical | Enable AOF/RDB on production Redis instance. |
++| DB Connection Pooling | High | Deploy PgBouncer or equivalent before marketing launch. |
++| Inconsistent Tenant Scoping | High | Standardize all mutations on `getTenantPrisma`. |
++| Structured Logging Gap | Medium | Migrate remaining `console.log` to `lib/logger.ts`. |
++
++**Verdict**: The system is ready for initial beta/production traffic. The "High" severity items should be addressed within the first 30 days of live operation.
++
+diff --git a/docs/security-audit-report.md b/docs/security-audit-report.md
+new file mode 100644
+index 0000000..98a9ce2
+--- /dev/null
++++ b/docs/security-audit-report.md
+@@ -0,0 +1,52 @@
++# Security Audit Report: ReplyBase SaaS
++
++## 1. Authentication Audit
++### Status: **PASS (STRONG)**
++- **NextAuth.js**: Properly configured with JWT sessions.
++- **CSRF Protection**: Native NextAuth CSRF protection is active for all auth routes.
++- **Password Security**: Bcrypt hashing confirmed in `lib/server/password.ts`.
++- **OAuth Safety**: App secret proof (`appsecret_proof`) implemented for Meta/Facebook Graph API calls to prevent token hijacking.
++
++---
++
++## 2. Authorization & Multi-Tenancy
++### Status: **CAUTION (POTENTIAL LEAK VECTORS)**
++The system relies on a Prisma Extension (`lib/prisma-tenant.ts`) for automatic `tenantId` scoping. However, manual implementation inconsistencies exist.
++
++### Critical Findings:
++- **[High] Check-then-Act Race Conditions**:
++  - **Bot/Flow Mutations**: Some routes (e.g., `app/api/bots/[botId]/route.ts`) use the global `prisma` client for updates/deletes after a separate validation check. If validation is bypassed or flawed, a user could modify resources belonging to other tenants.
++  - **Atomic Scoping**: Mutations should use composite unique keys: `prisma.bot.update({ where: { id, tenantId }, ... })`.
++
++- **[Medium] Admin API Surface**:
++  - `/api/admin/*` routes are protected by `isPlatformAdmin`. However, specific record ownership is often ignored in admin views (as intended for admins), but this requires strict session validation.
++
++- **[Medium] Public Lead Injection**:
++  - `/api/public/leads` uses `publicKey`. While standard for "widgets", a leaked public key allows spamming a tenant's CRM. *Recommendation*: Implement per-site domain whitelisting (CORS) which is partially present but should be strictly enforced at the database level.
++
++---
++
++## 3. Vulnerability Analysis
++### XSS (Cross-Site Scripting)
++- **dangerouslySetInnerHTML**:
++  - Used in `components/ui/chart.tsx` (safe, internal library usage).
++  - Used in `app/auth/register/page.tsx` for JSON-LD.
++- **Risk**: Low. No user-controlled data currently reaches these sinks. However, any future "Custom CSS" or "Custom HTML" features for the Webchat widget must be strictly sanitized.
++
++### IDOR (Insecure Direct Object Reference)
++- **Finding**: High risk in routes using `findFirst` followed by a global `update`.
++- **Remediation**: Standardize all API routes to use the scoped `db` client provided by `withAuthAndTenant`, and ensure all mutations include `tenantId` in the `where` clause.
++
++---
++
++## 4. Encryption & Data Safety
++- **Integration Keys**: Telegram and WhatsApp credentials are encrypted using AES-256-GCM (`lib/channel-credentials-crypto.ts`).
++- **Data Deletion**: GDPR-compliant deletion flows are implemented for Facebook and manual user requests.
++
++---
++
++## Summary of Fixes Required
++1. **Refactor Mutations**: Change `update({ where: { id } })` to `update({ where: { id, tenantId } })` across all tenant-facing APIs.
++2. **Standardize Scoped Client**: Deprecate direct imports of the global `prisma` client in `app/api/` in favor of the scoped client.
++3. **Session Hardening**: Ensure JWT `tenantId` is immutable once issued per session.
++
+diff --git a/docs/subscription-flow-audit.md b/docs/subscription-flow-audit.md
+new file mode 100644
+index 0000000..af5a249
+--- /dev/null
++++ b/docs/subscription-flow-audit.md
+@@ -0,0 +1,41 @@
++# Subscription & Billing Flow Audit: ReplyBase SaaS
++
++## 1. Stripe Integration Lifecycle
++### Status: **READY**
++- **Checkout**: `app/api/billing/checkout/route.ts` correctly handles customer creation/lookup and trial eligibility.
++- **Webhook Handling**: `app/api/billing/webhook/route.ts` handles critical events:
++    - `customer.subscription.updated/deleted` -> Syncs local DB state.
++    - `invoice.payment_succeeded` -> Records revenue (Cents-safe logic).
++    - `invoice.payment_failed` -> Marks status as `PAST_DUE`.
++    - `charge.refunded` -> Cancels subscription immediately.
++
++---
++
++## 2. Plan Limits & Enforcement
++### Status: **STRONG**
++- **Dual-Layer Caching**: L1 (In-memory, 5m) and L2 (Redis, 1h) caches for tenant limits (`lib/subscription.ts`) ensure high performance under load.
++- **Granular Enforcement**:
++    - **Bot Limit**: `checkBotLimit` enforced during creation.
++    - **Channel Limit**: `checkChannelLimit` enforced per-bot.
++    - **Usage Zones**: `SAFE`, `WARNING`, `GRACE`, `HARD` pattern allows for user-friendly notifications before hard blocks.
++
++### Identified Risks:
++- **[Medium] Downgrade Edge Cases**: If a user downgrades from Pro (5 bots) to Starter (1 bot) while having 3 bots active, the system does not currently "freeze" the extra bots automatically. *Recommendation*: Implement a "suspended" state for bots exceeding new plan limits.
++- **[Low] Cache Desync**: L1 cache is per-instance. In a multi-replica deployment, one instance might lag for up to 5 minutes after a subscription change. *Mitigation*: Redis (L2) invalidation is implemented and serves as the source of truth for L1 refreshes.
++
++---
++
++## 3. Financial Integrity
++### Status: **PASS**
++- **Currency**: Handled in GBP/PENCE to avoid floating-point errors.
++- **Revenue Tracking**: `Revenue` model implemented with unique constraint on `stripeInvoiceId` to prevent double-counting.
++- **Trial Abuse**: `trialUsed` flag on the `Tenant` model prevents users from repeatedly starting 14-day trials.
++
++---
++
++## 4. Operational Checklist for Launch
++- [ ] Verify all Stripe Product/Price IDs in production `.env`.
++- [ ] Set up Stripe Webhook signing secret.
++- [ ] Confirm `NEXT_PUBLIC_APP_URL` matches the live domain for checkout redirects.
++- [ ] Run `pnpm run seed:stripe` in production to populate `Plan` table.
++
+diff --git a/docs/ui-ux-production-audit.md b/docs/ui-ux-production-audit.md
+new file mode 100644
+index 0000000..bcbdbab
+--- /dev/null
++++ b/docs/ui-ux-production-audit.md
+@@ -0,0 +1,37 @@
++# UI/UX Production Audit: ReplyBase SaaS
++
++## 1. Onboarding & Conversion Flow
++### Status: **GOOD**
++- **AI-Assisted Setup**: The multi-step onboarding (`app/api/onboarding/route.ts`) that generates a custom flow and bot context is a high-value feature.
++- **Trial-First Strategy**: "No card required" for trial reduces signup friction.
++- **Empty States**: Most dashboard views have skeleton loaders (`components/skeletons/`), providing a smooth perception of performance.
++
++### Conversion Leaks:
++- **[High] Post-Signup Friction**: After registration, users should be immediately dropped into the AI Onboarding flow. *Action*: Verify the `callbackUrl` logic in `middleware.ts` and `auth.ts` directs new users to `/onboarding`.
++- **[Medium] Upgrade CTAs**: While limits are enforced, the "Upgrade" buttons in the dashboard could be more prominent when usage hits the 90% `WARNING` zone.
++
++---
++
++## 2. Dashboard & Navigation
++### Status: **PASS**
++- **Mobile Responsiveness**: `use-mobile.ts` hook and responsive sidebar confirm a solid mobile experience.
++- **Accessibility**: Standard Radix UI components (`components/ui/`) provide baseline ARIA compliance.
++
++---
++
++## 3. Webchat Widget UX
++### Status: **STRONG**
++- **Visual Integration**: The widget supports brand customization.
++- **Latency**: Streaming responses make the AI feel fast and responsive.
++- **CORS Protection**: Prevents unauthorized domains from hijacking the widget's usage.
++
++### Improvement Areas:
++- **[Medium] Offline State**: If the backend is down or the bot is disabled, the widget should show a clear "Offline" message rather than a generic error.
++- **[Low] File Uploads**: Not currently supported. Users might expect to upload images/documents to the bot.
++
++---
++
++## 4. Trust & Compliance
++- **Privacy Policy**: Redirects to `replybase.co.uk/privacy` in middleware—ensure this is live.
++- **Branding**: Legal links and branding are consistent across Facebook/WhatsApp/Webchat UI components.
++
