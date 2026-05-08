@@ -79,10 +79,9 @@ async function resolveFlow(params: {
     }
   }
 
-  // No cooldown — flow_Initial's order:-1 returning-user gate handles qualified
-  // contacts gracefully (skips greeting + lead-gen, goes straight to explore topic).
-  // Setting this to 0 prevents post-flow messages from falling through to AI/fallback.
-  const FLOW_REPEAT_COOLDOWN_MS = 0;
+  // Enforce a 1-hour cooldown before allowing the flow to restart after a
+  // successful completion. This prevents aggressive restarts on social channels.
+  const FLOW_REPEAT_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
   const recentlyCompleted = await prisma.flowSession.findFirst({
     where: {
       userId: params.contactId,
@@ -351,6 +350,7 @@ import { incrementTenantUsage } from "./subscription";
 
 export async function executeBotEntryFlowFirst(params: {
   tenantId: string;
+  botId: string;
   contactId: string;
   scopeKey: string;
   message: string;
@@ -368,7 +368,7 @@ export async function executeBotEntryFlowFirst(params: {
     params.tenantId,
     "flow_execution",
     1,
-    undefined,
+    params.botId,
     params.channelId,
   );
 

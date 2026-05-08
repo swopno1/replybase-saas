@@ -92,6 +92,7 @@ export async function processTelegramJob(payload: any) {
     try {
       const flowResult = await executeBotEntryFlowFirst({
         tenantId,
+        botId: targetBotId,
         contactId: contact.id,
         scopeKey: `telegram:${channel.id}`,
         message: messageText,

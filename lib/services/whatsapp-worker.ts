@@ -123,6 +123,7 @@ export async function processWhatsAppJob(payload: any) {
 
     const flowResult = await executeBotEntryFlowFirst({
       tenantId: tenantId,
+      botId: targetBotId,
       contactId: contact.id,
       scopeKey: `whatsapp:${channel.id}`,
       message: inboundText,
