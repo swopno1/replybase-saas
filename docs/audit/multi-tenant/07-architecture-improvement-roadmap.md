@@ -3,7 +3,7 @@
 ## Phase 1: Immediate Risks (0–72 hours)
 1.  **Atomic Scoping**: Update all `prisma.update` and `prisma.delete` calls in API routes to include `tenantId` in the `where` clause directly: `where: { id, tenantId }`.
 2.  **Standardize DB Client**: Enforce the use of `db` (pre-scoped client from `withAuthAndTenant`) for all domain-level operations in API routes.
-3.  **Global Middleware**: Implement a `middleware.ts` that enforces authentication for all `/api/(dashboard|admin)/*` routes, reducing the risk of unprotected endpoints.
+3.  **Global Middleware**: Finalize a `proxy.ts` that enforces authentication for all `/api/(dashboard|admin)/*` routes, reducing the risk of unprotected endpoints.
 
 ## Phase 2: Short-term Fixes (1–2 weeks)
 1.  **Service Layer Extraction**: Refactor complex logic from `app/api/` into `lib/services/`. Each service method should accept `tenantId` as a mandatory first parameter.

@@ -85,7 +85,10 @@ export async function POST(request: NextRequest) {
     logger.error({ conversationId, botId }, "[Webchat Message] All fallbacks failed");
     return NextResponse.json({ responses: [{ type: "text", text: customFallbackMessage }], meta: { mode: "safe_fallback" } }, { headers: createWebchatCorsHeaders(request) });
   } catch (error) { logger.error({ error }, "[Webchat Message] Internal server error"); return NextResponse.json({ error: "Internal server error" }, { status: 500, headers: createWebchatCorsHeaders(request) }); }
-  finally { try { await prisma.idempotencyKey.delete({ where: { key: lockKey } }); } catch (e) {} }
+  finally {
+    // We leave the idempotency key until it expires naturally to prevent
+    // duplicates from rapid retries or concurrent events.
+  }
 }
 export async function OPTIONS(request: NextRequest) {
   if (!isWebchatOriginAllowed(request)) {
