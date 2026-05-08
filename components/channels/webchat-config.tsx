@@ -15,6 +15,7 @@ import {
   ChannelFlowAssignmentCard,
   ChannelActivityLogCard,
 } from "@/components/channels/channel-sections";
+import { ChannelLimitWarning } from "@/components/channels/channel-ui";
 import { Button } from "@/components/ui/button";
 import {
   Card,
