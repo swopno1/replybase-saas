@@ -46,8 +46,8 @@ const envSchema = z.object({
   TELEGRAM_TOKEN_ENCRYPTION_KEY: z.string().optional(),
 
   // REDIS
-  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
-  UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
+  UPSTASH_REDIS_REST_URL: z.preprocess((val) => (val === "" ? undefined : val), z.string().url().optional()),
+  UPSTASH_REDIS_REST_TOKEN: z.preprocess((val) => (val === "" ? undefined : val), z.string().optional()),
 
   // SECRETS & ADMIN
   API_SECRET_KEY: z.string().min(16),
