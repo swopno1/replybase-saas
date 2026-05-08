@@ -46,7 +46,7 @@ export interface FlowNodeContent {
   }>;
 
   // For action nodes
-  action?: "tag_user" | "update_status" | "send_email" | "end_flow" | "booking" | "checkout" | "schedule";
+  action?: "tag_user" | "update_status" | "send_email" | "end_flow" | "booking" | "checkout" | "schedule" | "trigger_webhook";
   tags?: string[];
   status?: string;
   bookingService?: string;
@@ -431,6 +431,38 @@ export class FlowExecutionEngine {
         });
 
         return { success: true, completed: true };
+
+      case "trigger_webhook": {
+        const lead = await prisma.lead.findFirst({
+          where: {
+            OR: [
+              {
+                source: "facebook",
+                metadata: { path: ["facebookUserId"], equals: context.userId },
+              },
+              {
+                source: "whatsapp",
+                metadata: { path: ["whatsappUserId"], equals: context.userId },
+              },
+              {
+                source: "website",
+                contactId: context.userId, // for webchat
+              },
+            ],
+          },
+        });
+
+        if (lead) {
+          const { dispatchWebhook } = await import("@/lib/services/webhook-dispatcher");
+          await dispatchWebhook(lead.tenantId, "flow.action", {
+            leadId: lead.id,
+            action: content.action,
+            nodeId: node.id,
+            variables: session.variables,
+          });
+        }
+        break;
+      }
 
       case "booking":
       case "checkout":
