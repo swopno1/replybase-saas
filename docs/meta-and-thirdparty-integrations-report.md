@@ -1,34 +1,51 @@
 # Meta and Third-Party Integrations Report: ReplyBase SaaS
 
 ## 1. Facebook & Messenger
-### Status: **READY**
-- **Webhook Routing**: Optimized to look up `botId` via `facebookId` (Page ID).
-- **Security**: Signature validation (`x-hub-signature-256`) and App Secret Proof confirmed.
-- **De-duplication**: Uses `WebhookLog` unique constraints on `mid` (Message ID).
+### Status: **PASS**
+- **Webhook Implementation**: `app/api/facebook/webhook/route.ts` correctly identifies `botId` and dispatches jobs to BullMQ.
+- **Security**: Signature validation using `x-hub-signature-256` is active.
+- **App Secret Proof**: `generateAppSecretProof` is implemented for all Graph API calls (`lib/server/facebook-utils.ts`), preventing token theft exploitation.
+- **Idempotency**: Message IDs (`mid`) are used as unique keys in `WebhookLog` to prevent duplicate responses.
 
-### Policy Compliance:
-- **24-Hour Window**: The system responds immediately via BullMQ workers, fitting well within Meta's 24-hour customer service window.
-- **Data Deletion**: `app/api/facebook/data-deletion` is implemented to comply with Meta's developer policies.
+### Critical Considerations:
+- **[High] Long-Lived Token Expiry**: The system assumes Page Access Tokens are permanent. If a user changes their password or deauthorizes the app, tokens break.
+- **Action**: Implement a "Connection Health Check" cron that verifies token validity daily and notifies users via email if a reconnect is required.
 
 ---
 
-## 2. WhatsApp (Meta Cloud & Twilio)
+## 2. WhatsApp Business Platform
 ### Status: **STRONG**
-- **Multi-Provider Support**: Handles both Meta Cloud API and Twilio webhooks seamlessly in `app/api/whatsapp/webhook/route.ts`.
-- **E164 Normalization**: Essential for matching incoming phone numbers to correct channels.
-- **Reliability**: WhatsApp delivery status logs (`sent`, `delivered`, `read`) are batched for performance.
+- **Dual Support**: Seamlessly handles both Meta Cloud API and Twilio providers.
+- **Delivery Status**: Correctly processes `sent`, `delivered`, and `read` status updates.
+- **Formatting**: Handles media URLs and text messages.
+
+### Policy Compliance:
+- **24-Hour Window**: All AI responses are triggered within seconds of receiving a message, keeping the tenant well within the Meta customer service window.
+- **Template Messaging**: Outbound notifications (`lib/lead-notifications.ts`) currently use standard text. **Risk**: Sending outbound messages outside the 24h window requires approved templates.
 
 ---
 
 ## 3. Telegram
 ### Status: **READY**
-- **Webhook Setup**: Automated setup via `/api/bots/[botId]/channels/telegram/connect`.
-- **Token Security**: Tokens are encrypted at rest.
-- **Validation**: Telegram webhook tokens are verified against the stored encrypted credentials.
+- **Encryption**: Bot tokens are encrypted at rest using AES-256-GCM (`lib/telegram-crypto.ts`).
+- **Webhook Setup**: Automated via `setWebhook` API during bot connection.
+- **Validation**: Webhook secret tokens are used to verify that incoming requests originate from Telegram.
 
 ---
 
-## 4. Risks & Policy Considerations
-- **[High] Permission Review**: Ensure the Meta App is approved for `pages_messaging` and `whatsapp_business_messaging` before going live.
-- **[Medium] Webhook Retries**: If the ReplyBase worker is slow, Meta will retry webhooks. Idempotency logic is critical here and appears well-implemented.
-- **[Medium] Token Expiration**: Long-lived Facebook Page Access Tokens can still expire or be revoked. A "Reconnect" UI (`api/bots/[botId]/channels/facebook/reconnect`) is recommended for the dashboard.
+## 4. Stripe (Billing)
+### Status: **PASS**
+- **Event Handling**: Robust audit trail with `StripeEvent` table.
+- **Plan Mapping**: Metadata on Stripe products (`app_plan_id`) is used to automatically map subscriptions to internal plan limits.
+
+---
+
+## 5. Integration Risks & Action Plan
+| Integration | Risk | Recommendation | Status |
+| :--- | :--- | :--- | :--- |
+| Meta | Token Revocation | Add automated connection health monitoring. | **BACKLOG** |
+| WhatsApp | Template Policy | Enforce template-only for outbound notifications. | **MEDIUM** |
+| Meta | 24h Window Bypass | Block AI responses if the last human message is > 24h old. | **PENDING** |
+| Telegram | Token Exposure | Ensure `TELEGRAM_TOKEN_ENCRYPTION_KEY` is rotated annually. | **N/A (Process)** |
+
+**Integration Verdict**: The system is highly integrated and uses best practices for token security and webhook de-duplication. The primary "production blocker" is ensuring strict adherence to Meta's 24-hour response window and template policies for outbound automation.

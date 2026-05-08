@@ -1,50 +1,62 @@
 # Multi-Tenant Isolation Audit: ReplyBase SaaS
 
-## 1. Isolation Strategy
-**Mechanism**: Logical isolation via `tenantId` discriminator on all primary entities.
-**Enforcement**:
-- **Prisma Extension**: `lib/prisma-tenant.ts` automatically injects `tenantId` into `where`, `create`, and `update` arguments.
-- **Middleware Scoping**: `withAuthAndTenant` route helper ensures every request is context-bound to the logged-in user's `tenantId`.
+## 1. Isolation Architecture
+### Status: **PASS (CONCEPTUAL)**
+- **Shared Database**: All tenants share the same PostgreSQL database.
+- **Tenant ID Scoping**: Every core entity contains a `tenantId` field.
+- **Automated Scoping**: A Prisma extension in `lib/prisma-tenant.ts` automatically injects `where: { tenantId }` into queries.
 
 ---
 
-## 2. Risk Assessment
-### High Risk: Mixed Client Usage
-- **Findings**: Some API routes import the global `prisma` client directly instead of using the scoped client provided by the middleware.
-- **Impact**: Bypasses the automatic `tenantId` injection. If a developer forgets a manual `where: { tenantId }` filter, data leakage occurs.
+## 2. Enforcement Gaps & IDOR Risks
+### Status: **HIGH RISK**
+The primary risk is the inconsistent use of the scoped Prisma client. Developers often import `prisma` from `@/lib/prisma` (global) instead of using the scoped client provided by `withAuthAndTenant`.
 
-### High Risk: Execution Logs & Tenant Context
-- **Findings**: The `ExecutionLog` model lacked a direct `tenantId` field. It relied on a join to the `Bot` model (`botId`).
-- **Impact**: Queries for logs must always join through `Bot`. If a query is run against `ExecutionLog` directly (e.g., for global analytics), it could inadvertently access data across tenants.
-- **Remediation**: Add `tenantId` directly to the `ExecutionLog` model for faster, safer querying.
-- **Status**: **RESOLVED**. `tenantId` has been added to `ExecutionLog` model with relations and indexed correctly. `lib/execution-logger.ts` updated to query and insert directly using `tenantId`.
+### Critical Findings:
+- **[High] Unscoped Mutations**:
+  - API routes that use direct `.update()` or `.delete()` calls with only the record `id` are vulnerable to IDOR (Insecure Direct Object Reference).
+  - **Identified Routes**:
+    - `app/api/bots/[botId]/channels/facebook/[pageId]/route.ts`: Uses `prisma.facebookPage.delete({ where: { id: facebookPage.id } })`.
+    - `app/api/contacts/[contactId]/route.ts`: Several mutations use direct `db.contact.update({ where: { id: contactId } })`.
+    - `app/api/flows/[id]/route.ts`: Uses `prisma.flow.update({ where: { id } })`.
+  - **Attack Vector**: A malicious user in Tenant A could capture a request to delete a bot, swap the bot `id` for Tenant B's bot `id`, and successfully delete it if the route doesn't verify the `tenantId` in the `where` clause.
 
-### Medium Risk: Webhook Routing
-- **Findings**: Facebook/WhatsApp webhooks are public endpoints. They resolve `tenantId` by looking up the `pageId` or `phoneNumberId`.
-- **Impact**: If a malicious user manages to "register" a `pageId` already owned by another tenant (unlikely due to Meta token verification), they could hijack traffic.
-- **Mitigation**: Meta token verification is implemented (`appsecret_proof`), providing strong protection against this.
+- **[Medium] Webchat Token Immortality**:
+  - The Webchat session token (`lib/webchat-session.ts`) encodes the `tenantId`.
+  - **Risk**: If a tenant's `siteId` is leaked or intentionally shared, the CORS protection is the only barrier. If CORS is misconfigured (e.g., wildcard allowed), cross-tenant message injection is possible.
+  - **Remediation**: Verify the `siteId` in the token matches the bot's configured `siteId` during every message ingestion.
 
----
-
-## 3. Atomic Mutation Integrity
-Several routes perform "Check then Update" operations:
-1. `findFirst({ where: { id, tenantId } })`
-2. `update({ where: { id }, data })`
-
-**Problem**: If Step 1 passes but contains a logic error, Step 2 is unscoped.
-**Recommendation**: Use **Atomic Scoped Mutations**:
-```typescript
-await db.bot.update({
-  where: { id, tenantId }, // Scoped!
-  data: { ... }
-});
-```
-
-- **Status**: **RESOLVED**. All critical mutation endpoints (`bots`, `leads`, `contacts`, `conversations`) have been migrated to use `tenantId` directly in `update` and `delete` `where` clauses, utilizing Prisma's compound unique constraints (e.g., `@@unique([id, tenantId])`).
+- **[Medium] Webhook Log Collision**:
+  - `WebhookLog` model lacks a `tenantId` field.
+  - **Risk**: Webhook logs for all tenants are mixed in a single global table. While the admin UI filters them, the database-level isolation is absent.
+  - **Remediation**: Add `tenantId` to `WebhookLog` and index it for faster tenant-specific lookups.
 
 ---
 
-## 4. Verdict
-The isolation architecture is **Professional Grade** and has undergone **Consistency Hardening**.
-- **Confidence Level**: 95%
-- **Critical Remediation**: **Completed**. All core mutations now include `tenantId` in the `where` clause, and `tenantId` has been fully integrated into the `ExecutionLog` model.
+## 3. Recommendations & Hardening Plan
+1. **Mandatory Scoped Client**:
+   - Forbid direct imports of `@/lib/prisma` in `app/api/` (except for auth and webhooks).
+   - Enforce usage of `withAuthAndTenant` for all tenant-facing routes.
+2. **Compound Keys**:
+   - Update all mutations to use compound unique constraints:
+     ```typescript
+     // UNSAFE
+     prisma.bot.update({ where: { id } })
+
+     // SAFE
+     prisma.bot.update({ where: { id, tenantId } })
+     ```
+3. **Prisma Extension Hardening**:
+   - Update `lib/prisma-tenant.ts` to throw a runtime error if a query is attempted on a tenant-scoped model without a `tenantId` provided in the context, even for `findUnique`.
+
+---
+
+## 4. Isolation Action Plan
+| Issue | Severity | Recommendation | Status |
+| :--- | :--- | :--- | :--- |
+| Unscoped `.delete()` | High | Add `tenantId` to all delete where clauses. | **PENDING** |
+| Unscoped `.update()` | High | Add `tenantId` to all update where clauses. | **PENDING** |
+| WebhookLog Isolation | Medium | Add `tenantId` column to `webhook_logs` table. | **BACKLOG** |
+| JWT Tenant Check | Medium | Re-verify tenant membership on every sensitive action. | **IN PROGRESS** |
+
+**Audit Verdict**: While the foundation for isolation is present, the implementation is "Swiss cheese" due to manual coding errors in mutation routes. This must be remediated before production traffic.

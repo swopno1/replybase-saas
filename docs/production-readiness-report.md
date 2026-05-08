@@ -17,6 +17,7 @@ The ReplyBase SaaS platform is architecturally sound and functionally complete f
 - **[Critical] Redis Persistence**: BullMQ requires Redis persistence (RDB/AOF) to prevent message loss on restart. *Action*: Ensure production Redis is not "cache-only".
 - **[High] Database Pooling**: High concurrent webhook volume will exhaust standard PG connections. *Action*: Deploy PgBouncer or use a connection pooler (e.g., Prisma Accelerate or Supabase Pooling).
 - **[Medium] Health Monitoring**: `/api/health` exists but needs to be integrated into container liveness probes.
+- **[High] Redis Configuration Desync**: `lib/env.ts` validates Upstash REST variables, while `lib/redis.ts` and BullMQ require a TCP `REDIS_URL`. *Action*: Add `REDIS_URL` to `lib/env.ts` validation to prevent runtime failures.
 
 ---
 
@@ -28,6 +29,7 @@ The ReplyBase SaaS platform is architecturally sound and functionally complete f
 ### Risks & Recommendations
 - **[High] Secret Rotation**: `CHANNEL_CREDENTIALS_ENCRYPTION_KEY` is used for AES-256-GCM. A rotation strategy is missing.
 - **[Medium] Log Aggregation**: Standard `console` methods are used in many places. *Action*: Standardize on the `pino` logger defined in `lib/logger.ts` for structured logging (Sentry/CloudWatch compatible).
+- **[High] Worker Concurrency**: Currently set to 5 in `lib/queue.ts`. This is safe for launch but will become a bottleneck for heavy Meta/WhatsApp tenants. *Action*: Move concurrency to an environment variable.
 
 ---
 
@@ -37,61 +39,13 @@ The ReplyBase SaaS platform is architecturally sound and functionally complete f
 - **Idempotency**: Implemented for Webchat and Meta webhooks using `IdempotencyKey` and `WebhookLog` unique constraints.
 
 ### Risks & Recommendations
-- **[High] AI Latency**: AI streaming is implemented, but slow LLM responses could block worker threads if not properly isolated.
+- **[High] AI Latency**: AI streaming is implemented, but slow LLM responses could block worker threads if not properly isolated. *Action*: Consider a separate queue/worker pool for "Heavy AI" tasks (like enrichment).
 - **[Medium] Rate Limiting**: Middleware-level rate limiting is a good start, but edge-level (Cloudflare) protection is recommended for production.
+- **[Medium] Queue Backlog**: No automated alerting for BullMQ backlog growth. *Action*: Implement a monitoring dashboard or Slack alert when jobs stay in 'waiting' for > 60s.
 
 ---
 
-## 4. Final Verdict & Blocker Severity
-| Issue | Severity | Recommendation | Status |
-| :--- | :--- | :--- | :--- |
-| Redis Persistence | Critical | Enable AOF/RDB on production Redis instance. | **PENDING OPERATIONS**: Needs host configuration. |
-| DB Connection Pooling | High | Deploy PgBouncer or equivalent before marketing launch. | **PENDING OPERATIONS**: Documented via connection string. |
-| Inconsistent Tenant Scoping | High | Standardize all mutations on `getTenantPrisma`. | **RESOLVED**: Core models migrated to compound unique constraints. |
-| Structured Logging Gap | Medium | Migrate remaining `console.log` to `lib/logger.ts`. | **IN PROGRESS**: Started migrating webhook endpoints. |
-
-**Verdict**: The system is ready for initial beta/production traffic. The "High" severity items have been largely mitigated in code, while infrastructure items remain pending for the DevOps team to finalize before full marketing launch.
-
-
----
-
-## 5. Deployment Fixes & Database Migration
-### Issue: Migration Error P3005
-During deployment, the error `P3005` was observed. This occurs when `prisma migrate deploy` is run against a database that already has a schema but no migration history (baseline issue).
-
-### Solution:
-1. **Baseline the Database**: If the production database was created outside of Prisma Migrations, you must baseline it:
-   ```bash
-   npx prisma migrate resolve --applied 20260130130900_init
-   ```
-   (Or the latest migration that matches the current schema).
-2. **Accept Data Loss in Dev**: In the development environment, use `pnpm prisma db push --accept-data-loss` to sync schema changes without full migrations.
-
-### Actions Taken:
-- Updated `Dockerfile` to use Prisma `7.8.0` to match `package.json`.
-- Standardized migration command to `npx prisma migrate deploy`.
-
-
----
-
-## 5. Deployment Fixes & Database Migration
-### Issue: Migration Error P3005
-During deployment, the error `P3005` was observed. This occurs when `npx prisma migrate deploy` is run against a database that already has a schema but no migration history (baseline issue).
-
-### Required Manual Action for First Deploy:
-To fix this, you must run the following command **once** against your production database:
-```bash
-npx prisma migrate resolve --applied 20260130130900_init
-```
-After running this, subsequent deployments will work automatically as they will find the migration history in the `_prisma_migrations` table.
-
-### Actions Taken in Code:
-- Synchronized Prisma version to `7.8.0` in `Dockerfile`.
-- Hardened the `CMD` in `Dockerfile` to use `npx prisma migrate deploy`.
-
----
-
-## 5. Deployment Fixes & Database Migration (Update)
+## 4. Database Migration & Baseline
 ### Issue: Migration Error P3005
 During deployment, the error `P3005` was observed. This occurs when `npx prisma migrate deploy` is run against a database that already has a schema but no migration history (baseline issue).
 
@@ -101,5 +55,18 @@ The `Dockerfile` has been updated to automatically attempt a baseline of the ini
 ### Manual Action (Fallback):
 If the automated baseline still fails, you may need to manually resolve migrations using:
 ```bash
-npx prisma migrate resolve --applied <migration_name> --schema ./prisma/schema.prisma
+npx prisma migrate resolve --applied 20260130130900_init --schema ./prisma/schema.prisma
 ```
+
+---
+
+## 5. Final Verdict & Blocker Severity
+| Issue | Severity | Recommendation | Status |
+| :--- | :--- | :--- | :--- |
+| Redis Persistence | Critical | Enable AOF/RDB on production Redis instance. | **PENDING OPERATIONS**: Needs host configuration. |
+| DB Connection Pooling | High | Deploy PgBouncer or equivalent before marketing launch. | **PENDING OPERATIONS**: Documented via connection string. |
+| Redis URL Validation | High | Add `REDIS_URL` to `lib/env.ts` Zod schema. | **PENDING CODE**: Needs minor edit to `lib/env.ts`. |
+| Inconsistent Tenant Scoping | High | Standardize all mutations on `getTenantPrisma`. | **RESOLVED**: Core models migrated to compound unique constraints. |
+| Structured Logging Gap | Medium | Migrate remaining `console.log` to `lib/logger.ts`. | **IN PROGRESS**: Started migrating webhook endpoints. |
+
+**Verdict**: The system is ready for initial beta/production traffic. The "High" severity items have been largely mitigated in code or documented for infrastructure setup.
