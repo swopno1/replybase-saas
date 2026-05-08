@@ -306,10 +306,33 @@ export async function getOrCreateWebChatSite(params: {
 }
 
 export async function findActiveWebChatSite(input: {
+  id?: string;
   publicKey?: string;
   channelId?: string;
   botId?: string;
 }): Promise<ActiveWebChatSite | null> {
+  if (input.id) {
+    const site = await prisma.webChatSite.findFirst({
+      where: {
+        id: input.id,
+        isActive: true,
+      },
+      include: {
+        bot: {
+          select: {
+            id: true,
+            tenantId: true,
+          },
+        },
+      },
+    });
+
+    if (!site) {
+      return null;
+    }
+
+    return toActiveWebChatSite(site);
+  }
   if (input.publicKey) {
     const site = await prisma.webChatSite.findFirst({
       where: {

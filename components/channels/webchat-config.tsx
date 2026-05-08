@@ -27,6 +27,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 
 interface WebchatSite {
@@ -284,7 +285,18 @@ export function WebchatConfig({
   };
 
   const appUrl = typeof window !== "undefined" ? window.location.origin : "";
-  const embedSnippet = site ? `<script src="${appUrl}/embed/replybase-webchat.js" data-site-id="${site.id}" async defer></script>` : "";
+  
+  const snippets = useMemo(() => {
+    if (!site) return { html: "", nextjs: "", react: "" };
+    const src = `${appUrl}/embed/replybase-webchat.js`;
+    return {
+      html: `<script src="${src}" data-site-id="${site.id}" async defer></script>`,
+      nextjs: `import Script from "next/script";\n\nexport default function RootLayout({ children }) {\n  return (\n    <html lang="en">\n      <body>\n        {children}\n        <Script src="${src}" data-site-id="${site.id}" strategy="lazyOnload" />\n      </body>\n    </html>\n  );\n}`,
+      react: `// Add this to your index.html or public/index.html\n<script src="${src}" data-site-id="${site.id}" async defer></script>`
+    };
+  }, [site, appUrl]);
+
+  const [activeTab, setActiveTab] = useState("html");
 
   const handlePreviewSend = () => {
     if (!previewDraft.trim()) return;
@@ -362,28 +374,54 @@ export function WebchatConfig({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Textarea
-                value={embedSnippet || "Save settings first to generate snippet."}
-                readOnly
-                className="font-mono text-xs h-24"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full"
-                onClick={() => {
-                  if (embedSnippet) {
-                    navigator.clipboard.writeText(embedSnippet);
-                    toast.success("Snippet copied!");
-                  }
-                }}
-                disabled={!embedSnippet}
-              >
-                <Copy className="mr-2 h-4 w-4" />
-                Copy Snippet
-              </Button>
-            </div>
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="html">HTML</TabsTrigger>
+                <TabsTrigger value="nextjs">Next.js</TabsTrigger>
+                <TabsTrigger value="react">React / Vite</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="html" className="space-y-2 mt-4">
+                <Textarea
+                  value={snippets.html || "Save settings first to generate snippet."}
+                  readOnly
+                  className="font-mono text-xs h-24"
+                />
+              </TabsContent>
+              
+              <TabsContent value="nextjs" className="space-y-2 mt-4">
+                <Textarea
+                  value={snippets.nextjs || "Save settings first to generate snippet."}
+                  readOnly
+                  className="font-mono text-xs h-40"
+                />
+              </TabsContent>
+              
+              <TabsContent value="react" className="space-y-2 mt-4">
+                <Textarea
+                  value={snippets.react || "Save settings first to generate snippet."}
+                  readOnly
+                  className="font-mono text-xs h-24"
+                />
+              </TabsContent>
+            </Tabs>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => {
+                const textToCopy = snippets[activeTab as keyof typeof snippets];
+                if (textToCopy) {
+                  navigator.clipboard.writeText(textToCopy);
+                  toast.success("Snippet copied!");
+                }
+              }}
+              disabled={!site}
+            >
+              <Copy className="mr-2 h-4 w-4" />
+              Copy Snippet
+            </Button>
           </CardContent>
         </Card>
       </div>
