@@ -18,9 +18,11 @@ const PLANS = [
     displayName: "Free",
     price: 0,
     limits: {
+      // AI Responses/Month: 100  (no daily sub-limit — it's a small monthly quota)
       dailyMessageLimit: 100,
-      monthlyMessageLimit: 3000,
-      flowExecutionCap: 100,
+      monthlyMessageLimit: 100,
+      // Automations/Month: 200
+      flowExecutionCap: 200,
       maxBots: 1,
       maxChannelsPerBot: 1,
       maxConversations: 100,
@@ -31,12 +33,14 @@ const PLANS = [
     displayName: "Starter",
     price: 2900, // £29.00
     limits: {
-      dailyMessageLimit: 1000,
-      monthlyMessageLimit: 30000,
-      flowExecutionCap: 1000,
+      // AI Responses/Month: 1,000  (daily soft cap: ~34/day)
+      dailyMessageLimit: 100,
+      monthlyMessageLimit: 1000,
+      // Automations/Month: 1,500
+      flowExecutionCap: 1500,
       maxBots: 3,
       maxChannelsPerBot: 3,
-      maxConversations: 1000,
+      maxConversations: 1500,
     },
   },
   {
@@ -44,12 +48,14 @@ const PLANS = [
     displayName: "Pro",
     price: 8900, // £89.00
     limits: {
-      dailyMessageLimit: 5000,
-      monthlyMessageLimit: 150000,
-      flowExecutionCap: 5000,
+      // AI Responses/Month: 7,500  (daily soft cap: ~250/day)
+      dailyMessageLimit: 500,
+      monthlyMessageLimit: 7500,
+      // Automations/Month: 10,000
+      flowExecutionCap: 10000,
       maxBots: 10,
       maxChannelsPerBot: 5,
-      maxConversations: 5000,
+      maxConversations: 10000,
     },
   },
   {
@@ -57,12 +63,14 @@ const PLANS = [
     displayName: "Business",
     price: 24900, // £249.00
     limits: {
-      dailyMessageLimit: 20000,
-      monthlyMessageLimit: 600000,
-      flowExecutionCap: 20000,
-      maxBots: 50,
+      // AI Responses/Month: 25,000  (daily soft cap: ~833/day)
+      dailyMessageLimit: 1500,
+      monthlyMessageLimit: 25000,
+      // Automations/Month: 40,000
+      flowExecutionCap: 40000,
+      maxBots: 25,
       maxChannelsPerBot: 10,
-      maxConversations: 20000,
+      maxConversations: 40000,
     },
   },
 ];

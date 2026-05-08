@@ -9,6 +9,9 @@ import { decryptTelegramToken } from "@/lib/telegram-crypto";
 
 export const dynamic = 'force-dynamic';
 
+
+
+
 const disconnectSchema = z.object({
   channelId: z.string().min(1),
   dropPendingUpdates: z.boolean().optional(),
@@ -19,12 +22,12 @@ export async function POST(
   { params }: { params: Promise<{ botId: string }> },
 ) {
   try {
-    const { botId } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { botId } = await params;
     const body = await req.json();
     const validated = disconnectSchema.parse(body);
 
@@ -97,7 +100,8 @@ export async function POST(
 
     console.error("[Telegram Disconnect] Error:", error);
     return NextResponse.json(
-      { error: "Failed to disconnect Telegram" },
+      {
+        error: "Failed to disconnect Telegram" },
       { status: 500 },
     );
   }

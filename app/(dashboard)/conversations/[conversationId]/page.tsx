@@ -60,7 +60,7 @@ export default function ConversationPage() {
       return;
     }
 
-    setLoading(true);
+    const timeoutId = setTimeout(() => setLoading(true), 0);
     refreshConversation();
 
     const intervalId = window.setInterval(() => {
@@ -69,6 +69,7 @@ export default function ConversationPage() {
 
     return () => {
       window.clearInterval(intervalId);
+      if (typeof timeoutId !== "undefined") clearTimeout(timeoutId);
     };
   }, [conversationId, refreshConversation]);
 

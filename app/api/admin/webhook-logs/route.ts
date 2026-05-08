@@ -24,8 +24,10 @@ const prismaWithWebhookLogs = prisma as typeof prisma & {
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { isPlatformAdmin } = await import("@/lib/admin");
+    
+    if (!isPlatformAdmin(session)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Get last 50 webhook logs, ordered by most recent
@@ -50,8 +52,10 @@ export async function GET() {
 export async function DELETE() {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { isPlatformAdmin } = await import("@/lib/admin");
+
+    if (!isPlatformAdmin(session)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Delete ALL webhook logs

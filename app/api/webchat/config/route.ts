@@ -36,10 +36,11 @@ export async function GET(request: NextRequest) {
     const channelId =
       request.nextUrl.searchParams.get("channelId") || undefined;
     const botId = request.nextUrl.searchParams.get("botId") || undefined;
+    const siteId = request.nextUrl.searchParams.get("siteId") || undefined;
 
-    if (!publicKey && !channelId && !botId) {
+    if (!publicKey && !channelId && !botId && !siteId) {
       return NextResponse.json(
-        { error: "Provide publicKey, channelId, or botId" },
+        { error: "Provide siteId, publicKey, channelId, or botId" },
         { status: 400, headers: createWebchatCorsHeaders(request) },
       );
     }
@@ -47,9 +48,11 @@ export async function GET(request: NextRequest) {
     const requestOrigin = request.headers.get("origin") || undefined;
     const requestReferer = request.headers.get("referer") || undefined;
 
-    const siteFromKey = publicKey
-      ? await findActiveWebChatSite({ publicKey })
-      : null;
+    const siteFromKey = siteId 
+      ? await findActiveWebChatSite({ id: siteId })
+      : publicKey
+        ? await findActiveWebChatSite({ publicKey })
+        : null;
 
     if (siteFromKey) {
       const rollout = await getWebchatRolloutDecision(siteFromKey.bot.tenantId);

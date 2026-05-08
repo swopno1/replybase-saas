@@ -66,10 +66,13 @@ export function ConversationsList() {
       });
       const response = await fetch(`/api/conversations?${params.toString()}`);
       if (response.ok) {
-        const data = await response.json();
-        setConversations(data.conversations);
-        setTotalCount(data.totalCount);
-        setPageCount(data.totalPages);
+        const result = await response.json();
+        const data = result.data || [];
+        const metadata = result.metadata || {};
+
+        setConversations(data);
+        setTotalCount(metadata.totalCount || 0);
+        setPageCount(metadata.totalPages || 0);
         setIsAllMatchingSelected(false);
       }
     } catch (error) {

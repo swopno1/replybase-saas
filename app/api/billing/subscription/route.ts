@@ -45,8 +45,8 @@ export async function GET() {
             price: 0,
             currency: "GBP",
             dailyMessageLimit: 100,
-            monthlyMessageLimit: 3000,
-            flowExecutionCap: 100,
+            monthlyMessageLimit: 100,   // 100 AI Responses / month
+            flowExecutionCap: 200,       // 200 Automations / month
             maxBots: 1,
             maxChannelsPerBot: 1,
             maxConversations: 100,

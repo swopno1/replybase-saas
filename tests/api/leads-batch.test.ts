@@ -19,7 +19,7 @@ vi.mock("@/lib/prisma", () => ({
 
 vi.mock("@/lib/route-helpers", () => ({
   withAuthAndTenant: (fn: any) => async (request: any, context: any) => {
-    return fn({ tenantId: "test-tenant", id: "test-user" }, request, context);
+    return fn({ tenantId: "test-tenant", id: "test-user" }, request, context, prisma);
   },
 }));
 

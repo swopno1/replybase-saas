@@ -1,3 +1,4 @@
+import logger from "./logger";
 import { NextRequest } from "next/server";
 
 export type WebchatRateLimitResult = {
@@ -256,10 +257,7 @@ export async function consumeWebchatRateLimit(input: {
     try {
       return await consumeUpstashRateLimit(input);
     } catch (error) {
-      console.error(
-        "[Webchat RateLimit] Shared limiter unavailable, falling back to memory:",
-        error,
-      );
+      logger.error({ error }, "[Webchat RateLimit] Shared limiter unavailable, falling back to memory");
     }
   }
 

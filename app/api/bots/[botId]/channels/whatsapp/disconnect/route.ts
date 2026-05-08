@@ -16,12 +16,12 @@ export async function POST(
   { params }: { params: Promise<{ botId: string }> },
 ) {
   try {
-    const { botId } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { botId } = await params;
     const body = await req.json();
     const validated = disconnectSchema.parse(body);
 

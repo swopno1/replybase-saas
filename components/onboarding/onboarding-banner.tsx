@@ -10,7 +10,8 @@ export function OnboardingBanner({
   currentStep: number;
   totalSteps?: number;
 }) {
-  const progress = Math.round(((currentStep) / totalSteps) * 100);
+  const progress = totalSteps > 0 ? Math.round(((currentStep || 0) / totalSteps) * 100) : 0;
+  const safeProgress = isNaN(progress) ? 0 : progress;
 
   return (
     <div className="bg-primary/5 border-b border-primary/10 px-4 py-2">
@@ -21,9 +22,9 @@ export function OnboardingBanner({
         </div>
         <div className="flex items-center gap-4 w-full md:w-auto">
           <span className="text-xs text-muted-foreground whitespace-nowrap">
-            Setup Progress: {progress}%
+            Setup Progress: {safeProgress}%
           </span>
-          <Progress value={progress} className="h-2 w-full md:w-48" />
+          <Progress value={safeProgress} className="h-2 w-full md:w-48" />
         </div>
       </div>
     </div>

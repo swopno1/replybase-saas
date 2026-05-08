@@ -44,6 +44,7 @@
   var channelId = scriptTag.getAttribute("data-channel-id");
   var botId = scriptTag.getAttribute("data-bot-id");
   var publicKey = scriptTag.getAttribute("data-public-key");
+  var siteId = scriptTag.getAttribute("data-site-id");
   var title = scriptTag.getAttribute("data-title") || "Chat with us";
   var primaryColor = scriptTag.getAttribute("data-primary-color") || "#0f766e";
   var position = scriptTag.getAttribute("data-position") || "right";
@@ -60,15 +61,15 @@
     "replybase:webchat-consent-updated";
   var mobileMode = scriptTag.getAttribute("data-mobile-mode") || "auto";
 
-  if (!channelId && !botId && !publicKey) {
+  if (!channelId && !botId && !publicKey && !siteId) {
     console.error(
-      "[ReplyBase Webchat] Missing data-public-key, data-channel-id, or data-bot-id on script tag",
+      "[ReplyBase Webchat] Missing data-site-id, data-public-key, data-channel-id, or data-bot-id on script tag",
     );
     return;
   }
 
   var STORAGE_KEY_PREFIX = "replybase_webchat_session";
-  var storageScope = publicKey || channelId || botId;
+  var storageScope = siteId || publicKey || channelId || botId;
   var token = "";
   var conversationId = "";
   var visitorId = "";
@@ -418,31 +419,81 @@
         }
       }
 
-      request("/api/webchat/message", "POST", {
-        token: token,
-        conversationId: conversationId,
-        botId: botId,
-        message: text,
-        planName: window.ReplyBaseWebchatPlanName || "pro",
-        metadata: buildRuntimeMetadata(),
-        botSignals: buildBotSignals(),
+      fetch(baseUrl + "/api/webchat/message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: token,
+          conversationId: conversationId,
+          botId: botId,
+          message: text,
+          planName: window.ReplyBaseWebchatPlanName || "pro",
+          metadata: buildRuntimeMetadata(),
+          botSignals: buildBotSignals(),
+        }),
       })
-        .then(function (data) {
-          var entries = normalizeResponseEntries(data);
-          if (!entries.length) {
-            if (
-              data &&
-              data.meta &&
-              typeof data.meta.mode === "string" &&
-              data.meta.mode.indexOf("human_handoff") === 0
-            ) {
-              return;
-            }
-            addSystemNote("No response received");
-            return;
+        .then(function (res) {
+          if (!res.ok) {
+            return res.json().then(function (data) {
+              throw new Error((data && data.error) || "Request failed");
+            });
           }
 
-          return renderResponseEntries(entries);
+          var contentType = res.headers.get("content-type");
+          if (contentType && contentType.indexOf("text/plain") !== -1) {
+            // Streaming response (Vercel AI SDK data stream)
+            var reader = res.body.getReader();
+            var decoder = new TextDecoder();
+            var fullText = "";
+            var bubble = document.createElement("div");
+            bubble.className = "rb-message bot";
+            messages.appendChild(bubble);
+
+            function read() {
+              return reader.read().then(function (result) {
+                if (result.done) {
+                  isSending = false;
+                  sendButton.disabled = false;
+                  return;
+                }
+                var chunk = decoder.decode(result.value, { stream: true });
+                // Vercel AI SDK Data Stream format: prefix:JSON or prefix:text
+                // 0:text, 1:text_diff, etc.
+                var lines = chunk.split("\n");
+                lines.forEach(function (line) {
+                  if (line.startsWith("0:")) {
+                    var val = line.substring(2);
+                    try {
+                      var textPart = JSON.parse(val);
+                      fullText += textPart;
+                      bubble.textContent = fullText;
+                      messages.scrollTop = messages.scrollHeight;
+                    } catch (e) {}
+                  }
+                });
+                return read();
+              });
+            }
+            return read();
+          } else {
+            // Standard JSON response
+            return res.json().then(function (data) {
+              var entries = normalizeResponseEntries(data);
+              if (!entries.length) {
+                if (
+                  data &&
+                  data.meta &&
+                  typeof data.meta.mode === "string" &&
+                  data.meta.mode.indexOf("human_handoff") === 0
+                ) {
+                  return;
+                }
+                addSystemNote("No response received");
+                return;
+              }
+              return renderResponseEntries(entries);
+            });
+          }
         })
         .catch(function (err) {
           hideBotTyping();
@@ -955,6 +1006,7 @@
     }
 
     var payload = {
+      siteId: siteId || undefined,
       publicKey: publicKey || undefined,
       channelId: channelId || undefined,
       botId: botId || undefined,
@@ -995,11 +1047,13 @@
   }
 
   function loadConfig() {
-    var query = publicKey
-      ? "publicKey=" + encodeURIComponent(publicKey)
-      : channelId
-        ? "channelId=" + encodeURIComponent(channelId)
-        : "botId=" + encodeURIComponent(botId);
+    var query = siteId
+      ? "siteId=" + encodeURIComponent(siteId)
+      : publicKey
+        ? "publicKey=" + encodeURIComponent(publicKey)
+        : channelId
+          ? "channelId=" + encodeURIComponent(channelId)
+          : "botId=" + encodeURIComponent(botId);
 
     return request("/api/webchat/config?" + query, "GET").then(function (data) {
       if (typeof data.publicKey === "string" && data.publicKey.trim()) {

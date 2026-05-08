@@ -79,10 +79,9 @@ async function resolveFlow(params: {
     }
   }
 
-  // No cooldown — flow_Initial's order:-1 returning-user gate handles qualified
-  // contacts gracefully (skips greeting + lead-gen, goes straight to explore topic).
-  // Setting this to 0 prevents post-flow messages from falling through to AI/fallback.
-  const FLOW_REPEAT_COOLDOWN_MS = 0;
+  // Enforce a 1-hour cooldown before allowing the flow to restart after a
+  // successful completion. This prevents aggressive restarts on social channels.
+  const FLOW_REPEAT_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
   const recentlyCompleted = await prisma.flowSession.findFirst({
     where: {
       userId: params.contactId,
@@ -192,8 +191,166 @@ async function resolveFlow(params: {
   return startFlowSession(configuredFlow);
 }
 
+function getVariableString(
+  variables: Record<string, unknown>,
+  ...keys: string[]
+) {
+  for (const key of keys) {
+    const value = variables[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return null;
+}
+
+function mergeTags(existing: unknown, incoming?: string[]) {
+  const currentTags = Array.isArray(existing)
+    ? existing.filter(
+        (tag: unknown): tag is string =>
+          typeof tag === "string" && tag.trim().length > 0,
+      )
+    : [];
+  const nextTags = Array.isArray(incoming)
+    ? incoming.filter((tag) => typeof tag === "string" && tag.trim().length > 0)
+    : [];
+
+  return Array.from(new Set([...currentTags, ...nextTags]));
+}
+
+async function persistLeadCapture(params: {
+  tenantId: string;
+  contactId: string;
+  flowId: string;
+  variables: Record<string, unknown>;
+  tags?: string[];
+  status?: string;
+  channelId?: string;
+}) {
+  const name = getVariableString(params.variables, "lead_name", "name");
+  const email = getVariableString(params.variables, "lead_email", "email");
+  const phone = getVariableString(
+    params.variables,
+    "lead_phone",
+    "phone",
+    "mobile",
+  );
+  const company = getVariableString(
+    params.variables,
+    "lead_company",
+    "company",
+  );
+  const need = getVariableString(
+    params.variables,
+    "lead_need",
+    "businessType",
+    "business_type",
+  );
+  const budget = getVariableString(params.variables, "lead_budget", "budget");
+
+  if (!name && !email && !phone && !company && !need && !budget && !params.tags && !params.status) {
+    return;
+  }
+
+  const contactData = {
+    ...(name ? { name } : {}),
+    ...(email ? { email } : {}),
+    ...(phone ? { phone } : {}),
+  };
+
+  if (Object.keys(contactData).length > 0) {
+    await prisma.contact.update({
+      where: { id: params.contactId },
+      data: contactData,
+    });
+  }
+
+  const existingLead = await prisma.lead.findFirst({
+    where: {
+      tenantId: params.tenantId,
+      contactId: params.contactId,
+    },
+    orderBy: { updatedAt: "desc" },
+  });
+
+  const existingMetadata =
+    existingLead?.metadata &&
+    typeof existingLead.metadata === "object" &&
+    !Array.isArray(existingLead.metadata)
+      ? (existingLead.metadata as Record<string, unknown>)
+      : {};
+
+  const INTERNAL_VARIABLE_KEYS = new Set([
+    "__runtime",
+    "contact_name",
+    "contact_name_prefix",
+    "contact_email",
+    "contact_phone",
+    "contact_is_qualified",
+    "last_user_message",
+    "last_user_message_normalized",
+  ]);
+  const previousFlowInputs =
+    existingMetadata.flowInputs &&
+    typeof existingMetadata.flowInputs === "object" &&
+    !Array.isArray(existingMetadata.flowInputs)
+      ? (existingMetadata.flowInputs as Record<string, string>)
+      : {};
+  const newFlowInputs: Record<string, string> = {};
+  for (const [k, v] of Object.entries(params.variables)) {
+    if (
+      !INTERNAL_VARIABLE_KEYS.has(k) &&
+      v !== null &&
+      v !== undefined &&
+      v !== "" &&
+      typeof v !== "object"
+    ) {
+      newFlowInputs[k] = String(v);
+    }
+  }
+
+  const leadData = {
+    tenantId: params.tenantId,
+    contactId: params.contactId,
+    flowId: params.flowId,
+    name: name ?? undefined,
+    email: email ?? undefined,
+    mobile: phone ?? undefined,
+    company: company ?? undefined,
+    businessType: need ?? undefined,
+    source: "social_flow",
+    status: params.status || existingLead?.status || "contacted",
+    tags: mergeTags(existingLead?.tags, params.tags),
+    metadata: {
+      ...existingMetadata,
+      channelId: params.channelId,
+      captureSource: "social_flow",
+      need,
+      budget,
+      lastUserMessage: getVariableString(params.variables, "last_user_message"),
+      flowInputs: { ...previousFlowInputs, ...newFlowInputs },
+    } as Prisma.InputJsonValue,
+  };
+
+  if (existingLead) {
+    await prisma.lead.update({
+      where: { id: existingLead.id },
+      data: leadData,
+    });
+    return;
+  }
+
+  await prisma.lead.create({
+    data: leadData,
+  });
+}
+
+import { incrementTenantUsage } from "./subscription";
+
 export async function executeBotEntryFlowFirst(params: {
   tenantId: string;
+  botId: string;
   contactId: string;
   scopeKey: string;
   message: string;
@@ -205,6 +362,15 @@ export async function executeBotEntryFlowFirst(params: {
   if (!resolved) {
     return null;
   }
+
+  // Centralized usage tracking for flow executions
+  await incrementTenantUsage(
+    params.tenantId,
+    "flow_execution",
+    1,
+    params.botId,
+    params.channelId,
+  );
 
   let activeFlow = resolved.flow;
   const { session } = resolved;
@@ -340,6 +506,39 @@ export async function executeBotEntryFlowFirst(params: {
         break;
       }
       case "action": {
+        if (content.action === "tag_user") {
+          const tagValues = (content as { tags?: unknown[] }).tags;
+          const tags = Array.isArray(tagValues)
+            ? tagValues.filter(
+                (tag): tag is string =>
+                  typeof tag === "string" && tag.trim().length > 0,
+              )
+            : undefined;
+
+          await persistLeadCapture({
+            tenantId: params.tenantId,
+            contactId: params.contactId,
+            flowId: runtime.rootFlowId,
+            variables: mergedVariables,
+            tags,
+            channelId: params.channelId,
+          });
+        }
+
+        if (content.action === "update_status") {
+          await persistLeadCapture({
+            tenantId: params.tenantId,
+            contactId: params.contactId,
+            flowId: runtime.rootFlowId,
+            variables: mergedVariables,
+            status:
+              typeof (content as { status?: unknown }).status === "string"
+                ? (content as { status?: string }).status
+                : undefined,
+            channelId: params.channelId,
+          });
+        }
+
         if (content.action === "call_flow") {
           const referencedFlow = await resolveReferencedFlow({
             tenantId: params.tenantId,

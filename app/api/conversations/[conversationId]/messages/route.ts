@@ -80,6 +80,7 @@ export const POST: (
       const [message] = await prisma.$transaction([
         prisma.crmMessage.create({
           data: {
+            tenantId,
             conversationId: conversationId as string,
             direction: "outbound",
             content: validated.content,

@@ -71,6 +71,7 @@ export const POST: (
 
       const note = await prisma.internalNote.create({
         data: {
+          tenantId,
           conversationId: conversationId as string,
           authorId: userId,
           content: validated.content,

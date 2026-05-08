@@ -9,6 +9,7 @@ import {
 } from "@/lib/webchat-cors";
 import { isOriginAllowedForSite } from "@/lib/webchat";
 import { getWebchatRolloutDecision } from "@/lib/webchat-rollout";
+import logger from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -117,7 +118,12 @@ export async function GET(request: NextRequest) {
           orderBy: { updatedAt: "desc" },
         });
 
-    if (webChatSession) {
+    // Heartbeat Throttling: Only update lastSeenAt if it hasn't been updated in the last 60 seconds
+    if (
+      webChatSession &&
+      (!webChatSession.lastSeenAt ||
+        Date.now() - new Date(webChatSession.lastSeenAt).getTime() > 60000)
+    ) {
       await prisma.webChatSession.update({
         where: { id: webChatSession.id },
         data: { lastSeenAt: new Date() },
@@ -160,7 +166,7 @@ export async function GET(request: NextRequest) {
       { headers: createWebchatCorsHeaders(request) },
     );
   } catch (error) {
-    console.error("[Webchat Messages] Failed to fetch manual replies:", error);
+    logger.error({ err: error }, "[Webchat Messages] Failed to fetch manual replies");
     return NextResponse.json(
       { error: "Failed to fetch webchat messages" },
       { status: 500, headers: createWebchatCorsHeaders(request) },

@@ -10,6 +10,12 @@ vi.mock("@/lib/prisma", () => ({
       createMany: vi.fn().mockResolvedValue({ count: 2 }),
       findMany: vi.fn().mockResolvedValue([]),
     },
+    idempotencyKey: {
+      create: vi.fn().mockResolvedValue({}),
+      findUnique: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn().mockResolvedValue({}),
+    },
     crmConversation: {
       findUnique: vi.fn(),
     },
@@ -41,6 +47,10 @@ vi.mock("@/lib/webchat-conversation-engine", () => ({
   executeWebchatFlowFirst: vi.fn(),
 }));
 
+vi.mock("@/lib/webchat-session", () => ({
+  verifyWebchatSessionToken: vi.fn(),
+}));
+
 describe("Webchat Message API Optimization", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -62,6 +72,9 @@ describe("Webchat Message API Optimization", () => {
       contactId: "contact_1",
       metadata: {},
     });
+
+    const { verifyWebchatSessionToken } = await import("@/lib/webchat-session");
+    (verifyWebchatSessionToken as any).mockReturnValue({ tenantId: "tenant_1" });
 
     const { executeWebchatFlowFirst } = await import("@/lib/webchat-conversation-engine");
     (executeWebchatFlowFirst as any).mockResolvedValue({

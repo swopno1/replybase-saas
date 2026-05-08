@@ -25,9 +25,7 @@ import {
   Info,
   ChevronRight,
   Loader2,
-  Trash2,
   X,
-  ExternalLink,
   Calendar,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -67,7 +65,7 @@ interface Subscription {
 interface UsageData {
   monthlyMessages: number;
   monthlyMessageLimit: number;
-  dailyFlowExecutions: number;
+  monthlyFlowExecutions: number;
   flowExecutionCap: number;
   usage: {
     bots: number;
@@ -123,7 +121,10 @@ export default function BillingTabContent() {
   }, []);
 
   useEffect(() => {
-    fetchBillingData();
+    const init = async () => {
+      await fetchBillingData();
+    };
+    init();
   }, [fetchBillingData]);
 
   const handleUpgrade = () => {
@@ -240,6 +241,50 @@ export default function BillingTabContent() {
         </div>
       )}
 
+      {/* Usage Warning Banner */}
+      {usage && 
+       !(usage.monthlyMessages / (usage.monthlyMessageLimit || 1) >= 1.1 || usage.monthlyFlowExecutions / (usage.flowExecutionCap || 1) >= 1.1) &&
+       (usage.monthlyMessages / (usage.monthlyMessageLimit || 1) >= 0.9 || usage.monthlyFlowExecutions / (usage.flowExecutionCap || 1) >= 0.9) && (
+        <div className="bg-orange-500 text-white rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg ring-4 ring-orange-500/10">
+          <div className="flex items-center gap-4">
+            <div className="bg-white/20 p-3 rounded-xl">
+              <AlertCircle className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h3 className="font-bold text-lg">Approaching Limits</h3>
+              <p className="text-orange-50 text-sm">
+                You&apos;ve used over 90% of your plan&apos;s resources. Upgrade now to ensure your bots keep responding.
+              </p>
+            </div>
+          </div>
+          <Button onClick={handleUpgrade} variant="secondary" className="font-bold h-11">
+            Upgrade Now
+          </Button>
+        </div>
+      )}
+
+      {/* Limit Reached Banner */}
+      {usage && (usage.monthlyMessages / (usage.monthlyMessageLimit || 1) >= 1.1 || usage.monthlyFlowExecutions / (usage.flowExecutionCap || 1) >= 1.1) && (
+        <div className="bg-red-600 text-white rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl ring-4 ring-red-600/20 animate-pulse">
+          <div className="flex items-center gap-4">
+            <div className="bg-white/20 p-3 rounded-xl">
+              <Shield className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h3 className="font-bold text-lg">Usage Limit Exceeded</h3>
+              <p className="text-red-50 text-sm">
+                Your service is currently restricted due to excessive usage. 
+                Upgrade your plan now to restore full functionality instantly.
+              </p>
+            </div>
+          </div>
+          <Button onClick={handleUpgrade} variant="secondary" className="font-black px-8 h-12 shadow-lg">
+            Restore Service
+            <ChevronRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
       {/* Canceled Banner */}
       {isCanceled && (
         <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-6 flex items-center gap-4 shadow-sm">
@@ -344,7 +389,7 @@ export default function BillingTabContent() {
                     <span className="font-bold text-sm">Monthly AI Responses</span>
                   </div>
                   <span className="text-xs font-medium text-muted-foreground">
-                    <span className="text-foreground font-bold">{usage?.monthlyMessages.toLocaleString()}</span> / {usage?.monthlyMessageLimit === 999999999 ? "∞" : usage?.monthlyMessageLimit.toLocaleString()}
+                    <span className="text-foreground font-bold">{(usage?.monthlyMessages ?? 0).toLocaleString()}</span> / {(!usage?.monthlyMessageLimit || usage?.monthlyMessageLimit >= 999999) ? "∞" : usage.monthlyMessageLimit.toLocaleString()}
                   </span>
                 </div>
                 <Progress 
@@ -352,7 +397,9 @@ export default function BillingTabContent() {
                   className="h-2.5 bg-muted/50"
                   indicatorClassName={getUsageColor(usage?.monthlyMessages || 0, usage?.monthlyMessageLimit || 1)}
                 />
-                <p className="text-[11px] text-muted-foreground">Reset on {new Date(subscription?.currentPeriodEnd || "").toLocaleDateString()}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Reset on {subscription?.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : "next billing cycle"}
+                </p>
               </div>
 
               {/* Automation Usage */}
@@ -360,18 +407,20 @@ export default function BillingTabContent() {
                 <div className="flex justify-between items-end">
                   <div className="flex items-center gap-2">
                     <RotateCw className="h-4 w-4 text-primary" />
-                    <span className="font-bold text-sm">Flow Executions (Daily)</span>
+                    <span className="font-bold text-sm">Flow Executions (Monthly)</span>
                   </div>
                   <span className="text-xs font-medium text-muted-foreground">
-                    <span className="text-foreground font-bold">{usage?.dailyFlowExecutions.toLocaleString()}</span> / {usage?.flowExecutionCap === 999999999 ? "∞" : usage?.flowExecutionCap.toLocaleString()}
+                    <span className="text-foreground font-bold">{(usage?.monthlyFlowExecutions ?? 0).toLocaleString()}</span> / {(!usage?.flowExecutionCap || usage?.flowExecutionCap >= 999999) ? "∞" : usage.flowExecutionCap.toLocaleString()}
                   </span>
                 </div>
                 <Progress 
-                  value={usage ? (usage.dailyFlowExecutions / (usage.flowExecutionCap || 1)) * 100 : 0} 
+                  value={usage ? ((usage.monthlyFlowExecutions ?? 0) / (usage.flowExecutionCap || 1)) * 100 : 0} 
                   className="h-2.5 bg-muted/50"
-                  indicatorClassName={getUsageColor(usage?.dailyFlowExecutions || 0, usage?.flowExecutionCap || 1)}
+                  indicatorClassName={getUsageColor(usage?.monthlyFlowExecutions ?? 0, usage?.flowExecutionCap || 1)}
                 />
-                <p className="text-[11px] text-muted-foreground">Resets at midnight UTC</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Reset on {subscription?.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : "next billing cycle"}
+                </p>
               </div>
 
               <div className="bg-primary/5 rounded-xl p-4 border border-primary/10 flex items-start gap-3">
@@ -561,6 +610,17 @@ export default function BillingTabContent() {
                 </li>
               </ul>
             </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-bold">Why are you downgrading? (Optional)</label>
+              <Textarea 
+                placeholder="Tell us more so we can improve..."
+                value={cancelFeedback}
+                onChange={(e) => setCancelFeedback(e.target.value)}
+                className="min-h-[80px] rounded-xl resize-none"
+              />
+            </div>
+
             <p className="text-xs text-muted-foreground">
                 To complete your downgrade, please select a new plan on the pricing page. The changes will take effect at the start of your next billing period.
             </p>
@@ -571,7 +631,14 @@ export default function BillingTabContent() {
               Back
             </Button>
             <Button
-              onClick={() => {
+              onClick={async () => {
+                  if (cancelFeedback) {
+                    await fetch("/api/billing/cancel", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ feedback: cancelFeedback, type: "DOWNGRADE" })
+                    });
+                  }
                   setShowDowngradeDialog(false);
                   router.push("/pricing");
               }}

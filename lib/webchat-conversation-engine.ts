@@ -230,7 +230,7 @@ function getVariableString(
 function mergeTags(existing: unknown, incoming?: string[]) {
   const currentTags = Array.isArray(existing)
     ? existing.filter(
-        (tag): tag is string =>
+        (tag: unknown): tag is string =>
           typeof tag === "string" && tag.trim().length > 0,
       )
     : [];
@@ -379,7 +379,8 @@ const STALE_SESSION_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 // No cooldown — flow_Initial's order:-1 returning-user gate handles qualified
 // contacts gracefully (skips greeting + lead-gen, goes straight to explore topic).
 // Setting this to 0 prevents post-flow messages from falling through to AI/fallback.
-const FLOW_REPEAT_COOLDOWN_MS = 0;
+// Setting this to 1 hour prevents the flow from restarting immediately after completion.
+const FLOW_REPEAT_COOLDOWN_MS = 60 * 60 * 1000; 
 
 async function resolveFlow(params: {
   tenantId: string;
@@ -517,6 +518,8 @@ async function resolveFlow(params: {
   return startFlowSession(configuredFlow);
 }
 
+import { incrementTenantUsage } from "./subscription";
+
 export async function executeWebchatFlowFirst(params: {
   tenantId: string;
   botId: string;
@@ -531,6 +534,15 @@ export async function executeWebchatFlowFirst(params: {
   if (!resolved) {
     return null;
   }
+
+  // Centralized usage tracking for webchat flow executions
+  await incrementTenantUsage(
+    params.tenantId,
+    "flow_execution",
+    1,
+    params.botId,
+    params.channelId || undefined,
+  );
 
   let activeFlow = resolved.flow;
   const { session } = resolved;

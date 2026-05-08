@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { NextRequest } from "next/server";
 import { z } from "zod";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 import { getTenantSubscription } from "@/lib/subscription";
+import { successResponse, errorResponse, validationErrorResponse } from "@/lib/api-response";
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +19,7 @@ const createConversationSchema = z.object({
 export const GET: (
   request: NextRequest,
   context: { params: Promise<Record<string, string | string[]>> },
-) => Promise<Response> = withAuthAndTenant(async ({ tenantId }, request) => {
+) => Promise<Response> = withAuthAndTenant(async ({ tenantId }, request, context, db) => {
   try {
     const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get("page") || "1");
@@ -27,12 +27,8 @@ export const GET: (
     const skip = (page - 1) * limit;
 
     const [conversations, totalCount] = await Promise.all([
-      prisma.crmConversation.findMany({
-        where: {
-          contact: {
-            tenantId: tenantId,
-          },
-        },
+      db.crmConversation.findMany({
+        where: {}, // tenantId is automatically injected
         include: {
           contact: {
             select: {
@@ -45,59 +41,43 @@ export const GET: (
         skip,
         take: limit,
       }),
-      prisma.crmConversation.count({
-        where: {
-          contact: {
-            tenantId: tenantId,
-          },
-        },
+      db.crmConversation.count({
+        where: {}, // tenantId is automatically injected
       }),
     ]);
 
-    return NextResponse.json({
-      conversations,
+    return successResponse(conversations, 200, {
       totalCount,
       totalPages: Math.ceil(totalCount / limit),
-      currentPage: page,
+      page,
     });
   } catch (error) {
     console.error("[Conversations API] Error fetching conversations:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch conversations" },
-      { status: 500 },
-    );
+    return errorResponse("Failed to fetch conversations");
   }
 });
 
 export const DELETE: (
   request: NextRequest,
   context: { params: Promise<Record<string, string | string[]>> },
-) => Promise<Response> = withAuthAndTenant(async ({ tenantId }, request) => {
+) => Promise<Response> = withAuthAndTenant(async ({ tenantId }, request, context, db) => {
   try {
     const { ids } = await request.json();
 
     if (!ids || (!Array.isArray(ids) && ids !== "ALL") || (Array.isArray(ids) && ids.length === 0)) {
-      return NextResponse.json(
-        { error: "Invalid input: ids must be a non-empty array or 'ALL'" },
-        { status: 400 },
-      );
+      return errorResponse("Invalid input: ids must be a non-empty array or 'ALL'", 400);
     }
 
-    const where = ids === "ALL"
-      ? { contact: { tenantId } }
-      : { id: { in: ids }, contact: { tenantId } };
+    const where = ids === "ALL" ? {} : { id: { in: ids } };
 
-    const { count } = await prisma.crmConversation.deleteMany({
+    const { count } = await db.crmConversation.deleteMany({
       where,
     });
 
-    return NextResponse.json({ count });
+    return successResponse({ count });
   } catch (error) {
     console.error("[Conversations API] Batch delete error:", error);
-    return NextResponse.json(
-      { error: "Failed to delete conversations" },
-      { status: 500 },
-    );
+    return errorResponse("Failed to delete conversations");
   }
 });
 
@@ -105,68 +85,50 @@ export const DELETE: (
 export const POST: (
   request: NextRequest,
   context: { params: Promise<Record<string, string | string[]>> },
-) => Promise<Response> = withAuthAndTenant(async ({ tenantId }, request) => {
+) => Promise<Response> = withAuthAndTenant(async ({ tenantId }, request, context, db) => {
   try {
     const body = await request.json();
     const validated = createConversationSchema.parse(body);
 
     // Check plan limits
     const subscription = await getTenantSubscription(tenantId);
-    const conversationCount = await prisma.crmConversation.count({
-      where: {
-        contact: {
-          tenantId: tenantId,
-        },
-      },
+    const conversationCount = await db.crmConversation.count({
+      where: {}, // tenantId automatically injected
     });
 
     if (
       subscription.maxConversations > 0 &&
       conversationCount >= subscription.maxConversations
     ) {
-      return NextResponse.json(
-        {
-          error: "Conversation limit reached. Please upgrade your plan.",
-        },
-        { status: 403 },
-      );
+      return errorResponse("Conversation limit reached. Please upgrade your plan.", 403);
     }
 
     // Verify contact exists and belongs to the tenant
-    const contact = await prisma.contact.findFirst({
+    const contact = await db.contact.findFirst({
       where: {
         id: validated.contactId,
-        tenantId: tenantId,
       },
     });
 
     if (!contact) {
-      return NextResponse.json(
-        { error: "Contact not found or does not belong to the tenant" },
-        { status: 404 },
-      );
+      return errorResponse("Contact not found", 404);
     }
 
-    const conversation = await prisma.crmConversation.create({
+    const conversation = await db.crmConversation.create({
       data: {
+        tenantId,
         contactId: validated.contactId,
         channel: validated.channel,
         botId: validated.botId,
       },
     });
 
-    return NextResponse.json({ conversation }, { status: 201 });
+    return successResponse({ conversation }, 201);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Invalid input", details: error.issues },
-        { status: 400 },
-      );
+      return validationErrorResponse(error);
     }
     console.error("[Conversations API] Error creating conversation:", error);
-    return NextResponse.json(
-      { error: "Failed to create conversation" },
-      { status: 500 },
-    );
+    return errorResponse("Failed to create conversation");
   }
 });

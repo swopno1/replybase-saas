@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -122,23 +123,15 @@ function getFlowInputs(lead: Lead): Record<string, string> {
   return fi as Record<string, string>;
 }
 
-function getPlanBadge(plan: string | null, trial: boolean) {
-  if (!plan) return <Badge variant="outline">None</Badge>;
-  const label = plan.charAt(0).toUpperCase() + plan.slice(1);
-  return (
-    <div className="flex items-center gap-2">
-      <Badge variant="secondary">{label}</Badge>
-      {trial && <Badge variant="outline" className="text-[10px] h-4 px-1">Trial</Badge>}
-    </div>
-  );
-}
 
 export default function LeadsPage() {
+  const router = useRouter();
   const { confirm } = useConfirmation();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [pageCount, setPageCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [canExport, setCanExport] = useState(false);
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 20,
@@ -201,6 +194,7 @@ export default function LeadsPage() {
         setLeads(data.leads);
         setTotalCount(data.totalCount);
         setPageCount(data.totalPages);
+        setCanExport(data.canExport || false);
         setIsAllMatchingSelected(false);
       }
     } catch (error) {
@@ -212,7 +206,10 @@ export default function LeadsPage() {
   }, [pagination]);
 
   useEffect(() => {
-    fetchLeads();
+    const init = async () => {
+      await fetchLeads();
+    };
+    init();
   }, [fetchLeads]);
 
   const dynamicColumns = useMemo(() => {
@@ -324,6 +321,20 @@ export default function LeadsPage() {
     }
   };
 
+  const handleExportClick = (ids?: string[]) => {
+    if (!canExport) {
+      toast.error("Exporting leads is a premium feature. Please upgrade your plan.", {
+        action: {
+          label: "Upgrade",
+          onClick: () => router.push("/pricing"),
+        },
+      });
+      return;
+    }
+    setExportIds(ids);
+    setExportDialogOpen(true);
+  };
+
   const handleUpdateStatus = async (ids: string[], status: string, allMatching = false) => {
     try {
       const response = await fetch("/api/leads", {
@@ -428,7 +439,7 @@ export default function LeadsPage() {
       ...dynamicColumns.map((dcol) => ({
         id: dcol.key,
         header: dcol.label,
-        cell: ({ row }: { row: any }) => <span className="max-w-xs truncate block">{getFlowInputs(row.original)[dcol.key] || "—"}</span>,
+        cell: ({ row }: { row: { original: Lead } }) => <span className="max-w-xs truncate block">{getFlowInputs(row.original)[dcol.key] || "—"}</span>,
       })),
       {
         id: "plan",
@@ -498,7 +509,7 @@ export default function LeadsPage() {
       },
     ];
     return cols;
-  }, [dynamicColumns, leads, deletingLeadId]);
+  }, [dynamicColumns, leads, deletingLeadId, handleDeleteLeads]);
 
   const selectedIds = useMemo(() => Object.keys(rowSelection), [rowSelection]);
   const currentSelectionCount = isAllMatchingSelected ? totalCount : selectedIds.length;
@@ -529,7 +540,7 @@ export default function LeadsPage() {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button variant="outline" size="sm" onClick={() => { setExportIds(isAllMatchingSelected ? undefined : selectedIds); setExportDialogOpen(true); }} disabled={isExporting}>
+            <Button variant="outline" size="sm" onClick={() => handleExportClick(isAllMatchingSelected ? undefined : selectedIds)} disabled={isExporting || !canExport}>
               <Download className="mr-2 h-4 w-4" />
               Export {isAllMatchingSelected ? "All" : "Selected"} ({currentSelectionCount})
             </Button>
@@ -553,8 +564,8 @@ export default function LeadsPage() {
              <Button
                variant="outline"
                size="sm"
-               onClick={() => { setExportIds(undefined); setExportDialogOpen(true); }}
-               disabled={isExporting}
+               onClick={() => handleExportClick(undefined)}
+               disabled={isExporting || !canExport}
              >
                {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                Export All

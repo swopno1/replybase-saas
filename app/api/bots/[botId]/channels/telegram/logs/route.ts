@@ -5,24 +5,17 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = 'force-dynamic';
 
-/**
- * GET /api/bots/[botId]/channels/telegram/logs?channelId=<id>&limit=<n>
- *
- * Returns recent webhook log entries for a Telegram channel.
- * Includes delivery errors and raw update records for diagnostics.
- * Tenant-scoped: only returns logs for channels owned by the caller's tenant.
- */
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ botId: string }> },
 ) {
   try {
-    const { botId } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { botId } = await params;
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: { tenantId: true },
@@ -38,17 +31,13 @@ export async function GET(
     const limit = Math.min(parseInt(limitParam || "20", 10), 100);
 
     if (!channelId) {
-      return NextResponse.json(
-        { error: "channelId is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "channelId is required" }, { status: 400 });
     }
 
-    // Verify the channel belongs to this tenant and bot before returning logs.
     const channel = await prisma.channel.findFirst({
       where: {
         id: channelId,
-        botId: botId,
+        botId,
         type: "telegram",
         bot: { tenantId: user.tenantId },
       },
@@ -59,22 +48,17 @@ export async function GET(
       return NextResponse.json({ error: "Channel not found" }, { status: 404 });
     }
 
-    // Fetch logs whose event key is scoped to this channel.
     const logs = await prisma.webhookLog.findMany({
       where: {
         source: "telegram",
         OR: [
-          {
-            event: {
-              startsWith: `update:${channelId}:`,
-            },
-          },
-          {
-            event: `send_error:${channelId}`,
-          },
-          {
-            event: `internal_error:${channelId}`,
-          },
+          { event: `inbound:${channelId}` },
+          { event: `outbound:${channelId}` },
+          { event: `outbound_error:${channelId}` },
+          { event: `webhook_setup:${channelId}` },
+          { event: `webhook_setup_error:${channelId}` },
+          { event: `webhook_reconnect:${channelId}` },
+          { event: `webhook_reconnect_error:${channelId}` },
         ],
       },
       orderBy: { createdAt: "desc" },
@@ -84,16 +68,12 @@ export async function GET(
         type: true,
         event: true,
         createdAt: true,
-        // Omit raw `data` by default to avoid leaking PII in list responses.
       },
     });
 
     return NextResponse.json({ logs });
   } catch (error) {
     console.error("[Telegram Logs] Error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch logs" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to fetch logs" }, { status: 500 });
   }
 }

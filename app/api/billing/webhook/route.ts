@@ -4,6 +4,7 @@ import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import Stripe from "stripe";
 import { syncSubscription } from "@/lib/billing-service";
+import { invalidateTenantCache } from "@/lib/subscription";
 
 export const dynamic = 'force-dynamic';
 
@@ -78,14 +79,38 @@ export async function POST(req: NextRequest) {
       }
 
       case "invoice.payment_succeeded": {
-        const invoice = event.data.object as any;
-        if (invoice.subscription) {
-           const dbSub = await prisma.subscription.findUnique({
-             where: { stripeCustomerId: invoice.customer as string },
-           });
-           if (dbSub) {
-             await syncSubscription(dbSub.tenantId, invoice.subscription as string);
-           }
+        const invoice = event.data.object as Stripe.Invoice;
+        if ((invoice as any).subscription) {
+          const dbSub = await prisma.subscription.findUnique({
+            where: { stripeCustomerId: invoice.customer as string },
+          });
+
+          if (dbSub) {
+            await syncSubscription(dbSub.tenantId, (invoice as any).subscription as string);
+
+            // Rule #8: Idempotent Revenue Tracking
+            await prisma.revenue.upsert({
+              where: { stripeInvoiceId: invoice.id },
+              create: {
+                stripeInvoiceId: invoice.id,
+                stripeSubscriptionId: (invoice as any).subscription as string,
+                tenantId: dbSub.tenantId,
+                amount: invoice.amount_paid, // Cents from Stripe
+                currency: invoice.currency.toUpperCase(),
+                status: "paid",
+                paidAt: new Date(invoice.status_transitions.paid_at! * 1000),
+                metadata: {
+                  invoice_pdf: invoice.invoice_pdf,
+                  number: invoice.number,
+                },
+              },
+              update: {
+                status: "paid",
+                paidAt: new Date(invoice.status_transitions.paid_at! * 1000),
+              },
+            });
+            console.log(`[Webhook] Revenue recorded for tenant ${dbSub.tenantId}: ${invoice.amount_paid} ${invoice.currency}`);
+          }
         }
         break;
       }
@@ -102,6 +127,7 @@ export async function POST(req: NextRequest) {
             where: { id: dbSub.id },
             data: { status: "PAST_DUE" },
           });
+          await invalidateTenantCache(dbSub.tenantId);
           console.warn(`[Webhook] Payment failed for tenant ${dbSub.tenantId}. Status set to PAST_DUE.`);
         }
         break;
@@ -119,6 +145,7 @@ export async function POST(req: NextRequest) {
             where: { id: dbSub.id },
             data: { status: "CANCELED" },
           });
+          await invalidateTenantCache(dbSub.tenantId);
           console.log(`[Webhook] Charge refunded for tenant ${dbSub.tenantId}. Subscription revoked.`);
         }
         break;

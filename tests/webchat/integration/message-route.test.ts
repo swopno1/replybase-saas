@@ -30,6 +30,12 @@ vi.mock("@/lib/prisma", () => ({
       findFirst: vi.fn(),
       findMany: vi.fn().mockResolvedValue([]),
     },
+    idempotencyKey: {
+      create: vi.fn().mockResolvedValue({}),
+      findUnique: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn().mockResolvedValue({}),
+    },
   },
 }));
 
@@ -164,6 +170,7 @@ describe("POST /api/webchat/message — integration", () => {
     vi.mocked(prisma.crmMessage.findMany).mockResolvedValue([] as never);
     vi.mocked(isOriginAllowedForSite).mockReturnValue(true);
     vi.mocked(findActiveWebChannel).mockResolvedValue(mockActiveWebChannel as never);
+    vi.mocked(prisma.idempotencyKey.create).mockResolvedValue({} as never);
     vi.mocked(executeWebchatFlowFirst).mockResolvedValue(null);
     vi.mocked(getWebchatRolloutDecision).mockResolvedValue({
       allowed: true,
@@ -285,6 +292,45 @@ describe("POST /api/webchat/message — integration", () => {
       expect(json.meta.mode).toBe("manual_fallback");
       expect(json.responses).toHaveLength(1);
       expect(json.responses[0].type).toBe("text");
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Idempotency
+  // -------------------------------------------------------------------------
+  describe("idempotency check", () => {
+    it("returns 200 and ignores message if idempotency key exists and is not expired", async () => {
+      const error = new Error("Unique constraint failed") as any;
+      error.code = "P2002";
+      vi.mocked(prisma.idempotencyKey.create).mockRejectedValue(error);
+      vi.mocked(prisma.idempotencyKey.findUnique).mockResolvedValue({
+        key: "lock_key",
+        expiresAt: new Date(Date.now() + 10000),
+      } as never);
+
+      const req = makeReq(validBody());
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.status).toBe("duplicate_ignored");
+      expect(prisma.crmMessage.create).not.toHaveBeenCalled();
+    });
+
+    it("allows message if idempotency key is expired", async () => {
+      const error = new Error("Unique constraint failed") as any;
+      error.code = "P2002";
+      vi.mocked(prisma.idempotencyKey.create).mockRejectedValue(error);
+      vi.mocked(prisma.idempotencyKey.findUnique).mockResolvedValue({
+        key: "lock_key",
+        expiresAt: new Date(Date.now() - 10000),
+      } as never);
+
+      const req = makeReq(validBody());
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.meta.mode).toBe("ai_fallback");
+      expect(prisma.idempotencyKey.update).toHaveBeenCalled();
     });
   });
 });

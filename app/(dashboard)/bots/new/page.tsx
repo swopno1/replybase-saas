@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Suspense } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import {
   Card,
@@ -21,6 +21,13 @@ export const dynamic = "force-dynamic";
 
 type BotChannelType = "web" | "telegram" | "facebook" | "whatsapp";
 
+interface LimitStatus {
+  allowed: boolean;
+  limit: number;
+  current: number;
+  planName: string;
+}
+
 function isBotChannelVisible(channel: BotChannelType): boolean {
   if (channel === "web") {
     return isChannelVisibleInUi("webchat");
@@ -33,11 +40,30 @@ function CreateBotContent() {
   const router = useRouter();
   const { alert } = useConfirmation();
   const [loading, setLoading] = useState(false);
+  const [checkingLimits, setCheckingLimits] = useState(true);
+  const [limitStatus, setLimitStatus] = useState<LimitStatus | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     channel: "web" as BotChannelType,
     context: "",
   });
+
+  useEffect(() => {
+    async function checkLimits() {
+      try {
+        const res = await fetch("/api/bots");
+        const data = await res.json();
+        if (data.limitStatus) {
+          setLimitStatus(data.limitStatus);
+        }
+      } catch (error) {
+        console.error("Failed to check bot limits:", error);
+      } finally {
+        setCheckingLimits(false);
+      }
+    }
+    checkLimits();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,7 +100,7 @@ function CreateBotContent() {
         const error = await response.json();
         await alert({
           title: "Failed to Create Bot",
-          description: `Failed to create bot: ${error.error || "Unknown error"}`,
+          description: `Failed to create bot: ${error.details || error.error || "Unknown error"}`,
           variant: "destructive",
         });
       }
@@ -90,6 +116,8 @@ function CreateBotContent() {
     }
   };
 
+  const isLimitReached = limitStatus ? !limitStatus.allowed : false;
+
   return (
     <div className="space-y-6">
       <div>
@@ -104,6 +132,26 @@ function CreateBotContent() {
           Create a new bot and start building conversations
         </p>
       </div>
+
+      {isLimitReached && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-amber-800">Bot Limit Reached</p>
+                <p className="text-sm text-amber-700">
+                  You have reached the maximum of {limitStatus?.limit} bots for your {limitStatus?.planName} plan.
+                  You cannot create more bots until you upgrade your plan or delete an existing bot.
+                </p>
+                <Button size="sm" asChild className="bg-amber-600 hover:bg-amber-700">
+                  <Link href="/settings?tab=billing">Upgrade Plan</Link>
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="max-w-2xl">
         <CardHeader>
@@ -124,6 +172,7 @@ function CreateBotContent() {
                 }
                 placeholder="My Bot"
                 required
+                disabled={isLimitReached}
               />
               <p className="text-xs text-gray-500 mt-1">
                 Give your bot a descriptive name
@@ -140,7 +189,8 @@ function CreateBotContent() {
                     channel: e.target.value as BotChannelType,
                   })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={isLimitReached}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
               >
                 {isBotChannelVisible("web") ? (
                   <option value="web">Webchat</option>
@@ -166,13 +216,14 @@ function CreateBotContent() {
                 Bot Context (optional)
               </label>
               <textarea
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                 rows={4}
                 placeholder="Paste JSON or plain text context for your bot (optional)"
                 value={formData.context}
                 onChange={(e) =>
                   setFormData({ ...formData, context: e.target.value })
                 }
+                disabled={isLimitReached}
               />
               <p className="text-xs text-gray-500 mt-1">
                 Optionally provide context or instructions for your bot. Leave
@@ -187,7 +238,7 @@ function CreateBotContent() {
             </div>
 
             <div className="flex gap-3">
-              <Button type="submit" disabled={loading || !formData.name}>
+              <Button type="submit" disabled={loading || !formData.name || isLimitReached || checkingLimits}>
                 {loading ? "Creating..." : "Create Bot"}
               </Button>
               <Link href="/bots">

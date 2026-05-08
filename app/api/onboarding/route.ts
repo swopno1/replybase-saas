@@ -1,52 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import {
+  summarizeOnboardingData,
+  customizeFlowNodesWithAI,
+  appendLeadGenerationNodes,
+  resolveTemplateCategory,
+} from "@/lib/onboarding-ai";
+import { getTemplateByCategory } from "@/lib/flow-templates";
+import { withAuthAndTenant } from "@/lib/route-helpers";
+import { OnboardingSchema, OnboardingData, OnboardingSummary } from "@/types/shared/onboarding";
+import { successResponse, errorResponse, validationErrorResponse } from "@/lib/api-response";
 import { Prisma } from "@prisma/client";
-import { z } from "zod";
-import { summarizeOnboardingData, customizeFlowNodesWithAI } from "@/lib/onboarding-ai";
-import { getTemplateByCategory, FlowTemplateCategory } from "@/lib/flow-templates";
 
-const onboardingSchema = z.object({
-  kyc: z.object({
-    name: z.string().min(1).max(100),
-    company: z.string().min(1).max(100),
-    contactInfo: z.string().max(200),
-    location: z.string().max(100),
-  }),
-  businessBasics: z.object({
-    industry: z.string().max(100),
-    companySize: z.string().max(50),
-    website: z.string().max(255).optional(),
-    businessModel: z.string().max(100),
-  }),
-  productDetails: z.object({
-    offer: z.string().max(1000),
-    targetCustomers: z.union([z.string(), z.array(z.string())]),
-  }),
-  productSpecifics: z.object({
-    mainProducts: z.string().max(1000),
-    pricing: z.string().max(500),
-    usps: z.string().max(1000),
-  }),
-  supportSales: z.object({
-    commonQuestions: z.string().max(2000),
-    painPoints: z.string().max(1000),
-    salesProcess: z.string().max(1000),
-  }),
-  additionalContext: z.object({
-    otherInfo: z.string().max(2000).optional(),
-  }),
-});
-
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.tenantId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: session.user.tenantId },
+export const GET = withAuthAndTenant(async ({ tenantId }, request, context, db) => {
+  const tenant = await db.tenant.findUnique({
+    where: { id: tenantId },
     select: {
       isOnboarded: true,
       onboardingStep: true,
@@ -54,104 +20,101 @@ export async function GET() {
     },
   });
 
-  return NextResponse.json(tenant);
-}
+  return successResponse(tenant);
+});
 
-export async function PATCH(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.tenantId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const PATCH = withAuthAndTenant(async ({ tenantId }, request, context, db) => {
   try {
-    const body = await req.json();
+    const body = await request.json();
     const { step, data } = body;
 
-    // Partial update of onboarding data
-    const currentTenant = await prisma.tenant.findUnique({
-      where: { id: session.user.tenantId },
+    const currentTenant = await db.tenant.findUnique({
+      where: { id: tenantId },
       select: { onboardingData: true },
     });
 
     const currentData = (currentTenant?.onboardingData as Record<string, unknown>) || {};
     const newData = { ...currentData, ...data };
 
-    await prisma.tenant.update({
-      where: { id: session.user.tenantId },
+    await db.tenant.update({
+      where: { id: tenantId },
       data: {
         onboardingStep: step,
-        onboardingData: newData,
+        onboardingData: newData as Prisma.InputJsonValue,
       },
     });
 
-    return NextResponse.json({ success: true });
+    return successResponse({ success: true });
   } catch (error) {
     console.error("[Onboarding PATCH] Error:", error);
-    return NextResponse.json({ error: "Failed to update onboarding progress" }, { status: 500 });
+    return errorResponse("Failed to update onboarding progress");
   }
-}
+});
 
-export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.tenantId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const POST = withAuthAndTenant(async ({ id, tenantId }, request, context, db) => {
   try {
-    const body = await req.json();
-    const validatedData = onboardingSchema.parse(body);
+    const body = await request.json();
+    const validatedData = OnboardingSchema.parse(body);
 
-    let summary;
+    // 1. Summarize onboarding data into structured profile
+    let summary: OnboardingSummary;
     try {
-      summary = await summarizeOnboardingData(validatedData as unknown as Parameters<typeof summarizeOnboardingData>[0]);
+      summary = await summarizeOnboardingData(validatedData);
     } catch (err) {
       console.error("[Onboarding AI] Failed to summarize data", err);
       summary = {
-        companyProfile: `${validatedData.kyc.company} is a business in the ${validatedData.businessBasics.industry} industry.`,
-        targetAudience: Array.isArray(validatedData.productDetails.targetCustomers)
-          ? validatedData.productDetails.targetCustomers.join(", ")
-          : validatedData.productDetails.targetCustomers,
-        keyOfferings: validatedData.productSpecifics.mainProducts,
-        pricingStrategy: validatedData.productSpecifics.pricing,
-        competitiveAdvantage: validatedData.productSpecifics.usps,
-        commonQueries: "Refer to support documents.",
+        companyProfile: `${validatedData.business.company} is a business in the ${validatedData.business.industry} industry.`,
+        targetAudience: Array.isArray(validatedData.offer.targetCustomers)
+          ? validatedData.offer.targetCustomers.join(", ")
+          : validatedData.offer.targetCustomers,
+        keyOfferings: validatedData.offer.mainProducts,
+        commonQueries: validatedData.context.commonQuestions,
         toneAndVoice: "Professional and helpful",
-        isPlaceholder: true
+        conversionGoal: validatedData.chatbotGoals.conversionGoal,
+        preferredCta: validatedData.chatbotGoals.preferredCta,
+        escalationPreference: validatedData.chatbotGoals.escalationPreference,
+        isPlaceholder: true,
       };
     }
 
-    // Map industry to flow category
-    const mapIndustryToCategory = (industry: string): FlowTemplateCategory => {
-      const lower = industry.toLowerCase();
-      if (lower.includes("saas")) return "saas";
-      if (lower.includes("e-commerce") || lower.includes("retail")) return "ecommerce";
-      if (lower.includes("agency")) return "agencies";
-      if (lower.includes("real estate")) return "real-estate";
-      if (lower.includes("fitness") || lower.includes("gym")) return "boutique-gym";
-      if (lower.includes("beauty") || lower.includes("salon")) return "hair-salon";
-      if (lower.includes("restaurant") || lower.includes("food")) return "restaurant";
-      if (lower.includes("hotel") || lower.includes("hospitality")) return "hotel";
-      if (lower.includes("service")) return "services";
-      return "welcome"; // Fallback to a universal template
-    };
-
-    const category = mapIndustryToCategory(validatedData.businessBasics.industry);
+    // 2. Resolve template from industry + sub-industry + goal
+    const category = resolveTemplateCategory(validatedData);
     const template = getTemplateByCategory(category) || getTemplateByCategory("welcome")!;
 
-    const customizedNodes = await customizeFlowNodesWithAI(template.nodes, summary);
+    // 3. Customize template nodes with AI (text only, structure preserved)
+    const customizedNodesRaw = await customizeFlowNodesWithAI(
+      template.nodes,
+      summary,
+      validatedData,
+    );
 
-    // Create flow from template
-    const flow = await prisma.flow.create({
+    // 4. Append lead generation / CTA nodes based on chatbot goals
+    const customizedNodes = appendLeadGenerationNodes(customizedNodesRaw, validatedData);
+
+    // 5. Build fallback message based on escalation preference
+    const fallbackMessages: Record<string, string> = {
+      email: `I'm not sure about that one. Our ${validatedData.business.industry} team will follow up with you by email shortly.`,
+      phone: `That's a great question! Let me have someone from our team call you to discuss.`,
+      live_chat: `I'll connect you with a team member who can help with that right away.`,
+      none: `I'm not quite sure about that. Our team will get back to you soon.`,
+    };
+
+    const fallbackMessage = summary.isPlaceholder
+      ? "Sorry, I didn't understand that."
+      : fallbackMessages[validatedData.chatbotGoals.escalationPreference] || fallbackMessages.none;
+
+    // 6. Create the flow
+    const flow = await db.flow.create({
       data: {
-        name: `${validatedData.kyc.company} Main Flow`,
-        description: `Automated flow generated during onboarding from ${template.name} template`,
-        tenantId: session.user.tenantId,
-        ownerId: session.user.id,
+        name: `${validatedData.business.company} Main Flow`,
+        description: `Automated flow generated during onboarding from ${template.name} template (${category})`,
+        tenantId,
+        ownerId: id,
         isGlobal: false,
         isActive: true,
         version: 1,
         language: "en",
-        fallbackMessage: summary.isPlaceholder ? "Sorry, I didn't understand that." : `I'm not quite sure about that. Our ${validatedData.businessBasics.industry} team will get back to you soon.`,
+        fallbackMessage,
         maxTimeout: 300,
         nodes: {
           create: customizedNodes.map(
@@ -166,32 +129,47 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    await prisma.tenant.update({
-      where: { id: session.user.tenantId },
+    // 7. Store onboarding data and summary
+    await db.tenant.update({
+      where: { id: tenantId },
       data: {
         isOnboarded: true,
         onboardingData: {
           raw: validatedData,
           summary: summary,
+        } as unknown as Prisma.InputJsonValue,
+      },
+    });
+
+    // 8. Create or update bot with context
+    const botCount = await db.bot.count({ where: { tenantId } });
+    if (botCount === 0) {
+      await db.bot.create({
+        data: {
+          name: `${validatedData.business.company} AI Assistant`,
+          tenantId,
+          enabled: true,
+          context: summary as unknown as Prisma.InputJsonValue,
+          entryFlow: flow.id,
         },
-      },
-    });
+      });
+    } else {
+      await db.bot.updateMany({
+        where: { tenantId },
+        data: {
+          context: summary as unknown as Prisma.InputJsonValue,
+          entryFlow: flow.id,
+        },
+      });
+    }
 
-    // Update all bots for this tenant with the new summary context
-    await prisma.bot.updateMany({
-      where: { tenantId: session.user.tenantId },
-      data: {
-        context: summary as Prisma.InputJsonValue,
-        entryFlow: flow.id,
-      },
-    });
-
-    return NextResponse.json({ success: true, summary, flowId: flow.id });
+    return successResponse({ success: true, summary, flowId: flow.id });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Invalid data", details: error.issues }, { status: 400 });
+    if (error instanceof Error && "name" in error && error.name === "ZodError") {
+       console.error("[Onboarding POST] Validation Failed:", (error as any).issues);
+       return validationErrorResponse(error as any);
     }
     console.error("[Onboarding POST] Error:", error);
-    return NextResponse.json({ error: "Failed to complete onboarding" }, { status: 500 });
+    return errorResponse("Failed to complete onboarding");
   }
-}
+});

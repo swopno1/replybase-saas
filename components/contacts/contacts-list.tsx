@@ -79,10 +79,13 @@ export function ContactsList() {
       });
       const response = await fetch(`/api/contacts?${params.toString()}`);
       if (response.ok) {
-        const data = await response.json();
-        setContacts(data.contacts);
-        setTotalCount(data.totalCount);
-        setPageCount(data.totalPages);
+        const result = await response.json();
+        const data = result.data || [];
+        const metadata = result.metadata || {};
+        
+        setContacts(data);
+        setTotalCount(metadata.totalCount || 0);
+        setPageCount(metadata.totalPages || 0);
         setIsAllMatchingSelected(false);
       }
     } catch (error) {

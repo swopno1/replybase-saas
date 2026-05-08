@@ -74,7 +74,7 @@ export type FlowRuntimeState = {
 export function interpolateText(
   text: string,
   variables: Record<string, unknown>,
-) {
+): string {
   return text.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, key) => {
     const value = variables[key];
     return value === undefined || value === null ? "" : String(value);

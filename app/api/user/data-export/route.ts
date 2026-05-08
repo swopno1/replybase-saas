@@ -34,8 +34,8 @@ export async function GET(req: NextRequest) {
       tenants.forEach(t => {
         const data = t.onboardingData as any;
         const email = t.users[0]?.email || "";
-        const companyName = data?.raw?.kyc?.company || "";
-        const industry = data?.raw?.businessBasics?.industry || "";
+        const companyName = data?.raw?.business?.company || data?.raw?.kyc?.company || "";
+        const industry = data?.raw?.business?.industry || data?.raw?.businessBasics?.industry || "";
         const stage = t.isOnboarded ? "COMPLETED" : t.onboardingStep.toString();
         const status = t.isOnboarded ? "COMPLETED" : t.onboardingStep > 0 ? "IN_PROGRESS" : "NOT_STARTED";
         // Handle subscriptions array to match schema

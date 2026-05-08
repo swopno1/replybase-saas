@@ -1,3 +1,4 @@
+import logger from "./logger";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 
@@ -61,10 +62,7 @@ export async function recordMilestoneEvent(
 
     return event;
   } catch (error) {
-    console.error(
-      `Failed to record milestone event [${milestoneId}] for tenant [${tenantId}]:`,
-      error,
-    );
+    logger.error({ tenantId, milestoneId, error }, "Failed to record milestone event");
     // Don't throw - allow the webhook to continue even if event recording fails
     return null;
   }

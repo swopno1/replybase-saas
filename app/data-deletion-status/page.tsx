@@ -166,7 +166,7 @@ export default async function DataDeletionStatusPage({
         </div>
 
         <div className="text-center text-[10px] text-slate-400 leading-relaxed">
-          ReplyBase complies with Meta's Data Deletion Policy. Once a request is processed,
+          ReplyBase complies with Meta&apos;s Data Deletion Policy. Once a request is processed,
           all associated personal data is permanently removed from our active systems.
         </div>
       </div>

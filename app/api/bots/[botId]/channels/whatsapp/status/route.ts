@@ -8,6 +8,7 @@ import {
   getStringFromJsonConfig,
 } from "@/lib/whatsapp-channel-credentials";
 import { maskSecret } from "@/lib/whatsapp-provider";
+import { checkChannelLimit } from "@/lib/subscription";
 
 export const dynamic = "force-dynamic";
 
@@ -16,12 +17,12 @@ export async function GET(
   { params }: { params: Promise<{ botId: string }> },
 ) {
   try {
-    const { botId } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { botId } = await params;
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: { tenantId: true },
@@ -41,26 +42,29 @@ export async function GET(
           bot: { tenantId: user.tenantId },
         }
       : {
+          botId,
           type: "whatsapp",
-          botId: botId,
           bot: { tenantId: user.tenantId },
         };
 
-    const channel = await prisma.channel.findFirst({
-      where: whereClause,
-      include: {
-        bot: {
-          select: {
-            id: true,
-            name: true,
+    const [channel, limitStatus] = await Promise.all([
+      prisma.channel.findFirst({
+        where: whereClause,
+        include: {
+          bot: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
         },
-      },
-      orderBy: { updatedAt: "desc" },
-    });
+        orderBy: { updatedAt: "desc" },
+      }),
+      checkChannelLimit(user.tenantId, botId),
+    ]);
 
     if (!channel) {
-      return NextResponse.json({ connected: false });
+      return NextResponse.json({ connected: false, limitStatus });
     }
 
     const config = (channel.config as Prisma.JsonObject | null) || {};
@@ -120,6 +124,7 @@ export async function GET(
         updatedAt: channel.updatedAt,
       },
       bot: channel.bot,
+      limitStatus,
       provider,
       local: {
         webhookUrl: getStringFromJsonConfig(config, "webhookUrl"),

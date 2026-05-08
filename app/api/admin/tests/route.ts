@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { execFile } from "child_process";
+import { exec } from "child_process";
 import { isPlatformAdmin } from "@/lib/admin";
 import { recordActivity } from "@/lib/activity-log";
 
@@ -97,7 +97,7 @@ export async function POST(req: Request) {
         }, { status: 403 });
     }
 
-    execFile("pnpm", ["tsx", "scripts/run-load-tests.ts"], async (error) => {
+    exec(`pnpm tsx scripts/run-load-tests.ts`, async (error) => {
         if (error) {
           console.error("Admin triggered load test failed", error);
           await recordActivity({

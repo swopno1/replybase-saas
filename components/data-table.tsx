@@ -157,8 +157,8 @@ export function DataTable<TData, TValue>({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex-1 text-sm text-muted-foreground">
-          {table.getFilteredSelectedRowModel().rows.length} of{" "}
-          {table.getFilteredRowModel().rows.length} row(s) selected.
+          {table.getFilteredSelectedRowModel()?.rows?.length ?? 0} of{" "}
+          {table.getFilteredRowModel()?.rows?.length ?? 0} row(s) selected.
         </div>
         <div className="flex items-center gap-2">
           <DropdownMenu>

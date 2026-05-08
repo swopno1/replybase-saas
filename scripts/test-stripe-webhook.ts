@@ -15,7 +15,7 @@ async function main() {
       data: {
           name: "pro",
           displayName: "Pro Plan",
-          price: 89,
+          price: 8900,
       }
   });
 
@@ -34,7 +34,7 @@ async function main() {
 
   // 2. Simulate invoice.paid event
   const mockInvoiceId = "in_test_" + Date.now();
-  const mockAmount = 89;
+  const mockAmount = 8900; // Cents
 
   console.log("📡 Simulating invoice.paid event...");
 
@@ -44,7 +44,7 @@ async function main() {
       stripeSubscriptionId: subscription.stripeId,
       tenantId: tenant.id,
       amount: mockAmount,
-      currency: "usd",
+      currency: "USD",
       status: "paid",
       paidAt: new Date(),
     },

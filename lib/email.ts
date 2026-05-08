@@ -6,10 +6,11 @@ type SendEmailParams = {
   to: string | string[];
   subject: string;
   text: string;
+  html?: string;
   from?: string;
 };
 
-export async function sendEmail({ to, subject, text, from }: SendEmailParams) {
+export async function sendEmail({ to, subject, text, html, from }: SendEmailParams) {
   const resendApiKey = process.env.RESEND_API_KEY;
   const defaultFrom = process.env.TRIAL_REMINDER_EMAIL_FROM || 
                       process.env.LEAD_NOTIFICATION_EMAIL_FROM || 
@@ -32,6 +33,7 @@ export async function sendEmail({ to, subject, text, from }: SendEmailParams) {
         to: Array.isArray(to) ? to : [to],
         subject,
         text,
+        ...(html ? { html } : {}),
       }),
     });
 

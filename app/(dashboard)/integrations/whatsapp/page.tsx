@@ -1,69 +1,70 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
-import { ChannelBotSelectorCard, ChannelPageHeader } from "@/components/channels/channel-ui";
+import { ChannelBotSelectorCard } from "@/components/channels/channel-ui";
 
 interface Bot {
   id: string;
   name: string;
 }
 
-function WhatsAppRedirectContent() {
+export default function WhatsAppLegacyPage() {
   const router = useRouter();
   const [bots, setBots] = useState<Bot[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadBots = async () => {
+    async function fetchBots() {
       try {
         const res = await fetch("/api/bots");
         const data = await res.json();
-        const list: Bot[] = Array.isArray(data.bots)
-          ? data.bots
-          : Array.isArray(data.projects)
-            ? data.projects.flatMap((p: any) => p.bots || [])
-            : [];
-        setBots(list);
+        const botList = data.bots || [];
+        setBots(botList);
 
-        if (list.length === 1) {
-          router.replace(`/bots/${list[0].id}?tab=channels&channel=whatsapp`);
+        if (botList.length === 1) {
+          router.push(`/bots/${botList[0].id}?tab=channels&channel=whatsapp`);
+        } else if (botList.length === 0) {
+          router.push("/bots");
+        } else {
+          setLoading(false);
         }
-      } catch {
-        toast.error("Failed to load bots");
-      } finally {
+      } catch (error) {
+        console.error("Failed to fetch bots:", error);
         setLoading(false);
       }
-    };
-    loadBots();
+    }
+    void fetchBots();
   }, [router]);
 
   const handleSelectBot = (botId: string) => {
     router.push(`/bots/${botId}?tab=channels&channel=whatsapp`);
   };
 
-  if (loading) return <div className="p-8 flex items-center gap-2"><Loader2 className="animate-spin" /> Loading...</div>;
+  if (loading) {
+    return (
+      <div className="flex h-[400px] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <ChannelPageHeader title="WhatsApp Business" description="Select a bot to manage its WhatsApp configuration." />
+    <div className="max-w-2xl space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">WhatsApp Integration</h1>
+        <p className="text-muted-foreground mt-1">
+          Select a bot to configure its WhatsApp connection.
+        </p>
+      </div>
+
       <ChannelBotSelectorCard
         loading={loading}
         bots={bots}
         selectedBotId=""
         onSelectBot={handleSelectBot}
-        createBotHref="/bots"
       />
     </div>
-  );
-}
-
-export default function WhatsAppIntegrationRedirect() {
-  return (
-    <Suspense fallback={<div className="p-8">Loading...</div>}>
-      <WhatsAppRedirectContent />
-    </Suspense>
   );
 }
