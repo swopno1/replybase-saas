@@ -44,6 +44,7 @@
   var channelId = scriptTag.getAttribute("data-channel-id");
   var botId = scriptTag.getAttribute("data-bot-id");
   var publicKey = scriptTag.getAttribute("data-public-key");
+  var siteId = scriptTag.getAttribute("data-site-id");
   var title = scriptTag.getAttribute("data-title") || "Chat with us";
   var primaryColor = scriptTag.getAttribute("data-primary-color") || "#0f766e";
   var position = scriptTag.getAttribute("data-position") || "right";
@@ -60,15 +61,15 @@
     "replybase:webchat-consent-updated";
   var mobileMode = scriptTag.getAttribute("data-mobile-mode") || "auto";
 
-  if (!channelId && !botId && !publicKey) {
+  if (!channelId && !botId && !publicKey && !siteId) {
     console.error(
-      "[ReplyBase Webchat] Missing data-public-key, data-channel-id, or data-bot-id on script tag",
+      "[ReplyBase Webchat] Missing data-site-id, data-public-key, data-channel-id, or data-bot-id on script tag",
     );
     return;
   }
 
   var STORAGE_KEY_PREFIX = "replybase_webchat_session";
-  var storageScope = publicKey || channelId || botId;
+  var storageScope = siteId || publicKey || channelId || botId;
   var token = "";
   var conversationId = "";
   var visitorId = "";
@@ -1005,6 +1006,7 @@
     }
 
     var payload = {
+      siteId: siteId || undefined,
       publicKey: publicKey || undefined,
       channelId: channelId || undefined,
       botId: botId || undefined,
@@ -1045,11 +1047,13 @@
   }
 
   function loadConfig() {
-    var query = publicKey
-      ? "publicKey=" + encodeURIComponent(publicKey)
-      : channelId
-        ? "channelId=" + encodeURIComponent(channelId)
-        : "botId=" + encodeURIComponent(botId);
+    var query = siteId
+      ? "siteId=" + encodeURIComponent(siteId)
+      : publicKey
+        ? "publicKey=" + encodeURIComponent(publicKey)
+        : channelId
+          ? "channelId=" + encodeURIComponent(channelId)
+          : "botId=" + encodeURIComponent(botId);
 
     return request("/api/webchat/config?" + query, "GET").then(function (data) {
       if (typeof data.publicKey === "string" && data.publicKey.trim()) {
