@@ -36,6 +36,23 @@ function asStringList(value: unknown): string[] {
   );
 }
 
+const REPLYBASE_SITE_URL = "https://replybase.co.uk";
+const REPLYBASE_LOGO_URL = `${REPLYBASE_SITE_URL}/image/logo.png`;
+
+function escapeHtml(value: string) {
+  if (!value) return "";
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function formatMessageHtml(value: string) {
+  return escapeHtml(value).replace(/\r?\n/g, "<br />");
+}
+
 function buildLeadSummaryMessage(input: NewLeadNotificationInput): string {
   const lines = [
     `New Lead - ${input.name}`,
@@ -47,6 +64,56 @@ function buildLeadSummaryMessage(input: NewLeadNotificationInput): string {
   ];
 
   return lines.join("\n");
+}
+
+function buildLeadSummaryHtml(input: NewLeadNotificationInput): string {
+  return `
+    <div style="margin:0; padding:32px 16px; background:linear-gradient(180deg, #f4efe7 0%, #ffffff 100%); font-family:Arial, Helvetica, sans-serif; color:#1f2937;">
+      <div style="max-width:640px; margin:0 auto; background:#ffffff; border:1px solid #eadfce; border-radius:24px; overflow:hidden; box-shadow:0 18px 45px rgba(15, 23, 42, 0.08);">
+        <div style="padding:28px 32px; background:linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%); color:#ffffff;">
+          <img src="${REPLYBASE_LOGO_URL}" alt="ReplyBase" width="160" style="display:block; max-width:160px; height:auto; margin:0 0 20px;" />
+          <div style="font-size:12px; letter-spacing:0.12em; text-transform:uppercase; opacity:0.76; margin-bottom:10px;">New Lead Captured</div>
+          <h1 style="margin:0; font-size:28px; line-height:1.25; font-weight:700;">A new lead just engaged with your chatbot.</h1>
+          <p style="margin:14px 0 0; font-size:15px; line-height:1.7; color:rgba(255,255,255,0.88);">Great news! We've captured a new inquiry from ${escapeHtml(input.name)}. Details are below.</p>
+        </div>
+
+        <div style="padding:32px;">
+          <div style="border:1px solid #e5e7eb; border-radius:20px; background:#f8fafc; padding:22px 24px;">
+            <div style="margin:0 0 14px; font-size:13px; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">Lead Summary</div>
+            <table role="presentation" width="100%" style="border-collapse:collapse; font-size:14px; line-height:1.65;">
+              <tr>
+                <td style="padding:0 0 10px; width:120px; color:#64748b; vertical-align:top;">Name</td>
+                <td style="padding:0 0 10px; color:#0f172a; font-weight:600; vertical-align:top;">${escapeHtml(input.name)}</td>
+              </tr>
+              <tr>
+                <td style="padding:0 0 10px; width:120px; color:#64748b; vertical-align:top;">Email</td>
+                <td style="padding:0 0 10px; color:#0f172a; font-weight:600; vertical-align:top;">${escapeHtml(input.email || "-")}</td>
+              </tr>
+              <tr>
+                <td style="padding:0 0 10px; width:120px; color:#64748b; vertical-align:top;">Phone</td>
+                <td style="padding:0 0 10px; color:#0f172a; font-weight:600; vertical-align:top;">${escapeHtml(input.phone || "-")}</td>
+              </tr>
+              <tr>
+                <td style="padding:0 0 10px; width:120px; color:#64748b; vertical-align:top;">Source</td>
+                <td style="padding:0 0 10px; color:#0f172a; font-weight:600; vertical-align:top;">${escapeHtml(input.source)}</td>
+              </tr>
+              <tr>
+                <td style="padding:0; width:120px; color:#64748b; vertical-align:top;">Enquiry</td>
+                <td style="padding:0; color:#0f172a; font-weight:600; vertical-align:top;">${formatMessageHtml(input.enquiry)}</td>
+              </tr>
+            </table>
+          </div>
+
+          <p style="margin:24px 0 0; font-size:15px; line-height:1.75;">You can view and manage all your leads directly in the <a href="${REPLYBASE_SITE_URL}/dashboard" style="color:#2563eb; text-decoration:none; font-weight:600;">ReplyBase Dashboard</a>.</p>
+        </div>
+
+        <div style="padding:24px 32px 32px; border-top:1px solid #e5e7eb; background:#fcfcfd;">
+          <p style="margin:0 0 6px; font-size:15px; font-weight:700; color:#0f172a;">The ReplyBase Team</p>
+          <p style="margin:0 0 6px; font-size:14px; color:#475569;">AI-powered conversations for teams that do not want to miss a lead.</p>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 async function sendTelegramLeadNotification(
@@ -139,11 +206,13 @@ async function sendEmailLeadNotification(
 
   const subject = `New Lead - ${input.name}`;
   const text = buildLeadSummaryMessage(input);
+  const html = buildLeadSummaryHtml(input);
 
   const result = await sendEmail({
     to: recipients,
     subject,
     text,
+    html,
     from: process.env.LEAD_NOTIFICATION_EMAIL_FROM || "ReplyBase <noreply@replybase.co.uk>",
   });
 
