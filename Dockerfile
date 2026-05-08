@@ -61,7 +61,7 @@ RUN echo "module.exports = { \
 };" > prisma.config.js
 
 # Install prisma CLI globally in runner for migrations
-RUN npm install -g prisma@7.7.0
+RUN npm install -g prisma@7.8.0
 
 USER nextjs
 EXPOSE 3000
@@ -74,4 +74,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
 
 # Run migrations then start the server.
 # Standalone output places node_modules at ./node_modules inside the standalone folder.
-CMD ["sh", "-c", "prisma migrate deploy --schema ./prisma/schema.prisma && node server.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy --schema ./prisma/schema.prisma && node server.js"]

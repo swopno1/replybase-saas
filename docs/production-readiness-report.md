@@ -51,3 +51,22 @@ The ReplyBase SaaS platform is architecturally sound and functionally complete f
 | Structured Logging Gap | Medium | Migrate remaining `console.log` to `lib/logger.ts`. |
 
 **Verdict**: The system is ready for initial beta/production traffic. The "High" severity items should be addressed within the first 30 days of live operation.
+
+
+---
+
+## 5. Deployment Fixes & Database Migration
+### Issue: Migration Error P3005
+During deployment, the error `P3005` was observed. This occurs when `prisma migrate deploy` is run against a database that already has a schema but no migration history (baseline issue).
+
+### Solution:
+1. **Baseline the Database**: If the production database was created outside of Prisma Migrations, you must baseline it:
+   ```bash
+   npx prisma migrate resolve --applied 20260130130900_init
+   ```
+   (Or the latest migration that matches the current schema).
+2. **Accept Data Loss in Dev**: In the development environment, use `pnpm prisma db push --accept-data-loss` to sync schema changes without full migrations.
+
+### Actions Taken:
+- Updated `Dockerfile` to use Prisma `7.8.0` to match `package.json`.
+- Standardized migration command to `npx prisma migrate deploy`.
