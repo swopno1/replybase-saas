@@ -15,6 +15,7 @@ import {
   ChannelFlowAssignmentCard,
   ChannelActivityLogCard,
 } from "@/components/channels/channel-sections";
+import { ChannelLimitWarning } from "@/components/channels/channel-ui";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -52,41 +53,25 @@ interface WebchatDiagnostics {
   }>;
 }
 
-export function WebchatConfig({
-  botId,
-  channelId: initialChannelId,
-  channelLimitStatus,
-}: {
+interface FlowOption {
+  id: string;
+  name: string;
+}
+
+interface WebchatConfigProps {
   botId: string;
   channelId?: string;
-  channelLimitStatus?: { allowed: boolean; limit: number } | null;
-}) {
-  const [channelId, setChannelId] = useState<string | undefined>(initialChannelId);
-  const [site, setSite] = useState<WebchatSite | null>(null);
+  channelLimitStatus?: any;
+}
+
+export function WebchatConfig({ botId, channelId: initialChannelId, channelLimitStatus: initialLimitStatus }: WebchatConfigProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
-  // Form state
-  const [url, setUrl] = useState("");
-  const [name, setName] = useState("");
-  const [themeColor, setThemeColor] = useState("#0f172a");
-  const [title, setTitle] = useState("Chat with us");
-  const [welcomeMessage, setWelcomeMessage] =
-    useState("Hello! How can we help you today?");
-  const [position, setPosition] = useState("right");
-
-  // Diagnostics state
+  const [site, setSite] = useState<WebchatSite | null>(null);
   const [diagnostics, setDiagnostics] = useState<WebchatDiagnostics | null>(
     null,
   );
-  const [isDiagnosticsLoading, setIsDiagnosticsLoading] = useState(false);
-
-  // Preview state
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [previewDraft, setPreviewDraft] = useState("");
-  const [previewMessages, setPreviewMessages] = useState<
-    Array<{ id: string; role: "user" | "bot"; text: string }>
-  >([]);
+  const [channelLimitStatus, setChannelLimitStatus] = useState<any>(initialLimitStatus || null);
 
   // Flow assignment state
   const [flows, setFlows] = useState<FlowOption[]>([]);
@@ -94,6 +79,12 @@ export function WebchatConfig({
   const [selectedFlowId, setSelectedFlowId] = useState("");
   const [isAssigningFlow, setIsAssigningFlow] = useState(false);
   const [isUnassigningFlow, setIsUnassigningFlow] = useState(false);
+
+  // Logs state
+  const [logs, setLogs] = useState<any[]>([]);
+  const [isLogsLoading, setIsLogsLoading] = useState(false);
+
+  const channelId = site?.channelId || initialChannelId;
 
   const loadFlows = async () => {
     setIsFlowsLoading(true);
@@ -110,22 +101,102 @@ export function WebchatConfig({
     }
   };
 
+  const loadLogs = async (cId: string) => {
+    setIsLogsLoading(true);
+    try {
+      const res = await fetch(`/api/bots/${botId}/webchat-site/logs?channelId=${cId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setLogs(data.logs || []);
+      }
+    } catch (error) {
+      console.error("Failed to load logs:", error);
+    } finally {
+      setIsLogsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [siteRes, diagRes] = await Promise.all([
+          fetch(`/api/bots/${botId}/webchat-site`),
+          fetch(`/api/bots/${botId}/webchat-site/diagnostics`),
+        ]);
+
+        if (siteRes.ok) {
+          const data = await siteRes.json();
+          setSite(data.site);
+          if (!initialLimitStatus) setChannelLimitStatus(data.limitStatus);
+
+          if (data.site?.channelId) {
+             void loadLogs(data.site.channelId);
+          }
+        }
+        if (diagRes.ok) {
+          const data = await diagRes.json();
+          setDiagnostics(data.diagnostics);
+        }
+
+        void loadFlows();
+      } catch (error) {
+        console.error("Failed to fetch webchat config:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchData();
+  }, [botId, initialLimitStatus]);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!site) return;
+
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/bots/${botId}/webchat-site`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          allowedDomains: site.allowedDomains,
+        }),
+      });
+
+      if (res.ok) {
+        toast.success("Settings saved");
+      } else {
+        toast.error("Failed to save settings");
+      }
+    } catch (error) {
+      toast.error("Error saving settings");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleAssignFlow = async () => {
     if (!channelId || !selectedFlowId) return;
-
     setIsAssigningFlow(true);
     try {
-      const res = await fetch(`/api/channels/${channelId}/flows`, {
+      const res = await fetch(`/api/bots/${botId}/channels/${channelId}/assign-flow`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ flowId: selectedFlowId }),
       });
-
-      if (!res.ok) throw new Error("Failed to assign flow");
-      toast.success("Flow assigned successfully!");
-      void loadSite(botId);
+      if (res.ok) {
+        toast.success("Flow assigned");
+        // Reload site to get updated assignment
+        const siteRes = await fetch(`/api/bots/${botId}/webchat-site`);
+        if (siteRes.ok) {
+           const data = await siteRes.json();
+           setSite(data.site);
+        }
+      } else {
+        toast.error("Failed to assign flow");
+      }
     } catch (error) {
-      toast.error("Failed to assign flow");
+      toast.error("Error assigning flow");
     } finally {
       setIsAssigningFlow(false);
     }
@@ -133,168 +204,63 @@ export function WebchatConfig({
 
   const handleUnassignFlow = async () => {
     if (!channelId) return;
-
     setIsUnassigningFlow(true);
     try {
-      const res = await fetch(`/api/channels/${channelId}/flows`, {
-        method: "DELETE",
+      const res = await fetch(`/api/bots/${botId}/channels/${channelId}/unassign-flow`, {
+        method: "POST",
       });
-
-      if (!res.ok) throw new Error("Failed to unassign flow");
-      toast.success("Flow unassigned.");
-      void loadSite(botId);
+      if (res.ok) {
+        toast.success("Flow unassigned");
+        setSelectedFlowId("");
+        const siteRes = await fetch(`/api/bots/${botId}/webchat-site`);
+        if (siteRes.ok) {
+           const data = await siteRes.json();
+           setSite(data.site);
+        }
+      } else {
+        toast.error("Failed to unassign flow");
+      }
     } catch (error) {
-      toast.error("Failed to unassign flow");
+      toast.error("Error unassigning flow");
     } finally {
       setIsUnassigningFlow(false);
     }
   };
 
-  const assignedFlow = useMemo(() => {
-    // Check if channel exists and has flow assignments
-    // Note: the backend site object includes channel data
-    return (site as any)?.channel?.flowAssignments?.[0]?.flow;
-  }, [site]);
-
-  const loadSite = async (id: string) => {
-    if (!channelId) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await fetch(
-        `/api/bots/${id}/webchat-site?channelId=${channelId}`,
-      );
-      if (res.ok) {
-        const data = await res.json();
-        if (data.site) {
-          setSite(data.site);
-          const domains = data.site.allowedDomains || [];
-          setUrl(domains[0] || "");
-          setName(data.site.name || "");
-          const theme = data.site.themeConfig || {};
-          setThemeColor(theme.themeColor || "#0f172a");
-          setTitle(theme.title || "Chat with us");
-          setWelcomeMessage(
-            theme.welcomeMessage || "Hello! How can we help you today?",
-          );
-          setPosition(theme.position || "right");
-          void loadDiagnostics(id);
-        }
-      }
-    } catch (error) {
-      console.error("Failed to load webchat site:", error);
-    } finally {
-      setLoading(false);
-    }
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Copied to clipboard");
   };
 
-  const loadDiagnostics = async (id: string) => {
-    setIsDiagnosticsLoading(true);
-    try {
-      const res = await fetch(`/api/bots/${id}/webchat-site/diagnostics`);
-      if (res.ok) {
-        const data = await res.json();
-        setDiagnostics(data);
-      }
-    } catch (error) {
-      console.error("Failed to load diagnostics:", error);
-    } finally {
-      setIsDiagnosticsLoading(false);
-    }
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
-  useEffect(() => {
-    if (botId) {
-      setTimeout(() => {
-        void loadSite(botId);
-        void loadFlows();
-      }, 0);
-    }
-  }, [botId, channelId, initialChannelId]);
+  if (!site) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Not Configured</CardTitle>
+          <CardDescription>
+            This bot does not have a webchat channel configured.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
-  useEffect(() => {
-    if (initialChannelId !== channelId) {
-      setChannelId(initialChannelId);
-    }
-  }, [initialChannelId]);
+  const embedCode = `<script
+  src="${process.env.NEXT_PUBLIC_APP_URL}/embed/replybase-webchat.js"
+  data-public-key="${site.publicKey}"
+  async
+></script>`;
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      let currentChannelId = channelId;
-
-      // If no channelId exists, we need to create the web channel first
-      if (!currentChannelId) {
-        if (channelLimitStatus && !channelLimitStatus.allowed) {
-          throw new Error(`Channel limit reached. Please upgrade your plan to connect more channels.`);
-        }
-
-        const channelRes = await fetch(`/api/bots/${botId}/channels`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "web",
-            name: name || "Webchat",
-          }),
-        });
-
-        if (!channelRes.ok) {
-          const errorData = await channelRes.json();
-          throw new Error(errorData.error || "Failed to create web channel");
-        }
-        
-        const channelData = await channelRes.json();
-        currentChannelId = channelData.channel.id;
-        setChannelId(currentChannelId);
-      }
-
-      const res = await fetch(`/api/bots/${botId}/webchat-site`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          channelId: currentChannelId,
-          name: name || "Webchat",
-          allowedDomains: url ? [url] : [],
-          themeConfig: {
-            themeColor,
-            title,
-            welcomeMessage,
-            position,
-          },
-        }),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to save webchat site");
-      }
-      
-      const data = await res.json();
-      setSite(data.site);
-      toast.success("Webchat settings saved!");
-    } catch (error) {
-      console.error("Save error:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to save settings");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const appUrl = typeof window !== "undefined" ? window.location.origin : "";
-  const embedSnippet = site ? `<script src="${appUrl}/embed/replybase-webchat.js" data-site-id="${site.id}" async defer></script>` : "";
-
-  const handlePreviewSend = () => {
-    if (!previewDraft.trim()) return;
-    const userMsg = { id: Math.random().toString(), role: "user" as const, text: previewDraft };
-    setPreviewMessages((prev) => [...prev, userMsg]);
-    setPreviewDraft("");
-
-    setTimeout(() => {
-      setPreviewMessages((prev) => [...prev, { id: Math.random().toString(), role: "bot" as const, text: "This is a preview response. In your live site, the AI will respond." }]);
-    }, 1000);
-  };
+  // Find currently assigned flow
+  const assignedFlow = (site as any).flowAssignments?.[0]?.flow;
 
   return (
     <div className="space-y-6">
@@ -302,181 +268,170 @@ export function WebchatConfig({
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Settings className="h-4 w-4" />
-              Widget Configuration
+            <CardTitle className="flex items-center gap-2">
+              <Code className="h-5 w-5" />
+              Embed Code
             </CardTitle>
             <CardDescription>
-              Customize how your webchat widget looks and behaves.
+              Add this script to your website to enable the chat widget.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Target Website URL</Label>
-              <Input
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://example.com"
-              />
-              <p className="text-xs text-muted-foreground">Used for CORS protection.</p>
+            <div className="relative">
+              <pre className="overflow-x-auto rounded-lg bg-muted p-4 text-xs">
+                <code>{embedCode}</code>
+              </pre>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="absolute right-2 top-2"
+                onClick={() => copyToClipboard(embedCode)}
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
             </div>
-            <div className="space-y-2">
-              <Label>Widget Title</Label>
-              <Input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Theme Color</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="color"
-                  value={themeColor}
-                  onChange={(e) => setThemeColor(e.target.value)}
-                  className="w-12 p-1"
-                />
-                <Input
-                  value={themeColor}
-                  onChange={(e) => setThemeColor(e.target.value)}
-                  className="flex-1"
-                />
-              </div>
-            </div>
-            <Button onClick={handleSave} disabled={saving} className="w-full">
-              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Save Changes
-            </Button>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Code className="h-4 w-4" />
-              Installation
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Security Settings
             </CardTitle>
             <CardDescription>
-              Copy this snippet into your website's &lt;head&gt; or before the closing &lt;/body&gt; tag.
+              Restrict which domains can host your chat widget.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Textarea
-                value={embedSnippet || "Save settings first to generate snippet."}
-                readOnly
-                className="font-mono text-xs h-24"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full"
-                onClick={() => {
-                  if (embedSnippet) {
-                    navigator.clipboard.writeText(embedSnippet);
-                    toast.success("Snippet copied!");
+          <CardContent>
+            <form onSubmit={handleSave} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="domains">Allowed Domains (comma separated)</Label>
+                <Input
+                  id="domains"
+                  placeholder="example.com, my-store.myshopify.com"
+                  value={site.allowedDomains.join(", ")}
+                  onChange={(e) =>
+                    setSite({
+                      ...site,
+                      allowedDomains: e.target.value
+                        .split(",")
+                        .map((d) => d.trim())
+                        .filter(Boolean),
+                    })
                   }
-                }}
-                disabled={!embedSnippet}
-              >
-                <Copy className="mr-2 h-4 w-4" />
-                Copy Snippet
+                />
+                <p className="text-[0.7rem] text-muted-foreground">
+                  Leave empty to allow all domains (not recommended for production).
+                </p>
+              </div>
+              <Button type="submit" disabled={saving}>
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Settings
               </Button>
-            </div>
+            </form>
           </CardContent>
         </Card>
-      </div>
 
-      <ChannelFlowAssignmentCard
-        title="Channel Flow Assignment"
-        description="Assign an active flow to the selected web channel. Channel assignment takes precedence over bot entry flow."
-        selectLabel="Assigned Flow"
-        selectId="webchatFlowSelect"
-        flows={flows}
-        isFlowsLoading={isFlowsLoading}
-        selectedFlowId={selectedFlowId}
-        onSelectFlow={setSelectedFlowId}
-        assignedFlowName={assignedFlow?.name}
-        unassignedDescription="No channel flow is assigned. Bot entry flow or AI fallback applies."
-        onAssign={handleAssignFlow}
-        onUnassign={handleUnassignFlow}
-        isAssigning={isAssigningFlow}
-        isUnassigning={isUnassigningFlow}
-        assignDisabled={
-          !selectedFlowId ||
-          isAssigningFlow ||
-          assignedFlow?.id === selectedFlowId
-        }
-        unassignDisabled={!assignedFlow || isUnassigningFlow}
-      />
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Live Preview</CardTitle>
-          <CardDescription>
-            Preview your widget design. AI responses are simulated here.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="relative h-64 rounded-lg border bg-slate-50 p-4 overflow-hidden">
-            <div
-              className={`absolute bottom-4 ${position === "left" ? "left-4" : "right-4"} w-64`}
-            >
-              {isPreviewOpen && (
-                <div className="flex h-48 flex-col overflow-hidden rounded-lg border bg-white shadow-lg">
-                  <div
-                    className="px-3 py-2 text-xs font-bold text-white"
-                    style={{ backgroundColor: themeColor }}
-                  >
-                    {title}
+        {diagnostics && (
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5 text-yellow-500" />
+                Diagnostics
+              </CardTitle>
+              <CardDescription>
+                Overview of the last 30 days of widget activity.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-lg border bg-card p-4">
+                  <div className="text-sm font-medium text-muted-foreground">
+                    Last Activity
                   </div>
-                  <div className="flex-1 overflow-y-auto p-2 space-y-2">
-                    <div className="rounded bg-slate-100 p-2 text-[10px]">
-                      {welcomeMessage}
-                    </div>
-                    {previewMessages.map((m) => (
+                  <div className="text-2xl font-bold">
+                    {diagnostics.lastPingAt
+                      ? new Date(diagnostics.lastPingAt).toLocaleDateString()
+                      : "No activity"}
+                  </div>
+                </div>
+                <div className="rounded-lg border bg-card p-4">
+                  <div className="text-sm font-medium text-muted-foreground">
+                    Blocked Requests (CORS)
+                  </div>
+                  <div className="text-2xl font-bold text-destructive">
+                    {diagnostics.blockedOriginCount}
+                  </div>
+                </div>
+                <div className="rounded-lg border bg-card p-4">
+                  <div className="text-sm font-medium text-muted-foreground">
+                    Rate Limited
+                  </div>
+                  <div className="text-2xl font-bold text-orange-500">
+                    {diagnostics.rateLimitCount}
+                  </div>
+                </div>
+              </div>
+
+              {diagnostics.recentErrors.length > 0 && (
+                <div className="mt-6">
+                  <h4 className="mb-3 text-sm font-semibold">Recent Errors</h4>
+                  <div className="space-y-2">
+                    {diagnostics.recentErrors.map((err) => (
                       <div
-                        key={m.id}
-                        className={`rounded p-2 text-[10px] ${m.role === "user" ? "ml-4 bg-blue-100" : "mr-4 bg-slate-100"}`}
+                        key={err.id}
+                        className="flex items-start justify-between rounded-md bg-destructive/10 p-3 text-xs"
                       >
-                        {m.text}
+                        <div>
+                          <span className="font-bold uppercase text-destructive">
+                            {err.reason}
+                          </span>
+                          <p className="mt-1 text-muted-foreground">
+                            {err.message || "No detail provided"}
+                          </p>
+                        </div>
+                        <span className="text-muted-foreground">
+                          {new Date(err.createdAt).toLocaleString()}
+                        </span>
                       </div>
                     ))}
                   </div>
-                  <div className="flex gap-1 border-t p-2">
-                    <input
-                      className="flex-1 rounded border px-2 text-[10px] outline-none"
-                      placeholder="Type..."
-                      value={previewDraft}
-                      onChange={(e) => setPreviewDraft(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handlePreviewSend()}
-                    />
-                    <button
-                      className="rounded px-2 py-1 text-[10px] text-white"
-                      style={{ backgroundColor: themeColor }}
-                      onClick={handlePreviewSend}
-                    >
-                      Send
-                    </button>
-                  </div>
                 </div>
               )}
-              <Button
-                className="ml-auto mt-2 flex h-10 w-10 rounded-full p-0"
-                style={{ backgroundColor: themeColor }}
-                onClick={() => setIsPreviewOpen(!isPreviewOpen)}
-              >
-                <Globe className="h-5 w-5" />
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {channelId && (
+        <>
+          <ChannelFlowAssignmentCard
+            title="Webchat Flow Assignment"
+            description="Assign a flow to your web widget. This will run when a user starts a chat."
+            selectLabel="Select Flow"
+            selectId="webchatFlowSelect"
+            flows={flows}
+            isFlowsLoading={isFlowsLoading}
+            selectedFlowId={selectedFlowId}
+            onSelectFlow={setSelectedFlowId}
+            assignedFlowName={assignedFlow?.name}
+            unassignedDescription="No flow assigned. AI fallback will be used immediately."
+            onAssign={handleAssignFlow}
+            onUnassign={handleUnassignFlow}
+            isAssigning={isAssigningFlow}
+            isUnassigning={isUnassigningFlow}
+            assignDisabled={!selectedFlowId || isAssigningFlow || assignedFlow?.id === selectedFlowId}
+            unassignDisabled={!assignedFlow || isUnassigningFlow}
+          />
+          <ChannelActivityLogCard
+            logs={logs}
+            isLoading={isLogsLoading}
+            onRefresh={() => loadLogs(channelId)}
+            emptyText="No activity recorded yet."
+          />
+        </>
+      )}
     </div>
   );
-}
-
-interface FlowOption {
-  id: string;
-  name: string;
 }
