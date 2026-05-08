@@ -278,7 +278,12 @@ export default function BotDetailPage() {
                   {activeChannelTab === "whatsapp" && <WhatsAppConfig botId={botId} channelLimitStatus={channelLimitStatus} />}
                   {activeChannelTab === "telegram" && <TelegramConfig botId={botId} channelLimitStatus={channelLimitStatus} />}
                   {activeChannelTab === "facebook" && <FacebookConfig botId={botId} channelLimitStatus={channelLimitStatus} />}
-                  {(activeChannelTab === "web" || activeChannelTab === "webchat") && <WebchatConfig botId={botId} />}
+                  {(activeChannelTab === "web" || activeChannelTab === "webchat") && (
+                    <WebchatConfig
+                      botId={botId}
+                      channelId={bot.channels.find((c) => c.type === "web")?.id}
+                    />
+                  )}
                 </div>
               )}
             </div>

@@ -47,7 +47,13 @@ interface WebchatDiagnostics {
   }>;
 }
 
-export function WebchatConfig({ botId }: { botId: string }) {
+export function WebchatConfig({
+  botId,
+  channelId,
+}: {
+  botId: string;
+  channelId?: string;
+}) {
   const [site, setSite] = useState<WebchatSite | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -57,31 +63,44 @@ export function WebchatConfig({ botId }: { botId: string }) {
   const [name, setName] = useState("");
   const [themeColor, setThemeColor] = useState("#0f172a");
   const [title, setTitle] = useState("Chat with us");
-  const [welcomeMessage, setWelcomeMessage] = useState("Hello! How can we help you today?");
+  const [welcomeMessage, setWelcomeMessage] =
+    useState("Hello! How can we help you today?");
   const [position, setPosition] = useState("right");
 
   // Diagnostics state
-  const [diagnostics, setDiagnostics] = useState<WebchatDiagnostics | null>(null);
+  const [diagnostics, setDiagnostics] = useState<WebchatDiagnostics | null>(
+    null,
+  );
   const [isDiagnosticsLoading, setIsDiagnosticsLoading] = useState(false);
 
   // Preview state
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewDraft, setPreviewDraft] = useState("");
-  const [previewMessages, setPreviewMessages] = useState<Array<{ id: string; role: "user" | "bot"; text: string }>>([]);
+  const [previewMessages, setPreviewMessages] = useState<
+    Array<{ id: string; role: "user" | "bot"; text: string }>
+  >([]);
 
   const loadSite = async (id: string) => {
+    if (!channelId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      const res = await fetch(`/api/bots/${id}/webchat-site`);
+      const res = await fetch(
+        `/api/bots/${id}/webchat-site?channelId=${channelId}`,
+      );
       if (res.ok) {
         const data = await res.json();
         if (data.site) {
           setSite(data.site);
-          setUrl(data.site.url);
+          setUrl(data.site.url || "");
           setName(data.site.name || "");
           setThemeColor(data.site.themeColor || "#0f172a");
           setTitle(data.site.title || "Chat with us");
-          setWelcomeMessage(data.site.welcomeMessage || "Hello! How can we help you today?");
+          setWelcomeMessage(
+            data.site.welcomeMessage || "Hello! How can we help you today?",
+          );
           setPosition(data.site.position || "right");
           void loadDiagnostics(id);
         }
@@ -114,15 +133,17 @@ export function WebchatConfig({ botId }: { botId: string }) {
         void loadSite(botId);
       }, 0);
     }
-  }, [botId]);
+  }, [botId, channelId]);
 
   const handleSave = async () => {
+    if (!channelId) return;
     setSaving(true);
     try {
       const res = await fetch(`/api/bots/${botId}/webchat-site`, {
-        method: "PUT",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          channelId,
           url,
           name,
           themeColor,
