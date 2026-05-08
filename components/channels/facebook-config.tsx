@@ -28,6 +28,7 @@ import { ChannelLimitWarning } from "@/components/channels/channel-ui";
 import { toast } from "sonner";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
 import { FacebookLogo } from "@/components/icons/MetaIcons";
+import { ChannelFlowAssignmentCard } from "@/components/channels/channel-sections";
 
 interface FacebookPage {
   id: string;
@@ -332,73 +333,31 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
 
                   {page.connected && page.botId === botId && (
                     <div className="grid gap-4 sm:grid-cols-2">
-                      <Card className="bg-slate-50 border-none shadow-none">
-                        <CardContent className="pt-4 space-y-3">
-                          <div className="space-y-1">
-                            <Label className="text-xs">Page Flow Assignment</Label>
-                            <div className="flex gap-2">
-                              <Select
-                                value={selectedFlowIdMap[page.id] || page.assignedFlow?.id || ""}
-                                onValueChange={(val) =>
-                                  setSelectedFlowIdMap((prev) => ({ ...prev, [page.id]: val }))
-                                }
-                              >
-                                <SelectTrigger className="h-8 text-xs bg-white">
-                                  <SelectValue placeholder="Select flow" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {flows.map((f) => (
-                                    <SelectItem key={f.id} value={f.id} className="text-xs">
-                                      {f.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <Button
-                                size="sm"
-                                className="h-8 px-2 text-[10px]"
-                                onClick={() => handleAssignFlow(page)}
-                                disabled={
-                                  assigningMap[page.id] ||
-                                  !selectedFlowIdMap[page.id] ||
-                                  selectedFlowIdMap[page.id] === page.assignedFlow?.id
-                                }
-                              >
-                                {assigningMap[page.id] ? (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                ) : (
-                                  "Assign"
-                                )}
-                              </Button>
-                              {page.assignedFlow && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-8 px-2 text-[10px] text-red-600"
-                                  onClick={() => handleUnassignFlow(page)}
-                                  disabled={unassigningMap[page.id]}
-                                >
-                                  {unassigningMap[page.id] ? (
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                  ) : (
-                                    "Unassign"
-                                  )}
-                                </Button>
-                              )}
-                            </div>
-                            {page.assignedFlow ? (
-                              <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-1">
-                                <CheckCircle2 className="h-2 w-2 text-green-600" />
-                                Active: {page.assignedFlow.name}
-                              </p>
-                            ) : (
-                              <p className="text-[10px] text-muted-foreground mt-1">
-                                No flow assigned.
-                              </p>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
+                      <div className="bg-slate-50 border rounded-lg overflow-hidden">
+                        <ChannelFlowAssignmentCard
+                          title="Page Flow Assignment"
+                          description="Assign a specific automation flow to run when users message this page."
+                          selectLabel="Assigned Flow"
+                          selectId={`fb-flow-${page.id}`}
+                          flows={flows}
+                          isFlowsLoading={isFlowsLoading}
+                          selectedFlowId={selectedFlowIdMap[page.id] || ""}
+                          onSelectFlow={(val) => setSelectedFlowIdMap((prev) => ({ ...prev, [page.id]: val }))}
+                          assignedFlowName={page.assignedFlow?.name}
+                          unassignedDescription="No channel flow assigned. Bot default flow applies."
+                          onAssign={() => handleAssignFlow(page)}
+                          onUnassign={() => handleUnassignFlow(page)}
+                          isAssigning={assigningMap[page.id]}
+                          isUnassigning={unassigningMap[page.id]}
+                          assignDisabled={
+                            assigningMap[page.id] ||
+                            !selectedFlowIdMap[page.id] ||
+                            selectedFlowIdMap[page.id] === page.assignedFlow?.id
+                          }
+                          unassignDisabled={!page.assignedFlow || unassigningMap[page.id]}
+                          compact={true}
+                        />
+                      </div>
 
                       {diagnosticResult[page.id] && (
                         <Card className="bg-white border-none shadow-sm">

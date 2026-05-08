@@ -51,6 +51,7 @@ type ChannelFlowAssignmentCardProps = {
   isUnassigning: boolean;
   assignDisabled: boolean;
   unassignDisabled: boolean;
+  compact?: boolean;
 };
 
 export function ChannelFlowAssignmentCard({
@@ -73,7 +74,77 @@ export function ChannelFlowAssignmentCard({
   isUnassigning,
   assignDisabled,
   unassignDisabled,
+  compact = false,
 }: ChannelFlowAssignmentCardProps) {
+  if (compact) {
+    return (
+      <div className="p-4 space-y-3">
+        <div className="flex flex-col gap-1">
+          <h4 className="text-sm font-medium">{title}</h4>
+          <p className="text-xs text-muted-foreground">{description}</p>
+        </div>
+
+        <div className="space-y-2">
+          {isFlowsLoading ? (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Loading flows...
+            </div>
+          ) : flows.length === 0 ? (
+            <div className="text-xs text-muted-foreground">No flows available.</div>
+          ) : (
+            <div className="flex gap-2">
+              <Select
+                value={selectedFlowId || "none"}
+                onValueChange={(value) => onSelectFlow(value === "none" ? "" : value)}
+                disabled={selectDisabled}
+              >
+                <SelectTrigger id={selectId} className="h-8 text-xs">
+                  <SelectValue placeholder="Select a flow" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No flow selected</SelectItem>
+                  {flows.map((flow) => (
+                    <SelectItem key={flow.id} value={flow.id} className="text-xs">
+                      {flow.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button size="sm" className="h-8 text-[10px] px-3" onClick={onAssign} disabled={assignDisabled}>
+                {isAssigning ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : null}
+                Assign
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 text-[10px] px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+                onClick={onUnassign}
+                disabled={unassignDisabled}
+              >
+                {isUnassigning ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : null}
+                Unassign
+              </Button>
+            </div>
+          )}
+        </div>
+
+        <div className="text-[10px] text-muted-foreground border-t pt-2">
+          {assignedFlowName ? (
+            <div className="flex items-center gap-1.5">
+              <Badge variant="secondary" className="h-1.5 w-1.5 rounded-full p-0 bg-green-500" />
+              <span>
+                Active: <strong>{assignedFlowName}</strong>
+              </span>
+            </div>
+          ) : (
+            <span>{unassignedDescription}</span>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>

@@ -329,6 +329,7 @@ model Bot {
   facebookPages    FacebookPage[]
   webChatSites     WebChatSite[]
 
+  @@unique([id, tenantId])
   @@index([tenantId])
   @@map("bots")
 }
@@ -352,8 +353,8 @@ model Channel {
   bot             Bot                    @relation(fields: [botId], references: [id], onDelete: Cascade)
   flowAssignments FlowChannelAssignment?
 
-  @@index([tenantId])
   @@unique([type, channelId])
+  @@index([tenantId])
   @@index([botId])
   @@index([pageId])
   @@index([channelId])
@@ -447,6 +448,7 @@ model Contact {
   leads              Lead[]
   onboardingSessions OnboardingSession[]
 
+  @@unique([id, tenantId])
   @@index([tenantId])
   @@map("contacts")
 }
@@ -616,6 +618,7 @@ model Lead {
   page                     FacebookPage? @relation(fields: [pageId], references: [id])
   tenant                   Tenant        @relation(fields: [tenantId], references: [id])
 
+  @@unique([id, tenantId])
   @@index([tenantId])
   @@index([contactId])
   @@index([flowId])
@@ -647,6 +650,7 @@ model Flow {
   tenant             Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   leads              Lead[]
 
+  @@unique([id, tenantId])
   @@index([tenantId])
   @@index([ownerId])
   @@index([isGlobal])

@@ -35,11 +35,16 @@ import {
 
 interface WhatsAppStatus {
   connected: boolean;
+  limitStatus?: {
+    allowed: boolean;
+    limit: number;
+  };
   channel?: {
     id: string;
     name: string;
     channelId: string;
     updatedAt: string;
+    flowAssignments?: Array<{ flow: { id: string; name: string } }>;
   };
   provider?: string;
   local?: {
@@ -165,7 +170,7 @@ export function WhatsAppConfig({ botId, channelLimitStatus }: { botId: string; c
   const handleConnect = async () => {
     if (!botId) return;
 
-    const effectiveLimitStatus = channelLimitStatus || (status as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ /* TODO: Fix type */)?.limitStatus;
+    const effectiveLimitStatus = channelLimitStatus || status?.limitStatus;
     if (effectiveLimitStatus && !effectiveLimitStatus.allowed) {
       toast.error(`Channel limit reached (${effectiveLimitStatus.limit}). Please upgrade.`);
       return;
@@ -292,12 +297,12 @@ export function WhatsAppConfig({ botId, channelLimitStatus }: { botId: string; c
     : dialogApiKey && dialogChannelId;
 
   const assignedFlow = useMemo(() => {
-    return (status as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ /* TODO: Fix type */)?.channel?.flowAssignments?.[0]?.flow;
+    return status?.channel?.flowAssignments?.[0]?.flow;
   }, [status]);
 
   return (
     <div className="space-y-6">
-      <ChannelLimitWarning limitStatus={channelLimitStatus || (status as any)?.limitStatus} />
+      <ChannelLimitWarning limitStatus={channelLimitStatus || status?.limitStatus} />
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -436,7 +441,7 @@ export function WhatsAppConfig({ botId, channelLimitStatus }: { botId: string; c
             {!connected ? (
               <Button
                 onClick={handleConnect}
-                disabled={!canConnect || connecting || !(channelLimitStatus || (status as any)?.limitStatus)?.allowed}
+                disabled={!canConnect || connecting || !(channelLimitStatus || status?.limitStatus)?.allowed}
               >
                 {connecting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
