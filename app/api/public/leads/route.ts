@@ -279,7 +279,7 @@ export async function POST(request: NextRequest) {
       if (messageQueue) {
         await messageQueue.add("lead-enrichment", {
           type: "lead_enrichment",
-          botId: site.botId,
+          botId: site.bot.id,
           payload: {
             tenantId: site.bot.tenantId,
             leadId: lead.id,
