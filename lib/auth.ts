@@ -156,7 +156,7 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
   },
   callbacks: {
-    async signIn({ user }) {
+    async signIn({ user, account }) {
       // Strict dev-only login rule to prevent unauthorized access to dev versions
       // This is controlled by environment variables to ensure it doesn't affect main/prod
       if (process.env.STRICT_DEV_LOGIN === "true") {
@@ -168,6 +168,23 @@ export const authOptions: NextAuthOptions = {
           return false; // Deny login
         }
       }
+
+      // HOTFIX: NextAuth Prisma adapter does not update the access_token of an existing account 
+      // when a user re-authenticates. We must manually update it to prevent stale token errors (Subcode 460).
+      if (account && account.provider === "facebook" && user?.id && account.access_token) {
+        try {
+          await prisma.account.updateMany({
+            where: { userId: user.id, provider: "facebook" },
+            data: {
+              access_token: account.access_token,
+              providerAccountId: account.providerAccountId,
+            },
+          });
+        } catch (error) {
+          console.error("[NextAuth] Failed to update Facebook token:", error);
+        }
+      }
+
       return true;
     },
     async jwt({ token, user }) {
