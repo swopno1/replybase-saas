@@ -35,6 +35,8 @@ interface FacebookPage {
   name: string;
   connected: boolean;
   botId: string | null;
+  access_token?: string;
+  category?: string;
   assignedFlow?: {
     id: string;
     name: string;
@@ -64,18 +66,23 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
   const [unassigningMap, setUnassigningMap] = useState<Record<string, boolean>>({});
   const [isDisconnecting, setIsDisconnecting] = useState(false);
 
+  const [accountConnected, setAccountConnected] = useState(false);
+
   const loadPages = async (id: string) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/bots/${id}/channels/facebook`);
+      const res = await fetch(`/api/facebook/user-pages`);
       if (res.ok) {
         const data = await res.json();
-        const mappedPages = (data.pages || []).map((p: any) => ({
-          ...p,
-          connected: p.botId !== null,
-        }));
-        setPages(mappedPages);
-        if (data.limitStatus) setLimitStatus(data.limitStatus);
+        setPages(data.pages || []);
+        setAccountConnected(data.connected);
+      }
+      
+      // Also fetch limit status
+      const limitRes = await fetch(`/api/bots/${id}/channels/facebook`);
+      if (limitRes.ok) {
+        const limitData = await limitRes.json();
+        if (limitData.limitStatus) setLimitStatus(limitData.limitStatus);
       }
     } catch (error) {
       console.error("Failed to load Facebook pages:", error);
@@ -145,7 +152,7 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
         body: JSON.stringify({
           pageId: page.id,
           pageName: page.name,
-          accessToken: "legacy_handled_on_backend", // In a real flow, this might come from FB SDK
+          accessToken: page.access_token,
         }),
       });
 
@@ -329,14 +336,25 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
+          ) : !accountConnected ? (
+            <div className="text-center py-12 border rounded-lg bg-slate-50">
+              <FacebookLogo className="h-12 w-12 mx-auto mb-4 opacity-20" />
+              <p className="text-sm text-muted-foreground mb-4">
+                No Facebook account linked to this workspace. Please link your account to start connecting pages.
+              </p>
+              <Button onClick={handleFacebookLogin}>
+                Link Facebook Account
+              </Button>
+            </div>
           ) : pages.length === 0 ? (
             <div className="text-center py-12 border rounded-lg bg-slate-50">
               <FacebookLogo className="h-12 w-12 mx-auto mb-4 opacity-20" />
               <p className="text-sm text-muted-foreground mb-4">
-                No Facebook pages found. Please link your account first.
+                Your Facebook account is linked, but no pages were found.
               </p>
-              <Button onClick={handleFacebookLogin}>
-                Link Facebook Account
+              <Button onClick={handleFacebookLogin} variant="outline">
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Manage Page Access / Edit Permissions
               </Button>
             </div>
           ) : (
@@ -351,31 +369,42 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
                     <div className="flex items-center gap-2">
                       {page.connected ? (
                         <>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleRunDiagnostics(page)}
-                            disabled={statusMap[page.id] === "diagnosing"}
-                            title="Check Connection"
-                          >
-                            <ShieldAlert className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleDisconnectPage(page)}
-                            disabled={statusMap[page.id] === "loading"}
-                          >
-                            {statusMap[page.id] === "loading" ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Unplug className="h-4 w-4 mr-2" />
-                            )}
-                            Disconnect
-                          </Button>
-                          <Badge variant={page.botId === botId ? "secondary" : "outline"}>
-                            {page.botId === botId ? "Connected here" : "Connected elsewhere"}
-                          </Badge>
+                          {page.botId === botId ? (
+                            <>
+                              <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100">
+                                <span className="flex items-center">
+                                  <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse" />
+                                  Active here
+                                </span>
+                              </Badge>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleRunDiagnostics(page)}
+                                disabled={statusMap[page.id] === "diagnosing"}
+                                title="Check Connection"
+                              >
+                                <ShieldAlert className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleDisconnectPage(page)}
+                                disabled={statusMap[page.id] === "loading"}
+                              >
+                                {statusMap[page.id] === "loading" ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Unplug className="h-4 w-4 mr-2" />
+                                )}
+                                Disconnect
+                              </Button>
+                            </>
+                          ) : (
+                            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                              Connected to another bot
+                            </Badge>
+                          )}
                         </>
                       ) : (
                         <Button

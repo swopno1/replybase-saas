@@ -6,8 +6,14 @@ import { getFacebookGraphUrl } from "@/lib/server/facebook-utils";
 export const dynamic = "force-dynamic";
 
 export const GET = withAuthAndTenant(async ({ id: userId, tenantId }) => {
+  // Look for any Facebook account linked to this tenant
   const account = await prisma.account.findFirst({
-    where: { userId, provider: "facebook" },
+    where: { 
+      provider: "facebook",
+      user: {
+        tenantId: tenantId
+      }
+    },
   });
 
   if (!account || !account.access_token) {
