@@ -33,12 +33,24 @@ export async function syncSubscription(tenantId: string, stripeSubId: string) {
   }
   let dbPlan = await prisma.plan.findUnique({ where: { name: planName } });
   if (!dbPlan) {
-    logger.warn({ planName }, "[Billing] Plan not found in DB. Auto-creating...");
-    let dailyMessageLimit = 100, monthlyMessageLimit = 3000, flowExecutionCap = 100, maxBots = 1, price = 0, displayName = "Free";
-    if (planName === "starter") { dailyMessageLimit = 500; monthlyMessageLimit = 1000; flowExecutionCap = 1500; maxBots = 3; price = 2900; displayName = "Starter"; }
-    else if (planName === "pro") { dailyMessageLimit = 2000; monthlyMessageLimit = 7500; flowExecutionCap = 10000; maxBots = 10; price = 8900; displayName = "Pro"; }
-    else if (planName === "business") { dailyMessageLimit = 5000; monthlyMessageLimit = 25000; flowExecutionCap = 40000; maxBots = 25; price = 24900; displayName = "Business"; }
-    dbPlan = await prisma.plan.create({ data: { name: planName, displayName, price, currency: "GBP", dailyMessageLimit, monthlyMessageLimit, flowExecutionCap, maxBots, maxChannelsPerBot: 5, maxConversations: 1000 } });
+    logger.warn({ planName }, "[Billing] Plan not found in DB. Auto-creating from central config...");
+    const { getPlanConfig } = await import("./plans");
+    const config = getPlanConfig(planName);
+    
+    dbPlan = await prisma.plan.create({ 
+      data: { 
+        name: planName, 
+        displayName: config.displayName, 
+        price: config.price, 
+        currency: "GBP", 
+        dailyMessageLimit: config.dailyMessageLimit, 
+        monthlyMessageLimit: config.monthlyMessageLimit, 
+        flowExecutionCap: config.flowExecutionCap, 
+        maxBots: config.maxBots, 
+        maxChannelsPerBot: config.maxChannelsPerBot, 
+        maxConversations: 1000 
+      } 
+    });
   }
   let status = sub.status.toUpperCase();
   if (status === "UNPAID" || status === "INCOMPLETE_EXPIRED") status = "CANCELED";
@@ -88,7 +100,24 @@ export class BillingService {
     let subscription = await this.db.subscription.findUnique({ where: { tenantId }, include: { plan: true } });
     if (!subscription) {
       let freePlan = await this.db.plan.findUnique({ where: { name: "free" } });
-      if (!freePlan) freePlan = await this.db.plan.create({ data: { name: "free", displayName: "Free", price: 0, currency: "GBP", dailyMessageLimit: 100, monthlyMessageLimit: 3000, flowExecutionCap: 100, maxBots: 1, maxChannelsPerBot: 1, maxConversations: 100 } });
+      if (!freePlan) {
+        const { PLAN_CONFIGS } = await import("./plans");
+        const config = PLAN_CONFIGS.free;
+        freePlan = await this.db.plan.create({ 
+          data: { 
+            name: "free", 
+            displayName: config.displayName, 
+            price: config.price, 
+            currency: "GBP", 
+            dailyMessageLimit: config.dailyMessageLimit, 
+            monthlyMessageLimit: config.monthlyMessageLimit, 
+            flowExecutionCap: config.flowExecutionCap, 
+            maxBots: config.maxBots, 
+            maxChannelsPerBot: config.maxChannelsPerBot, 
+            maxConversations: 100 
+          } 
+        });
+      }
       const currentPeriodEnd = new Date(); currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
       subscription = await this.db.subscription.upsert({ where: { tenantId }, update: {}, create: { tenantId, planId: freePlan.id, stripeId: `free_${tenantId}`, status: "FREE", currentPeriodStart: new Date(), currentPeriodEnd }, include: { plan: true } });
     }

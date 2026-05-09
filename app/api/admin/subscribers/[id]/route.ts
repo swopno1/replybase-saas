@@ -4,6 +4,7 @@ import { isPlatformAdmin } from "@/lib/admin";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { logAdminActivity } from "@/lib/admin-audit";
+import { invalidateTenantCache } from "@/lib/subscription";
 
 export const dynamic = "force-dynamic";
 
@@ -128,7 +129,10 @@ export async function PATCH(
       },
       include: { plan: true },
     });
-
+    
+    // Invalidate the cache so the user sees the new limits immediately
+    await invalidateTenantCache(subscription.tenantId);
+    
     // Audit Log
     await logAdminActivity({
       adminId: session.user.id,

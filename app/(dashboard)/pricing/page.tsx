@@ -179,6 +179,34 @@ function PricingContent() {
     setSelectedPlan(null);
 
     try {
+      const priceId = getPriceId(planName);
+      
+      // OPTION B: Seamless Update if already on a paid plan
+      const isPaidSub = currentSubscription && 
+                        currentSubscription.stripeId && 
+                        !currentSubscription.stripeId.startsWith("free_");
+
+      if (isPaidSub) {
+        const response = await fetch("/api/billing/subscription", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            planId: planName, // Backend handles lookup by name
+            priceId,
+          }),
+        });
+
+        if (response.ok) {
+          toast.success("Plan updated successfully!");
+          router.push("/settings?tab=billing");
+          return;
+        } else {
+          const errData = await response.json();
+          throw new Error(errData.error || "Failed to update plan");
+        }
+      }
+
+      // Default: Checkout for new/free users
       const response = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: {
@@ -186,7 +214,7 @@ function PricingContent() {
         },
         body: JSON.stringify({
           planName,
-          priceId: getPriceId(planName),
+          priceId,
         }),
       });
 
@@ -408,6 +436,7 @@ function PricingContent() {
               {PLANS.map((plan) => {
                 const isRecommended = plan.name === preferredPlan;
                 const isCurrent = currentSubscription?.plan?.name === plan.name;
+                const isPaidSub = currentSubscription && currentSubscription.stripeId && !currentSubscription.stripeId.startsWith("free_");
                 return (
                   <td
                     key={`${plan.name}-cta`}
@@ -423,11 +452,13 @@ function PricingContent() {
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : isCurrent ? (
                         "Current Plan"
+                      ) : isPaidSub ? (
+                        "Switch to Plan"
                       ) : (
                         plan.cta
                       )}
                     </Button>
-                    {plan.price > 0 && !isCurrent && (
+                    {plan.price > 0 && !isCurrent && !isPaidSub && (
                       <p className="mt-3 text-xs font-medium text-primary">
                         14 days free trial
                       </p>
@@ -446,10 +477,14 @@ function PricingContent() {
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
-              Trial Summary
+              {currentSubscription && currentSubscription.stripeId && !currentSubscription.stripeId.startsWith("free_") 
+                ? "Update Plan" 
+                : "Trial Summary"}
             </DialogTitle>
             <DialogDescription>
-              Review your trial details before proceeding.
+              {currentSubscription && currentSubscription.stripeId && !currentSubscription.stripeId.startsWith("free_")
+                ? "Confirm your new plan selection below."
+                : "Review your trial details before proceeding."}
             </DialogDescription>
           </DialogHeader>
           {selectedPlan && (
@@ -459,12 +494,14 @@ function PricingContent() {
                   <span className="text-sm text-muted-foreground">Selected Plan</span>
                   <Badge variant="outline" className="font-bold border-primary/20 text-primary">{selectedPlan.displayName}</Badge>
                 </div>
-                <div className="flex justify-between items-center mb-4">
-                  <span className="text-sm text-muted-foreground">Free Trial</span>
-                  <span className="font-semibold text-green-600">14 Days</span>
-                </div>
+                {!(currentSubscription && currentSubscription.stripeId && !currentSubscription.stripeId.startsWith("free_")) && (
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-sm text-muted-foreground">Free Trial</span>
+                    <span className="font-semibold text-green-600">14 Days</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center pt-4 border-t border-border">
-                  <span className="text-sm font-semibold">Price after trial</span>
+                  <span className="text-sm font-semibold">Price per month</span>
                   <span className="text-lg font-bold text-foreground">£{selectedPlan.price / 100}/mo</span>
                 </div>
               </div>
@@ -472,7 +509,11 @@ function PricingContent() {
               <div className="space-y-3 px-1">
                 <div className="flex gap-3 text-sm">
                   <Check className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
-                  <p>You won&apos;t be charged until your trial ends.</p>
+                  <p>
+                    {currentSubscription && currentSubscription.stripeId && !currentSubscription.stripeId.startsWith("free_")
+                      ? "Prorated charges may apply to your next invoice."
+                      : "You won't be charged until your trial ends."}
+                  </p>
                 </div>
                 <div className="flex gap-3 text-sm">
                   <Check className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
@@ -480,7 +521,7 @@ function PricingContent() {
                 </div>
                 <div className="flex gap-3 text-sm">
                   <Check className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
-                  <p>Cancel anytime before the trial ends.</p>
+                  <p>Cancel or change your plan anytime.</p>
                 </div>
               </div>
             </div>
@@ -490,7 +531,9 @@ function PricingContent() {
               Go Back
             </Button>
             <Button onClick={handleConfirmCheckout} className="flex-1 shadow-lg shadow-primary/20 gap-2">
-              Start Free Trial
+              {currentSubscription && currentSubscription.stripeId && !currentSubscription.stripeId.startsWith("free_")
+                ? "Confirm Change"
+                : "Start Free Trial"}
               <ArrowRight className="h-4 w-4" />
             </Button>
           </DialogFooter>

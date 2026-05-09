@@ -102,6 +102,10 @@ export default function BillingTabContent() {
   const [showDowngradeDialog, setShowDowngradeDialog] = useState(false);
   const [cancelFeedback, setCancelFeedback] = useState("");
   const [isPortalLoading, setIsPortalLoading] = useState(false);
+  const [showInquiryDialog, setShowInquiryDialog] = useState(false);
+  const [inquiryMessage, setInquiryMessage] = useState("");
+  const [isInquirySending, setIsInquirySending] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const fetchBillingData = useCallback(async () => {
     try {
@@ -170,6 +174,49 @@ export default function BillingTabContent() {
   const handleDownloadInvoice = (invoice: Invoice) => {
     if (invoice.downloadUrl) {
       window.open(invoice.downloadUrl, "_blank");
+    }
+  };
+  
+  const handleSendInquiry = async () => {
+    if (!inquiryMessage || inquiryMessage.length < 10) {
+      toast.error("Please provide more details (min 10 characters)");
+      return;
+    }
+    
+    setIsInquirySending(true);
+    try {
+      const response = await fetch("/api/enterprise/inquiry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: inquiryMessage })
+      });
+      
+      if (!response.ok) throw new Error("Failed to send inquiry");
+      
+      toast.success("Inquiry sent successfully. Our team will contact you soon.");
+      setShowInquiryDialog(false);
+      setInquiryMessage("");
+    } catch (error) {
+      console.error("Inquiry error:", error);
+      toast.error("Failed to send inquiry. Please try again later.");
+    } finally {
+      setIsInquirySending(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // 1. Force cache invalidation
+      await fetch("/api/billing/refresh", { method: "POST" });
+      // 2. Re-fetch data
+      await fetchBillingData();
+      toast.success("Usage limits synced");
+    } catch (error) {
+      console.error("Refresh error:", error);
+      toast.error("Failed to sync limits");
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -371,9 +418,20 @@ export default function BillingTabContent() {
           <Card className="shadow-sm border-border/50 rounded-2xl ring-1 ring-border/5">
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-xl">Plan Usage</CardTitle>
-                  <CardDescription>Usage for the current billing cycle</CardDescription>
+                <div className="flex items-center gap-3">
+                  <div>
+                    <CardTitle className="text-xl">Plan Usage</CardTitle>
+                    <CardDescription>Usage for the current billing cycle</CardDescription>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors"
+                    onClick={handleRefresh}
+                    disabled={isRefreshing}
+                  >
+                    <RotateCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                  </Button>
                 </div>
                 <Badge variant="secondary" className="font-mono text-[10px]">
                   {new Date(subscription?.currentPeriodStart || "").toLocaleDateString()} — {new Date(subscription?.currentPeriodEnd || "").toLocaleDateString()}
@@ -572,7 +630,11 @@ export default function BillingTabContent() {
             If your business requires higher limits, custom integrations, or dedicated support, 
             our enterprise team is here to help.
           </p>
-          <Button variant="link" className="p-0 h-auto text-primary font-bold text-sm w-fit group">
+          <Button 
+            variant="link" 
+            className="p-0 h-auto text-primary font-bold text-sm w-fit group"
+            onClick={() => setShowInquiryDialog(true)}
+          >
             Talk to an expert
             <ChevronRight className="ml-1 h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
           </Button>
@@ -706,6 +768,55 @@ export default function BillingTabContent() {
               className="flex-1 rounded-xl font-bold"
             >
               {isCanceling ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm Cancellation"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Enterprise Inquiry Dialog */}
+      <Dialog open={showInquiryDialog} onOpenChange={setShowInquiryDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black flex items-center gap-2">
+              <Shield className="h-5 w-5 text-primary" />
+              Talk to an Expert
+            </DialogTitle>
+            <DialogDescription className="text-base">
+              Tell us about your business needs and our enterprise team will get back to you within 24 hours.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-bold">How can we help you scale?</label>
+              <Textarea 
+                placeholder="E.g. I need 50,000 AI responses per month and custom CRM integration..."
+                value={inquiryMessage}
+                onChange={(e) => setInquiryMessage(e.target.value)}
+                className="min-h-[150px] rounded-xl resize-none shadow-sm focus:ring-primary/20"
+              />
+              <p className="text-[10px] text-muted-foreground text-right">
+                {inquiryMessage.length} characters
+              </p>
+            </div>
+            
+            <div className="bg-primary/5 rounded-xl p-4 border border-primary/10">
+              <p className="text-xs text-muted-foreground leading-relaxed italic">
+                &quot;We help high-volume businesses automate 90%+ of their customer support with custom-tuned AI models and dedicated infrastructure.&quot;
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <Button variant="ghost" onClick={() => setShowInquiryDialog(false)} className="flex-1 rounded-xl">
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSendInquiry} 
+              disabled={isInquirySending || inquiryMessage.length < 10}
+              className="flex-1 rounded-xl font-bold bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+            >
+              {isInquirySending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send Inquiry"}
             </Button>
           </DialogFooter>
         </DialogContent>

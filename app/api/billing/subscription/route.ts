@@ -38,17 +38,19 @@ export async function GET() {
       });
 
       if (!freePlan) {
+        const { PLAN_CONFIGS } = await import("@/lib/plans");
+        const config = PLAN_CONFIGS.free;
         freePlan = await prisma.plan.create({
           data: {
             name: "free",
-            displayName: "Free",
-            price: 0,
+            displayName: config.displayName,
+            price: config.price,
             currency: "GBP",
-            dailyMessageLimit: 100,
-            monthlyMessageLimit: 100,   // 100 AI Responses / month
-            flowExecutionCap: 200,       // 200 Automations / month
-            maxBots: 1,
-            maxChannelsPerBot: 1,
+            dailyMessageLimit: config.dailyMessageLimit,
+            monthlyMessageLimit: config.monthlyMessageLimit,
+            flowExecutionCap: config.flowExecutionCap,
+            maxBots: config.maxBots,
+            maxChannelsPerBot: config.maxChannelsPerBot,
             maxConversations: 100,
           },
         });
@@ -138,6 +140,82 @@ export async function GET() {
     console.error("Subscription fetch error:", error);
     return NextResponse.json(
       { error: "Failed to fetch subscription" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function PATCH(req: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { priceId, planId } = await req.json();
+
+    if (!priceId || !planId) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    // Resolve Plan
+    const plan = await prisma.plan.findFirst({
+      where: {
+        OR: [
+          { id: planId },
+          { name: planId }
+        ]
+      }
+    });
+
+    if (!plan) {
+      return NextResponse.json({ error: "Plan not found" }, { status: 404 });
+    }
+
+    const tenantId = session.user.tenantId;
+    const subscription = await prisma.subscription.findUnique({
+      where: { tenantId },
+      include: { plan: true },
+    });
+
+    if (!subscription || !subscription.stripeId || subscription.stripeId.startsWith("free_")) {
+      return NextResponse.json({ error: "No active paid subscription found to update" }, { status: 400 });
+    }
+
+    // Direct Stripe Update
+    if (!stripe) {
+      return NextResponse.json({ error: "Stripe not configured" }, { status: 500 });
+    }
+
+    const stripeSubscription = await stripe.subscriptions.retrieve(subscription.stripeId);
+    
+    await stripe.subscriptions.update(subscription.stripeId, {
+      items: [{
+        id: stripeSubscription.items.data[0].id,
+        price: priceId,
+      }],
+      proration_behavior: "always_invoice", // Charge/credit immediately
+    });
+
+    // Update DB
+    const updated = await prisma.subscription.update({
+      where: { tenantId },
+      data: {
+        planId: plan.id,
+        updatedAt: new Date(),
+      },
+      include: { plan: true },
+    });
+
+    // Invalidate Cache
+    const { invalidateTenantCache } = await import("@/lib/subscription");
+    await invalidateTenantCache(tenantId);
+
+    return NextResponse.json({ subscription: updated });
+  } catch (error: any) {
+    console.error("Subscription update error:", error);
+    return NextResponse.json(
+      { error: error.message || "Failed to update subscription" },
       { status: 500 },
     );
   }
