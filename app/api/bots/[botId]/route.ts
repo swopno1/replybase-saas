@@ -8,19 +8,20 @@ export const GET = withAuthAndTenant(
   async ({ tenantId }, req, context, db) => {
     const { botId } = await context.params;
 
-    const [bot, limitStatus] = await Promise.all([
+    const [bot, limitStatus, channelLimitStatus] = await Promise.all([
       db.bot.findFirst({
         where: { id: botId as string, tenantId },
         include: { channels: true },
       }),
       checkBotLimit(tenantId),
+      import("@/lib/subscription").then((m) => m.checkChannelLimit(tenantId, botId as string)),
     ]);
 
     if (!bot) {
       return NextResponse.json({ error: "Bot not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ bot, limitStatus });
+    return NextResponse.json({ bot, limitStatus, channelLimitStatus });
   }
 );
 

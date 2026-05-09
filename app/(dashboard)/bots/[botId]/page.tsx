@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, Settings, Share2, ArrowLeft, Loader2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Settings, Share2, ArrowLeft, Loader2, Plus, MessageSquare, Globe, Bot, Calendar, Power, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -98,6 +98,11 @@ function BotDetailContent() {
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState<BotFormData | null>(null);
   const [saving, setSaving] = useState(false);
+  const [channelLimitStatus, setChannelLimitStatus] = useState<{
+    allowed: boolean;
+    limit: number;
+    current: number;
+  } | null>(null);
   const [deletingBot, setDeletingBot] = useState(false);
 
   useEffect(() => {
@@ -120,6 +125,7 @@ function BotDetailContent() {
       if (!response.ok) throw new Error("Failed to fetch bot");
       const data = await response.json();
       setBot(data.bot);
+      setChannelLimitStatus(data.channelLimitStatus || null);
       setFormData({
         name: data.bot.name,
         status: data.bot.enabled,
@@ -331,36 +337,54 @@ function BotDetailContent() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6 no-scrollbar">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">{bot.name}</h1>
-        <div className="flex gap-2">
-           <Button variant="outline" onClick={() => setEditing(!editing)}>
-            <Settings className="mr-2 h-4 w-4" />
-            {editing ? "View Details" : "Edit Bot"}
-          </Button>
-        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="general" className="flex items-center gap-1">
-            <Settings className="h-4 w-4" />
-            General
-          </TabsTrigger>
-          <TabsTrigger value="channels" className="flex items-center gap-1">
-            <Share2 className="h-4 w-4" />
-            Channels
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between border-b mb-6">
+          <TabsList className="bg-transparent border-none p-0 h-auto">
+            <TabsTrigger 
+              value="general" 
+              className="flex items-center gap-1 data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none px-4 py-2"
+            >
+              <Settings className="h-4 w-4" />
+              General
+            </TabsTrigger>
+            <TabsTrigger 
+              value="channels" 
+              className="flex items-center gap-1 data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none px-4 py-2"
+            >
+              <Share2 className="h-4 w-4" />
+              Channels
+            </TabsTrigger>
+          </TabsList>
+          
+          <div className="flex items-center gap-2 pb-2">
+            <Button variant="outline" size="sm" onClick={() => setEditing(!editing)}>
+              <Settings className="mr-2 h-4 w-4" />
+              {editing ? "View Details" : "Edit Bot"}
+            </Button>
+          </div>
+        </div>
 
-        <TabsContent value="general" className="space-y-6">
-          <div className="border rounded-lg p-6 space-y-6 bg-white shadow-sm">
-            {editing ? (
-              <>
-                <div className="space-y-4">
-                  <div>
-                    <Label className="block text-sm font-medium mb-1">Bot Name</Label>
+        <TabsContent value="general" className="space-y-6 mt-0">
+          <Card className="shadow-sm border-slate-200">
+            <CardHeader className="bg-slate-50/50 border-b pb-4">
+              <CardTitle className="flex items-center gap-2 text-base text-slate-800">
+                <Bot className="h-5 w-5 text-indigo-500" />
+                Bot Profile & Settings
+              </CardTitle>
+              <CardDescription>
+                Manage your bot's core identity and default fallback behavior.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              {editing ? (
+                <div className="space-y-6 max-w-2xl">
+                  <div className="space-y-2">
+                    <Label className="text-slate-700 font-semibold">Bot Name</Label>
                     <Input
                       value={formData?.name || ""}
                       onChange={(e) =>
@@ -368,29 +392,39 @@ function BotDetailContent() {
                           prev ? { ...prev, name: e.target.value } : null,
                         )
                       }
+                      className="focus-visible:ring-indigo-500"
                     />
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="bot-enabled"
-                      checked={formData?.status ?? false}
-                      onChange={(e) =>
-                        setFormData((prev) =>
-                          prev ? { ...prev, status: e.target.checked } : null,
-                        )
-                      }
-                    />
-                    <Label htmlFor="bot-enabled">Enabled</Label>
+                  <div className="flex flex-row items-center justify-between rounded-lg border p-4 bg-slate-50/50">
+                    <div className="space-y-0.5">
+                      <Label className="text-base font-semibold text-slate-800">Activation Status</Label>
+                      <p className="text-sm text-slate-500">
+                        Enable or disable all automated responses for this bot.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="bot-enabled" className="text-sm cursor-pointer">{formData?.status ? 'Active' : 'Paused'}</Label>
+                      <input
+                        type="checkbox"
+                        id="bot-enabled"
+                        checked={formData?.status ?? false}
+                        onChange={(e) =>
+                          setFormData((prev) =>
+                            prev ? { ...prev, status: e.target.checked } : null,
+                          )
+                        }
+                        className="h-5 w-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <Label className="block text-sm font-medium mb-1">
-                      Entry Flow
+                  <div className="space-y-2">
+                    <Label className="text-slate-700 font-semibold">
+                      Default Entry Flow
                     </Label>
-                    <p className="text-xs text-gray-500 mb-2">
-                      Default flow for webchat or when no channel flow is assigned.
+                    <p className="text-xs text-slate-500 mb-2">
+                      If no specific channel flow is assigned, the bot will use this flow. If none is set, it falls back to AI knowledge.
                     </p>
                     <Select
                       value={formData?.entryFlow ?? "__none__"}
@@ -405,7 +439,7 @@ function BotDetailContent() {
                         )
                       }
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="focus-visible:ring-indigo-500">
                         <SelectValue placeholder="None (AI fallback only)" />
                       </SelectTrigger>
                       <SelectContent>
@@ -421,70 +455,94 @@ function BotDetailContent() {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
 
-                <div className="flex gap-2 pt-4">
-                  <Button onClick={handleSave} disabled={saving}>
-                    {saving ? "Saving..." : "Save Changes"}
-                  </Button>
-                  <Button variant="outline" onClick={() => setEditing(false)}>
-                    Cancel
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 gap-8">
-                  <div className="space-y-1">
-                    <p className="text-sm text-gray-500">Status</p>
-                    <Badge variant={bot.enabled ? "secondary" : "outline"} className={bot.enabled ? "bg-green-100 text-green-800 border-none" : ""}>
-                      {bot.enabled ? "Enabled" : "Disabled"}
-                    </Badge>
+                  <div className="flex gap-3 pt-6 border-t">
+                    <Button onClick={handleSave} disabled={saving} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                      {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      Save Changes
+                    </Button>
+                    <Button variant="outline" onClick={() => setEditing(false)}>
+                      Cancel
+                    </Button>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-sm text-gray-500">Created</p>
-                    <p className="font-medium text-sm">
-                      {new Date(bot.createdAt).toLocaleDateString()}
+                </div>
+              ) : (
+                <div className="space-y-8">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="bg-slate-50 rounded-xl p-5 border border-slate-100 flex flex-col items-start gap-2">
+                      <div className="flex items-center gap-2 text-slate-500 mb-1">
+                        <Power className="h-4 w-4" />
+                        <span className="text-xs font-semibold uppercase tracking-wider">Status</span>
+                      </div>
+                      <Badge variant={bot.enabled ? "secondary" : "outline"} className={`px-3 py-1 text-sm font-medium ${bot.enabled ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200" : "text-slate-600"}`}>
+                        {bot.enabled ? "Active" : "Paused"}
+                      </Badge>
+                    </div>
+                    
+                    <div className="bg-slate-50 rounded-xl p-5 border border-slate-100 flex flex-col items-start gap-2">
+                      <div className="flex items-center gap-2 text-slate-500 mb-1">
+                        <Calendar className="h-4 w-4" />
+                        <span className="text-xs font-semibold uppercase tracking-wider">Created On</span>
+                      </div>
+                      <p className="text-base font-medium text-slate-800">
+                        {new Date(bot.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                      </p>
+                    </div>
+                    
+                    <div className="bg-slate-50 rounded-xl p-5 border border-slate-100 flex flex-col items-start gap-2">
+                      <div className="flex items-center gap-2 text-slate-500 mb-1">
+                        <Share2 className="h-4 w-4" />
+                        <span className="text-xs font-semibold uppercase tracking-wider">Connected Channels</span>
+                      </div>
+                      <p className="text-base font-medium text-slate-800">
+                        {bot.channels.length} Integration{bot.channels.length === 1 ? '' : 's'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-indigo-50/50 rounded-xl p-6 border border-indigo-100/50">
+                    <h3 className="text-sm font-semibold text-indigo-900 mb-1">Default Entry Flow</h3>
+                    <p className="text-xs text-indigo-700/70 mb-4">
+                      The default routing path when a conversation starts without a channel-specific assignment.
                     </p>
+                    {bot.entryFlow ? (
+                      <div className="flex items-center gap-3 bg-white p-3 rounded-lg border border-indigo-100 shadow-sm inline-flex">
+                        <div className="bg-emerald-100 p-1.5 rounded-md">
+                          <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                        </div>
+                        <span className="font-semibold text-slate-800 pr-2">
+                          {flows.find((f) => f.id === bot.entryFlow)?.name ??
+                            bot.entryFlow}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 bg-amber-50 p-3 rounded-lg border border-amber-100 inline-flex">
+                        <div className="bg-amber-100 p-1.5 rounded-md">
+                          <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+                        </div>
+                        <span className="font-medium text-amber-800 pr-2 text-sm">
+                          No entry flow set. Bot uses AI fallback by default.
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pt-6 border-t mt-8">
+                     <Button
+                      variant="destructive"
+                      className="bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 border-none shadow-none"
+                      onClick={handleDeleteBot}
+                      disabled={deletingBot}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      {deletingBot ? "Deleting Bot..." : "Delete Bot Permanently"}
+                    </Button>
+                    <p className="text-xs text-muted-foreground mt-2">This action cannot be undone and will remove all associated channel settings.</p>
                   </div>
                 </div>
-
-                <div className="pt-4 border-t">
-                  <p className="text-sm font-medium mb-2">Default Entry Flow</p>
-                  <p className="text-xs text-gray-500 mb-3">
-                    If no specific channel flow is assigned, ReplyBase uses this.
-                  </p>
-                  {bot.entryFlow ? (
-                    <div className="flex items-center gap-2 text-sm">
-                      <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
-                      <span className="font-medium">
-                        {flows.find((f) => f.id === bot.entryFlow)?.name ??
-                          bot.entryFlow}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex items-start gap-2 text-sm">
-                      <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-                      <span className="text-amber-700">
-                        No entry flow set. Bot uses AI fallback by default.
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="pt-8 border-t">
-                   <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleDeleteBot}
-                    disabled={deletingBot}
-                  >
-                    {deletingBot ? "Deleting..." : "Delete Bot"}
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="channels">
@@ -492,33 +550,57 @@ function BotDetailContent() {
             renderChannelConfig()
           ) : (
             <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Available Channels</CardTitle>
-                  <CardDescription>
-                    Add channels to connect this bot to different platforms.
-                  </CardDescription>
+              {/* Available Channels */}
+              <Card className="shadow-sm border-slate-200">
+                <CardHeader className="bg-slate-50/50 border-b pb-4 flex flex-row items-center justify-between space-y-0">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-base text-slate-800">
+                      <Plus className="h-5 w-5 text-emerald-500" />
+                      Available Integrations
+                    </CardTitle>
+                    <CardDescription>
+                      Connect your bot to messaging platforms to start receiving messages.
+                    </CardDescription>
+                  </div>
+                  {channelLimitStatus && (
+                    <Badge variant="outline" className="px-3 py-1 bg-white shadow-sm font-medium text-slate-700">
+                      {channelLimitStatus.current} / {channelLimitStatus.limit} Used
+                    </Badge>
+                  )}
                 </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-3">
+                <CardContent className="pt-6">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {visibleChannelOptions.map((option) => {
                       const exists = bot.channels.some(
                         (channel) => channel.type === option.type,
                       );
+                      
+                      let Icon = Globe;
+                      if (option.type === 'facebook') Icon = MessageSquare;
+                      if (option.type === 'telegram') Icon = MessageSquare;
+                      if (option.type === 'whatsapp') Icon = MessageSquare;
+                      
                       return (
                         <Button
                           key={option.type}
-                          variant="outline"
+                          variant={exists ? "secondary" : "outline"}
+                          className={`h-auto py-4 flex flex-col items-center justify-center gap-3 transition-all ${exists ? 'bg-slate-100 opacity-70' : 'hover:border-indigo-300 hover:bg-indigo-50/50 hover:text-indigo-700'}`}
                           onClick={() => handleAddChannel(option.type)}
-                          disabled={addingChannelType !== null}
+                          disabled={addingChannelType !== null || exists}
                         >
-                          {addingChannelType === option.type
-                            ? `Adding...`
-                            : exists
-                              ? `${option.label} (Added)`
-                              : option.type === 'web' 
-                                ? `Add ${option.label}`
-                                : `Setup ${option.label}`}
+                          <Icon className={`h-6 w-6 ${exists ? 'text-slate-400' : 'text-slate-700'}`} />
+                          <div className="space-y-1 text-center">
+                            <p className="font-medium text-sm leading-none">{option.label}</p>
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                              {addingChannelType === option.type
+                                ? `Adding...`
+                                : exists
+                                  ? `Connected`
+                                  : option.type === 'web' 
+                                    ? `Add Channel`
+                                    : `Setup Channel`}
+                            </p>
+                          </div>
                         </Button>
                       );
                     })}
@@ -526,38 +608,60 @@ function BotDetailContent() {
                 </CardContent>
               </Card>
 
+              {/* Configured Channels */}
               <div className="space-y-4">
-                <h3 className="font-semibold px-1 text-lg">Configured Channels</h3>
+                <h3 className="font-semibold text-slate-800 text-lg flex items-center gap-2">
+                  <Share2 className="h-5 w-5 text-indigo-500" />
+                  Active Connections
+                </h3>
                 {bot.channels.length === 0 ? (
-                  <p className="text-sm text-muted-foreground px-1 italic">No channels configured yet.</p>
+                  <Card className="border-dashed border-2 bg-slate-50/50 shadow-none">
+                    <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                      <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center mb-4">
+                        <Share2 className="h-6 w-6 text-slate-400" />
+                      </div>
+                      <p className="text-base font-medium text-slate-700">No channels configured</p>
+                      <p className="text-sm text-slate-500 mt-1 max-w-sm">Connect a channel above to start routing messages through this bot.</p>
+                    </CardContent>
+                  </Card>
                 ) : (
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-4 md:grid-cols-2">
                     {bot.channels.map((channel) => (
-                      <Card key={channel.id} className="overflow-hidden shadow-sm">
-                         <div className="p-4 flex flex-col h-full">
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-bold">{channelLabel(channel.type)}</h4>
-                            <Badge variant={channel.isActive ? "secondary" : "outline"} className={channel.isActive ? "bg-green-50 text-green-700 border-green-100" : ""}>
+                      <Card key={channel.id} className="overflow-hidden shadow-sm border-slate-200 transition-all hover:shadow-md hover:border-slate-300 group">
+                         <div className="p-5 flex flex-col h-full">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded-lg bg-indigo-50 flex items-center justify-center border border-indigo-100">
+                                {channel.type === 'web' ? <Globe className="h-5 w-5 text-indigo-600" /> : <MessageSquare className="h-5 w-5 text-indigo-600" />}
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-slate-800">{channelLabel(channel.type)}</h4>
+                                <p className="text-xs text-slate-500 truncate max-w-[150px]">{channel.name}</p>
+                              </div>
+                            </div>
+                            <Badge variant={channel.isActive ? "secondary" : "outline"} className={`uppercase text-[10px] tracking-wider font-bold ${channel.isActive ? "bg-emerald-100 text-emerald-800 border-none" : "text-slate-500"}`}>
                               {channel.isActive ? "Active" : "Inactive"}
                             </Badge>
                           </div>
-                          <p className="text-xs text-muted-foreground mb-4 truncate">{channel.name}</p>
-                          <div className="flex items-center gap-2 mt-auto pt-2">
+                          
+                          <div className="flex items-center gap-2 mt-auto pt-4 border-t border-slate-100">
                             <Button
                               size="sm"
-                              className="flex-1"
+                              className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200 shadow-none"
                               onClick={() => setActiveChannel(channel.type as ChannelType)}
                             >
-                              Configure
+                              <Settings className="h-4 w-4 mr-2" />
+                              Configure Settings
                             </Button>
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50 px-3 opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100"
                               onClick={() => handleRemoveChannel(channel.id, channel.type)}
                               disabled={deletingChannelId === channel.id}
+                              title="Remove Channel"
                             >
-                              {deletingChannelId === channel.id ? "..." : "Remove"}
+                              {deletingChannelId === channel.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                             </Button>
                           </div>
                         </div>

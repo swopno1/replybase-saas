@@ -63,22 +63,10 @@ const items = [
     icon: GitBranch,
   },
   {
-    title: "Facebook Pages",
-    url: "/integrations/facebook",
-    icon: FacebookLogo,
-    channelId: "facebook" as ChannelId,
-  },
-  {
     title: "Telegram Bot",
     url: "/integrations/telegram",
     icon: Send,
     channelId: "telegram" as ChannelId,
-  },
-  {
-    title: "Webchat Widget",
-    url: "/integrations/webchat",
-    icon: Globe,
-    channelId: "webchat" as ChannelId,
   },
   {
     title: "WhatsApp Business",
