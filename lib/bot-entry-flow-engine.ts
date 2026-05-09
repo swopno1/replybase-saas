@@ -93,11 +93,19 @@ async function resolveFlow(params: {
   // --- STATE-AWARE ROUTING LOGIC ---
   let targetFlowId = params.entryFlow;
 
+  // 1. Check for specific channel flow assignments (Takes precedence over bot default)
+  if (params.channelId) {
+    const channelAssignment = await prisma.flowChannelAssignment.findFirst({
+      where: { channelId: params.channelId, isActive: true },
+      select: { flowId: true },
+    });
+    if (channelAssignment) targetFlowId = channelAssignment.flowId;
+  }
+
+  // 2. Subscription state logic
   if (subscription?.status === "active") {
-    // Returning customer — route to support or billing if requested
-    // This can be expanded with intent detection
+    // Returning customer — can be used for support routing
   } else if (tenant?.trialUsed) {
-    // Trial consumed — swap entry flow to "Upgrade Now" or "Trial Consumed" flow if configured
     const trialConsumedFlow = await prisma.flow.findFirst({
       where: { tenantId: params.tenantId, name: { contains: "Upgrade" }, isActive: true },
     });

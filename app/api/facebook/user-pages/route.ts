@@ -35,17 +35,33 @@ export const GET = withAuthAndTenant(async ({ id: userId, tenantId }) => {
 
     const connectedPages = await prisma.facebookPage.findMany({
       where: { tenantId },
-      select: { facebookId: true, id: true, botId: true },
+      select: { 
+        facebookId: true, 
+        id: true, 
+        botId: true,
+        flowAssignments: {
+          where: { isActive: true },
+          include: {
+            flow: {
+              select: { id: true, name: true }
+            }
+          }
+        }
+      },
     });
 
     const connectedMap = new Map(connectedPages.map(p => [p.facebookId, p]));
 
-    const enrichedPages = pages.map((page: any) => ({
-      ...page,
-      connected: connectedMap.has(page.id),
-      internalId: connectedMap.get(page.id)?.id || null,
-      botId: connectedMap.get(page.id)?.botId || null,
-    }));
+    const enrichedPages = pages.map((page: any) => {
+      const internalPage = connectedMap.get(page.id) as any;
+      return {
+        ...page,
+        connected: !!internalPage,
+        internalId: internalPage?.id || null,
+        botId: internalPage?.botId || null,
+        assignedFlow: internalPage?.flowAssignments?.[0]?.flow || null,
+      };
+    });
 
     return NextResponse.json({ pages: enrichedPages, connected: true });
   } catch (e) {

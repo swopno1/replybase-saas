@@ -230,6 +230,12 @@ export function WebchatConfig({
   }, [botId, channelId, initialChannelId]);
 
   useEffect(() => {
+    if (assignedFlow?.id && !selectedFlowId) {
+      setSelectedFlowId(assignedFlow.id);
+    }
+  }, [assignedFlow, selectedFlowId]);
+
+  useEffect(() => {
     if (initialChannelId !== channelId) {
       setChannelId(initialChannelId);
     }

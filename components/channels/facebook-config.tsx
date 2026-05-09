@@ -115,6 +115,18 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
     }
   }, [botId]);
 
+  useEffect(() => {
+    if (pages.length > 0) {
+      const initialMap: Record<string, string> = {};
+      pages.forEach(page => {
+        if (page.assignedFlow) {
+          initialMap[page.id] = page.assignedFlow.id;
+        }
+      });
+      setSelectedFlowIdMap(prev => ({ ...prev, ...initialMap }));
+    }
+  }, [pages]);
+
   const handleFacebookLogin = () => {
     const width = 600;
     const height = 700;
