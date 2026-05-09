@@ -172,6 +172,14 @@ function BotDetailContent() {
   };
 
   const handleAddChannel = async (type: ChannelType) => {
+    // For social channels, we don't create them immediately via the generic API 
+    // because they require specific IDs (Page ID, Phone Number, Token).
+    // Instead, we just open the configuration view.
+    if (type !== "web") {
+      setActiveChannel(type);
+      return;
+    }
+
     setAddingChannelType(type);
     try {
       const response = await fetch(`/api/bots/${botId}/channels`, {
@@ -486,13 +494,15 @@ function BotDetailContent() {
                           key={option.type}
                           variant="outline"
                           onClick={() => handleAddChannel(option.type)}
-                          disabled={exists || addingChannelType !== null}
+                          disabled={addingChannelType !== null}
                         >
                           {addingChannelType === option.type
                             ? `Adding...`
                             : exists
                               ? `${option.label} (Added)`
-                              : `Add ${option.label}`}
+                              : option.type === 'web' 
+                                ? `Add ${option.label}`
+                                : `Setup ${option.label}`}
                         </Button>
                       );
                     })}
