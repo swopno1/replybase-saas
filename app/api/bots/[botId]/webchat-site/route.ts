@@ -125,6 +125,14 @@ export async function GET(
           },
         },
         config: true,
+        flowAssignments: {
+          where: { isActive: true },
+          include: {
+            flow: {
+              select: { id: true, name: true }
+            }
+          }
+        }
       },
     });
 
@@ -143,7 +151,14 @@ export async function GET(
       themeConfig: (channel.config as Prisma.JsonObject | null) || {},
     });
 
-    return NextResponse.json({ site: serializeSite(site) });
+    return NextResponse.json({ 
+      site: {
+        ...serializeSite(site),
+        channel: {
+          flowAssignments: channel.flowAssignments
+        }
+      } 
+    });
   } catch (error) {
     console.error("[Webchat Site API] Failed to load site:", error);
     return NextResponse.json(
@@ -209,6 +224,14 @@ export async function PATCH(
           },
         },
         config: true,
+        flowAssignments: {
+          where: { isActive: true },
+          include: {
+            flow: {
+              select: { id: true, name: true }
+            }
+          }
+        }
       },
     });
 
@@ -285,7 +308,14 @@ export async function PATCH(
       console.error("[Webchat Site API] Failed to log configuration:", err),
     );
 
-    return NextResponse.json({ site: serializeSite(rotatedSite) });
+    return NextResponse.json({ 
+      site: {
+        ...serializeSite(rotatedSite),
+        channel: {
+          flowAssignments: channel.flowAssignments
+        }
+      } 
+    });
   } catch (error) {
     console.error("[Webchat Site API] Failed to update site:", error);
     return NextResponse.json(
