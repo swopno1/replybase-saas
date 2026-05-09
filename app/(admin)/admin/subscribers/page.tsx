@@ -205,9 +205,10 @@ export default function SubscribersPage() {
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Active/Paid</SelectItem>
+                  <SelectItem value="all">All (Paid & Free)</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="trialing">Trialing</SelectItem>
+                  <SelectItem value="free">Free Users</SelectItem>
                   <SelectItem value="past_due">Past Due</SelectItem>
                 </SelectContent>
               </Select>
