@@ -42,7 +42,7 @@ export async function POST(
         where: { tenantId },
         data: {
           planId,
-          status: status || "active",
+          status: status ? status.toUpperCase() : "ACTIVE",
           currentPeriodEnd: currentPeriodEnd ? new Date(currentPeriodEnd) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Default 30 days
           updatedAt: new Date(),
         },
@@ -54,7 +54,7 @@ export async function POST(
           tenantId,
           planId,
           stripeId, // Manual ID
-          status: status || "active",
+          status: status ? status.toUpperCase() : "ACTIVE",
           currentPeriodEnd: currentPeriodEnd ? new Date(currentPeriodEnd) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         },
         include: { plan: true },

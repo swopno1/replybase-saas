@@ -145,6 +145,22 @@ function BotDetailContent() {
 
   const handleSave = async () => {
     if (!formData || saving) return;
+
+    // Check if the selected flow is inactive
+    if (formData.entryFlow) {
+      const selectedFlow = flows.find(f => f.id === formData.entryFlow);
+      if (selectedFlow && !selectedFlow.isActive) {
+        const proceed = await confirm({
+          title: "Inactive Flow Selected",
+          description: `The flow "${selectedFlow.name}" is currently inactive. If you assign it, your bot may not respond to users until you activate the flow in the Flow Builder. Do you want to proceed anyway?`,
+          confirmText: "Assign Anyway",
+          cancelText: "Cancel",
+          variant: "destructive"
+        });
+        if (!proceed) return;
+      }
+    }
+
     setSaving(true);
     try {
       const response = await fetch(`/api/bots/${botId}`, {

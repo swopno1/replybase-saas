@@ -28,7 +28,8 @@ export const PATCH = withAuthAndTenant(
   async ({ tenantId }, req, context, db) => {
     const { botId } = await context.params;
     const body = await req.json();
-    const { name, enabled, entryFlowId } = body;
+    const { name, enabled, entryFlow } = body;
+    const entryFlowToUpdate = entryFlow !== undefined ? entryFlow : body.entryFlowId;
 
     try {
       const bot = await db.bot.update({
@@ -36,7 +37,7 @@ export const PATCH = withAuthAndTenant(
         data: {
           ...(name && { name }),
           ...(enabled !== undefined && { enabled: Boolean(enabled) }),
-          ...(entryFlowId !== undefined && { entryFlow: entryFlowId || null }),
+          ...(entryFlowToUpdate !== undefined && { entryFlow: entryFlowToUpdate || null }),
         },
       });
 
