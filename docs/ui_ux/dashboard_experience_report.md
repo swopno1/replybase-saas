@@ -1,10 +1,20 @@
-# Dashboard Experience Report
+# Dashboard Experience Report (Updated July 2026)
 
-## Key Features
-- **Funnel Tracking**: Real-time visualization of activation milestones.
-- **Quick Actions**: Prominent buttons for "New Bot", "New Flow", "Broadcast".
-- **Activation Momentum**: Encourages the user to finish setup before exploring advanced features.
+## Strategic Value
+The dashboard is the central hub for "Activation Momentum." It successfully guides the user from a blank slate to a fully automated messaging system.
 
-## UX Polish
-- **Status Visibility**: Live indicators for connected channels build confidence.
-- **Error Handling**: `DashboardErrorBoundary` wraps major sections to prevent whole-page crashes.
+## Key Performance Indicators (UX)
+- **Time to First Message**: High priority metric. Dashboard prompts for channel connection are effective.
+- **Bot Health Visibility**: Real-time status icons for Webchat, Facebook, and Telegram provide instant peace of mind.
+
+## Interaction Improvements
+- **Interactive Funnel**: The "Activation Milestone" cards should be interactive. Clicking a stage (e.g., "Leads Captured") should navigate to the Leads page with the appropriate filter applied.
+- **Metric Drill-downs**: Conversation volume charts should allow clicking on a data point to see the specific conversations from that period.
+- **Activity Feed**: The "Recent Activity" sidebar should include "Lead Insights" (e.g., "High-value lead detected by AI").
+
+## Visual Polish
+- **Empty States**: When no bots exist, the dashboard should show a "Getting Started" guide rather than empty charts.
+- **Skeleton States**: Implement skeleton loaders for the "Usage Statistics" card to prevent the "zero-to-real-number" flash during data fetch.
+
+## Verdict
+The dashboard is highly functional but currently feels like a static report. Evolving it into an **interactive control center** will significantly improve daily active usage (DAU).
