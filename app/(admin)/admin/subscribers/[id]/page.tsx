@@ -75,10 +75,15 @@ interface BotData {
   id: string;
   name: string;
   enabled: boolean;
+  entryFlow: string | null;
   channels: Array<{
     id: string;
     type: string;
     isActive: boolean;
+    flowAssignments: {
+      flowId: string;
+      flow: { name: string };
+    } | null;
   }>;
 }
 
@@ -343,6 +348,47 @@ export default function SubscriberDetailPage({
     } catch (error) {
       console.error("Error toggling bot status:", error);
       toast.error("Error toggling bot status");
+    }
+  };
+
+  const handleToggleChannelStatus = async (channelId: string, currentStatus: boolean) => {
+    try {
+      const response = await fetch(`/api/admin/channels/${channelId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !currentStatus }),
+      });
+
+      if (response.ok) {
+        toast.success(`Channel ${!currentStatus ? "activated" : "deactivated"} successfully`);
+        fetchData();
+      } else {
+        toast.error("Failed to update channel status");
+      }
+    } catch (error) {
+      console.error("Error toggling channel status:", error);
+      toast.error("Error toggling channel status");
+    }
+  };
+
+  const handleAssignChannelFlow = async (channelId: string, flowId: string) => {
+    try {
+      const response = await fetch(`/api/admin/channels/${channelId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ flowId }),
+      });
+
+      if (response.ok) {
+        toast.success("Flow assigned to channel successfully");
+        fetchData();
+      } else {
+        const err = await response.json();
+        toast.error(err.error || "Failed to assign flow");
+      }
+    } catch (error) {
+      console.error("Error assigning flow:", error);
+      toast.error("Error assigning flow");
     }
   };
 
@@ -734,13 +780,37 @@ export default function SubscriberDetailPage({
                           </div>
                           <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
                             {bot.channels.map((channel) => (
-                              <div key={channel.id} className="flex items-center gap-2 text-sm p-2 bg-muted rounded">
-                                <Badge variant={channel.isActive ? "outline" : "secondary"}>
-                                  {channel.type}
-                                </Badge>
-                                <span className={channel.isActive ? "text-foreground" : "text-muted-foreground"}>
-                                  {channel.isActive ? "Active" : "Inactive"}
-                                </span>
+                              <div key={channel.id} className="flex flex-col gap-2 p-3 bg-muted/40 rounded-lg border">
+                                <div className="flex items-center justify-between">
+                                  <Badge variant={channel.isActive ? "outline" : "secondary"}>
+                                    {channel.type}
+                                  </Badge>
+                                  <Switch
+                                    checked={channel.isActive}
+                                    onCheckedChange={() => handleToggleChannelStatus(channel.id, channel.isActive)}
+                                    className="scale-75"
+                                  />
+                                </div>
+
+                                <div className="space-y-1 mt-2">
+                                  <Label className="text-[10px] text-muted-foreground uppercase font-bold">Assigned Flow</Label>
+                                  <Select
+                                    value={channel.flowAssignments?.flowId || "none"}
+                                    onValueChange={(val) => handleAssignChannelFlow(channel.id, val)}
+                                  >
+                                    <SelectTrigger className="h-8 text-xs">
+                                      <SelectValue placeholder="Select Flow" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="none">Use Global Default</SelectItem>
+                                      {subscription.tenant.flows.map((flow) => (
+                                        <SelectItem key={flow.id} value={flow.id}>
+                                          {flow.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
                               </div>
                             ))}
                             {bot.channels.length === 0 && (
@@ -778,6 +848,28 @@ export default function SubscriberDetailPage({
                       checked={editingBot.enabled}
                       onCheckedChange={(checked) => setEditingBot({ ...editingBot, enabled: checked })}
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Global Entry Flow</Label>
+                    <Select
+                      value={editingBot.entryFlow || "none"}
+                      onValueChange={(val) => setEditingBot({ ...editingBot, entryFlow: val === "none" ? null : val })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a global entry flow" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No Entry Flow</SelectItem>
+                        {subscription.tenant.flows.map((flow) => (
+                          <SelectItem key={flow.id} value={flow.id}>
+                            {flow.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[10px] text-muted-foreground">
+                      This flow will be the default for all channels unless overridden.
+                    </p>
                   </div>
                 </div>
               )}

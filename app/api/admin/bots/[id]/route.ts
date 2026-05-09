@@ -22,13 +22,14 @@ export async function PATCH(
 
     const { id } = await context.params;
     const body = await req.json();
-    const { name, enabled } = body;
+    const { name, enabled, entryFlow } = body;
 
     const bot = await prisma.bot.update({
       where: { id },
       data: {
         ...(name !== undefined && { name }),
         ...(enabled !== undefined && { enabled }),
+        ...(entryFlow !== undefined && { entryFlow }),
       },
     });
 

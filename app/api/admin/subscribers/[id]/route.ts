@@ -30,7 +30,21 @@ export async function GET(
           users: {
             select: { id: true, name: true, email: true, isAdmin: true, createdAt: true },
           },
-          bots: { include: { channels: true } },
+          bots: {
+            include: {
+              channels: {
+                include: {
+                  flowAssignments: {
+                    include: {
+                      flow: {
+                        select: { name: true }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
           flows: { include: { _count: { select: { sessions: true, leads: true } } } },
           activityLogs: {
             take: 20,
@@ -62,7 +76,21 @@ export async function GET(
               users: {
                 select: { id: true, name: true, email: true, isAdmin: true, createdAt: true },
               },
-              bots: { include: { channels: true } },
+              bots: {
+                include: {
+                  channels: {
+                    include: {
+                      flowAssignments: {
+                        include: {
+                          flow: {
+                            select: { name: true }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
               flows: { include: { _count: { select: { sessions: true, leads: true } } } },
               activityLogs: {
                 take: 20,
