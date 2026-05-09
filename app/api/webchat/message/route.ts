@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     const { aiFallback } = await import("@/lib/ai-fallback");
     try {
       const aiStream = await aiFallback({ botId, conversationId, messages: aiMessages, planName });
-      if (aiStream && "toDataStreamResponse" in aiStream) {
+      if (aiStream && typeof aiStream === "object" && "toDataStreamResponse" in aiStream) {
         // Vercel AI SDK 3.1+ style streaming
         return (aiStream as any).toDataStreamResponse({
           headers: createWebchatCorsHeaders(request) as any,
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Fallback for older versions or non-stream results
-      const aiText = aiStream && "text" in aiStream ? (await (aiStream as any).text) as string : String(aiStream ?? "");
+      const aiText = aiStream && typeof aiStream === "object" && "text" in aiStream ? (await (aiStream as any).text) as string : String(aiStream ?? "");
       if (aiText.trim()) {
         await prisma.crmMessage.create({ data: { tenantId, conversationId, direction: "outbound", content: aiText.trim(), source: "ai" } });
         return NextResponse.json({ responses: [{ type: "text", text: aiText.trim() }], meta: { mode: "ai_fallback" } }, { headers: createWebchatCorsHeaders(request) });

@@ -16,4 +16,19 @@ vitest.config.ts
 # Misc
 *.md
 next-env.d.ts
+.gitignore
+.dockerignore
+Dockerfile
+docker-compose*
+.vscode/
+.github/
+.idea/
+.DS_Store
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+.cache/
 
