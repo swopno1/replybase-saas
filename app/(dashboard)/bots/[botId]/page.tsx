@@ -24,10 +24,10 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { isChannelVisibleInUi } from "@/lib/channel-config";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
-import { WhatsAppConfig } from "@/components/channels/WhatsAppConfig";
-import { TelegramConfig } from "@/components/channels/TelegramConfig";
-import { FacebookConfig } from "@/components/channels/FacebookConfig";
-import { WebchatConfig } from "@/components/channels/WebchatConfig";
+import { WhatsAppConfig } from "@/components/channels/whatsapp-config";
+import { TelegramConfig } from "@/components/channels/telegram-config";
+import { FacebookConfig } from "@/components/channels/facebook-config";
+import { WebchatConfig } from "@/components/channels/webchat-config";
 
 export const dynamic = "force-dynamic";
 

@@ -37,13 +37,13 @@ export async function GET(
     prisma.facebookPage.findMany({
       where: {
         tenantId: user.tenantId,
-        botId: botId,
       },
       select: {
         id: true,
         name: true,
         facebookId: true,
         engineConnected: true,
+        botId: true,
         createdAt: true,
       },
       orderBy: {

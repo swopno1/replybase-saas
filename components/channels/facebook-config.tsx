@@ -69,7 +69,11 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
       const res = await fetch(`/api/bots/${id}/channels/facebook`);
       if (res.ok) {
         const data = await res.json();
-        setPages(data.pages || []);
+        const mappedPages = (data.pages || []).map((p: any) => ({
+          ...p,
+          connected: p.botId !== null,
+        }));
+        setPages(mappedPages);
         if (data.limitStatus) setLimitStatus(data.limitStatus);
       }
     } catch (error) {
