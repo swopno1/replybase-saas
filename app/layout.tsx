@@ -70,6 +70,8 @@ export const metadata: Metadata = {
   },
 };
 
+import { ImpersonationBanner } from "@/components/admin/impersonation-banner";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -81,7 +83,10 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AnalyticsScripts />
-        <Providers>{children}</Providers>
+        <Providers>
+          <ImpersonationBanner />
+          {children}
+        </Providers>
       </body>
     </html>
   );

@@ -318,6 +318,43 @@ export default function SubscriberDetailPage({
         </Badge>
       </div>
 
+      <div className="flex items-center gap-4 bg-blue-50 border border-blue-100 rounded-lg p-4 justify-between">
+        <div className="flex items-center gap-3">
+          <Shield className="h-5 w-5 text-blue-600" />
+          <div>
+            <h4 className="font-bold text-blue-900 text-sm">Tenant Access Control</h4>
+            <p className="text-blue-800 text-xs mt-0.5">
+              Switch your context to this tenant to configure their bots, flows, and channels directly.
+            </p>
+          </div>
+        </div>
+        <Button 
+          size="sm" 
+          className="bg-blue-600 hover:bg-blue-700"
+          onClick={async () => {
+            try {
+              const res = await fetch("/api/admin/impersonate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ tenantId: subscription.tenant.id }),
+              });
+              if (res.ok) {
+                toast.success(`Now impersonating ${subscription.tenant.name}`);
+                // Find the first bot to redirect to, or just root
+                const targetBot = subscription.tenant.bots[0]?.id || "";
+                window.location.href = targetBot ? `/${targetBot}` : "/";
+              } else {
+                toast.error("Failed to start impersonation");
+              }
+            } catch (err) {
+              toast.error("An error occurred");
+            }
+          }}
+        >
+          <ExternalLink className="mr-2 h-4 w-4" /> Impersonate Tenant
+        </Button>
+      </div>
+
       <Tabs
         value={activeTab}
         onValueChange={(value) => {
@@ -499,35 +536,53 @@ export default function SubscriberDetailPage({
                 <p className="text-center text-muted-foreground py-8">No bots configured</p>
               ) : (
                 <div className="space-y-6">
-                  {subscription.tenant.bots.map((bot) => (
-                    <div key={bot.id} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                          <Bot className="h-5 w-5 text-blue-500" />
-                          <h3 className="font-bold">{bot.name}</h3>
-                          <Badge variant={bot.enabled ? "default" : "secondary"}>
-                            {bot.enabled ? "Enabled" : "Disabled"}
-                          </Badge>
-                        </div>
-                        <span className="text-xs text-muted-foreground">ID: {bot.id}</span>
-                      </div>
-                      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-                        {bot.channels.map((channel) => (
-                          <div key={channel.id} className="flex items-center gap-2 text-sm p-2 bg-muted rounded">
-                            <Badge variant={channel.isActive ? "outline" : "secondary"}>
-                              {channel.type}
-                            </Badge>
-                            <span className={channel.isActive ? "text-foreground" : "text-muted-foreground"}>
-                              {channel.isActive ? "Active" : "Inactive"}
-                            </span>
+                      {subscription.tenant.bots.map((bot) => (
+                        <div key={bot.id} className="border rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                              <Bot className="h-5 w-5 text-blue-500" />
+                              <h3 className="font-bold">{bot.name}</h3>
+                              <Badge variant={bot.enabled ? "default" : "secondary"}>
+                                {bot.enabled ? "Enabled" : "Disabled"}
+                              </Badge>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-[10px]"
+                                onClick={async () => {
+                                  const res = await fetch("/api/admin/impersonate", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ tenantId: subscription.tenant.id }),
+                                  });
+                                  if (res.ok) {
+                                    window.location.href = `/${bot.id}`;
+                                  }
+                                }}
+                              >
+                                <ExternalLink className="mr-1 h-3 w-3" /> Manage Dashboard
+                              </Button>
+                            </div>
                           </div>
-                        ))}
-                        {bot.channels.length === 0 && (
-                          <p className="text-xs text-muted-foreground">No channels assigned</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                            {bot.channels.map((channel) => (
+                              <div key={channel.id} className="flex items-center gap-2 text-sm p-2 bg-muted rounded">
+                                <Badge variant={channel.isActive ? "outline" : "secondary"}>
+                                  {channel.type}
+                                </Badge>
+                                <span className={channel.isActive ? "text-foreground" : "text-muted-foreground"}>
+                                  {channel.isActive ? "Active" : "Inactive"}
+                                </span>
+                              </div>
+                            ))}
+                            {bot.channels.length === 0 && (
+                              <p className="text-xs text-muted-foreground">No channels assigned</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                 </div>
               )}
             </CardContent>

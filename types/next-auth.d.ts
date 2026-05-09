@@ -9,6 +9,8 @@ declare module "next-auth" {
       subscriptionStatus: string;
       isAdmin: boolean;
       role: UserRole;
+      isImpersonating?: boolean;
+      originalTenantId?: string;
     } & DefaultSession["user"];
   }
 
@@ -27,5 +29,7 @@ declare module "next-auth/jwt" {
     subscriptionStatus: string;
     isAdmin: boolean;
     role: UserRole;
+    isImpersonating?: boolean;
+    originalTenantId?: string;
   }
 }

@@ -206,9 +206,26 @@ export const authOptions: NextAuthOptions = {
         token.role = dbUser?.role || "USER";
         token.lastSubscriptionCheck = Date.now();
 
+        // --- IMPERSONATION LOGIC ---
+        // If the user is an admin, check for impersonation cookie
+        if (token.isAdmin || token.role === "SUPERADMIN") {
+          try {
+            const { cookies } = await import("next/headers");
+            const cookieStore = await cookies();
+            const impersonatedId = cookieStore.get("replybase_impersonation_target")?.value;
+            if (impersonatedId) {
+              token.originalTenantId = token.tenantId; // Store original for switching back
+              token.tenantId = impersonatedId;
+              token.isImpersonating = true;
+            }
+          } catch (e) {
+            // Silently fail if cookies() is not available in this context
+          }
+        }
+
         // Fetch subscription status separately to avoid complex nested includes typing issues
-        if (dbUser?.tenantId) {
-          token.subscriptionStatus = await getTenantSubscriptionStatus(dbUser.tenantId);
+        if (token.tenantId) {
+          token.subscriptionStatus = await getTenantSubscriptionStatus(token.tenantId as string);
         } else {
           token.subscriptionStatus = "inactive";
         }
@@ -231,7 +248,9 @@ export const authOptions: NextAuthOptions = {
         session.user.tenantId = token.tenantId as string;
         session.user.subscriptionStatus = token.subscriptionStatus as string;
         session.user.isAdmin = token.isAdmin as boolean;
-        session.user.role = token.role;
+        session.user.role = token.role as any; // Cast to any to satisfy next-auth's loose session typing, or use import if needed
+        session.user.isImpersonating = token.isImpersonating as boolean;
+        session.user.originalTenantId = token.originalTenantId as string;
       }
       return session;
     },
