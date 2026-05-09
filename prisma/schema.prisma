@@ -823,7 +823,7 @@ model WebhookLog {
 
 model AdminActivity {
   id          String   @id @default(cuid())
-  adminId     String
+  adminId     String?
   action      String
   entityType  String
   entityId    String?
@@ -833,7 +833,7 @@ model AdminActivity {
   userAgent   String?
   createdAt   DateTime @default(now())
   tenantId    String?
-  admin       User     @relation(fields: [adminId], references: [id])
+  admin       User?     @relation(fields: [adminId], references: [id])
   tenant      Tenant?  @relation(fields: [tenantId], references: [id])
 
   @@index([adminId])

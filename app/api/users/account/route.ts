@@ -32,6 +32,18 @@ export async function DELETE() {
       // Remove user-bound records with restrictive FKs before deleting the user.
       await tx.executionLog.deleteMany({ where: { userId: user.id } });
       await tx.internalNote.deleteMany({ where: { authorId: user.id } });
+      
+      // Clean up relations that prevent user deletion
+      await tx.adminActivity.updateMany({ where: { adminId: user.id }, data: { adminId: null } });
+      await tx.passwordResetToken.deleteMany({ where: { userId: user.id } });
+      
+      // Nullify optional references so logs/conversations remain but user is gone
+      await tx.activityLog.updateMany({ where: { userId: user.id }, data: { userId: null } });
+      await tx.usageLog.updateMany({ where: { userId: user.id }, data: { userId: null } });
+      await tx.churnFeedback.updateMany({ where: { userId: user.id }, data: { userId: null } });
+      await tx.crmConversation.updateMany({ where: { assigneeId: user.id }, data: { assigneeId: null } });
+      await tx.newsletterSubscriber.updateMany({ where: { userId: user.id }, data: { userId: null } });
+      await tx.dataDeletionRequest.updateMany({ where: { userId: user.id }, data: { userId: null } });
 
       await tx.user.delete({ where: { id: user.id } });
 
@@ -69,6 +81,7 @@ export async function DELETE() {
       await tx.contact.deleteMany({ where: { tenantId: user.tenantId } });
       await tx.usageLog.deleteMany({ where: { tenantId: user.tenantId } });
       await tx.bot.deleteMany({ where: { tenantId: user.tenantId } });
+      await tx.adminActivity.deleteMany({ where: { tenantId: user.tenantId } });
 
       // These models are tenant-keyed but not FK-linked to tenants.
       await tx.onboardingSession.deleteMany({
