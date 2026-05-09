@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import Link from "next/link";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -275,7 +276,16 @@ export default function AdminUsersPage() {
                       </TableCell>
                       <TableCell>
                         <span className="text-sm font-medium">
-                          {user.tenant?.name || <span className="text-muted-foreground italic">No Workspace</span>}
+                          {user.tenant ? (
+                            <Link 
+                              href={`/admin/tenants/${user.tenant.id}`}
+                              className="text-primary hover:underline"
+                            >
+                              {user.tenant.name}
+                            </Link>
+                          ) : (
+                            <span className="text-muted-foreground italic">No Workspace</span>
+                          )}
                         </span>
                       </TableCell>
                       <TableCell>
