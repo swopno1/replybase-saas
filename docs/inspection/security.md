@@ -1,4 +1,4 @@
-# Security Audit Report - ReplyBase SaaS
+# Security Audit Report - ReplyBase SaaS (Updated July 2026)
 
 ## Authentication & Authorization
 - **Provider**: Auth.js (NextAuth) with Google, Facebook, and Email/Password.
@@ -17,11 +17,17 @@
   - **Stripe**: Signature verification on billing webhooks.
 - **Secrets Management**: Integration keys (WhatsApp Tokens, Telegram Tokens) are encrypted using `AES-256-GCM` before storage.
 
-## Identified Risks
-1. **Model Gaps**: `WebhookLog` does not contain `tenantId`, creating a cross-tenant log leakage risk.
-2. **Admin API Surface**: Admin routes have full access to all tenants; strict MFA should be enforced for admin users.
-3. **Check-then-Act**: A few legacy routes perform a validation check followed by a mutation using only the record ID. These should be combined into a single atomic query: `where: { id, tenantId }`.
+## Identified Risks & Vulnerabilities
+1. **Model Tenancy Gaps**: `WebhookLog` still lacks a `tenantId` field, which is a critical isolation gap. This prevents per-tenant log filtering and creates a theoretical risk of cross-tenant data exposure if logs are ever exposed via a generic "Logs" API.
+2. **Unscoped Mutations**: Several legacy integration routes (e.g., Facebook/WhatsApp channel management) still use the global `prisma` client for deletions. While they typically perform a check-then-act pattern, they remain vulnerable to race conditions or logic errors that could lead to unauthorized deletions if the initial check is bypassed or incomplete.
+3. **Admin API Surface**: Admin routes (`/api/admin/*`) have broad access. While restricted to `SUPERADMIN` roles, they lack granular audit logging for data-viewing actions, only tracking mutations.
+4. **CORS Hardening**: Webchat API endpoints (`/api/webchat/*`) have dynamic CORS but should be further restricted to only allow verified domains stored in the `WebChatSite` model.
 
 ## Compliance
 - **GDPR**: Data deletion requests are supported (`/api/cron/process-data-deletions`).
 - **Audit Logging**: `AdminActivity` and `ActivityLog` track sensitive changes across the platform.
+
+## Remediation Roadmap
+- **Immediate**: Add `tenantId` to `WebhookLog` and enforce it in all loggers.
+- **High**: Refactor all channel management DELETE routes to use the scoped `db` client from `withAuthAndTenant`.
+- **Medium**: Implement IP-based rate limiting on all public-facing auth routes.

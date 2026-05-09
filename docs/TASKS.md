@@ -39,3 +39,45 @@
   - Priority: LOW
   - Category: UX/Delight
   - Impact: Increases user engagement and positive reinforcement during setup.
+
+- [ ] **Task 009**
+  - Priority: HIGH
+  - Status: PENDING
+  - Category: Security
+  - Issue: Scoped Mutation Hardening. Some DELETE routes (e.g. Facebook Page unlink) use global prisma client.
+  - Root Cause: Legacy "check-then-act" pattern where deletion is performed using only ID after an initial ownership check.
+  - UX/Business Impact: Risk of IDOR if the initial check is bypassed or fails. Essential for Enterprise trust.
+  - Objective: Refactor all DELETE/UPDATE routes in `app/api/bots/[botId]/channels/` to use the scoped `db` client from `withAuthAndTenant`.
+  - Detailed Instructions: Locate all mutations in integration routes. Ensure they use the `db` instance provided by the `withAuthAndTenant` wrapper, which automatically injects `tenantId` into the `where` clause.
+  - Expected Deliverables: Scoped API handlers for Facebook, Telegram, and WhatsApp channel management.
+  - Dependencies: None.
+  - Notes: This is a preventative security measure.
+  - Suggested Rollout Risk: LOW.
+
+- [ ] **Task 010**
+  - Priority: HIGH
+  - Status: PENDING
+  - Category: Security/Performance
+  - Issue: DB Migration: Add `tenantId` to `WebhookLog`.
+  - Root Cause: Model was originally designed for global logging and missed the multi-tenant isolation requirement.
+  - UX/Business Impact: Prevents potential cross-tenant data exposure and enables per-tenant log dashboards.
+  - Objective: Update schema, create migration, and update `logger.ts` and webhook handlers to include `tenantId`.
+  - Detailed Instructions: 1. Add `tenantId String` and `tenant Tenant @relation(...)` to `WebhookLog` in `schema.prisma`. 2. Generate migration. 3. Update `lib/logger.ts` or direct `prisma.webhookLog.create` calls to pass the context.
+  - Expected Deliverables: Updated Prisma schema, migration file, and updated webhook route handlers.
+  - Dependencies: Task 009 (should be done in parallel).
+  - Notes: Backfill strategy needed for existing logs.
+  - Suggested Rollout Risk: MEDIUM (due to data migration).
+
+- [ ] **Task 011**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Performance
+  - Issue: Performance: Dashboard Metric Caching.
+  - Root Cause: Dashboard metrics are computed synchronously on every request.
+  - UX/Business Impact: Improves dashboard load time and reduces database CPU usage.
+  - Objective: Implement Redis-based caching for high-frequency dashboard stats to reduce database I/O.
+  - Detailed Instructions: Wrap dashboard statistic queries in a caching layer that checks Redis first. Set TTL to 300 seconds.
+  - Expected Deliverables: Cached dashboard service implementation.
+  - Dependencies: Redis infrastructure.
+  - Notes: Ensure cache invalidation on new lead/message events.
+  - Suggested Rollout Risk: LOW.
