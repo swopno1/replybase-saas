@@ -20,54 +20,67 @@ export async function GET(
     }
 
     const { id } = await params;
+    let subscription: any = null;
 
-    const subscription = await prisma.subscription.findUnique({
-      where: { id },
-      include: {
-        plan: true,
-        tenant: {
-          include: {
-            users: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                isAdmin: true,
-                createdAt: true,
+    if (id.startsWith("no-sub-")) {
+      const tenantId = id.replace("no-sub-", "");
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: tenantId },
+        include: {
+          users: {
+            select: { id: true, name: true, email: true, isAdmin: true, createdAt: true },
+          },
+          bots: { include: { channels: true } },
+          flows: { include: { _count: { select: { sessions: true, leads: true } } } },
+          activityLogs: {
+            take: 20,
+            orderBy: { createdAt: "desc" },
+            include: { user: { select: { name: true, email: true } } },
+          },
+        },
+      });
+
+      if (!tenant) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
+
+      subscription = {
+        id: `no-sub-${tenant.id}`,
+        status: "inactive",
+        currentPeriodEnd: null,
+        stripeId: null,
+        tenantId: tenant.id,
+        planId: "free",
+        plan: { id: "free", name: "No Active Plan", price: 0 },
+        tenant,
+      };
+    } else {
+      subscription = await prisma.subscription.findUnique({
+        where: { id },
+        include: {
+          plan: true,
+          tenant: {
+            include: {
+              users: {
+                select: { id: true, name: true, email: true, isAdmin: true, createdAt: true },
               },
-            },
-            bots: {
-              include: {
-                channels: true,
-              },
-            },
-            flows: {
-              include: {
-                _count: {
-                  select: { sessions: true, leads: true },
-                },
-              },
-            },
-            activityLogs: {
-              take: 20,
-              orderBy: { createdAt: "desc" },
-              include: {
-                user: {
-                  select: { name: true, email: true },
-                },
+              bots: { include: { channels: true } },
+              flows: { include: { _count: { select: { sessions: true, leads: true } } } },
+              activityLogs: {
+                take: 20,
+                orderBy: { createdAt: "desc" },
+                include: { user: { select: { name: true, email: true } } },
               },
             },
           },
         },
-      },
-    });
+      });
+    }
 
     if (!subscription) {
       return NextResponse.json({ error: "Subscriber not found" }, { status: 404 });
     }
 
     // Fetch execution logs for the tenant's bots
-    const botIds = subscription.tenant.bots.map((b) => b.id);
+    const botIds = subscription.tenant.bots.map((b: { id: string }) => b.id);
     const executionLogs = await prisma.executionLog.findMany({
       where: {
         botId: { in: botIds },
