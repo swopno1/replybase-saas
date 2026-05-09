@@ -114,7 +114,7 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
     const top = window.screen.height / 2 - height / 2;
 
     window.open(
-      "/integrations/facebook/auth",
+      "/api/integrations/facebook/auth",
       "facebook-auth",
       `width=${width},height=${height},top=${top},left=${left}`
     );
