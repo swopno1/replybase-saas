@@ -1,0 +1,16 @@
+SessionInspector
+MonitoringDashboard
+ActionableInsights
+AnalyticsCharts
+activation-funnel-analysis
+plausible-dashboard
+kpi-health-monitor
+segmented-analytics-dashboard
+webchat-acquisition-analysis
+retention-curve-visualization
+activation-kpi-dashboard
+admin-top-bar
+segmentation-filters
+admin-layout-wrapper
+admin-sidebar
+template-impact-analysis
