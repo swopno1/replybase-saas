@@ -62,6 +62,7 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
   const [selectedFlowIdMap, setSelectedFlowIdMap] = useState<Record<string, string>>({});
   const [assigningMap, setAssigningMap] = useState<Record<string, boolean>>({});
   const [unassigningMap, setUnassigningMap] = useState<Record<string, boolean>>({});
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
 
   const loadPages = async (id: string) => {
     setLoading(true);
@@ -281,6 +282,30 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
     }
   };
 
+  const handleDisconnectFacebook = async () => {
+    const confirmed = await confirm({
+      title: "Disconnect Facebook",
+      description: "Are you sure? This will permanently remove all connected Facebook pages, deactivate the bot on those pages, and securely delete all associated conversation history and flow assignments.",
+      confirmText: "Disconnect",
+      variant: "destructive"
+    });
+    
+    if (!confirmed) return;
+
+    setIsDisconnecting(true);
+    try {
+      const res = await fetch("/api/facebook/disconnect", { method: "POST" });
+      if (!res.ok) throw new Error("Failed to disconnect");
+      
+      toast.success("Facebook disconnected successfully.");
+      void loadPages(botId);
+    } catch (error) {
+      toast.error("Failed to disconnect Facebook account.");
+    } finally {
+      setIsDisconnecting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <ChannelLimitWarning limitStatus={channelLimitStatus || limitStatus} />
@@ -293,7 +318,7 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
             </CardDescription>
           </div>
           <div className="flex gap-2">
-            <Button onClick={handleFacebookLogin} variant="outline" size="sm">
+            <Button onClick={() => loadPages(botId)} variant="outline" size="sm">
               <RefreshCw className="mr-2 h-4 w-4" />
               Refresh Pages
             </Button>
@@ -441,15 +466,24 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
           )}
         </CardContent>
       </Card>
-      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-        <a href="https://replybase.co.uk/privacy" target="_blank" rel="noopener noreferrer" className="hover:underline">Privacy Policy</a>
-        <a href="https://replybase.co.uk/terms" target="_blank" rel="noopener noreferrer" className="hover:underline">Terms of Service</a>
-      </div>
-      <div className="mt-8 flex justify-center">
-        <Button onClick={handleFacebookLogin} className="bg-[#1877F2] hover:bg-[#1877F2]/90 text-white">
-          <FacebookLogo className="mr-2 h-5 w-5 fill-white" />
-          Continue with Facebook
-        </Button>
+      <div className="flex items-center justify-between pt-4 mt-6 border-t border-slate-100">
+        <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+          <a href="https://replybase.co.uk/privacy" target="_blank" rel="noopener noreferrer" className="hover:underline">Privacy Policy</a>
+          <a href="https://replybase.co.uk/terms" target="_blank" rel="noopener noreferrer" className="hover:underline">Terms of Service</a>
+        </div>
+        
+        {pages.length > 0 && (
+          <div className="flex items-center gap-3">
+            <Button onClick={handleDisconnectFacebook} disabled={isDisconnecting} variant="destructive" size="sm" className="bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 border-none">
+              {isDisconnecting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Unplug className="h-4 w-4 mr-2" />}
+              {isDisconnecting ? "Disconnecting..." : "Disconnect Facebook"}
+            </Button>
+            <Button onClick={handleFacebookLogin} size="sm" className="bg-[#1877F2] hover:bg-[#1877F2]/90 text-white border-none">
+              <FacebookLogo className="mr-2 h-4 w-4 fill-white" />
+              Edit Page Access
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
