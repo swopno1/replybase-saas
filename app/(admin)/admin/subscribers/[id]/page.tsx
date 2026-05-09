@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -149,6 +150,13 @@ export default function SubscriberDetailPage({
   const [createFlowDialogOpen, setCreateFlowDialogOpen] = useState(false);
   const [newFlowName, setNewFlowName] = useState("");
   const [newFlowDescription, setNewFlowDescription] = useState("");
+
+  const [creatingBot, setCreatingBot] = useState(false);
+  const [createBotDialogOpen, setCreateBotDialogOpen] = useState(false);
+  const [newBotName, setNewBotName] = useState("");
+  const [editingBot, setEditingBot] = useState<BotData | null>(null);
+  const [editBotDialogOpen, setEditBotDialogOpen] = useState(false);
+
   const [plans, setPlans] = useState<Plan[]>([]);
 
   // Form states
@@ -253,6 +261,88 @@ export default function SubscriberDetailPage({
     } catch (error) {
       console.error("Error updating user:", error);
       toast.error("Error updating user");
+    }
+  };
+
+  const handleCreateBot = async () => {
+    if (!data?.subscription) return;
+
+    setCreatingBot(true);
+    try {
+      const response = await fetch("/api/admin/bots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantId: data.subscription.tenant.id,
+          name: newBotName,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success("Bot created successfully");
+        setCreateBotDialogOpen(false);
+        setNewBotName("");
+        fetchData();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to create bot");
+      }
+    } catch (error) {
+      console.error("Error creating bot:", error);
+      toast.error("Error creating bot");
+    } finally {
+      setCreatingBot(false);
+    }
+  };
+
+  const handleUpdateBot = async () => {
+    if (!editingBot) return;
+
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/admin/bots/${editingBot.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editingBot.name,
+          enabled: editingBot.enabled,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success("Bot updated successfully");
+        setEditBotDialogOpen(false);
+        setEditingBot(null);
+        fetchData();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to update bot");
+      }
+    } catch (error) {
+      console.error("Error updating bot:", error);
+      toast.error("Error updating bot");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleBotStatus = async (botId: string, currentStatus: boolean) => {
+    try {
+      const response = await fetch(`/api/admin/bots/${botId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: !currentStatus }),
+      });
+
+      if (response.ok) {
+        toast.success(`Bot ${!currentStatus ? "enabled" : "disabled"} successfully`);
+        fetchData();
+      } else {
+        toast.error("Failed to update bot status");
+      }
+    } catch (error) {
+      console.error("Error toggling bot status:", error);
+      toast.error("Error toggling bot status");
     }
   };
 
@@ -547,9 +637,46 @@ export default function SubscriberDetailPage({
 
         <TabsContent value="bots">
           <Card>
-            <CardHeader>
-              <CardTitle>Bots & Channels</CardTitle>
-              <CardDescription>View connected bots and communication channels</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Bots & Channels</CardTitle>
+                <CardDescription>View and manage connected bots and communication channels</CardDescription>
+              </div>
+              <Dialog open={createBotDialogOpen} onOpenChange={setCreateBotDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm">
+                    <Plus className="mr-2 h-4 w-4" /> Create New Bot
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Create New Bot</DialogTitle>
+                    <DialogDescription>
+                      Provision a new bot for this tenant.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="botName">Bot Name</Label>
+                      <Input
+                        id="botName"
+                        placeholder="e.g. Sales Assistant"
+                        value={newBotName}
+                        onChange={(e) => setNewBotName(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setCreateBotDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleCreateBot} disabled={creatingBot || !newBotName}>
+                      {creatingBot && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Create Bot
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardHeader>
             <CardContent>
               {subscription.tenant.bots.length === 0 ? (
@@ -571,6 +698,25 @@ export default function SubscriberDetailPage({
                                 variant="outline"
                                 size="sm"
                                 className="h-7 text-[10px]"
+                                onClick={() => {
+                                  setEditingBot(bot);
+                                  setEditBotDialogOpen(true);
+                                }}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                variant={bot.enabled ? "outline" : "default"}
+                                size="sm"
+                                className="h-7 text-[10px]"
+                                onClick={() => handleToggleBotStatus(bot.id, bot.enabled)}
+                              >
+                                {bot.enabled ? "Disable" : "Enable"}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-[10px]"
                                 onClick={async () => {
                                   const res = await fetch("/api/admin/impersonate", {
                                     method: "POST",
@@ -582,7 +728,7 @@ export default function SubscriberDetailPage({
                                   }
                                 }}
                               >
-                                <ExternalLink className="mr-1 h-3 w-3" /> Manage Dashboard
+                                <ExternalLink className="mr-1 h-3 w-3" /> Dashboard
                               </Button>
                             </div>
                           </div>
@@ -607,6 +753,45 @@ export default function SubscriberDetailPage({
               )}
             </CardContent>
           </Card>
+
+          <Dialog open={editBotDialogOpen} onOpenChange={setEditBotDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit Bot Settings</DialogTitle>
+                <DialogDescription>
+                  Modify bot configuration for this tenant.
+                </DialogDescription>
+              </DialogHeader>
+              {editingBot && (
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="editBotName">Bot Name</Label>
+                    <Input
+                      id="editBotName"
+                      value={editingBot.name}
+                      onChange={(e) => setEditingBot({ ...editingBot, name: e.target.value })}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <Label>Bot Enabled</Label>
+                    <Switch
+                      checked={editingBot.enabled}
+                      onCheckedChange={(checked) => setEditingBot({ ...editingBot, enabled: checked })}
+                    />
+                  </div>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEditBotDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleUpdateBot} disabled={saving}>
+                  {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save Changes
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="flows">
