@@ -352,10 +352,16 @@ function BotDetailContent() {
           <h2 className="text-2xl font-bold">{channelLabel(activeChannel)} Configuration</h2>
         </div>
 
-        {activeChannel === "whatsapp" && <WhatsAppConfig botId={botId} />}
-        {activeChannel === "telegram" && <TelegramConfig botId={botId} />}
-        {activeChannel === "facebook" && <FacebookConfig botId={botId} />}
-        {activeChannel === "web" && <WebchatConfig botId={botId} />}
+        {activeChannel === "whatsapp" && <WhatsAppConfig botId={botId} channelLimitStatus={channelLimitStatus} />}
+        {activeChannel === "telegram" && <TelegramConfig botId={botId} channelLimitStatus={channelLimitStatus} />}
+        {activeChannel === "facebook" && <FacebookConfig botId={botId} channelLimitStatus={channelLimitStatus} />}
+        {activeChannel === "web" && (
+          <WebchatConfig 
+            botId={botId} 
+            channelId={bot.channels.find((c) => c.type === "web")?.id} 
+            channelLimitStatus={channelLimitStatus} 
+          />
+        )}
       </div>
     );
   };
