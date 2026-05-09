@@ -30,6 +30,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   Loader2,
   ArrowLeft,
   Save,
@@ -41,6 +50,8 @@ import {
   Shield,
   ExternalLink,
   Plus,
+  Trash2,
+  ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
@@ -135,6 +146,9 @@ export default function SubscriberDetailPage({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [creatingFlow, setCreatingFlow] = useState(false);
+  const [createFlowDialogOpen, setCreateFlowDialogOpen] = useState(false);
+  const [newFlowName, setNewFlowName] = useState("");
+  const [newFlowDescription, setNewFlowDescription] = useState("");
   const [plans, setPlans] = useState<Plan[]>([]);
 
   // Form states
@@ -243,23 +257,29 @@ export default function SubscriberDetailPage({
   };
 
   const handleCreateFlow = async () => {
+    if (!data?.subscription) return;
+
     setCreatingFlow(true);
     try {
       const response = await fetch("/api/admin/flows", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          tenantId: subscription.tenant.id,
-          name: `${subscription.tenant.name} Flow`,
+          tenantId: data.subscription.tenant.id,
+          name: newFlowName,
+          description: newFlowDescription,
         }),
       });
 
       if (response.ok) {
-        const result = await response.json();
         toast.success("Flow created successfully");
-        router.push(`/admin/flows/${result.flow.id}/edit`);
+        setCreateFlowDialogOpen(false);
+        setNewFlowName("");
+        setNewFlowDescription("");
+        fetchData();
       } else {
-        toast.error("Failed to create flow");
+        const error = await response.json();
+        toast.error(error.error || "Failed to create flow");
       }
     } catch (error) {
       console.error("Error creating flow:", error);
@@ -596,14 +616,50 @@ export default function SubscriberDetailPage({
                 <CardTitle>Conversational Flows</CardTitle>
                 <CardDescription>View and manage flows assigned to this subscriber</CardDescription>
               </div>
-              <Button onClick={handleCreateFlow} disabled={creatingFlow} size="sm">
-                {creatingFlow ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Plus className="mr-2 h-4 w-4" />
-                )}
-                Add New Flow
-              </Button>
+              <Dialog open={createFlowDialogOpen} onOpenChange={setCreateFlowDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm">
+                    <Plus className="mr-2 h-4 w-4" /> Create New Flow
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Create New Flow</DialogTitle>
+                    <DialogDescription>
+                      Create a new conversational flow for this tenant.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Flow Name</Label>
+                      <Input
+                        id="name"
+                        placeholder="e.g. Master Orchestrator"
+                        value={newFlowName}
+                        onChange={(e) => setNewFlowName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="description">Description (Optional)</Label>
+                      <Input
+                        id="description"
+                        placeholder="Describe the purpose of this flow"
+                        value={newFlowDescription}
+                        onChange={(e) => setNewFlowDescription(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setCreateFlowDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleCreateFlow} disabled={creatingFlow || !newFlowName}>
+                      {creatingFlow && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Create Flow
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardHeader>
             <CardContent>
               <Table>

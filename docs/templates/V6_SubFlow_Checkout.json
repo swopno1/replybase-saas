@@ -1,0 +1,27 @@
+[
+  {
+    "type": "condition",
+    "content": {
+      "variableName": "lead_email",
+      "conditions": [
+        { "operator": "contains", "value": "@", "nextNodeOrder": 2 }
+      ],
+      "nextNodeOrder": 1
+    }
+  },
+  {
+    "type": "input",
+    "content": {
+      "text": "Great! Let's get your 14-day trial started. What email should we use for your account?",
+      "variableName": "lead_email",
+      "inputType": "email"
+    }
+  },
+  {
+    "type": "action",
+    "content": {
+      "action": "checkout",
+      "text": "🚀 Awesome choice. I've pre-configured your secure setup page here: {{stripe_url}}"
+    }
+  }
+]

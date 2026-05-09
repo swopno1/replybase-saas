@@ -1,0 +1,35 @@
+[
+  {
+    "type": "message",
+    "content": {
+      "text": "I'd be happy to get a human expert on the line for you. They can give you a deep-dive walkthrough of how ReplyBase fits into your specific workflow.",
+      "nextNodeOrder": 1
+    }
+  },
+  {
+    "type": "condition",
+    "content": {
+      "variableName": "lead_email",
+      "conditions": [
+        { "operator": "contains", "value": "@", "nextNodeOrder": 3 }
+      ],
+      "nextNodeOrder": 2
+    }
+  },
+  {
+    "type": "input",
+    "content": {
+      "text": "What's the best email to use for the calendar invite?",
+      "variableName": "lead_email",
+      "inputType": "email"
+    }
+  },
+  {
+    "type": "action",
+    "content": {
+      "action": "booking",
+      "text": "Perfect! I've sent your request to our team. In the meantime, you can pick a time that works for you here: {{booking_link}}",
+      "bookingService": "calendly"
+    }
+  }
+]

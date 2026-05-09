@@ -199,3 +199,44 @@ export async function PUT(
     );
   }
 }
+
+// DELETE /api/admin/flows/:id - Delete any flow (Admin only)
+export async function DELETE(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (session.user.role !== "ADMIN" && session.user.role !== "SUPERADMIN" && !session.user.isAdmin) {
+      return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 });
+    }
+
+    const { id } = await context.params;
+
+    // Check if flow exists
+    const existingFlow = await prisma.flow.findUnique({
+      where: { id },
+    });
+
+    if (!existingFlow) {
+      return NextResponse.json({ error: "Flow not found" }, { status: 404 });
+    }
+
+    // Delete flow (Prisma will handle cascading deletes if configured in schema)
+    await prisma.flow.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ success: true, message: "Flow deleted successfully" });
+  } catch (error) {
+    console.error("[Admin Flows API] DELETE Error:", error);
+    return NextResponse.json(
+      { error: "Failed to delete flow" },
+      { status: 500 },
+    );
+  }
+}

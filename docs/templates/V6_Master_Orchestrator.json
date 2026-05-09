@@ -1,0 +1,66 @@
+[
+  {
+    "type": "message",
+    "content": {
+      "text": "👋 Hey — welcome to ReplyBase. We automate customer conversations across Webchat, Messenger, and WhatsApp without losing the human touch.\n\nWhat's your main goal today?",
+      "buttons": [
+        { "type": "postback", "title": "📊 See Pricing & ROI", "payload": "INTENT_PRICING" },
+        { "type": "postback", "title": "📱 See Live Demo", "payload": "INTENT_DEMO" },
+        { "type": "postback", "title": "📅 Book a Walkthrough", "payload": "INTENT_BOOKING" },
+        { "type": "postback", "title": "🚀 Start Free Trial", "payload": "INTENT_CHECKOUT" }
+      ]
+    }
+  },
+  {
+    "type": "condition",
+    "content": {
+      "variableName": "last_user_message_normalized",
+      "conditions": [
+        { "operator": "contains", "value": "price", "nextNodeOrder": 2 },
+        { "operator": "contains", "value": "cost", "nextNodeOrder": 2 },
+        { "operator": "contains", "value": "demo", "nextNodeOrder": 3 },
+        { "operator": "contains", "value": "work", "nextNodeOrder": 3 },
+        { "operator": "contains", "value": "book", "nextNodeOrder": 4 },
+        { "operator": "contains", "value": "call", "nextNodeOrder": 4 },
+        { "operator": "contains", "value": "trial", "nextNodeOrder": 6 },
+        { "operator": "contains", "value": "start", "nextNodeOrder": 6 }
+      ],
+      "nextNodeOrder": 5
+    }
+  },
+  {
+    "type": "action",
+    "content": {
+      "action": "call_flow",
+      "targetFlowName": "Sub-Flow: Pricing & Lead Capture"
+    }
+  },
+  {
+    "type": "action",
+    "content": {
+      "action": "call_flow",
+      "targetFlowName": "Sub-Flow: Omnichannel Demo"
+    }
+  },
+  {
+    "type": "action",
+    "content": {
+      "action": "call_flow",
+      "targetFlowName": "Sub-Flow: Booking & Escalation"
+    }
+  },
+  {
+    "type": "action",
+    "content": {
+      "action": "end_flow",
+      "description": "Handover to AI Fallback Orchestrator"
+    }
+  },
+  {
+    "type": "action",
+    "content": {
+      "action": "call_flow",
+      "targetFlowName": "Sub-Flow: Checkout"
+    }
+  }
+]

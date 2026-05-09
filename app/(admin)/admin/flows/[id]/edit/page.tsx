@@ -92,9 +92,14 @@ interface Flow {
   id: string;
   name: string;
   description: string | null;
+  isActive: boolean;
   tenantId: string;
   nodes: FlowNode[];
 }
+
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Code, ListTree, PlayCircle, Settings } from "lucide-react";
 
 export default function AdminFlowEditorPage({
   params: paramsPromise,
@@ -113,6 +118,12 @@ export default function AdminFlowEditorPage({
   const [editingNodeIndex, setEditingNodeIndex] = useState<number | null>(null);
   const [newNodeType, setNewNodeType] = useState("message");
   const [nodeContent, setNodeContent] = useState<FlowNodeContent>({});
+  const [activeTab, setActiveTab] = useState("steps");
+  const [jsonValue, setJsonValue] = useState("");
+  const [flowName, setFlowName] = useState("");
+  const [flowDescription, setFlowDescription] = useState("");
+  const [flowIsActive, setFlowIsActive] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchFlow = useCallback(async () => {
     try {
@@ -122,7 +133,12 @@ export default function AdminFlowEditorPage({
       if (response.ok) {
         const data = await response.json();
         setFlow(data.flow);
-        setNodes(data.flow.nodes || []);
+        setFlowName(data.flow.name);
+        setFlowDescription(data.flow.description || "");
+        setFlowIsActive(data.flow.isActive);
+        const flowNodes = data.flow.nodes || [];
+        setNodes(flowNodes);
+        setJsonValue(JSON.stringify(flowNodes, null, 2));
       } else {
         toast.error("Failed to load flow");
         router.push("/admin/subscribers");
@@ -139,17 +155,83 @@ export default function AdminFlowEditorPage({
     fetchFlow();
   }, [fetchFlow]);
 
-  const handleSaveFlow = async () => {
+  const handleUpdateSettings = async () => {
     try {
       setSaving(true);
       const response = await fetch(`/api/admin/flows/${flowId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nodes }),
+        body: JSON.stringify({
+          name: flowName,
+          description: flowDescription,
+          isActive: flowIsActive,
+        }),
       });
 
       if (response.ok) {
-        toast.success("Flow saved successfully on behalf of user");
+        toast.success("Flow settings updated");
+        fetchFlow();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to update settings");
+      }
+    } catch (error) {
+      console.error("Failed to update settings:", error);
+      toast.error("Failed to update settings");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteFlow = async () => {
+    if (!confirm("Are you sure you want to delete this flow? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      const response = await fetch(`/api/admin/flows/${flowId}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        toast.success("Flow deleted successfully");
+        router.push("/admin/subscribers");
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to delete flow");
+      }
+    } catch (error) {
+      console.error("Failed to delete flow:", error);
+      toast.error("Failed to delete flow");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleSaveFlow = async () => {
+    try {
+      setSaving(true);
+      let nodesToSave = nodes;
+
+      if (activeTab === "json") {
+        try {
+          nodesToSave = JSON.parse(jsonValue);
+        } catch (e) {
+          toast.error("Invalid JSON format. Please fix it before saving.");
+          setSaving(false);
+          return;
+        }
+      }
+
+      const response = await fetch(`/api/admin/flows/${flowId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nodes: nodesToSave }),
+      });
+
+      if (response.ok) {
+        toast.success("Flow nodes saved successfully");
         fetchFlow();
       } else {
         const error = await response.json();
@@ -169,14 +251,15 @@ export default function AdminFlowEditorPage({
       content: {},
     };
 
+    let updatedNodes = [...nodes];
     if (editingNodeIndex !== null) {
-      const updatedNodes = [...nodes];
       updatedNodes[editingNodeIndex] = { ...newNode, content: nodeContent };
-      setNodes(updatedNodes);
     } else {
-      setNodes([...nodes, { ...newNode, content: nodeContent }]);
+      updatedNodes = [...nodes, { ...newNode, content: nodeContent }];
     }
 
+    setNodes(updatedNodes);
+    setJsonValue(JSON.stringify(updatedNodes, null, 2));
     setAddNodeDialogOpen(false);
     setNewNodeType("message");
     setNodeContent({});
@@ -184,7 +267,9 @@ export default function AdminFlowEditorPage({
   };
 
   const handleDeleteNode = (index: number) => {
-    setNodes(nodes.filter((_, i) => i !== index));
+    const updatedNodes = nodes.filter((_, i) => i !== index);
+    setNodes(updatedNodes);
+    setJsonValue(JSON.stringify(updatedNodes, null, 2));
   };
 
   const handleMoveNode = (index: number, direction: "up" | "down") => {
@@ -197,6 +282,7 @@ export default function AdminFlowEditorPage({
         newNodes[index],
       ];
       setNodes(newNodes);
+      setJsonValue(JSON.stringify(newNodes, null, 2));
     }
   };
 
@@ -205,6 +291,20 @@ export default function AdminFlowEditorPage({
     setNewNodeType(nodes[index].type);
     setNodeContent(nodes[index].content);
     setAddNodeDialogOpen(true);
+  };
+
+  const syncNodesFromJson = () => {
+    try {
+      const parsedNodes = JSON.parse(jsonValue);
+      if (Array.isArray(parsedNodes)) {
+        setNodes(parsedNodes);
+        toast.success("JSON synced to Steps view");
+      } else {
+        toast.error("JSON must be an array of nodes");
+      }
+    } catch (e) {
+      toast.error("Invalid JSON format");
+    }
   };
 
   if (loading) {
@@ -236,93 +336,233 @@ export default function AdminFlowEditorPage({
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">{flow.name}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold">{flow.name}</h1>
+              <Badge variant={flow.isActive ? "default" : "secondary"}>
+                {flow.isActive ? "Active" : "Inactive"}
+              </Badge>
+            </div>
             <p className="text-muted-foreground">{flow.description || "Flow Editor"}</p>
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setAddNodeDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Add Step
-          </Button>
-          <Button onClick={handleSaveFlow} disabled={saving}>
-            {saving ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="mr-2 h-4 w-4" />
-            )}
-            Save Flow
-          </Button>
+          {activeTab === "steps" && (
+            <Button variant="outline" onClick={() => setAddNodeDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Add Step
+            </Button>
+          )}
+          {activeTab === "json" && (
+            <Button variant="outline" onClick={syncNodesFromJson}>
+              <PlayCircle className="mr-2 h-4 w-4" /> Sync to Steps
+            </Button>
+          )}
+          {activeTab !== "settings" && (
+            <Button onClick={handleSaveFlow} disabled={saving}>
+              {saving ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              Save Flow
+            </Button>
+          )}
+          {activeTab === "settings" && (
+             <Button variant="destructive" onClick={handleDeleteFlow} disabled={deleting}>
+               {deleting ? (
+                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+               ) : (
+                 <Trash2 className="mr-2 h-4 w-4" />
+               )}
+               Delete Flow
+             </Button>
+          )}
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto space-y-4">
-        {nodes.map((node, index) => (
-          <Card key={index} className="relative border-l-4 border-l-blue-500">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center space-x-2">
-                  <Badge variant="outline" className="text-xs uppercase">
-                    Step {index + 1}
-                  </Badge>
-                  <CardTitle className="text-base capitalize">
-                    {node.type.replace("_", " ")}
-                  </CardTitle>
-                </div>
-                <div className="flex space-x-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleMoveNode(index, "up")}
-                    disabled={index === 0}
-                  >
-                    <ArrowUp className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleMoveNode(index, "down")}
-                    disabled={index === nodes.length - 1}
-                  >
-                    <ArrowDown className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleEditNode(index)}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteNode(index)}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-3 max-w-[500px]">
+          <TabsTrigger value="steps" className="flex items-center gap-2">
+            <ListTree className="h-4 w-4" /> Steps
+          </TabsTrigger>
+          <TabsTrigger value="json" className="flex items-center gap-2">
+            <Code className="h-4 w-4" /> JSON Editor
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" /> Settings
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="steps" className="mt-6">
+          <div className="max-w-4xl mx-auto space-y-4">
+            {nodes.map((node, index) => (
+              <Card key={index} className="relative border-l-4 border-l-blue-500">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Badge variant="outline" className="text-xs uppercase">
+                        Step {index + 1}
+                      </Badge>
+                      <CardTitle className="text-base capitalize">
+                        {node.type.replace("_", " ")}
+                      </CardTitle>
+                    </div>
+                    <div className="flex space-x-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleMoveNode(index, "up")}
+                        disabled={index === 0}
+                      >
+                        <ArrowUp className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleMoveNode(index, "down")}
+                        disabled={index === nodes.length - 1}
+                      >
+                        <ArrowDown className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditNode(index)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteNode(index)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <pre className="text-xs bg-muted p-2 rounded overflow-x-auto">
+                    {JSON.stringify(node.content, null, 2)}
+                  </pre>
+                </CardContent>
+              </Card>
+            ))}
+
+            {nodes.length === 0 && (
+              <div className="text-center py-12 border-2 border-dashed rounded-xl bg-muted/30">
+                <p className="text-muted-foreground">No steps in this flow yet.</p>
+                <Button
+                  variant="outline"
+                  className="mt-4"
+                  onClick={() => setAddNodeDialogOpen(true)}
+                >
+                  Add your first step
+                </Button>
               </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="json" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Code className="h-4 w-4" /> Raw Flow JSON
+              </CardTitle>
+              <CardDescription>
+                Paste or edit the full flow node array here. Format must be an array of FlowNode objects.
+              </CardDescription>
             </CardHeader>
             <CardContent>
-               <pre className="text-xs bg-muted p-2 rounded overflow-x-auto">
-                 {JSON.stringify(node.content, null, 2)}
-               </pre>
+              <Textarea
+                className="font-mono text-xs min-h-[500px] resize-y"
+                value={jsonValue}
+                onChange={(e) => setJsonValue(e.target.value)}
+                placeholder="[ { 'type': 'message', 'content': { 'text': 'Hello' } } ]"
+              />
+              <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+                <p>Ensure valid JSON structure. Use &quot;Sync to Steps&quot; to update the visual view.</p>
+                <Badge variant="outline">{nodes.length} Nodes detected</Badge>
+              </div>
             </CardContent>
           </Card>
-        ))}
+        </TabsContent>
 
-        {nodes.length === 0 && (
-          <div className="text-center py-12 border-2 border-dashed rounded-xl bg-muted/30">
-            <p className="text-muted-foreground">No steps in this flow yet.</p>
-            <Button
-              variant="outline"
-              className="mt-4"
-              onClick={() => setAddNodeDialogOpen(true)}
-            >
-              Add your first step
-            </Button>
-          </div>
-        )}
-      </div>
+        <TabsContent value="settings" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Settings className="h-4 w-4" /> Flow Settings
+              </CardTitle>
+              <CardDescription>
+                Manage general information and status for this conversational flow.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4 max-w-2xl">
+                <div className="space-y-2">
+                  <Label htmlFor="flowName">Flow Name</Label>
+                  <Input
+                    id="flowName"
+                    value={flowName}
+                    onChange={(e) => setFlowName(e.target.value)}
+                    placeholder="e.g. Master Orchestrator"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="flowDescription">Description</Label>
+                  <Textarea
+                    id="flowDescription"
+                    value={flowDescription}
+                    onChange={(e) => setFlowDescription(e.target.value)}
+                    placeholder="Describe the purpose of this flow"
+                    rows={3}
+                  />
+                </div>
+                <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/20">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Active Status</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Enable or disable this flow for the user&apos;s bot.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={flowIsActive}
+                    onCheckedChange={setFlowIsActive}
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 flex gap-3 border-t">
+                <Button onClick={handleUpdateSettings} disabled={saving}>
+                  {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  <Save className="mr-2 h-4 w-4" />
+                  Save Settings
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="mt-6 border-destructive/20 bg-destructive/5">
+            <CardHeader>
+              <CardTitle className="text-base text-destructive">Danger Zone</CardTitle>
+              <CardDescription>
+                Permanently delete this flow and all associated data.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="destructive" onClick={handleDeleteFlow} disabled={deleting}>
+                {deleting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="mr-2 h-4 w-4" />
+                )}
+                Delete Flow Permanently
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={addNodeDialogOpen} onOpenChange={setAddNodeDialogOpen}>
         <DialogContent className="max-w-2xl">

@@ -1,0 +1,82 @@
+[
+  {
+    "type": "message",
+    "content": {
+      "text": "👋 Hello! Welcome to ViveScript Solutions. How can we help you today?",
+      "buttons": [
+        { "type": "postback", "title": "View Services", "payload": "services" },
+        { "type": "postback", "title": "Pricing Info", "payload": "pricing" },
+        { "type": "postback", "title": "Speak to Agent", "payload": "agent" }
+      ]
+    }
+  },
+  {
+    "type": "condition",
+    "content": {
+      "conditions": [
+        {
+          "variableName": "last_user_message_normalized",
+          "operator": "contains",
+          "value": "services",
+          "nextNodeOrder": 2
+        },
+        {
+          "variableName": "last_user_message_normalized",
+          "operator": "contains",
+          "value": "pricing",
+          "nextNodeOrder": 3
+        },
+        {
+          "variableName": "last_user_message_normalized",
+          "operator": "contains",
+          "value": "agent",
+          "nextNodeOrder": 4
+        }
+      ],
+      "nextNodeOrder": 5
+    }
+  },
+  {
+    "type": "message",
+    "content": {
+      "text": "🛠 We offer specialized automation services for Shopify, Custom SaaS development, and AI Integration. Which one interests you?",
+      "delayMs": 500,
+      "typingEnabled": true
+    }
+  },
+  {
+    "type": "message",
+    "content": {
+      "text": "💳 Our plans start from £29/mo for Starter, £99/mo for Pro, and custom pricing for Enterprise clients.",
+      "delayMs": 500,
+      "typingEnabled": true
+    }
+  },
+  {
+    "type": "input",
+    "content": {
+      "variableName": "lead_email",
+      "inputType": "email",
+      "text": "Sure! Please leave your email address so one of our specialists can reach out to you.",
+      "validationMessage": "That doesn't look like a valid email. Please try again."
+    }
+  },
+  {
+    "type": "action",
+    "content": {
+      "action": "notify_admin",
+      "tags": ["high_intent_lead"],
+      "text": "Admin notified about new interest."
+    }
+  },
+  {
+    "type": "message",
+    "content": {
+      "text": "✅ Thank you! We've received your request and will be in touch shortly. Have a great day!"
+    }
+  },
+  {
+    "type": "end",
+    "content": {}
+  }
+]
