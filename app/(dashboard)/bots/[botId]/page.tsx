@@ -337,7 +337,7 @@ function BotDetailContent() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 no-scrollbar">
+    <div className="w-full max-w-5xl mx-auto space-y-8 no-scrollbar">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">{bot.name}</h1>
       </div>
@@ -369,8 +369,8 @@ function BotDetailContent() {
           </div>
         </div>
 
-        <TabsContent value="general" className="space-y-6 mt-0">
-          <Card className="shadow-sm border-slate-200">
+        <TabsContent value="general" className="space-y-6 mt-0 w-full">
+          <Card className="shadow-sm border-slate-200 w-full">
             <CardHeader className="bg-slate-50/50 border-b pb-4">
               <CardTitle className="flex items-center gap-2 text-base text-slate-800">
                 <Bot className="h-5 w-5 text-indigo-500" />
@@ -382,7 +382,7 @@ function BotDetailContent() {
             </CardHeader>
             <CardContent className="pt-6">
               {editing ? (
-                <div className="space-y-6 max-w-2xl">
+                <div className="space-y-6">
                   <div className="space-y-2">
                     <Label className="text-slate-700 font-semibold">Bot Name</Label>
                     <Input
@@ -545,13 +545,13 @@ function BotDetailContent() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="channels">
+        <TabsContent value="channels" className="w-full">
           {activeChannel ? (
             renderChannelConfig()
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-6 w-full">
               {/* Available Channels */}
-              <Card className="shadow-sm border-slate-200">
+              <Card className="shadow-sm border-slate-200 w-full">
                 <CardHeader className="bg-slate-50/50 border-b pb-4 flex flex-row items-center justify-between space-y-0">
                   <div>
                     <CardTitle className="flex items-center gap-2 text-base text-slate-800">

@@ -62,11 +62,11 @@ export function getAiModel({
 
       // If this is a fallback request, use a high-RPM Gemini model
       if (isFallback) {
-        return client("gemini-1.5-flash"); // High RPM, low cost fallback
+        return client("gemini-1.5-flash-latest"); // High RPM, low cost fallback
       }
 
       // Task-specific defaults for the available Gemini versions
-      let defaultModel = "gemini-1.5-flash"; 
+      let defaultModel = "gemini-1.5-flash-latest"; 
       if (task === "onboarding") {
         defaultModel = "gemini-1.5-pro-latest"; 
       }
