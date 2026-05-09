@@ -71,6 +71,12 @@ export async function DELETE(
     await prisma.lead.deleteMany({ where: { pageId: facebookPage.id } });
     await prisma.flowSession.deleteMany({ where: { pageId: facebookPage.id } });
     await prisma.onboardingSession.deleteMany({ where: { facebookPageId: facebookPage.id } });
+    await prisma.channel.deleteMany({ 
+      where: { 
+        type: "facebook", 
+        channelId: facebookPage.facebookId 
+      } 
+    });
     await prisma.facebookPage.delete({ where: { id: facebookPage.id } });
 
     return NextResponse.json({ success: true });

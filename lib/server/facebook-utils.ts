@@ -89,6 +89,66 @@ export function generateAppSecretProof(
 }
 
 /**
+ * Exchanges a short-lived user access token for a long-lived one (60 days)
+ */
+export async function exchangeLongLivedToken(shortLivedToken: string): Promise<string | null> {
+  const appId = process.env.FACEBOOK_CLIENT_ID;
+  const appSecret = process.env.FACEBOOK_CLIENT_SECRET;
+
+  if (!appId || !appSecret) {
+    console.error("[Facebook Utils] Missing app ID or secret for token exchange");
+    return null;
+  }
+
+  const url = new URL(`${FACEBOOK_BASE_URL}/oauth/access_token`);
+  url.searchParams.set("grant_type", "fb_exchange_token");
+  url.searchParams.set("client_id", appId);
+  url.searchParams.set("client_secret", appSecret);
+  url.searchParams.set("fb_exchange_token", shortLivedToken);
+
+  try {
+    const res = await fetch(url.toString());
+    const data = await res.json();
+    return data.access_token || null;
+  } catch (error) {
+    console.error("[Facebook Utils] Token exchange error:", error);
+    return null;
+  }
+}
+
+/**
+ * Configures the Messenger Profile for a page (Get Started button, Persistent Menu, etc.)
+ */
+export async function setupMessengerProfile(pageId: string, accessToken: string) {
+  const url = getFacebookGraphUrl(`${pageId}/messenger_profile`, accessToken);
+  
+  const payload = {
+    get_started: {
+      payload: "GET_STARTED_PAYLOAD"
+    },
+    greeting: [
+      {
+        locale: "default",
+        text: "Welcome to our bot! Click the button below to get started."
+      }
+    ]
+  };
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    return data.result === "success";
+  } catch (error) {
+    console.error("[Facebook Utils] Messenger Profile setup error:", error);
+    return false;
+  }
+}
+
+/**
  * Appends appsecret_proof to a Facebook Graph API URL
  */
 export function getFacebookGraphUrl(

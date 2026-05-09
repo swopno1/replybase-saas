@@ -49,6 +49,7 @@ export async function POST() {
       prisma.flowSession.deleteMany({ where: { pageId: { in: pageIds } } }),
       prisma.onboardingSession.deleteMany({ where: { facebookPageId: { in: pageIds } } }),
       prisma.facebookPage.deleteMany({ where: { tenantId } }),
+      prisma.channel.deleteMany({ where: { tenantId, type: "facebook" } }),
       prisma.account.deleteMany({ where: { userId, provider: "facebook" } }),
     ]);
 

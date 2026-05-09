@@ -7,6 +7,7 @@ import { PrismaAdapter } from "next-auth-prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/server/password";
 import { getTenantSubscriptionStatus } from "@/lib/subscription";
+import { exchangeLongLivedToken } from "@/lib/server/facebook-utils";
 import { isChannelEnabled } from "@/lib/channel-config";
 import { generateAppSecretProof } from "@/lib/server/facebook-utils";
 
@@ -173,10 +174,14 @@ export const authOptions: NextAuthOptions = {
       // when a user re-authenticates. We must manually update it to prevent stale token errors (Subcode 460).
       if (account && account.provider === "facebook" && user?.id && account.access_token) {
         try {
+          // PRODUCTION GRADE: Exchange short-lived token for a long-lived one (60 days)
+          const longLivedToken = await exchangeLongLivedToken(account.access_token);
+          const tokenToSave = longLivedToken || account.access_token;
+
           await prisma.account.updateMany({
             where: { userId: user.id, provider: "facebook" },
             data: {
-              access_token: account.access_token,
+              access_token: tokenToSave,
               providerAccountId: account.providerAccountId,
             },
           });

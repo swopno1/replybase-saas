@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { recordWebhookSetupLog } from "@/lib/webhook-setup-log";
 import { isChannelEnabled } from "@/lib/channel-config";
-import { getFacebookGraphUrl } from "@/lib/server/facebook-utils";
+import { getFacebookGraphUrl, setupMessengerProfile } from "@/lib/server/facebook-utils";
 import { checkChannelLimit } from "@/lib/subscription";
 
 export const dynamic = "force-dynamic";
@@ -120,6 +120,32 @@ export async function POST(
       },
     });
 
+    // Also sync to the generic Channel table for UI and Limit counting
+    await prisma.channel.upsert({
+      where: { 
+        type_channelId: { 
+          type: "facebook", 
+          channelId: pageId 
+        } 
+      },
+      update: {
+        name: pageName,
+        botId: botId,
+        tenantId: tenantId,
+        isActive: true,
+        enabled: true,
+      },
+      create: {
+        type: "facebook",
+        channelId: pageId,
+        name: pageName,
+        botId: botId,
+        tenantId: tenantId,
+        isActive: true,
+        enabled: true,
+      }
+    });
+
     await recordWebhookSetupLog({
       source: "facebook",
       event: "page_connect",
@@ -147,6 +173,9 @@ export async function POST(
           where: { id: facebookPage.id },
           data: { webhookSubscribed: true },
         });
+
+        // PRODUCTION GRADE: Set up Messenger Profile (Get Started button, etc.)
+        await setupMessengerProfile(pageId, accessToken);
       }
     } catch (subError) {
       console.error("[Facebook Connect] Webhook sub error:", subError);
