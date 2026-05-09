@@ -1,0 +1,178 @@
+[
+  {
+    "name": "Master Orchestrator: Revenue Engine Hub",
+    "description": "V6 Final - Entry point for all website visitors. Handles intent classification and sub-flow delegation.",
+    "isActive": true,
+    "nodes": [
+      {
+        "order": 1,
+        "type": "message",
+        "content": {
+          "text": "👋 Hey — welcome to ReplyBase. We automate customer conversations across Webchat, Messenger, and WhatsApp without losing the human touch.\n\nWhat's your main goal today?",
+          "quick_replies": [
+            { "title": "📊 See Pricing & ROI", "payload": "INTENT_PRICING" },
+            { "title": "📱 See Live Demo", "payload": "INTENT_DEMO" },
+            { "title": "📅 Book a Walkthrough", "payload": "INTENT_BOOKING" },
+            { "title": "💬 Just Exploring", "payload": "INTENT_FALLBACK" }
+          ]
+        }
+      },
+      {
+        "order": 2,
+        "type": "condition",
+        "content": {
+          "variableName": "last_user_message_normalized",
+          "conditions": [
+            { "operator": "contains", "value": "price", "nextNodeOrder": 100 },
+            { "operator": "contains", "value": "pricing", "nextNodeOrder": 100 },
+            { "operator": "contains", "value": "cost", "nextNodeOrder": 100 },
+            { "operator": "contains", "value": "demo", "nextNodeOrder": 200 },
+            { "operator": "contains", "value": "work", "nextNodeOrder": 200 },
+            { "operator": "contains", "value": "book", "nextNodeOrder": 300 },
+            { "operator": "contains", "value": "call", "nextNodeOrder": 300 }
+          ],
+          "nextNodeOrder": 400
+        }
+      },
+      {
+        "order": 100,
+        "type": "action",
+        "content": {
+          "action": "call_flow",
+          "targetFlowName": "Sub-Flow: Pricing & Lead Capture"
+        }
+      },
+      {
+        "order": 200,
+        "type": "action",
+        "content": {
+          "action": "call_flow",
+          "targetFlowName": "Sub-Flow: Omnichannel Demo"
+        }
+      },
+      {
+        "order": 300,
+        "type": "action",
+        "content": {
+          "action": "call_flow",
+          "targetFlowName": "Sub-Flow: Booking & Escalation"
+        }
+      },
+      {
+        "order": 400,
+        "type": "action",
+        "content": {
+          "action": "end_flow",
+          "description": "Handover to AI Fallback Orchestrator"
+        }
+      }
+    ]
+  },
+  {
+    "name": "Sub-Flow: Pricing & Lead Capture",
+    "description": "Handles industry discovery, volume extraction, and email capture.",
+    "nodes": [
+      {
+        "order": 1,
+        "type": "condition",
+        "content": {
+          "variableName": "business_type",
+          "conditions": [
+            { "operator": "contains", "value": "", "nextNodeOrder": 3 }
+          ],
+          "nextNodeOrder": 2
+        }
+      },
+      {
+        "order": 2,
+        "type": "input",
+        "content": {
+          "text": "I'd love to give you an exact ROI breakdown. What kind of business do you run? (e.g. Real Estate, Clinic, eCommerce)",
+          "variableName": "business_type"
+        }
+      },
+      {
+        "order": 3,
+        "type": "condition",
+        "content": {
+          "variableName": "monthly_volume",
+          "conditions": [
+            { "operator": "greater_than", "value": "0", "nextNodeOrder": 5 }
+          ],
+          "nextNodeOrder": 4
+        }
+      },
+      {
+        "order": 4,
+        "type": "input",
+        "content": {
+          "text": "Got it. And roughly how many messages do you handle across your channels monthly?",
+          "variableName": "monthly_volume",
+          "inputType": "number"
+        }
+      },
+      {
+        "order": 5,
+        "type": "message",
+        "content": {
+          "text": "Honestly, {{business_type}} sounds like a strong fit for our automation logic. I've got a clear ROI projection for your setup.",
+          "nextNodeOrder": 6
+        }
+      },
+      {
+        "order": 6,
+        "type": "input",
+        "content": {
+          "text": "Where should I email the breakdown so you can review it later with your team?",
+          "variableName": "lead_email",
+          "inputType": "email"
+        }
+      },
+      {
+        "order": 7,
+        "type": "action",
+        "content": {
+          "action": "tag_user",
+          "tags": ["pricing_lead", "qualified_prospect"]
+        }
+      },
+      {
+        "order": 8,
+        "type": "message",
+        "content": {
+          "text": "Sent! 📩 Based on your volume, the Pro Plan is likely your best fit. It helps recover leads missed after hours and ensures total CRM continuity.",
+          "quick_replies": [
+            { "title": "🚀 Start 14-Day Trial", "payload": "INTENT_CHECKOUT" },
+            { "title": "📱 See Live Demo", "payload": "INTENT_DEMO" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "Sub-Flow: Omnichannel Demo",
+    "description": "Identity stitching demo with session tokens.",
+    "nodes": [
+      {
+        "order": 1,
+        "type": "message",
+        "content": {
+          "text": "The best way to understand ReplyBase is to see it work. We are chatting here on the website, but if you click below, our system will sync this session to your phone instantly.",
+          "nextNodeOrder": 2
+        }
+      },
+      {
+        "order": 2,
+        "type": "message",
+        "content": {
+          "text": "Ready to see the magic? Click below to switch to WhatsApp. I'll remember everything we've talked about.",
+          "quick_replies": [
+            { "title": "🟢 Switch to WhatsApp", "payload": "wa.me/{{wa_number}}?text=SYNC_{{session_hash}}" },
+            { "title": "🔵 Switch to Telegram", "payload": "t.me/{{tg_bot}}?start=SYNC_{{session_hash}}" },
+            { "title": "💬 Stay here", "payload": "STAY_HERE" }
+          ]
+        }
+      }
+    ]
+  }
+]
