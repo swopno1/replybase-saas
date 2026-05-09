@@ -242,6 +242,17 @@ export async function PATCH(
       },
     });
 
+    // Also sync these updates back to the parent Channel record so the UI lists stay updated
+    await prisma.channel.update({
+      where: { id: channel.id },
+      data: {
+        ...(parsed.data.name ? { name: parsed.data.name } : {}),
+        ...(parsed.data.themeConfig
+          ? { config: parsed.data.themeConfig as Prisma.JsonObject }
+          : {}),
+      },
+    });
+
     const rotatedSite = await rotateWebChatSiteCredentials({
       siteId: updatedSite.id,
       rotatePublicKey: parsed.data.rotatePublicKey,

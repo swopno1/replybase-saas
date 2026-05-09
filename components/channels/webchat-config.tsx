@@ -64,6 +64,8 @@ interface WebchatDiagnostics {
   }>;
 }
 
+import { useRouter } from "next/navigation";
+
 export function WebchatConfig({
   botId,
   channelId: initialChannelId,
@@ -73,6 +75,7 @@ export function WebchatConfig({
   channelId?: string;
   channelLimitStatus?: { allowed: boolean; limit: number } | null;
 }) {
+  const router = useRouter();
   const [channelId, setChannelId] = useState<string | undefined>(initialChannelId);
   const [site, setSite] = useState<WebchatSite | null>(null);
   const [loading, setLoading] = useState(true);
@@ -286,6 +289,7 @@ export function WebchatConfig({
       const data = await res.json();
       setSite(data.site);
       toast.success("Webchat settings saved!");
+      router.refresh();
     } catch (error) {
       console.error("Save error:", error);
       toast.error(error instanceof Error ? error.message : "Failed to save settings");

@@ -98,12 +98,36 @@ function BotDetailContent() {
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState<BotFormData | null>(null);
   const [saving, setSaving] = useState(false);
-  const [channelLimitStatus, setChannelLimitStatus] = useState<{
-    allowed: boolean;
-    limit: number;
-    current: number;
-  } | null>(null);
   const [deletingBot, setDeletingBot] = useState(false);
+  const [channelLimitStatus, setChannelLimitStatus] = useState<{allowed: boolean, current: number, limit: number, planName: string} | null>(null);
+
+  // Sync tab and channel state to URL
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const currentUrl = new URL(window.location.href);
+      let changed = false;
+
+      if (activeTab === "general" && currentUrl.searchParams.has("tab")) {
+        currentUrl.searchParams.delete("tab");
+        changed = true;
+      } else if (activeTab !== "general" && currentUrl.searchParams.get("tab") !== activeTab) {
+        currentUrl.searchParams.set("tab", activeTab);
+        changed = true;
+      }
+
+      if (!activeChannel && currentUrl.searchParams.has("channel")) {
+        currentUrl.searchParams.delete("channel");
+        changed = true;
+      } else if (activeChannel && currentUrl.searchParams.get("channel") !== activeChannel) {
+        currentUrl.searchParams.set("channel", activeChannel);
+        changed = true;
+      }
+
+      if (changed) {
+        window.history.replaceState(null, "", currentUrl.toString());
+      }
+    }
+  }, [activeTab, activeChannel]);
 
   useEffect(() => {
     if (!botId) return;
