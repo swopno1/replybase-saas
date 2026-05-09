@@ -176,7 +176,12 @@ export async function processTelegramJob(payload: any) {
         planName: subscription?.plan?.name || "free",
       });
 
-      const aiTextResult = aiStream && "text" in aiStream ? await aiStream.text : String(aiStream ?? "");
+      let aiTextResult = "";
+      if (typeof aiStream === "string") {
+        aiTextResult = aiStream;
+      } else if (aiStream && typeof aiStream === "object" && "text" in aiStream) {
+        aiTextResult = await (aiStream as any).text;
+      }
       if (aiTextResult.trim()) {
         replyText = aiTextResult.trim();
         replySource = "ai";

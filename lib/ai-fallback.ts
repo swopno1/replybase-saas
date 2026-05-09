@@ -1,6 +1,6 @@
-import logger from "./logger";
 import { prisma } from "@/lib/prisma";
-import { streamText, Output, ModelMessage } from "ai";
+import { streamText, Output, ModelMessage, generateObject } from "ai";
+import { z } from "zod";
 import { getAiModel, AiProvider } from "@/lib/ai-service";
 import { incrementTenantUsage } from "./subscription";
 import { buildFallbackSystemPrompt } from "@/lib/onboarding-ai";
@@ -28,6 +28,17 @@ export async function aiFallback({
   planName,
   charLimit = 1000,
 }: AiFallbackOptions) {
+  const lastUserMessage = messages[messages.length - 1]?.content as string;
+
+  // --- MODULE 2, LAYER 1: DETERMINISTIC / REGEX (Cost: $0.00) ---
+  const lowerMsg = lastUserMessage?.toLowerCase() || "";
+  if (lowerMsg.includes("pricing") || lowerMsg.includes("how much") || lowerMsg.includes("cost")) {
+    return "I'd be happy to show you our plans! We offer Starter (£29/mo), Pro (£99/mo), and Business tiers. Based on your volume, I can recommend the best one. Would you like to see a personalized ROI breakdown?";
+  }
+  if (lowerMsg.includes("human") || lowerMsg.includes("agent") || lowerMsg.includes("specialist")) {
+    return "I understand. I'm loopng in one of our automation specialists to assist you further. In the meantime, feel free to ask me anything about our features!";
+  }
+
   // Fetch bot and tenant context
   const bot = await prisma.bot.findUnique({
     where: { id: botId },
@@ -45,52 +56,64 @@ export async function aiFallback({
     },
   });
 
-  if (!bot) {
-    throw new Error("Bot not found");
+  if (!bot) throw new Error("Bot not found");
+
+  const provider = (bot?.tenant?.aiProvider as AiProvider) || "default";
+  const fastModel = getAiModel({ provider, planName, task: "chat", isFallback: true }); // Haiku / GPT-3.5
+
+  // --- MODULE 2, LAYER 2: FAST INTENT & EXTRACTION (Cost: Low) ---
+  const { object: intentData } = await generateObject({
+    model: fastModel,
+    schema: z.object({
+      intent: z.enum(["pricing", "feature_request", "demo", "support", "generic"]),
+      confidence: z.number().min(0).max(1),
+      extractedEntities: z.object({
+        businessType: z.string().optional(),
+        monthlyVolume: z.string().optional(),
+      }),
+    }),
+    prompt: `Analyze this user message for ReplyBase SaaS: "${lastUserMessage}"`,
+  });
+
+  // --- MODULE 3.1: CONFIDENCE-BASED EXTRACTION ---
+  if (intentData.confidence > 0.85) {
+    // Silent auto-save to CRM
+    if (intentData.extractedEntities.businessType || intentData.extractedEntities.monthlyVolume) {
+      await prisma.contact.updateMany({
+        where: { conversations: { some: { id: conversationId } } },
+        data: {
+          ...(intentData.extractedEntities.businessType ? { businessType: intentData.extractedEntities.businessType } : {}),
+        },
+      });
+    }
   }
 
-  const tenantId = bot.tenantId;
+  // --- MODULE 2, LAYER 3: GENERATIVE FALLBACK AI (Cost: High) ---
+  const systemPrompt = buildFallbackSystemPrompt(bot.context as any, bot.name || undefined);
+  
+  // MODULE 3.2: INTENT-WEIGHTED SALES PRESSURE
+  let salesNudge = "";
+  if (intentData.intent === "pricing" || intentData.intent === "demo") {
+    salesNudge = "\n\n(Nudge: Gently encourage them to start a 14-day free trial or book a demo.)";
+  }
 
-  // Build grounded system prompt from bot context (ALL plans)
-  const botContext = bot.context as Record<string, unknown> | null;
-  const systemPrompt = buildFallbackSystemPrompt(botContext, bot.name || undefined);
-
-  // Build prompt messages — always include system prompt
   let promptMessages: ModelMessage[] = [
-    { role: "system", content: systemPrompt },
+    { role: "system", content: systemPrompt + salesNudge },
     ...messages,
   ] as ModelMessage[];
 
-  // For Pro/Business plans, also include recent conversation history
   const plan = planName.toLowerCase();
   if (plan.includes("pro") || plan.includes("business")) {
     const lastMessages = await prisma.crmMessage.findMany({
       where: { conversationId },
       orderBy: { createdAt: "desc" },
       take: 10,
-      select: { content: true, source: true, createdAt: true },
+      select: { content: true, source: true },
     });
-
-    const ordered = lastMessages.reverse();
-    const contextMessages: string[] = [];
-    let totalChars = 0;
-    for (const msg of ordered) {
-      const line = `[${msg.source}] ${msg.content}`;
-      if (totalChars + line.length > charLimit) break;
-      contextMessages.push(line);
-      totalChars += line.length;
-    }
-
-    if (contextMessages.length > 0) {
-      const historyBlock = `Recent Conversation:\n${contextMessages.join("\n")}`;
-      promptMessages = [
-        { role: "system", content: `${systemPrompt}\n\n${historyBlock}` },
-        ...messages,
-      ] as ModelMessage[];
-    }
+    const historyBlock = `Recent Conversation:\n${lastMessages.reverse().map(m => `[${m.source}] ${m.content}`).join("\n")}`;
+    promptMessages[0].content += `\n\n${historyBlock}`;
   }
 
-  const provider = (bot?.tenant?.aiProvider as AiProvider) || "default";
   const model = getAiModel({
     provider,
     apiKey: bot?.tenant?.aiApiKey || undefined,
@@ -103,52 +126,16 @@ export async function aiFallback({
   const timeoutId = setTimeout(() => controller.abort(), 15000);
 
   try {
-    try {
-      const aiStream = await streamText({
-        model,
-        messages: promptMessages,
-        output: Output.text(),
-        abortSignal: controller.signal,
-        onFinish: async () => {
-          await incrementTenantUsage(tenantId, "message", 1, botId);
-        },
-      });
-      return aiStream;
-    } catch (primaryError: unknown) {
-      // Check for rate limit errors (429 or RESOURCE_EXHAUSTED)
-      const isRateLimit =
-        String(primaryError).includes("429") ||
-        String(primaryError).includes("RESOURCE_EXHAUSTED");
-
-      if (isRateLimit) {
-        logger.warn(
-          "[AI Fallback] Rate limit hit on primary model. Failing over to Gemma...",
-        );
-
-        const fallbackModel = getAiModel({
-          provider,
-          apiKey: bot?.tenant?.aiApiKey || undefined,
-          model: bot?.tenant?.aiModel || undefined,
-          planName,
-          task: "chat",
-          isFallback: true,
-        });
-
-        const fallbackStream = await streamText({
-          model: fallbackModel,
-          messages: promptMessages,
-          output: Output.text(),
-          abortSignal: controller.signal,
-          onFinish: async () => {
-            await incrementTenantUsage(tenantId, "message", 1, botId);
-          },
-        });
-        return fallbackStream;
-      }
-
-      // Re-throw if not a rate limit error
-      throw primaryError;
-    }
+    const aiStream = await streamText({
+      model,
+      messages: promptMessages,
+      output: Output.text(),
+      abortSignal: controller.signal,
+      onFinish: async () => {
+        await incrementTenantUsage(bot.tenantId, "message", 1, botId);
+      },
+    });
+    return aiStream;
   } finally {
     clearTimeout(timeoutId);
   }

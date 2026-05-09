@@ -9,6 +9,7 @@ import {
 } from "@/lib/facebook-sender";
 import { getFacebookGraphUrl } from "@/lib/server/facebook-utils";
 import { checkTenantUsageLimits, incrementTenantUsage } from "@/lib/subscription";
+import { stitchContactIdentities } from "@/lib/contact-stitching";
 import logger from "@/lib/logger";
 
 export async function processFacebookJob(payload: any) {
@@ -62,6 +63,24 @@ export async function processFacebookJob(payload: any) {
     });
   }
 
+  // --- MODULE 1: IDENTITY STITCHING HANDSHAKE ---
+  let stitchedVars: Record<string, any> = {};
+  if (messageText.startsWith("SYNC_")) {
+    const sessionHash = messageText.replace("SYNC_", "").trim();
+    if (sessionHash) {
+      const stitchResult = await stitchContactIdentities({
+        tenantId,
+        identifiedContactId: contact.id,
+        sessionHash,
+      });
+      if (stitchResult) {
+        stitchedVars = stitchResult.previousVariables;
+        // Optionally reply with a confirmation on social channel
+        await sendTextMessage(accessToken, senderPsid, "Session synced! 👋 Picking up exactly where we left off.");
+      }
+    }
+  }
+
   let conversation = await prisma.crmConversation.findFirst({
     where: { contactId: contact.id, botId: targetBotId, channel: "facebook" },
   });
@@ -110,7 +129,11 @@ export async function processFacebookJob(payload: any) {
       scopeKey: `facebook:${facebookPage.id}`,
       message: messageText,
       entryFlow: flowAssignment?.flowId ?? null,
-      variables: { channel: "facebook", psid: senderPsid },
+      variables: { 
+        channel: "facebook", 
+        psid: senderPsid,
+        ...stitchedVars 
+      },
     });
 
     const flowResponses = flowResult?.responses;
@@ -184,7 +207,12 @@ export async function processFacebookJob(payload: any) {
       planName: plan,
     });
 
-    const aiText = aiStream && "text" in aiStream ? await aiStream.text : String(aiStream ?? "");
+    let aiText = "";
+    if (typeof aiStream === "string") {
+      aiText = aiStream;
+    } else if (aiStream && typeof aiStream === "object" && "text" in aiStream) {
+      aiText = await (aiStream as any).text;
+    }
 
     if (aiText.trim()) {
       await sendTextMessage(accessToken, senderPsid, aiText.trim());

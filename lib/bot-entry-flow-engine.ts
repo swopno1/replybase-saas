@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { checkTenantUsageLimits } from "@/lib/subscription";
 import {
   createInitialRuntimeState,
   evaluateCondition,
@@ -45,6 +46,17 @@ async function resolveFlow(params: {
   channelId?: string;
   entryFlow?: string | null;
 }) {
+  // --- MODULE 1: SUBSCRIPTION STATE ROUTER ---
+  const subscription = await prisma.subscription.findUnique({
+    where: { tenantId: params.tenantId },
+    include: { plan: true },
+  });
+
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: params.tenantId },
+    select: { trialUsed: true },
+  });
+
   const activeSession = await prisma.flowSession.findFirst({
     where: {
       userId: params.contactId,
@@ -54,12 +66,12 @@ async function resolveFlow(params: {
     orderBy: { updatedAt: "desc" },
   });
 
+  // Handle Returning User Intelligence (Memory TTL)
   if (activeSession) {
     const sessionAge = Date.now() - activeSession.updatedAt.getTime();
     if (sessionAge < STALE_SESSION_AGE_MS) {
       // Recent session — resume from where the visitor left off.
-      const variables =
-        (activeSession.variables as Record<string, unknown>) || {};
+      const variables = (activeSession.variables as Record<string, unknown>) || {};
       const runtime = getRuntimeState(variables, activeSession.flowId);
       const flow = await loadAccessibleFlow({
         tenantId: params.tenantId,
@@ -70,8 +82,7 @@ async function resolveFlow(params: {
         return { flow, session: activeSession, isNewSession: false };
       }
     } else {
-      // Stale session (> 24 h inactive) — expire it so the user gets a fresh
-      // start.  Contact variables will be injected by the caller.
+      // Stale session (> 24 h inactive) — expire it.
       await prisma.flowSession.update({
         where: { id: activeSession.id },
         data: { isActive: false },
@@ -79,8 +90,21 @@ async function resolveFlow(params: {
     }
   }
 
-  // Enforce a 1-hour cooldown before allowing the flow to restart after a
-  // successful completion. This prevents aggressive restarts on social channels.
+  // --- STATE-AWARE ROUTING LOGIC ---
+  let targetFlowId = params.entryFlow;
+
+  if (subscription?.status === "active") {
+    // Returning customer — route to support or billing if requested
+    // This can be expanded with intent detection
+  } else if (tenant?.trialUsed) {
+    // Trial consumed — swap entry flow to "Upgrade Now" or "Trial Consumed" flow if configured
+    const trialConsumedFlow = await prisma.flow.findFirst({
+      where: { tenantId: params.tenantId, name: { contains: "Upgrade" }, isActive: true },
+    });
+    if (trialConsumedFlow) targetFlowId = trialConsumedFlow.id;
+  }
+
+  // Enforce a cooldown before allowing the flow to restart
   const FLOW_REPEAT_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
   const recentlyCompleted = await prisma.flowSession.findFirst({
     where: {
@@ -95,8 +119,6 @@ async function resolveFlow(params: {
   });
 
   if (recentlyCompleted) {
-    // The lead has already gone through the flow within the last 12 hours — do
-    // not restart it.  Return null so the webhook falls through to the AI/fallback.
     return null;
   }
 
@@ -105,6 +127,21 @@ async function resolveFlow(params: {
       ? NonNullable<T>
       : never,
   ) {
+    // Inject identity traits into starting variables for greeting logic
+    const contact = await prisma.contact.findUnique({
+      where: { id: params.contactId },
+      select: { 
+        name: true,
+        leads: {
+          orderBy: { updatedAt: "desc" },
+          take: 1,
+          select: { businessType: true }
+        }
+      },
+    });
+
+    const businessType = contact?.leads[0]?.businessType || "";
+
     const session = await prisma.flowSession.create({
       data: {
         userId: params.contactId,
@@ -113,6 +150,8 @@ async function resolveFlow(params: {
         currentNodeId: flow.nodes[0]?.id || null,
         variables: {
           __runtime: createInitialRuntimeState(flow.id),
+          contact_name: contact?.name || "",
+          business_type: (contact as any)?.businessType || "", // Cast for safety
         },
         isActive: true,
       },
@@ -121,61 +160,16 @@ async function resolveFlow(params: {
     return { flow, session, isNewSession: true };
   }
 
-  if (!params.entryFlow) {
-    if (!params.channelId) {
-      return null;
-    }
-
-    const assignedFlow = await prisma.flowChannelAssignment.findFirst({
-      where: {
-        channelId: params.channelId,
-        isActive: true,
-      },
-      include: {
-        flow: {
-          include: {
-            nodes: {
-              orderBy: { order: "asc" },
-            },
-          },
-        },
-      },
-    });
-
-    if (!assignedFlow || !assignedFlow.flow.isActive) {
-      return null;
-    }
-
-    return startFlowSession(assignedFlow.flow);
-  }
-
-  if (params.channelId) {
-    const assignedFlow = await prisma.flowChannelAssignment.findFirst({
-      where: {
-        channelId: params.channelId,
-        isActive: true,
-      },
-      include: {
-        flow: {
-          include: {
-            nodes: {
-              orderBy: { order: "asc" },
-            },
-          },
-        },
-      },
-    });
-
-    if (assignedFlow?.flow?.isActive) {
-      return startFlowSession(assignedFlow.flow);
-    }
-  }
-
+  // Final resolution logic
   const configuredFlow = await prisma.flow.findFirst({
     where: {
       tenantId: params.tenantId,
       isActive: true,
-      OR: [{ id: params.entryFlow }, { name: params.entryFlow }],
+      OR: [
+        ...(targetFlowId ? [{ id: targetFlowId }] : []),
+        ...(targetFlowId ? [{ name: targetFlowId }] : []),
+        { isGlobal: true, name: "Default Welcome" }
+      ],
     },
     include: {
       nodes: {
@@ -556,6 +550,37 @@ export async function executeBotEntryFlowFirst(params: {
             currentNode = referencedFlow.nodes[0] || null;
             break;
           }
+        }
+
+        if (content.action === "checkout") {
+          const tenant = await prisma.tenant.findUnique({
+            where: { id: params.tenantId },
+            select: { trialUsed: true },
+          });
+          const stripeUrl = tenant?.trialUsed 
+            ? `https://buy.stripe.com/payment?client_reference_id=${params.tenantId}&customer_email=${mergedVariables.contact_email}`
+            : `https://buy.stripe.com/trial?client_reference_id=${params.tenantId}&customer_email=${mergedVariables.contact_email}`;
+
+          responses.push({
+            type: "text",
+            text: interpolateText(content.text || "I've pre-configured your secure checkout page. You can start in seconds here: {{stripe_url}}", { ...mergedVariables, stripe_url: stripeUrl }),
+          });
+        }
+
+        if (content.action === "booking") {
+          await prisma.activityLog.create({
+            data: {
+              tenantId: params.tenantId,
+              type: "BOOKING_REQUESTED",
+              title: "Demo Walkthrough Requested",
+              description: `User ${mergedVariables.contact_email} requested a demo for ${mergedVariables.business_type}`,
+              metadata: { variables: mergedVariables as any },
+            },
+          });
+          responses.push({
+            type: "text",
+            text: content.text || "I've forwarded your requirements to our specialist. They'll reach out to schedule your walkthrough shortly!",
+          });
         }
 
         if (content.action === "end_flow") {

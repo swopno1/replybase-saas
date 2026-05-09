@@ -13,7 +13,7 @@
             { "title": "📊 See Pricing & ROI", "payload": "INTENT_PRICING" },
             { "title": "📱 See Live Demo", "payload": "INTENT_DEMO" },
             { "title": "📅 Book a Walkthrough", "payload": "INTENT_BOOKING" },
-            { "title": "💬 Just Exploring", "payload": "INTENT_FALLBACK" }
+            { "title": "🚀 Start Free Trial", "payload": "INTENT_CHECKOUT" }
           ]
         }
       },
@@ -24,12 +24,13 @@
           "variableName": "last_user_message_normalized",
           "conditions": [
             { "operator": "contains", "value": "price", "nextNodeOrder": 100 },
-            { "operator": "contains", "value": "pricing", "nextNodeOrder": 100 },
             { "operator": "contains", "value": "cost", "nextNodeOrder": 100 },
             { "operator": "contains", "value": "demo", "nextNodeOrder": 200 },
             { "operator": "contains", "value": "work", "nextNodeOrder": 200 },
             { "operator": "contains", "value": "book", "nextNodeOrder": 300 },
-            { "operator": "contains", "value": "call", "nextNodeOrder": 300 }
+            { "operator": "contains", "value": "call", "nextNodeOrder": 300 },
+            { "operator": "contains", "value": "trial", "nextNodeOrder": 500 },
+            { "operator": "contains", "value": "start", "nextNodeOrder": 500 }
           ],
           "nextNodeOrder": 400
         }
@@ -64,6 +65,14 @@
         "content": {
           "action": "end_flow",
           "description": "Handover to AI Fallback Orchestrator"
+        }
+      },
+      {
+        "order": 500,
+        "type": "action",
+        "content": {
+          "action": "call_flow",
+          "targetFlowName": "Sub-Flow: Checkout"
         }
       }
     ]
@@ -171,6 +180,83 @@
             { "title": "🔵 Switch to Telegram", "payload": "t.me/{{tg_bot}}?start=SYNC_{{session_hash}}" },
             { "title": "💬 Stay here", "payload": "STAY_HERE" }
           ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "Sub-Flow: Booking & Escalation",
+    "description": "Handles high-touch demo requests and human handoff.",
+    "nodes": [
+      {
+        "order": 1,
+        "type": "message",
+        "content": {
+          "text": "I'd be happy to get a human expert on the line for you. They can give you a deep-dive walkthrough of how ReplyBase fits into your specific workflow.",
+          "nextNodeOrder": 2
+        }
+      },
+      {
+        "order": 2,
+        "type": "condition",
+        "content": {
+          "variableName": "lead_email",
+          "conditions": [
+            { "operator": "contains", "value": "@", "nextNodeOrder": 4 }
+          ],
+          "nextNodeOrder": 3
+        }
+      },
+      {
+        "order": 3,
+        "type": "input",
+        "content": {
+          "text": "What's the best email to use for the calendar invite?",
+          "variableName": "lead_email",
+          "inputType": "email"
+        }
+      },
+      {
+        "order": 4,
+        "type": "action",
+        "content": {
+          "action": "booking",
+          "text": "Perfect! I've sent your request to our team. In the meantime, you can pick a time that works for you here: {{booking_link}}",
+          "bookingService": "calendly"
+        }
+      }
+    ]
+  },
+  {
+    "name": "Sub-Flow: Checkout",
+    "description": "Final conversion flow for trial or purchase.",
+    "nodes": [
+      {
+        "order": 1,
+        "type": "condition",
+        "content": {
+          "variableName": "lead_email",
+          "conditions": [
+            { "operator": "contains", "value": "@", "nextNodeOrder": 3 }
+          ],
+          "nextNodeOrder": 2
+        }
+      },
+      {
+        "order": 2,
+        "type": "input",
+        "content": {
+          "text": "Great! Let's get your 14-day trial started. What email should we use for your account?",
+          "variableName": "lead_email",
+          "inputType": "email"
+        }
+      },
+      {
+        "order": 3,
+        "type": "action",
+        "content": {
+          "action": "checkout",
+          "text": "🚀 Awesome choice. I've pre-configured your secure setup page here: {{stripe_url}}"
         }
       }
     ]

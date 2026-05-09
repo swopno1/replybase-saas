@@ -211,7 +211,12 @@ export async function processWhatsAppJob(payload: any) {
       messages: aiMessages,
       planName: subscription?.plan?.name || "free",
     });
-    const replyText = aiStream && "text" in aiStream ? await aiStream.text : String(aiStream ?? "");
+    let replyText = "";
+    if (typeof aiStream === "string") {
+      replyText = aiStream;
+    } else if (aiStream && typeof aiStream === "object" && "text" in aiStream) {
+      replyText = await (aiStream as any).text;
+    }
 
     const sendResult = await sendWhatsAppText({
       provider: envelope.provider,
