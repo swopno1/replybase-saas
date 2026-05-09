@@ -426,6 +426,62 @@ export async function handlePlanDowngrade(tenantId: string, newPlanId: string) {
 
 // --- Rate Limiting Enforcement ---
 
+/**
+ * Check tenant-wide limits for background processes where userId is not available.
+ */
+export async function checkTenantUsageLimits(
+  tenantId: string,
+  type: "message" | "conversation" | "flow_execution"
+): Promise<{ allowed: boolean; current: number; limit: number; status: UsageStatus }> {
+  const limits = await getTenantLimits(tenantId);
+  const now = new Date();
+  const today = startOfUtcDay(now);
+
+  if (type === "conversation") {
+    const limit = limits.maxConversations;
+    const current = await getMonthlyConversationCount(tenantId);
+    const status = getUsageStatus(current, limit);
+    return { allowed: status.allowed, current, limit, status };
+  }
+
+  if (type === "message") {
+    const dailyLimit = limits.dailyMessageLimit;
+    const monthlyLimit = limits.monthlyMessageLimit;
+
+    // Check monthly first as it's the primary constraint
+    const monthlyUsage = await getUsageCount({
+      tenantId,
+      type: "message",
+      startDate: startOfUtcMonth(now),
+      endDate: startOfNextUtcMonth(now),
+    });
+    const monthlyStatus = getUsageStatus(monthlyUsage, monthlyLimit);
+    if (!monthlyStatus.allowed) {
+      return { allowed: false, current: monthlyUsage, limit: monthlyLimit, status: monthlyStatus };
+    }
+
+    // Check daily
+    const dailyUsage = await getUsageCount({
+      tenantId,
+      type: "message",
+      startDate: today,
+      endDate: startOfNextUtcDay(today),
+    });
+    const dailyStatus = getUsageStatus(dailyUsage, dailyLimit);
+    return { allowed: dailyStatus.allowed, current: dailyUsage, limit: dailyLimit, status: dailyStatus };
+  }
+
+  const limit = limits.flowExecutionCap;
+  const current = await getUsageCount({
+    tenantId,
+    type: "flow_execution",
+    startDate: startOfUtcMonth(now),
+    endDate: startOfNextUtcMonth(now),
+  });
+  const status = getUsageStatus(current, limit);
+  return { allowed: status.allowed, current, limit, status };
+}
+
 export async function checkLimit(
   userId: string,
   type: "message" | "flow_execution",

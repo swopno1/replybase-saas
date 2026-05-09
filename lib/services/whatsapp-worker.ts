@@ -14,6 +14,7 @@ import {
   sendWhatsAppText,
 } from "@/lib/whatsapp-provider";
 import { Prisma } from "@prisma/client";
+import { checkTenantUsageLimits, incrementTenantUsage } from "@/lib/subscription";
 import logger from "@/lib/logger";
 
 export async function processWhatsAppJob(payload: any) {
@@ -22,6 +23,13 @@ export async function processWhatsAppJob(payload: any) {
   // Use botId from payload for multi-bot isolation
   const targetBotId = botId || channel.botId;
   const tenantId = channel.bot.tenantId;
+
+  // 1. Check Monthly Conversation Limit
+  const convLimit = await checkTenantUsageLimits(tenantId, "conversation");
+  if (!convLimit.allowed) {
+    logger.warn({ tenantId }, "[WhatsApp Worker] Monthly conversation limit reached");
+    return;
+  }
 
   const normalizedWaId = normalizeWhatsAppAddress(waId);
   const normalizedPhone = rawPhone ? normalizeWhatsAppE164(rawPhone) : null;
@@ -134,6 +142,10 @@ export async function processWhatsAppJob(payload: any) {
 
     const flowResponses = flowResult?.responses;
     if (flowResponses && flowResponses.length > 0) {
+      // 2. Check Automation Limit
+      const msgLimit = await checkTenantUsageLimits(tenantId, "message");
+      if (!msgLimit.allowed) return;
+
       for (const resp of flowResponses) {
         if (resp.type === "typing") await waitForFlowDurationMs(Math.min(resp.durationMs, 2000));
         else if (resp.type === "text" && resp.text) {
@@ -153,6 +165,9 @@ export async function processWhatsAppJob(payload: any) {
                 source: "flow",
               },
             });
+
+            // Increment Usage
+            await incrementTenantUsage(tenantId, "message", 1, targetBotId, channel.id);
           }
         }
       }
@@ -169,6 +184,10 @@ export async function processWhatsAppJob(payload: any) {
 
   // AI Fallback
   try {
+    // 3. Check AI Response Limit
+    const msgLimit = await checkTenantUsageLimits(tenantId, "message");
+    if (!msgLimit.allowed) return;
+
     const { aiFallback } = await import("@/lib/ai-fallback");
     const lastMessages = await prisma.crmMessage.findMany({
       where: { conversationId: conversation.id },
@@ -211,6 +230,9 @@ export async function processWhatsAppJob(payload: any) {
           source: "ai",
         },
       });
+
+      // Increment Usage
+      await incrementTenantUsage(tenantId, "message", 1, targetBotId, channel.id);
 
       await Promise.allSettled([
         recordMilestoneEvent(tenantId, "first-channel", { channelType: "whatsapp", channelId: channel.id }),

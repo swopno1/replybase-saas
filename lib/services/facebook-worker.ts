@@ -8,6 +8,7 @@ import {
   sendTextMessage,
 } from "@/lib/facebook-sender";
 import { getFacebookGraphUrl } from "@/lib/server/facebook-utils";
+import { checkTenantUsageLimits, incrementTenantUsage } from "@/lib/subscription";
 import logger from "@/lib/logger";
 
 export async function processFacebookJob(payload: any) {
@@ -23,6 +24,13 @@ export async function processFacebookJob(payload: any) {
   if (!targetBotId) return;
 
   const { tenantId, accessToken } = facebookPage;
+
+  // 1. Check Monthly Conversation Limit (across all channels)
+  const convLimit = await checkTenantUsageLimits(tenantId, "conversation");
+  if (!convLimit.allowed) {
+    logger.warn({ tenantId }, "[Facebook Worker] Monthly conversation limit reached");
+    return;
+  }
 
   let userName: string | undefined;
   try {
@@ -107,6 +115,13 @@ export async function processFacebookJob(payload: any) {
 
     const flowResponses = flowResult?.responses;
     if (flowResponses && flowResponses.length > 0) {
+      // 2. Check AI Response / Automation Limit
+      const msgLimit = await checkTenantUsageLimits(tenantId, "message");
+      if (!msgLimit.allowed) {
+        logger.warn({ tenantId }, "[Facebook Worker] Monthly message limit reached");
+        return;
+      }
+
       for (const resp of flowResponses) {
         if (resp.type === "typing") {
           await sendFacebookSenderAction(accessToken, senderPsid, "typing_on");
@@ -123,6 +138,9 @@ export async function processFacebookJob(payload: any) {
               source: "flow",
             },
           });
+          
+          // Increment Usage
+          await incrementTenantUsage(tenantId, "message", 1, targetBotId, facebookPage.id);
         }
       }
       await Promise.allSettled([
@@ -137,6 +155,10 @@ export async function processFacebookJob(payload: any) {
 
   // AI fallback
   try {
+    // 3. Check AI Response / Automation Limit (again for AI)
+    const msgLimit = await checkTenantUsageLimits(tenantId, "message");
+    if (!msgLimit.allowed) return;
+
     const subscription = await prisma.subscription.findUnique({
       where: { tenantId },
       select: { plan: { select: { name: true } } },
@@ -175,6 +197,10 @@ export async function processFacebookJob(payload: any) {
           source: "ai",
         },
       });
+
+      // Increment Usage
+      await incrementTenantUsage(tenantId, "message", 1, targetBotId, facebookPage.id);
+
       await Promise.allSettled([
         recordMilestoneEvent(tenantId, "first-channel", { channelType: "facebook", pageId: facebookPage.id }),
         recordMilestoneEvent(tenantId, "first-automated-reply", { channelType: "facebook", source: "ai" }),

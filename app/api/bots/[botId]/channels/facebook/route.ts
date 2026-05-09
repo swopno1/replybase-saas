@@ -102,6 +102,21 @@ export async function POST(
   }
 
   try {
+    // Check if this bot already has a Facebook page connected
+    const existingBotPage = await prisma.facebookPage.findFirst({
+      where: { botId, tenantId },
+    });
+
+    if (existingBotPage && existingBotPage.facebookId !== pageId) {
+      return NextResponse.json(
+        {
+          error: "Bot already has a Facebook page connected",
+          details: "Each bot can only be connected to one Facebook page. To use a different page, please create a new bot.",
+        },
+        { status: 400 },
+      );
+    }
+
     const facebookPage = await prisma.facebookPage.upsert({
       where: { facebookId: pageId },
       update: {

@@ -11,6 +11,7 @@ import {
   normalizeTelegramText,
 } from "@/lib/telegram-utils";
 import { recordMilestoneEvent } from "@/lib/milestone-events";
+import { checkTenantUsageLimits, incrementTenantUsage } from "@/lib/subscription";
 import logger from "@/lib/logger";
 
 function getCommandReply(commandText: string): string | null {
@@ -24,6 +25,13 @@ export async function processTelegramJob(payload: any) {
   const { channel, update, chatId, userId, messageText, userName, botId } = payload;
   const targetBotId = botId || channel.botId;
   const tenantId = channel.bot.tenantId;
+
+  // 1. Check Monthly Conversation Limit
+  const convLimit = await checkTenantUsageLimits(tenantId, "conversation");
+  if (!convLimit.allowed) {
+    logger.warn({ tenantId }, "[Telegram Worker] Monthly conversation limit reached");
+    return;
+  }
 
   const tokenEncrypted = channel.accessToken;
   if (!tokenEncrypted) return;
@@ -103,6 +111,10 @@ export async function processTelegramJob(payload: any) {
 
       const flowResponses = flowResult?.responses;
       if (flowResponses && flowResponses.length > 0) {
+        // 2. Check Automation Limit
+        const msgLimit = await checkTenantUsageLimits(tenantId, "message");
+        if (!msgLimit.allowed) return;
+
         for (const resp of flowResponses) {
           if (resp.type === "typing") {
             await sendTelegramChatAction(token, chatId, "typing");
@@ -119,6 +131,9 @@ export async function processTelegramJob(payload: any) {
                 source: "flow",
               },
             });
+
+            // Increment Usage
+            await incrementTenantUsage(tenantId, "message", 1, targetBotId, channel.id);
           }
         }
         await Promise.allSettled([
@@ -133,6 +148,10 @@ export async function processTelegramJob(payload: any) {
 
     // AI Fallback
     try {
+      // 3. Check AI Response Limit
+      const msgLimit = await checkTenantUsageLimits(tenantId, "message");
+      if (!msgLimit.allowed) return;
+
       const { aiFallback } = await import("@/lib/ai-fallback");
       const lastMessages = await prisma.crmMessage.findMany({
         where: { conversationId: conversation.id },
@@ -188,6 +207,11 @@ export async function processTelegramJob(payload: any) {
       source: replySource,
     },
   });
+
+  // Increment Usage if automated
+  if (replySource !== "system") {
+    await incrementTenantUsage(tenantId, "message", 1, targetBotId, channel.id);
+  }
 
   await Promise.allSettled([
     recordMilestoneEvent(tenantId, "first-channel", { channelType: "telegram", channelId: channel.id }),
