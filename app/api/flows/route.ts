@@ -34,7 +34,6 @@ export async function GET(req: NextRequest) {
 
     if (type === "my") {
       where.tenantId = user.tenantId;
-      where.ownerId = session.user.id;
       where.isGlobal = false;
     } else if (type === "global") {
       where.isGlobal = true;
