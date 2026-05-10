@@ -12,6 +12,7 @@ export const CONVERSION_GOALS = [
 export const PREFERRED_CTAS = [
   "call",
   "whatsapp",
+  "telegram",
   "email",
   "form",
   "booking_link",
