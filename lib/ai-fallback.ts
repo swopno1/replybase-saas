@@ -71,12 +71,14 @@ export async function aiFallback({
 
   // --- MODULE 3.1: CONFIDENCE-BASED EXTRACTION ---
   if (intentData.confidence > 0.85) {
-    // Silent auto-save to CRM
-    if (intentData.extractedEntities.businessType || intentData.extractedEntities.monthlyVolume) {
-      await prisma.contact.updateMany({
-        where: { conversations: { some: { id: conversationId } } },
+    // Silent auto-save to CRM (Lead model has businessType, Contact does not)
+    if (intentData.extractedEntities.businessType) {
+      await prisma.lead.updateMany({
+        where: {
+          contact: { conversations: { some: { id: conversationId } } },
+        },
         data: {
-          ...(intentData.extractedEntities.businessType ? { businessType: intentData.extractedEntities.businessType } : {}),
+          businessType: intentData.extractedEntities.businessType,
         },
       });
     }
