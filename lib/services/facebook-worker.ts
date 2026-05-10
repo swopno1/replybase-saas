@@ -111,6 +111,9 @@ export async function processFacebookJob(payload: any) {
     },
   });
 
+  // --- LEAD EXTRACTION ---
+  await leadService.extractAndSyncLeadDataFromMessage(tenantId, contact.id, messageText);
+
   if (conversation.botPaused) return;
 
   // Bot Status check

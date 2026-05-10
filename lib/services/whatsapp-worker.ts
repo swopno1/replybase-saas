@@ -138,6 +138,9 @@ export async function processWhatsAppJob(payload: any) {
     },
   });
 
+  // --- LEAD EXTRACTION ---
+  await leadService.extractAndSyncLeadDataFromMessage(tenantId, contact.id, inboundText);
+
   const currentMetadata =
     conversation.metadata &&
     typeof conversation.metadata === "object" &&

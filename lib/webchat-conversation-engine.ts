@@ -557,7 +557,7 @@ export async function executeWebchatFlowFirst(params: {
     return {
       handled: Boolean(activeFlow.fallbackMessage),
       responses: activeFlow.fallbackMessage
-        ? [{ type: "text" as const, text: activeFlow.fallbackMessage }]
+        ? [{ type: "text" as const, text: activeFlow.fallbackMessage, quickReplies: [] as any[] }]
         : [],
       flowId: activeFlow.id,
       flowName: activeFlow.name,
@@ -832,7 +832,7 @@ export async function executeWebchatFlowFirst(params: {
   });
 
   if (!responses.length && activeFlow.fallbackMessage) {
-    responses.push({ type: "text", text: activeFlow.fallbackMessage });
+    responses.push({ type: "text", text: activeFlow.fallbackMessage, quickReplies: [] as any[] });
   }
 
   return {

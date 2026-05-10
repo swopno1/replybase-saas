@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { extractLeadDataFromText } from "../lead-extraction";
 
 export class LeadService {
   constructor(private db: PrismaClient) {}
@@ -131,6 +132,84 @@ export class LeadService {
         });
       }
     }
+  }
+
+  /**
+   * Scans a message for lead data and updates the contact and lead status.
+   */
+  async extractAndSyncLeadDataFromMessage(tenantId: string, contactId: string, text: string) {
+    const extracted = extractLeadDataFromText(text);
+    
+    if (extracted.email || extracted.phone) {
+      // Fetch current contact to check for existing data
+      const contact = await this.db.contact.findUnique({
+        where: { id: contactId },
+        select: { email: true, phone: true }
+      });
+
+      if (contact) {
+        // 1. Handle Email
+        if (extracted.email) {
+          if (!contact.email) {
+            // Set as primary if empty
+            await this.db.contact.update({
+              where: { id: contactId },
+              data: { email: extracted.email }
+            });
+          } else if (contact.email !== extracted.email) {
+            // Store as alternative identity if different
+            await this.db.contactIdentity.upsert({
+              where: {
+                contactId_type_value: {
+                  contactId,
+                  type: "alt_email",
+                  value: extracted.email
+                }
+              },
+              create: {
+                contactId,
+                type: "alt_email",
+                value: extracted.email
+              },
+              update: {}
+            });
+          }
+        }
+
+        // 2. Handle Phone
+        if (extracted.phone) {
+          if (!contact.phone) {
+            // Set as primary if empty
+            await this.db.contact.update({
+              where: { id: contactId },
+              data: { phone: extracted.phone }
+            });
+          } else if (contact.phone !== extracted.phone) {
+            // Store as alternative identity if different
+            await this.db.contactIdentity.upsert({
+              where: {
+                contactId_type_value: {
+                  contactId,
+                  type: "alt_phone",
+                  value: extracted.phone
+                }
+              },
+              create: {
+                contactId,
+                type: "alt_phone",
+                value: extracted.phone
+              },
+              update: {}
+            });
+          }
+        }
+      }
+
+      // Re-sync lead status (this will create/update the lead)
+      await this.syncContactIdentifiedStatus(tenantId, contactId);
+      return true;
+    }
+    return false;
   }
 }
 

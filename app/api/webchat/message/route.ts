@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createWebchatCorsHeaders, getWebchatOriginRejectionReason, isWebchatOriginAllowed } from "@/lib/webchat-cors";
 import { findActiveWebChannel } from "@/lib/webchat";
 import { verifyWebchatSessionToken } from "@/lib/webchat-session";
+import { leadService } from "@/lib/services/lead-service";
 import logger from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
@@ -24,13 +25,21 @@ export async function POST(request: NextRequest) {
     try { await prisma.idempotencyKey.create({ data: { key: lockKey, expiresAt: new Date(Date.now() + 1000 * 60 * 5) } }); }
     catch (e: unknown) { if (typeof e === "object" && e !== null && "code" in e && (e as any).code === "P2002") { const existing = await prisma.idempotencyKey.findUnique({ where: { key: lockKey } }); if (existing && existing.expiresAt > new Date()) { logger.warn({ conversationId }, "[Webchat Message] Concurrent duplicate blocked"); return NextResponse.json({ status: "duplicate_ignored" }, { status: 200, headers: createWebchatCorsHeaders(request) }); } else { await prisma.idempotencyKey.update({ where: { key: lockKey }, data: { createdAt: new Date(), expiresAt: new Date(Date.now() + 1000 * 60 * 5) } }); } } else throw e; }
     await prisma.crmMessage.create({ data: { tenantId, conversationId, direction: "inbound", content: message.trim(), source: "human" } });
+    
+    // --- LEAD EXTRACTION ---
+    // Automatically capture email/phone from any inbound message
+    const conversation = await prisma.crmConversation.findUnique({ where: { id: conversationId }, select: { contactId: true, metadata: true } });
+    if (conversation) {
+      await leadService.extractAndSyncLeadDataFromMessage(tenantId, conversation.contactId, message);
+    }
+
     const channel = await findActiveWebChannel({ botId });
     if (!channel) { logger.error({ botId }, "[Webchat Message] Channel not found"); return NextResponse.json({ error: "Channel not found" }, { status: 404, headers: createWebchatCorsHeaders(request) }); }
     const config = (channel.config || {}) as Record<string, unknown>;
     const fallbackMode = (config.fallbackMode as string) || "ai";
     const customFallbackMessage = ((config.customFallbackMessage as string) || "All of our agents are currently busy or offline. Please leave your email address, and we'll get back to you as soon as possible.") as string;
     if (fallbackMode === "manual") { logger.warn({ conversationId, botId }, "[Webchat Message] Manual fallback mode active"); await prisma.crmMessage.create({ data: { tenantId, conversationId, direction: "outbound", content: customFallbackMessage, source: "manual_fallback" } }); return NextResponse.json({ responses: [{ type: "text", text: customFallbackMessage }], meta: { mode: "manual_fallback" } }, { headers: createWebchatCorsHeaders(request) }); }
-    const conversation = await prisma.crmConversation.findUnique({ where: { id: conversationId }, select: { contactId: true, metadata: true } });
+    
     if (!conversation) return NextResponse.json({ error: "Conversation not found" }, { status: 404, headers: createWebchatCorsHeaders(request) });
     const { buildWebchatSourceContext, executeWebchatFlowFirst } = await import("@/lib/webchat-conversation-engine");
     const sourceContext = buildWebchatSourceContext({ requestOrigin: request.headers.get("origin"), requestReferer: request.headers.get("referer"), messageMetadata: body.metadata as Record<string, unknown> | undefined, existingMetadata: conversation.metadata as Record<string, unknown> | undefined });

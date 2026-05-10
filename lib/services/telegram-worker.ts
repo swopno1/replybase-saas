@@ -136,6 +136,9 @@ export async function processTelegramJob(payload: any) {
     },
   });
 
+  // --- LEAD EXTRACTION ---
+  await leadService.extractAndSyncLeadDataFromMessage(tenantId, contact.id, messageText);
+
   // Bot Status check
   const bot = await prisma.bot.findUnique({
     where: { id: targetBotId },
