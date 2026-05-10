@@ -1,5 +1,5 @@
 import { generateText } from "ai";
-import { getAiModel } from "./ai-service";
+import { getSystemModel } from "./ai-service";
 import { OnboardingData, OnboardingSummary } from "@/types/shared/onboarding";
 import { FlowTemplateCategory, getTemplateByCategory } from "./flow-templates";
 
@@ -96,7 +96,7 @@ const PERSONALITY_TO_TONE: Record<string, string> = {
 // ─── Step 1: Summarize Onboarding Data ──────────────────────────────────────
 
 export async function summarizeOnboardingData(data: OnboardingData): Promise<OnboardingSummary> {
-  const model = getAiModel({ provider: "default", planName: "free", task: "onboarding" });
+  const model = getSystemModel({ planName: "free", task: "onboarding" });
 
   const prompt = `You are a business analyst. Summarize the following business data into a structured JSON profile that will configure an AI chatbot.
 
@@ -158,7 +158,7 @@ export async function customizeFlowNodesWithAI(
 ): Promise<Array<{ type: string; content: Record<string, unknown>; order: number }>> {
   if (summary.isPlaceholder) return nodes;
 
-  const model = getAiModel({ provider: "default", planName: "free", task: "onboarding" });
+  const model = getSystemModel({ planName: "free", task: "onboarding" });
 
   const tone = PERSONALITY_TO_TONE[data.chatbotGoals.botPersonality] || summary.toneAndVoice || "Professional and helpful";
 

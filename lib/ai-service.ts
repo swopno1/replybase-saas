@@ -2,6 +2,7 @@ import { google, createGoogleGenerativeAI } from "@ai-sdk/google";
 import { openai, createOpenAI } from "@ai-sdk/openai";
 import { anthropic, createAnthropic } from "@ai-sdk/anthropic";
 import { LanguageModel } from "ai";
+import { prisma } from "./prisma";
 
 export type AiProvider = "default" | "gemini" | "openai" | "anthropic";
 export type AiTask = "onboarding" | "chat" | "general";
@@ -95,6 +96,42 @@ export function getAiModel({
       return client(resolvedModel);
     }
   }
+}
+
+/**
+ * High-level helper to get a model for a specific tenant, automatically fetching their settings.
+ */
+export async function getTenantModel(
+  tenantId: string,
+  options: Omit<GetAiModelOptions, "provider" | "apiKey" | "model">,
+): Promise<LanguageModel> {
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: {
+      aiProvider: true,
+      aiApiKey: true,
+      aiModel: true,
+    },
+  });
+
+  return getAiModel({
+    ...options,
+    provider: (tenant?.aiProvider as AiProvider) || "default",
+    apiKey: tenant?.aiApiKey || undefined,
+    model: tenant?.aiModel || undefined,
+  });
+}
+
+/**
+ * High-level helper to get a system-managed model (e.g. for background tasks).
+ */
+export function getSystemModel(
+  options: Omit<GetAiModelOptions, "provider" | "apiKey" | "model">,
+): LanguageModel {
+  return getAiModel({
+    ...options,
+    provider: "default",
+  });
 }
 
 /**

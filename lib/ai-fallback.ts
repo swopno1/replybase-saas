@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { streamText, Output, ModelMessage, generateObject } from "ai";
 import { z } from "zod";
-import { getAiModel, AiProvider } from "@/lib/ai-service";
+import { getTenantModel } from "@/lib/ai-service";
 import { incrementTenantUsage } from "./subscription";
 import { buildFallbackSystemPrompt } from "@/lib/onboarding-ai";
 
@@ -39,27 +39,21 @@ export async function aiFallback({
     return "I understand. I'm loopng in one of our automation specialists to assist you further. In the meantime, feel free to ask me anything about our features!";
   }
 
-  // Fetch bot and tenant context
+  // Fetch bot context
   const bot = await prisma.bot.findUnique({
     where: { id: botId },
     select: {
       tenantId: true,
       context: true,
       name: true,
-      tenant: {
-        select: {
-          aiProvider: true,
-          aiApiKey: true,
-          aiModel: true,
-        },
-      },
     },
   });
 
   if (!bot) throw new Error("Bot not found");
 
-  const provider = (bot?.tenant?.aiProvider as AiProvider) || "default";
-  const fastModel = getAiModel({ provider, planName, task: "chat", isFallback: true }); // Haiku / GPT-3.5
+  // MODULE 2, LAYER 2: FAST INTENT & EXTRACTION (Cost: Low)
+  // Uses the tenant's configured provider but force fallback (lite) model for speed
+  const fastModel = await getTenantModel(bot.tenantId, { planName, task: "chat", isFallback: true });
 
   // --- MODULE 2, LAYER 2: FAST INTENT & EXTRACTION (Cost: Low) ---
   const { object: intentData } = await generateObject({
@@ -118,11 +112,8 @@ export async function aiFallback({
   const timeoutId = setTimeout(() => controller.abort(), 15000);
 
   try {
-    // LAYER 3: Primary Generative Attempt (Gemini 1.5 Flash)
-    const primaryModel = getAiModel({
-      provider,
-      apiKey: bot?.tenant?.aiApiKey || undefined,
-      model: bot?.tenant?.aiModel || "gemini-1.5-flash-latest",
+    // LAYER 3: Primary Generative Attempt
+    const primaryModel = await getTenantModel(bot.tenantId, {
       planName,
       task: "chat",
     });
@@ -138,14 +129,11 @@ export async function aiFallback({
     });
     return aiStream;
   } catch (primaryError) {
-    console.error("[AI Fallback] Primary model failed, attempting secondary (Gemma):", primaryError);
+    console.error("[AI Fallback] Primary model failed, attempting secondary fallback:", primaryError);
     
     try {
-      // LAYER 4: Secondary Generative Attempt (Gemma 2 27B)
-      const secondaryModel = getAiModel({
-        provider,
-        apiKey: bot?.tenant?.aiApiKey || undefined,
-        model: "gemma-2-27b-it",
+      // LAYER 4: Secondary Generative Attempt (Emergency Fallback)
+      const secondaryModel = await getTenantModel(bot.tenantId, {
         planName,
         task: "chat",
         isFallback: true,

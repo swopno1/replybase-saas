@@ -1,7 +1,7 @@
 import { generateObject } from "ai";
 import { z } from "zod";
 import { PrismaClient } from "@prisma/client";
-import { getAiModel } from "@/lib/ai-service";
+import { getTenantModel } from "@/lib/ai-service";
 import logger from "@/lib/logger";
 
 const leadInsightSchema = z.object({
@@ -35,11 +35,8 @@ export class LeadEnrichmentService {
         return null;
       }
 
-      // Get appropriate AI model
-      const model = getAiModel({
-        provider: (lead.tenant.aiProvider as any) || "default",
-        apiKey: lead.tenant.aiApiKey || undefined,
-        model: lead.tenant.aiModel || undefined,
+      // Get appropriate AI model for the tenant
+      const model = await getTenantModel(lead.tenantId, {
         task: "general",
       });
 

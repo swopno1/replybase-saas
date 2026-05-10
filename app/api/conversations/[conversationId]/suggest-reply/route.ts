@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "ai";
-import { getAiModel, AiProvider } from "@/lib/ai-service";
+import { getTenantModel } from "@/lib/ai-service";
 import { prisma } from "@/lib/prisma";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 import { getTenantLimits } from "@/lib/subscription";
@@ -45,14 +45,10 @@ export const POST: (
 
       const tenant = await prisma.tenant.findUnique({
         where: { id: tenantId },
-        select: { name: true, aiProvider: true, aiApiKey: true, aiModel: true },
+        select: { name: true },
       });
 
-      const provider = (tenant?.aiProvider as AiProvider) || "default";
-      const model = getAiModel({
-        provider,
-        apiKey: tenant?.aiApiKey || undefined,
-        model: tenant?.aiModel || undefined,
+      const model = await getTenantModel(tenantId, {
         planName,
         task: "chat",
       });
@@ -95,11 +91,8 @@ Suggest the next reply:`;
             String(primaryError).includes("RESOURCE_EXHAUSTED");
 
           if (isRateLimit) {
-            console.warn("[Suggest Reply] Rate limit hit. Failing over to Gemma...");
-            const fallbackModel = getAiModel({
-              provider,
-              apiKey: tenant?.aiApiKey || undefined,
-              model: tenant?.aiModel || undefined,
+            console.warn("[Suggest Reply] Rate limit hit. Failing over to fallback...");
+            const fallbackModel = await getTenantModel(tenantId, {
               planName,
               task: "chat",
               isFallback: true,

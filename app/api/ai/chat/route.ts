@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { streamText } from "ai";
-import { getAiModel, AiProvider } from "@/lib/ai-service";
+import { getTenantModel } from "@/lib/ai-service";
 import {
   checkLimit,
   incrementUsage,
@@ -51,17 +51,13 @@ export const POST = withAuthAndTenant(async ({ id, tenantId }, request, context,
     const planName = (limits.displayName || limits.name || "free").toLowerCase();
     const isPremium = planName.includes("pro") || planName.includes("business");
 
-    // Fetch full tenant details for context injection
+    // Fetch full tenant name for context injection
     const tenant = await db.tenant.findUnique({
       where: { id: tenantId },
-      select: { name: true, aiProvider: true, aiApiKey: true, aiModel: true },
+      select: { name: true },
     });
 
-    const provider = (tenant?.aiProvider as AiProvider) || "default";
-    const model = getAiModel({
-      provider,
-      apiKey: tenant?.aiApiKey || undefined,
-      model: tenant?.aiModel || undefined,
+    const model = await getTenantModel(tenantId, {
       planName,
     });
 
