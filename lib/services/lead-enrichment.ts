@@ -52,6 +52,8 @@ export class LeadEnrichmentService {
         Name: ${lead.name || "Unknown"}
         Company: ${lead.company || "Unknown"}
         `,
+        // @ts-ignore
+        maxTokens: 250, // Controlled limit for structured enrichment
       });
 
       // Update lead with insights

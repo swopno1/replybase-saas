@@ -67,6 +67,8 @@ export async function aiFallback({
       }),
     }),
     prompt: `Analyze this user message for ReplyBase SaaS: "${lastUserMessage}"`,
+    // @ts-ignore
+    maxTokens: 150, // Small limit for structured extraction
   });
 
   // --- MODULE 3.1: CONFIDENCE-BASED EXTRACTION ---
@@ -151,6 +153,8 @@ export async function aiFallback({
       onFinish: async () => {
         await incrementTenantUsage(bot.tenantId, "message", 1, botId);
       },
+      // @ts-ignore
+      maxTokens: 800, // Balanced limit for helpful but concise chat
     });
     return aiStream;
   } catch (primaryError) {
@@ -172,6 +176,8 @@ export async function aiFallback({
         onFinish: async () => {
           await incrementTenantUsage(bot.tenantId, "message", 1, botId);
         },
+        // @ts-ignore
+        maxTokens: 800,
       });
       return secondaryStream;
     } catch (secondaryError) {
