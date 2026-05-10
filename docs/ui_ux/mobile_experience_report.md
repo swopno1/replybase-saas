@@ -6,7 +6,7 @@
 
 ## High-Friction Mobile Scenarios
 - **Flow Editor**: Editing complex tree structures on mobile remains the primary friction point.
-  - **Proposed Solution**: Implement a "Read-only Summary" mode for mobile users that shows the flow steps as a simple list with "Edit" buttons for text content only.
+  - **Proposed Solution**: Implement a "Read-only Summary" mode for mobile users that shows the flow steps as a simple list with "Edit" buttons for text content only. See `docs/proposals_mobile-read-only-flow/overview.md` for full strategy.
 - **Channel Configuration**: Meta/WhatsApp OAuth flows are handled well, but the final connection confirmation toast is sometimes obscured by the browser's bottom navigation bar.
 
 ## Mobile-Specific Opportunities

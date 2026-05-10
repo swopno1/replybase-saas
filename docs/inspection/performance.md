@@ -23,6 +23,7 @@
 - **Target Latency**: Webchat initial handshake < 300ms; AI response start < 1500ms.
 
 ## Optimization Roadmap
-1. **Redis Caching**: Implement `getDashboardStats` with Redis-based caching.
-2. **Log Pruning**: Implement a cron job to move `WebhookLog` entries older than 30 days to cold storage or delete them.
-3. **Asset Optimization**: Optimize the Webchat Widget bundle size (currently ~120kb) to improve initial page load on client sites.
+1. **Redis Caching**: Implement `getDashboardStats` with Redis-based caching. Target: Dashboard metrics with a 300s TTL.
+2. **N+1 Consolidation**: Refactor `BotList` and `ChannelConfig` to fetch channel statuses in a single batched query per bot rather than individual calls.
+3. **Log Pruning**: Implement a cron job to move `WebhookLog` entries older than 30 days to cold storage or delete them.
+4. **Asset Optimization**: Optimize the Webchat Widget bundle size (currently ~120kb) to improve initial page load on client sites.

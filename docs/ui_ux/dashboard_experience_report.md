@@ -11,6 +11,7 @@ The dashboard is the central hub for "Activation Momentum." It successfully guid
 - **Interactive Funnel**: The "Activation Milestone" cards should be interactive. Clicking a stage (e.g., "Leads Captured") should navigate to the Leads page with the appropriate filter applied.
 - **Metric Drill-downs**: Conversation volume charts should allow clicking on a data point to see the specific conversations from that period.
 - **Activity Feed**: The "Recent Activity" sidebar should include "Lead Insights" (e.g., "High-value lead detected by AI").
+- **Setup Shortcuts**: "Zero State" metric cards should feature a direct "Connect [Channel]" CTA.
 
 ## Visual Polish
 - **Empty States**: When no bots exist, the dashboard should show a "Getting Started" guide rather than empty charts.

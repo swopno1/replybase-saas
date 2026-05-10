@@ -32,6 +32,7 @@ ReplyBase is a production-hardened multi-tenant SaaS platform built on Next.js 1
 - **Scalability**: 8.5/10. Usage buffering and tiered AI failover provide a strong foundation for high traffic.
 
 ## Future Evolution
-- **IAM**: Transition from flat Roles to granular Permissions for enterprise teams.
+- **IAM**: Transition from flat Roles to granular Permissions for enterprise teams (Phase 4).
+- **Mobile-Specific UX**: Introduce lightweight, read-only "Flow Summary" views for mobile bot management.
 - **Data Locality**: Potential for region-specific database clusters for global compliance.
 - **Edge Runtime**: Move Webchat handshake and routing to the Edge to minimize latency.

@@ -81,3 +81,43 @@
   - Dependencies: Redis infrastructure.
   - Notes: Ensure cache invalidation on new lead/message events.
   - Suggested Rollout Risk: LOW.
+
+- [ ] **Task 012**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: UX
+  - Issue: Mobile Flow Editor Friction.
+  - Root Cause: Complex tree-based visual editor is difficult to use on small screens.
+  - UX/Business Impact: Prevents users from making quick bot adjustments on the go.
+  - Objective: Implement a read-only "Flow Summary" list view for mobile devices.
+  - Detailed Instructions: 1. Detect mobile user agent or viewport. 2. Replace visual editor with a vertical list of nodes. 3. Allow text-only editing of message content.
+  - Expected Deliverables: Mobile-optimized flow summary component.
+  - Dependencies: None.
+  - Notes: See `docs/proposals_mobile-read-only-flow/overview.md`.
+  - Suggested Rollout Risk: LOW.
+
+- [ ] **Task 013**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: UX/Engagement
+  - Issue: Static Dashboard Funnel.
+  - Root Cause: Funnel stages and activation milestones are non-interactive.
+  - UX/Business Impact: Low interaction density; misses opportunity for quick navigation.
+  - Objective: Make all dashboard funnel stages and milestones clickable.
+  - Detailed Instructions: 1. Add `onClick` handlers to funnel stage cards. 2. Implement filtering logic to show leads/conversations corresponding to the clicked stage. 3. Ensure milestones link to their respective setup pages.
+  - Expected Deliverables: Interactive dashboard metrics and funnel.
+  - Dependencies: None.
+  - Suggested Rollout Risk: LOW.
+
+- [ ] **Task 014**
+  - Priority: HIGH
+  - Status: PENDING
+  - Category: Bug
+  - Issue: Account Deletion Regression.
+  - Root Cause: `TypeError: Cannot read properties of undefined (reading 'updateMany')` in `app/api/users/account/route.ts`.
+  - UX/Business Impact: Users cannot delete their accounts, potentially violating GDPR compliance.
+  - Objective: Fix the `TypeError` in the account deletion handler.
+  - Detailed Instructions: Debug `app/api/users/account/route.ts` around line 37. Ensure all Prisma models are correctly accessed and the user/tenant context is valid.
+  - Expected Deliverables: Passing `tests/api/users/account-delete-route.test.ts`.
+  - Dependencies: None.
+  - Suggested Rollout Risk: LOW.

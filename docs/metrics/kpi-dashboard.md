@@ -8,9 +8,9 @@
 ## Usage
 - **Active Bots**: Total bots processing > 1 message/day.
 - **Message Volume**: Total daily messages processed platform-wide.
-- **AI Coverage**: Ratio of messages handled by AI vs Human.
+- **AI Coverage**: Ratio of messages handled by AI vs Human. *Target: > 80%*.
 
 ## Retention
 - **Trial-to-Paid Conversion**: % of trials that convert to Starter/Pro/Business.
 - **Churn Rate**: % of paid tenants who cancel monthly.
-- **Lead Delivery Success**: % of outbound webhooks delivered successfully.
+- **Lead Delivery Success**: % of outbound webhooks delivered successfully. *Target: > 99.9%*.
