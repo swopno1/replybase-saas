@@ -56,7 +56,7 @@ export const authOptions: NextAuthOptions = {
             authorization: {
               params: {
                 scope:
-                  "public_profile,pages_show_list,pages_manage_metadata,pages_messaging",
+                  "public_profile,pages_show_list,pages_manage_metadata,pages_messaging,business_management",
               },
             },
             // Business app flow must not request `email` and must use a

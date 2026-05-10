@@ -20,7 +20,9 @@ export const GET = withAuthAndTenant(async ({ id: userId, tenantId }) => {
 
   // Call FB Graph API to get pages
   try {
-    const fbUrl = getFacebookGraphUrl("me/accounts", account.access_token);
+    const fbUrl = getFacebookGraphUrl("me/accounts", account.access_token, {
+      fields: "id,name,access_token,category,tasks"
+    });
     const fbRes = await fetch(fbUrl, {
       headers: {
         Authorization: `Bearer ${account.access_token}`,

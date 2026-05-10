@@ -368,6 +368,11 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Manage Page Access / Edit Permissions
               </Button>
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-md text-left max-w-md mx-auto">
+                <p className="text-xs text-blue-800 leading-relaxed">
+                  <strong>Tip:</strong> If you don't see your business pages, click "Manage Page Access" above. In the Facebook popup, select <strong>"Edit Settings"</strong> (or "Edit Access") and make sure all business pages are checked.
+                </p>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
