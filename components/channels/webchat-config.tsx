@@ -49,6 +49,11 @@ interface WebchatSite {
   themeConfig: Record<string, any>;
   channelId: string | null;
   isActive: boolean;
+  channel?: {
+    flowAssignments?: {
+      flow: { id: string; name: string };
+    } | null;
+  } | null;
 }
 
 interface WebchatDiagnostics {
@@ -166,7 +171,7 @@ export function WebchatConfig({
   };
 
   const assignedFlow = useMemo(() => {
-    return (site as any)?.channel?.flowAssignments?.flow;
+    return site?.channel?.flowAssignments?.flow;
   }, [site]);
 
   const loadSite = async (id: string) => {
