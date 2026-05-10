@@ -589,7 +589,7 @@ export async function executeWebchatFlowFirst(params: {
 
   const runtime = getRuntimeState(variables, session.flowId);
   const responses: Array<
-    { type: "text"; text: string } | { type: "typing"; durationMs: number }
+    { type: "text"; text: string; quickReplies?: any[] } | { type: "typing"; durationMs: number }
   > = [];
   let pendingMessage = resolved.isNewSession ? "" : params.message.trim();
 
