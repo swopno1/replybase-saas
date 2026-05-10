@@ -12,6 +12,8 @@ import {
 } from "@/lib/telegram-utils";
 import { recordMilestoneEvent } from "@/lib/milestone-events";
 import { checkTenantUsageLimits, incrementTenantUsage } from "@/lib/subscription";
+import { stitchContactIdentities } from "@/lib/contact-stitching";
+import { leadService } from "./lead-service";
 import logger from "@/lib/logger";
 
 function getCommandReply(commandText: string): string | null {
@@ -25,6 +27,53 @@ export async function processTelegramJob(payload: any) {
   const { channel, update, chatId, userId, messageText, userName, botId } = payload;
   const targetBotId = botId || channel.botId;
   const tenantId = channel.bot.tenantId;
+
+  // --- IDENTITY STITCHING HANDSHAKE ---
+  if (messageText?.startsWith("SYNC_")) {
+    const sessionHash = messageText.replace("SYNC_", "").trim();
+    if (sessionHash) {
+      const tokenEncrypted = channel.accessToken;
+      if (!tokenEncrypted) return;
+      const token = decryptTelegramToken(tokenEncrypted);
+
+      // Find or create the social contact first so we have something to stitch into
+      let contact = await prisma.contact.findFirst({
+        where: {
+          tenantId,
+          identities: { some: { type: "telegram_user_id", value: userId } },
+        },
+      });
+
+      if (!contact) {
+        contact = await prisma.contact.create({
+          data: {
+            tenantId,
+            name: userName,
+            identities: {
+              create: [
+                { type: "telegram_user_id", value: userId },
+                { type: "telegram_chat_id", value: chatId },
+              ],
+            },
+          },
+        });
+      }
+
+      // Auto-tag and promote to lead if identified
+      await leadService.syncContactIdentifiedStatus(tenantId, contact.id);
+
+      const stitchResult = await stitchContactIdentities({
+        tenantId,
+        identifiedContactId: contact.id,
+        sessionHash,
+      });
+
+      if (stitchResult) {
+        await sendTelegramTextMessage(token, chatId, "Session synced! 🚀 I've picked up exactly where we left off on the website.");
+        return; // Stop processing this message as it was just a handshake
+      }
+    }
+  }
 
   // 1. Check Monthly Conversation Limit
   const convLimit = await checkTenantUsageLimits(tenantId, "conversation");
@@ -58,6 +107,9 @@ export async function processTelegramJob(payload: any) {
       },
     });
   }
+
+  // Auto-tag and promote to lead if identified
+  await leadService.syncContactIdentifiedStatus(tenantId, contact.id);
 
   let conversation = await prisma.crmConversation.findFirst({
     where: { contactId: contact.id, botId: targetBotId, channel: "telegram" },

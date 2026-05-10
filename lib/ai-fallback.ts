@@ -96,16 +96,39 @@ export async function aiFallback({
     ...messages,
   ] as ModelMessage[];
 
+  // Cross-channel context: ALL plans get history so context is never lost.
+  // Pro/Business gets a deeper window (12 msgs), Free/Starter gets 6.
   const plan = planName.toLowerCase();
-  if (plan.includes("pro") || plan.includes("business")) {
-    const lastMessages = await prisma.crmMessage.findMany({
-      where: { conversationId },
+  const historyDepth = (plan.includes("pro") || plan.includes("business")) ? 12 : 6;
+
+  const currentConv = await prisma.crmConversation.findUnique({
+    where: { id: conversationId },
+    select: { contactId: true }
+  });
+
+  if (currentConv?.contactId) {
+    const allMessages = await prisma.crmMessage.findMany({
+      where: {
+        conversation: {
+          contactId: currentConv.contactId,
+        },
+      },
       orderBy: { createdAt: "desc" },
-      take: 10,
-      select: { content: true, source: true },
+      take: historyDepth,
+      include: {
+        conversation: {
+          select: { channel: true }
+        }
+      },
     });
-    const historyBlock = `Recent Conversation:\n${lastMessages.reverse().map(m => `[${m.source}] ${m.content}`).join("\n")}`;
-    promptMessages[0].content += `\n\n${historyBlock}`;
+
+    if (allMessages.length > 0) {
+      const historyBlock = `Recent Cross-Channel History:\n${allMessages
+        .reverse()
+        .map((m) => `[${m.conversation.channel.toUpperCase()}] [${m.source}] ${m.content}`)
+        .join("\n")}`;
+      promptMessages[0].content += `\n\n${historyBlock}`;
+    }
   }
 
   const controller = new AbortController();

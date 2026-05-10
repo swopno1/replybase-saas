@@ -13,6 +13,7 @@ import {
   resumeParentFlow,
   setRuntimeState,
 } from "@/lib/flow-runtime-utils";
+import { leadService } from "./services/lead-service";
 
 const MIN_TYPING_DELAY_MS = 300;
 
@@ -289,6 +290,9 @@ async function persistLeadCapture(params: {
     });
   }
 
+  // Auto-tag and promote to lead if identified
+  await leadService.syncContactIdentifiedStatus(params.tenantId, params.contactId);
+
   const existingLead = await prisma.lead.findFirst({
     where: {
       tenantId: params.tenantId,
@@ -456,6 +460,8 @@ async function resolveFlow(params: {
   async function startFlowSession(
     flow: NonNullable<Awaited<ReturnType<typeof loadAccessibleFlow>>>,
   ) {
+    const syncHash = Math.random().toString(36).substring(2, 8).toUpperCase();
+    
     const session = await prisma.flowSession.create({
       data: {
         userId: params.contactId,
@@ -464,6 +470,7 @@ async function resolveFlow(params: {
         currentNodeId: flow.nodes[0]?.id || null,
         variables: {
           __runtime: createInitialRuntimeState(flow.id),
+          sync_hash: syncHash,
         },
         isActive: true,
       },
@@ -834,6 +841,7 @@ export async function executeWebchatFlowFirst(params: {
     flowId: activeFlow.id,
     flowName: activeFlow.name,
     flowSessionId: session.id,
+    syncHash: (variables.sync_hash as string) || null,
     completed,
     waitingForInput,
     fallbackMessage: activeFlow.fallbackMessage || null,

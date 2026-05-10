@@ -15,7 +15,9 @@ import {
 } from "@/lib/whatsapp-provider";
 import { Prisma } from "@prisma/client";
 import { checkTenantUsageLimits, incrementTenantUsage } from "@/lib/subscription";
+import { stitchContactIdentities } from "@/lib/contact-stitching";
 import logger from "@/lib/logger";
+import { leadService } from "./lead-service";
 
 export async function processWhatsAppJob(payload: any) {
   const { channel, waId, profileName, rawPhone, inboundText, messageId, timestamp, botId } = payload;
@@ -23,6 +25,57 @@ export async function processWhatsAppJob(payload: any) {
   // Use botId from payload for multi-bot isolation
   const targetBotId = botId || channel.botId;
   const tenantId = channel.bot.tenantId;
+
+  // --- IDENTITY STITCHING HANDSHAKE ---
+  if (inboundText?.startsWith("SYNC_")) {
+    const sessionHash = inboundText.replace("SYNC_", "").trim();
+    if (sessionHash) {
+      // Find or create the social contact first so we have something to stitch into
+      const normalizedWaId = normalizeWhatsAppAddress(waId);
+      const normalizedPhone = rawPhone ? normalizeWhatsAppE164(rawPhone) : null;
+      
+      let contact = await prisma.contact.findFirst({
+        where: {
+          tenantId,
+          identities: { some: { type: "whatsapp_wa_id", value: normalizedWaId } },
+        },
+      });
+
+      if (!contact) {
+        contact = await prisma.contact.create({
+          data: {
+            tenantId,
+            name: profileName || null,
+            phone: normalizedPhone,
+            identities: {
+              create: [
+                { type: "whatsapp_wa_id", value: normalizedWaId },
+                ...(normalizedPhone ? [{ type: "whatsapp_phone_e164", value: normalizedPhone }] : []),
+              ],
+            },
+          },
+        });
+      }
+
+      const stitchResult = await stitchContactIdentities({
+        tenantId,
+        identifiedContactId: contact.id,
+        sessionHash,
+      });
+
+      if (stitchResult) {
+        if (!channel.accessToken) return;
+        const envelope = decryptWhatsAppCredentialEnvelope(channel.accessToken);
+        await sendWhatsAppText({
+          provider: envelope.provider,
+          credentials: envelope.credentials as WhatsAppProviderCredentials,
+          to: normalizedWaId,
+          text: "Session synced! 🚀 I've picked up exactly where we left off on the website.",
+        });
+        return; // Stop processing this message as it was just a handshake
+      }
+    }
+  }
 
   // 1. Check Monthly Conversation Limit
   const convLimit = await checkTenantUsageLimits(tenantId, "conversation");
@@ -56,6 +109,9 @@ export async function processWhatsAppJob(payload: any) {
       },
     });
   }
+
+  // Auto-tag and promote to lead if identified
+  await leadService.syncContactIdentifiedStatus(tenantId, contact.id);
 
   let conversation = await prisma.crmConversation.findFirst({
     where: { contactId: contact.id, botId: targetBotId, channel: "whatsapp" },

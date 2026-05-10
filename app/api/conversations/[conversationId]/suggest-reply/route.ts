@@ -24,11 +24,18 @@ export const POST: (
           },
         },
         include: {
-          messages: {
-            orderBy: { createdAt: "desc" },
-            take: 10,
+          contact: {
+            include: {
+              conversations: {
+                include: {
+                  messages: {
+                    orderBy: { createdAt: "desc" },
+                    take: 12,
+                  },
+                },
+              },
+            },
           },
-          contact: true,
         },
       });
 
@@ -53,11 +60,22 @@ export const POST: (
         task: "chat",
       });
 
-      // 3. Prepare prompt
+      // 3. Prepare prompt with cross-channel history
       const contactName = conversation.contact.name || "the customer";
-      const messageHistory = [...conversation.messages]
-        .reverse()
-        .map((m) => `${m.direction === "inbound" ? contactName : "You"}: ${m.content}`)
+      
+      // Flatten all messages from all conversations
+      const allMessages = conversation.contact.conversations.flatMap(c => 
+        c.messages.map(m => ({
+          ...m,
+          channel: c.channel
+        }))
+      ).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+      // Only take the last 15 messages for the prompt
+      const recentMessages = allMessages.slice(-15);
+
+      const messageHistory = recentMessages
+        .map((m) => `[${m.channel.toUpperCase()}] ${m.direction === "inbound" ? contactName : "You"}: ${m.content}`)
         .join("\n");
 
       const systemPrompt = `You are an expert customer support agent for ${tenant?.name || "our company"}.

@@ -10,6 +10,7 @@ import {
 import { getFacebookGraphUrl } from "@/lib/server/facebook-utils";
 import { checkTenantUsageLimits, incrementTenantUsage } from "@/lib/subscription";
 import { stitchContactIdentities } from "@/lib/contact-stitching";
+import { leadService } from "./lead-service";
 import logger from "@/lib/logger";
 
 export async function processFacebookJob(payload: any) {
@@ -62,6 +63,9 @@ export async function processFacebookJob(payload: any) {
       },
     });
   }
+
+  // Auto-tag and promote to lead if identified
+  await leadService.syncContactIdentifiedStatus(tenantId, contact.id);
 
   // --- MODULE 1: IDENTITY STITCHING HANDSHAKE ---
   let stitchedVars: Record<string, any> = {};

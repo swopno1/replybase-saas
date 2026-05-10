@@ -41,7 +41,14 @@ export async function POST(request: NextRequest) {
         await prisma.crmMessage.createMany({ data: outMessages.map((outMsg) => ({ tenantId, conversationId, direction: "outbound", content: outMsg, source: "flow" })) });
         logger.info({ responses: flowResult.responses }, "[Webchat Message] Responding from flow");
       }
-      return NextResponse.json({ responses: flowResult.responses, meta: { mode: "flow", flowId: flowResult.flowId } }, { headers: createWebchatCorsHeaders(request) });
+      return NextResponse.json({ 
+        responses: flowResult.responses, 
+        meta: { 
+          mode: "flow", 
+          flowId: flowResult.flowId,
+          syncHash: flowResult.syncHash
+        } 
+      }, { headers: createWebchatCorsHeaders(request) });
     }
     const lastMessages = await prisma.crmMessage.findMany({ where: { conversationId }, orderBy: { createdAt: "desc" }, take: 10, select: { content: true, source: true } });
     const aiMessages: ModelMessage[] = lastMessages.reverse().map((msg) => ({ role: msg.source === "human" ? "user" : "assistant", content: msg.content }));

@@ -91,6 +91,32 @@ export async function stitchContactIdentities(params: {
       },
     });
 
+    // 7. Notify the team via Internal Note and Activity Log
+    try {
+      const activeConversation = await prisma.crmConversation.findFirst({
+        where: { contactId: params.identifiedContactId, tenantId: params.tenantId },
+        orderBy: { updatedAt: "desc" },
+      });
+
+      if (activeConversation) {
+        await prisma.activityLog.create({
+          data: {
+            tenantId: params.tenantId,
+            type: "CONTACT_STITCHED",
+            title: "Identity Synced",
+            description: `Contact merged with previous Webchat session (${params.sessionHash})`,
+            entityType: "contact",
+            entityId: params.identifiedContactId,
+          },
+        });
+
+        // We use a system "user" ID if available, or just a generic note
+        // For now, we'll just create the log. If you have a system user, you can add an InternalNote here too.
+      }
+    } catch (notifyError) {
+      logger.error({ notifyError }, "Failed to create stitching notifications");
+    }
+
     logger.info(
       { anonymousContactId, identifiedContactId: params.identifiedContactId },
       "Identity stitching successful"
