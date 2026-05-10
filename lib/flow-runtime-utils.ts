@@ -18,9 +18,17 @@ export type FlowCondition = {
   nextNodeOrder?: number;
 };
 
+export type FlowButton = {
+  type: "postback" | "url";
+  title: string;
+  payload?: string;
+  url?: string;
+};
+
 export type FlowNodeContent = {
   text?: string;
   quick_replies?: Array<{ title: string; payload: string; image_url?: string }>;
+  buttons?: FlowButton[];
   inputType?: "text" | "email" | "phone" | "number";
   variableName?: string;
   validationMessage?: string;
@@ -33,7 +41,10 @@ export type FlowNodeContent = {
     | "end_flow"
     | "booking"
     | "checkout"
-    | "schedule";
+    | "schedule"
+    | "trigger_webhook";
+  tags?: string[];
+  status?: string;
   targetFlowId?: string;
   targetFlowName?: string;
   bookingService?: string;

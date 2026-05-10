@@ -463,10 +463,12 @@ export default function SubscriberDetailPage({
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
               {subscription.tenant.name}
+              <span className="text-muted-foreground/40 font-normal">/</span>
+              <span className="text-indigo-600 capitalize font-medium">{activeTab.replace("-", " ")}</span>
             </h1>
-            <p className="text-muted-foreground">Manage subscriber account and configurations</p>
+            <p className="text-muted-foreground text-sm">Subscriber Account & Configuration Management</p>
           </div>
         </div>
         <Badge variant={subscription.status === "active" ? "default" : "secondary"}>
@@ -520,12 +522,22 @@ export default function SubscriberDetailPage({
         }}
         className="space-y-4"
       >
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="subscription">Subscription</TabsTrigger>
-          <TabsTrigger value="bots">Bots & Channels</TabsTrigger>
-          <TabsTrigger value="flows">Flows</TabsTrigger>
-          <TabsTrigger value="logs">Logs & Activity</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-5 h-auto">
+          <TabsTrigger value="overview" className="flex items-center gap-2 py-2">
+            <User className="h-4 w-4" /> Overview
+          </TabsTrigger>
+          <TabsTrigger value="subscription" className="flex items-center gap-2 py-2">
+            <CreditCard className="h-4 w-4" /> Subscription
+          </TabsTrigger>
+          <TabsTrigger value="bots" className="flex items-center gap-2 py-2">
+            <Bot className="h-4 w-4" /> Bots & Channels
+          </TabsTrigger>
+          <TabsTrigger value="flows" className="flex items-center gap-2 py-2">
+            <Activity className="h-4 w-4" /> Flows
+          </TabsTrigger>
+          <TabsTrigger value="logs" className="flex items-center gap-2 py-2">
+            <History className="h-4 w-4" /> Logs & Activity
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -558,6 +570,89 @@ export default function SubscriberDetailPage({
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{subscription.tenant.users.length}</div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          <div className="grid gap-4 md:grid-cols-2 mt-4">
+            <Card className="border-indigo-100 bg-indigo-50/30 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-bold flex items-center gap-2 text-indigo-900">
+                  <ShieldAlert className="h-4 w-4 text-indigo-600" />
+                  Quick Navigation
+                </CardTitle>
+                <CardDescription className="text-indigo-800/70">Jump directly to common management screens</CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-2 gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="justify-start h-9 text-xs bg-white border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                  onClick={() => {
+                    const params = new URLSearchParams(searchParams.toString());
+                    params.set("tab", "bots");
+                    router.push(`/admin/subscribers/${id}?${params.toString()}`);
+                  }}
+                >
+                  <Bot className="mr-2 h-3.5 w-3.5" /> Manage Bots
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="justify-start h-9 text-xs bg-white border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                  onClick={() => {
+                    const params = new URLSearchParams(searchParams.toString());
+                    params.set("tab", "flows");
+                    router.push(`/admin/subscribers/${id}?${params.toString()}`);
+                  }}
+                >
+                  <Activity className="mr-2 h-3.5 w-3.5" /> Manage Flows
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="justify-start h-9 text-xs bg-white border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                  onClick={() => {
+                    const params = new URLSearchParams(searchParams.toString());
+                    params.set("tab", "subscription");
+                    router.push(`/admin/subscribers/${id}?${params.toString()}`);
+                  }}
+                >
+                  <CreditCard className="mr-2 h-3.5 w-3.5" /> Billing Info
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="justify-start h-9 text-xs bg-white border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                  onClick={() => {
+                    const params = new URLSearchParams(searchParams.toString());
+                    params.set("tab", "logs");
+                    router.push(`/admin/subscribers/${id}?${params.toString()}`);
+                  }}
+                >
+                  <History className="mr-2 h-3.5 w-3.5" /> Audit Logs
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium">Tenant Details</CardTitle>
+                <CardDescription>Primary account information</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Tenant Name:</span>
+                  <span className="font-medium">{subscription.tenant.name}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Admin User:</span>
+                  <span className="font-medium truncate max-w-[150px]">{subscription.tenant.users[0]?.email || "N/A"}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Created:</span>
+                  <span className="font-medium">{new Date(subscription.tenant.users[0]?.createdAt || Date.now()).toLocaleDateString()}</span>
+                </div>
               </CardContent>
             </Card>
           </div>

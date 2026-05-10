@@ -23,11 +23,15 @@ export interface ChannelStatus {
   description: string;
   enabled: boolean;
   uiVisible: boolean;
+  navVisible: boolean;
   notes?: string;
 }
 
 type ChannelOverrides = Partial<
-  Record<ChannelId, Partial<Pick<ChannelConfigData, "enabled" | "uiVisible">>>
+  Record<
+    ChannelId,
+    Partial<Pick<ChannelConfigData, "enabled" | "uiVisible" | "navVisible">>
+  >
 >;
 
 function parseOverrides(): ChannelOverrides {
@@ -47,10 +51,22 @@ function parseOverrides(): ChannelOverrides {
 function resolveChannelData(channelId: ChannelId): ChannelConfigData {
   const base = CHANNEL_CONFIG_DATA[channelId];
   const override = parseOverrides()[channelId] || {};
-  return {
+
+  const resolved = {
     ...base,
     ...override,
   };
+
+  // If the channel is disabled, force all visibility to false
+  if (!resolved.enabled) {
+    return {
+      ...resolved,
+      uiVisible: false,
+      navVisible: false,
+    };
+  }
+
+  return resolved;
 }
 
 /**
@@ -64,6 +80,7 @@ export function getChannelConfig(channelId: ChannelId): ChannelStatus {
     description: data.description,
     enabled: data.enabled,
     uiVisible: data.uiVisible,
+    navVisible: data.navVisible,
     notes: data.notes,
   };
 }
@@ -118,9 +135,22 @@ export function isChannelVisibleInUi(channelId: ChannelId): boolean {
   return resolveChannelData(channelId).uiVisible;
 }
 
+/**
+ * Returns true when a channel should be shown in navigation sidebars.
+ */
+export function isChannelNavVisible(channelId: ChannelId): boolean {
+  return resolveChannelData(channelId).navVisible;
+}
+
 export function getUiVisibleChannels(): ChannelStatus[] {
   return getAllChannelConfigs().filter((channel) =>
     isChannelVisibleInUi(channel.id),
+  );
+}
+
+export function getNavVisibleChannels(): ChannelStatus[] {
+  return getAllChannelConfigs().filter((channel) =>
+    isChannelNavVisible(channel.id),
   );
 }
 

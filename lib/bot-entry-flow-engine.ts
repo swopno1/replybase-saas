@@ -20,7 +20,8 @@ const MIN_TYPING_DELAY_MS = 300;
 async function applyDelayWithOptionalTyping(
   content: FlowNodeContent,
   responses: Array<
-    { type: "text"; text: string } | { type: "typing"; durationMs: number }
+    | { type: "text"; text: string; quickReplies?: any[] }
+    | { type: "typing"; durationMs: number }
   >,
   explicitDelayMs?: number,
 ) {
@@ -414,7 +415,8 @@ export async function executeBotEntryFlowFirst(params: {
 
   const runtime = getRuntimeState(mergedVariables, session.flowId);
   const responses: Array<
-    { type: "text"; text: string } | { type: "typing"; durationMs: number }
+    | { type: "text"; text: string; quickReplies?: any[] }
+    | { type: "typing"; durationMs: number }
   > = [];
   let pendingMessage = resolved.isNewSession ? "" : params.message.trim();
 
@@ -438,10 +440,48 @@ export async function executeBotEntryFlowFirst(params: {
         const text = content.text
           ? interpolateText(content.text, mergedVariables)
           : "";
-        if (text.trim()) {
-          responses.push({ type: "text", text: text.trim() });
+        const quickReplies = content.quick_replies || content.buttons;
+
+        if (pendingMessage && quickReplies && quickReplies.length > 0) {
+          // If we have a pending message and this node has quick replies,
+          // we treat it as the response to those quick replies.
+          const variableName = content.variableName || `msg_${currentNode.order}`;
+          mergedVariables[variableName] = pendingMessage;
+          pendingMessage = ""; // Consume it
+          
+          await applyDelayWithOptionalTyping(content, responses);
+          currentNode = getNextNode(
+            activeFlow.nodes,
+            currentNode.order,
+            content.nextNodeOrder,
+          );
+          break;
         }
+
+        if (text.trim()) {
+          const resp: { type: "text"; text: string; quickReplies?: any[] } = {
+            type: "text",
+            text: text.trim(),
+          };
+          if (quickReplies && quickReplies.length > 0) {
+            resp.quickReplies = quickReplies.map((qr) => ({
+              content_type: "text",
+              title: qr.title,
+              payload: qr.payload || qr.title,
+            }));
+          }
+          responses.push(resp);
+        }
+        
         await applyDelayWithOptionalTyping(content, responses);
+
+        // If it has quick replies and we haven't consumed a pending message yet,
+        // we must STOP and wait for the user to click one.
+        if (quickReplies && quickReplies.length > 0 && !pendingMessage) {
+          safetyCounter = 99; // Stop execution
+          break;
+        }
+
         currentNode = getNextNode(
           activeFlow.nodes,
           currentNode.order,
@@ -605,6 +645,16 @@ export async function executeBotEntryFlowFirst(params: {
           completed = true;
           currentNode = null;
           break;
+        }
+
+        if (content.action === "trigger_webhook") {
+          const { dispatchWebhook } = await import("@/lib/services/webhook-dispatcher");
+          await dispatchWebhook(params.tenantId, "flow.action", {
+            contactId: params.contactId,
+            action: content.action,
+            nodeId: currentNode.id,
+            variables: mergedVariables,
+          });
         }
 
         await applyDelayWithOptionalTyping(content, responses);

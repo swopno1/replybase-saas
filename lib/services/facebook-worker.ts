@@ -155,7 +155,7 @@ export async function processFacebookJob(payload: any) {
           await waitForFlowDurationMs(Math.min(resp.durationMs, 3000));
           await sendFacebookSenderAction(accessToken, senderPsid, "typing_off");
         } else if (resp.type === "text" && resp.text) {
-          await sendTextMessage(accessToken, senderPsid, resp.text);
+          await sendTextMessage(accessToken, senderPsid, resp.text, (resp as any).quickReplies);
           await prisma.crmMessage.create({
             data: {
               tenantId,

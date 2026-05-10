@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { isChannelVisibleInUi, type ChannelId } from "@/lib/channel-config";
+import { isChannelNavVisible, type ChannelId } from "@/lib/channel-config";
 import { FacebookLogo } from "@/components/icons/MetaIcons";
 
 import {
@@ -101,7 +101,7 @@ const items = [
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const visibleItems = items.filter(
-    (item) => !item.channelId || isChannelVisibleInUi(item.channelId),
+    (item) => !item.channelId || isChannelNavVisible(item.channelId),
   );
 
   return (

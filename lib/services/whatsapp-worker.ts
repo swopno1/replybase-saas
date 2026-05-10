@@ -210,6 +210,10 @@ export async function processWhatsAppJob(payload: any) {
             credentials: envelope.credentials as WhatsAppProviderCredentials,
             to: normalizedWaId,
             text: resp.text,
+            buttons: resp.quickReplies?.map((qr: any) => ({
+              title: qr.title,
+              payload: qr.payload,
+            })),
           });
           if (sendResult.success) {
             await prisma.crmMessage.create({

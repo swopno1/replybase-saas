@@ -31,6 +31,7 @@ export interface WhatsAppSendTextInput {
   credentials: WhatsAppProviderCredentials;
   to: string;
   text: string;
+  buttons?: Array<{ title: string; payload: string }>;
 }
 
 export interface WhatsAppSendResult {
@@ -199,6 +200,36 @@ export async function sendWhatsAppText(
 ): Promise<WhatsAppSendResult> {
   if (input.provider === "meta_cloud") {
     const credentials = input.credentials as MetaCloudCredentials;
+    const body: any = {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: normalizeWhatsAppAddress(input.to),
+    };
+
+    if (input.buttons && input.buttons.length > 0) {
+      body.type = "interactive";
+      body.interactive = {
+        type: "button",
+        body: {
+          text: input.text,
+        },
+        action: {
+          buttons: input.buttons.slice(0, 3).map((btn, index) => ({
+            type: "reply",
+            reply: {
+              id: btn.payload || `btn_${index}`,
+              title: btn.title.slice(0, 20), // WhatsApp limit: 20 chars
+            },
+          })),
+        },
+      };
+    } else {
+      body.type = "text";
+      body.text = {
+        body: input.text,
+      };
+    }
+
     const response = await fetch(
       `${META_GRAPH_BASE}/${encodeURIComponent(credentials.phoneNumberId)}/messages`,
       {
@@ -207,15 +238,7 @@ export async function sendWhatsAppText(
           "Content-Type": "application/json",
           Authorization: `Bearer ${credentials.accessToken}`,
         },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          recipient_type: "individual",
-          to: normalizeWhatsAppAddress(input.to),
-          type: "text",
-          text: {
-            body: input.text,
-          },
-        }),
+        body: JSON.stringify(body),
       },
     );
 
