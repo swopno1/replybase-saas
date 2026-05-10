@@ -33,6 +33,14 @@ export const GET = withAuthAndTenant(async ({ tenantId }, req, context, db) => {
           bot: {
             select: { id: true, name: true },
           },
+          flowAssignments: {
+            where: { isActive: true },
+            include: {
+              flow: {
+                select: { id: true, name: true, isActive: true },
+              },
+            },
+          },
         },
         orderBy: {
           updatedAt: "desc",
@@ -115,6 +123,7 @@ export const GET = withAuthAndTenant(async ({ tenantId }, req, context, db) => {
         channelId: channel.channelId,
         type: channel.type,
         updatedAt: channel.updatedAt,
+        flowAssignments: (channel as any).flowAssignments,
       },
       bot: channel.bot,
       limitStatus,

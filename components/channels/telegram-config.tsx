@@ -35,6 +35,9 @@ interface TelegramStatus {
     name: string;
     channelId: string;
     updatedAt: string;
+    flowAssignments?: {
+      flow: { id: string; name: string };
+    } | null;
   };
   webhook?: {
     url: string;
@@ -319,7 +322,7 @@ export function TelegramConfig({ botId, channelLimitStatus }: { botId: string; c
   const connected = Boolean(status?.connected);
 
   const assignedFlow = useMemo(() => {
-    return (status as any)?.channel?.flowAssignments?.[0]?.flow;
+    return status?.channel?.flowAssignments?.flow;
   }, [status]);
 
   return (

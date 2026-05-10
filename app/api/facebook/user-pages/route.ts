@@ -59,7 +59,7 @@ export const GET = withAuthAndTenant(async ({ id: userId, tenantId }) => {
         connected: !!internalPage,
         internalId: internalPage?.id || null,
         botId: internalPage?.botId || null,
-        assignedFlow: internalPage?.flowAssignments?.[0]?.flow || null,
+        assignedFlow: internalPage?.flowAssignments?.flow || null,
       };
     });
 

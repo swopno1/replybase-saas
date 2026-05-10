@@ -166,9 +166,7 @@ export function WebchatConfig({
   };
 
   const assignedFlow = useMemo(() => {
-    // Check if channel exists and has flow assignments
-    // Note: the backend site object includes channel data
-    return (site as any)?.channel?.flowAssignments?.[0]?.flow;
+    return (site as any)?.channel?.flowAssignments?.flow;
   }, [site]);
 
   const loadSite = async (id: string) => {

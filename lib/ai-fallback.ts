@@ -114,20 +114,21 @@ export async function aiFallback({
     promptMessages[0].content += `\n\n${historyBlock}`;
   }
 
-  const model = getAiModel({
-    provider,
-    apiKey: bot?.tenant?.aiApiKey || undefined,
-    model: bot?.tenant?.aiModel || undefined,
-    planName,
-    task: "chat",
-  });
-
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
 
   try {
+    // LAYER 3: Primary Generative Attempt (Gemini 1.5 Flash)
+    const primaryModel = getAiModel({
+      provider,
+      apiKey: bot?.tenant?.aiApiKey || undefined,
+      model: bot?.tenant?.aiModel || "gemini-1.5-flash-latest",
+      planName,
+      task: "chat",
+    });
+
     const aiStream = await streamText({
-      model,
+      model: primaryModel,
       messages: promptMessages,
       output: Output.text(),
       abortSignal: controller.signal,
@@ -136,6 +137,34 @@ export async function aiFallback({
       },
     });
     return aiStream;
+  } catch (primaryError) {
+    console.error("[AI Fallback] Primary model failed, attempting secondary (Gemma):", primaryError);
+    
+    try {
+      // LAYER 4: Secondary Generative Attempt (Gemma 2 27B)
+      const secondaryModel = getAiModel({
+        provider,
+        apiKey: bot?.tenant?.aiApiKey || undefined,
+        model: "gemma-2-27b-it",
+        planName,
+        task: "chat",
+        isFallback: true,
+      });
+
+      const secondaryStream = await streamText({
+        model: secondaryModel,
+        messages: promptMessages,
+        output: Output.text(),
+        abortSignal: controller.signal,
+        onFinish: async () => {
+          await incrementTenantUsage(bot.tenantId, "message", 1, botId);
+        },
+      });
+      return secondaryStream;
+    } catch (secondaryError) {
+      console.error("[AI Fallback] Secondary model also failed:", secondaryError);
+      return "I'm having a bit of trouble processing that right now. How else can I help you?";
+    }
   } finally {
     clearTimeout(timeoutId);
   }

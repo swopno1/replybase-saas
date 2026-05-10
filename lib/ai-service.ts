@@ -60,15 +60,18 @@ export function getAiModel({
         apiKey: apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
       });
 
-      // If this is a fallback request, use a high-RPM Gemini model
+      // If this is a fallback request, use the specified "Lite" model or Gemma
       if (isFallback) {
-        return client("gemini-1.5-flash"); // High RPM, low cost fallback
+        if (model === "gemma-2-27b-it") {
+          return client("gemma-2-27b-it");
+        }
+        return client("gemini-1.5-flash-8b"); // High RPM, ultra-low latency "Lite" model
       }
 
-      // Task-specific defaults for the available Gemini versions
-      let defaultModel = "gemini-1.5-flash"; 
+      // Task-specific defaults
+      let defaultModel = "gemini-1.5-flash-latest"; 
       if (task === "onboarding") {
-        defaultModel = "gemini-1.5-pro"; 
+        defaultModel = "gemini-1.5-pro-latest"; 
       }
 
       return client(model || defaultModel);

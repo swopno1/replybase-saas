@@ -44,7 +44,9 @@ interface WhatsAppStatus {
     name: string;
     channelId: string;
     updatedAt: string;
-    flowAssignments?: Array<{ flow: { id: string; name: string } }>;
+    flowAssignments?: {
+      flow: { id: string; name: string };
+    } | null;
   };
   provider?: string;
   local?: {
@@ -297,7 +299,7 @@ export function WhatsAppConfig({ botId, channelLimitStatus }: { botId: string; c
     : dialogApiKey && dialogChannelId;
 
   const assignedFlow = useMemo(() => {
-    return status?.channel?.flowAssignments?.[0]?.flow;
+    return status?.channel?.flowAssignments?.flow;
   }, [status]);
 
   return (

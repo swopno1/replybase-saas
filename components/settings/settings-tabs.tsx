@@ -992,8 +992,14 @@ function SettingsTabsInner() {
                             <option value="gemini-1.5-pro-latest">
                               Gemini 1.5 Pro (Advanced)
                             </option>
-                            <option value="gemini-1.5-flash">
-                              Gemini 1.5 Flash (Fast)
+                            <option value="gemini-1.5-flash-latest">
+                              Gemini 1.5 Flash (Latest)
+                            </option>
+                            <option value="gemini-1.5-flash-8b">
+                              Gemini 1.5 Flash-8B (Lite)
+                            </option>
+                            <option value="gemma-2-27b-it">
+                              Gemma 2 27B
                             </option>
                           </>
                         )}
