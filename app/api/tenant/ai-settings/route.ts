@@ -49,7 +49,7 @@ export async function PATCH(req: NextRequest) {
     const validModels: Record<string, string[]> = {
       openai: ["gpt-4o", "gpt-4o-mini"],
       anthropic: ["claude-3-5-sonnet-latest", "claude-3-haiku-latest"],
-      gemini: ["gemini-1.5-pro-latest", "gemini-1.5-flash-latest", "gemini-1.5-flash-8b", "gemma-2-27b-it"],
+      gemini: ["gemini-3-flash-preview", "gemini-3.1-flash-lite-preview", "gemini-2.5-flash-lite", "gemma-2-27b-it"],
       default: [],
     };
 

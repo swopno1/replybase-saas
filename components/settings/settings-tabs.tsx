@@ -989,14 +989,14 @@ function SettingsTabsInner() {
                         )}
                         {aiSettings.aiProvider === "gemini" && (
                           <>
-                            <option value="gemini-1.5-pro-latest">
-                              Gemini 1.5 Pro (Advanced)
+                            <option value="gemini-3-flash-preview">
+                              Gemini 3 Flash (Premium)
                             </option>
-                            <option value="gemini-1.5-flash-latest">
-                              Gemini 1.5 Flash (Latest)
+                            <option value="gemini-3.1-flash-lite-preview">
+                              Gemini 3.1 Flash Lite (Main)
                             </option>
-                            <option value="gemini-1.5-flash-8b">
-                              Gemini 1.5 Flash-8B (Lite)
+                            <option value="gemini-2.5-flash-lite">
+                              Gemini 2.5 Flash Lite (Fallback)
                             </option>
                             <option value="gemma-2-27b-it">
                               Gemma 2 27B
@@ -1034,11 +1034,11 @@ function SettingsTabsInner() {
             <ul className="list-disc pl-5 space-y-1">
               <li>
                 <strong>Free/Starter:</strong> Uses cost-effective models (Gemini
-                Flash, GPT-4o-mini).
+                3.1 Flash Lite, GPT-4o-mini).
               </li>
               <li>
                 <strong>Pro/Business:</strong> Uses advanced models with more
-                context (Gemini Pro, GPT-4o, Claude 3.5 Sonnet).
+                context (Gemini 3 Flash, GPT-4o, Claude 3.5 Sonnet).
               </li>
             </ul>
           </CardContent>
