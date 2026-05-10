@@ -1,37 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import {
   decryptWhatsAppCredentialEnvelope,
   getStringFromJsonConfig,
 } from "@/lib/whatsapp-channel-credentials";
 import { maskSecret } from "@/lib/whatsapp-provider";
 import { checkChannelLimit } from "@/lib/subscription";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ botId: string }> },
-) {
+export const GET = withAuthAndTenant(async ({ tenantId }, req, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { botId } = await params;
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { tenantId: true },
-    });
-
-    if (!user?.tenantId) {
-      return NextResponse.json({ error: "No tenant found" }, { status: 403 });
-    }
-
+    const { botId } = (await context.params) as { botId: string };
     const channelId = req.nextUrl.searchParams.get("channelId");
 
     const whereClause: Prisma.ChannelWhereInput = channelId
@@ -39,16 +20,16 @@ export async function GET(
           id: channelId,
           botId,
           type: "whatsapp",
-          bot: { tenantId: user.tenantId },
+          bot: { tenantId: tenantId },
         }
       : {
           botId,
           type: "whatsapp",
-          bot: { tenantId: user.tenantId },
+          bot: { tenantId: tenantId },
         };
 
     const [channel, limitStatus] = await Promise.all([
-      prisma.channel.findFirst({
+      db.channel.findFirst({
         where: whereClause,
         include: {
           bot: {
@@ -60,7 +41,7 @@ export async function GET(
         },
         orderBy: { updatedAt: "desc" },
       }),
-      checkChannelLimit(user.tenantId, botId),
+      checkChannelLimit(tenantId, botId),
     ]);
 
     if (!channel) {
@@ -160,4 +141,4 @@ export async function GET(
       { status: 500 },
     );
   }
-}
+});

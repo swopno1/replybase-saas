@@ -103,6 +103,7 @@ model Tenant {
   users                     User[]
   webChatSites              WebChatSite[]
   webhookSubscriptions      WebhookSubscription[]
+  webhookLogs               WebhookLog[]
   executionLogs             ExecutionLog[]
 
   @@map("tenants")
@@ -811,10 +812,13 @@ model WebhookLog {
   type      String
   source    String
   event     String?
+  tenantId  String?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   data      Json
   createdAt DateTime @default(now())
 
   @@unique([source, event], where: raw("((event IS NOT NULL) AND (POSITION((':'::text) IN (event)) > 0))"))
+  @@index([tenantId])
   @@index([createdAt])
   @@index([source])
   @@index([source, event])

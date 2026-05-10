@@ -1,9 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -11,35 +9,18 @@ const disconnectSchema = z.object({
   channelId: z.string().min(1),
 });
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ botId: string }> },
-) {
+export const POST = withAuthAndTenant(async ({ tenantId }, req, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { botId } = await params;
+    const { botId } = (await context.params) as { botId: string };
     const body = await req.json();
     const validated = disconnectSchema.parse(body);
 
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { tenantId: true },
-    });
-
-    if (!user?.tenantId) {
-      return NextResponse.json({ error: "No tenant found" }, { status: 403 });
-    }
-
-    const channel = await prisma.channel.findFirst({
+    const channel = await db.channel.findFirst({
       where: {
         id: validated.channelId,
         botId,
         type: "whatsapp",
-        bot: { tenantId: user.tenantId },
+        bot: { tenantId: tenantId },
       },
     });
 
@@ -52,7 +33,7 @@ export async function POST(
 
     const currentConfig = (channel.config as Prisma.JsonObject | null) || {};
 
-    await prisma.channel.update({
+    await db.channel.update({
       where: { id: channel.id },
       data: {
         isActive: false,
@@ -87,4 +68,4 @@ export async function POST(
       { status: 500 },
     );
   }
-}
+});

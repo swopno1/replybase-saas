@@ -1,10 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { NextResponse } from "next/server";
 import { recordActivity } from "@/lib/activity-log";
-import { prisma } from "@/lib/prisma";
 import { checkBotLimit } from "@/lib/subscription";
 import { z } from "zod";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -15,16 +13,11 @@ const createBotSchema = z.object({
   entryFlow: z.string().optional(),
 });
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withAuthAndTenant(async ({ tenantId }, _req, _context, db) => {
   try {
     const [bots, limitStatus] = await Promise.all([
-      prisma.bot.findMany({
-        where: { tenantId: session.user.tenantId },
+      db.bot.findMany({
+        where: { tenantId: tenantId },
         orderBy: { createdAt: "desc" },
         include: {
           channels: {
@@ -33,7 +26,7 @@ export async function GET() {
           },
         },
       }),
-      checkBotLimit(session.user.tenantId),
+      checkBotLimit(tenantId),
     ]);
 
     const mappedBots = bots.map((bot) => ({
@@ -53,15 +46,10 @@ export async function GET() {
     console.error("Failed to fetch bots:", error);
     return NextResponse.json({ error: "Failed to fetch bots" }, { status: 500 });
   }
-}
+});
 
-export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const limitStatus = await checkBotLimit(session.user.tenantId);
+export const POST = withAuthAndTenant(async ({ tenantId, id: userId }, req, _context, db) => {
+  const limitStatus = await checkBotLimit(tenantId);
   if (!limitStatus.allowed) {
     return NextResponse.json(
       {
@@ -89,16 +77,16 @@ export async function POST(req: NextRequest) {
         parsedContext = context;
       }
     }
-    const bot = await prisma.bot.create({
+    const bot = await db.bot.create({
       data: {
         name,
-        tenantId: session.user.tenantId,
+        tenantId: tenantId,
         enabled: true,
         context: parsedContext,
         entryFlow: parsed.data.entryFlow,
         channels: {
           create: {
-            tenantId: session.user.tenantId,
+            tenantId: tenantId,
             type: normalizedChannelType,
             name: "Default Channel",
             channelId: normalizedChannelType === "web" ? null : `default-${Date.now()}`,
@@ -109,8 +97,8 @@ export async function POST(req: NextRequest) {
     });
 
     await recordActivity({
-      tenantId: session.user.tenantId,
-      userId: typeof session.user.id === "string" ? session.user.id : undefined,
+      tenantId: tenantId,
+      userId: userId,
       type: "bot_created",
       title: "Bot Created",
       description: `Created bot ${bot.name}`,
@@ -123,4 +111,4 @@ export async function POST(req: NextRequest) {
     console.error("Bot creation error", error);
     return NextResponse.json({ error: "Failed to create bot" }, { status: 500 });
   }
-}
+});

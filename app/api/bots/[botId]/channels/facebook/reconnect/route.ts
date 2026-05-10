@@ -1,35 +1,17 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
+import { NextResponse } from "next/server";
 import { getFacebookGraphUrl } from "@/lib/server/facebook-utils";
 import { isChannelEnabled } from "@/lib/channel-config";
 import { recordWebhookSetupLog } from "@/lib/webhook-setup-log";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = "force-dynamic";
 
-/**
- * POST /api/bots/[botId]/channels/facebook/reconnect
- * Re-subscribes a Facebook page to webhooks if the token is still valid.
- */
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ botId: string }> },
-) {
+export const POST = withAuthAndTenant(async ({ tenantId }, req, context, db) => {
   if (!isChannelEnabled("facebook")) {
     return NextResponse.json({ error: "Facebook channel is not enabled" }, { status: 403 });
   }
 
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { botId } = await params;
-  const tenantId = session.user.tenantId;
-  if (!tenantId) {
-    return NextResponse.json({ error: "Tenant ID missing" }, { status: 400 });
-  }
+  const { botId } = (await context.params) as { botId: string };
 
   try {
     const body = await req.json();
@@ -39,7 +21,7 @@ export async function POST(
       return NextResponse.json({ error: "Missing pageId" }, { status: 400 });
     }
 
-    const facebookPage = await prisma.facebookPage.findFirst({
+    const facebookPage = await db.facebookPage.findFirst({
       where: {
         facebookId: pageId,
         botId: botId,
@@ -84,7 +66,7 @@ export async function POST(
     }
 
     // 3. Update database status
-    await prisma.facebookPage.update({
+    await db.facebookPage.update({
       where: { id: facebookPage.id },
       data: { webhookSubscribed: true },
     });
@@ -107,4 +89,4 @@ export async function POST(
     console.error("[Facebook Reconnect] Error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-}
+});

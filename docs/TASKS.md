@@ -1,11 +1,11 @@
 # ReplyBase Project Tasks
 
 ## 1. Security & Data Integrity
-- [ ] **Task 001**: Add `tenantId` to `WebhookLog` model. Update all `prisma.webhookLog.create` calls to include the tenant context.
+- [x] **Task 001**: Add `tenantId` to `WebhookLog` model. Update all `prisma.webhookLog.create` calls to include the tenant context.
   - Priority: HIGH
   - Category: Security
   - Impact: Prevents potential cross-tenant log leakage and improves query performance.
-- [ ] **Task 002**: Refactor legacy "check-then-act" API routes to use atomic scoped lookups (`{ id, tenantId }`).
+- [x] **Task 002**: Refactor legacy "check-then-act" API routes to use atomic scoped lookups (`{ id, tenantId }`).
   - Priority: MEDIUM
   - Category: Security
   - Impact: Hardens platform against IDOR vulnerabilities.
@@ -40,9 +40,9 @@
   - Category: UX/Delight
   - Impact: Increases user engagement and positive reinforcement during setup.
 
-- [ ] **Task 009**
+- [x] **Task 009**
   - Priority: HIGH
-  - Status: PENDING
+  - Status: COMPLETED
   - Category: Security
   - Issue: Scoped Mutation Hardening. Some DELETE routes (e.g. Facebook Page unlink) use global prisma client.
   - Root Cause: Legacy "check-then-act" pattern where deletion is performed using only ID after an initial ownership check.
@@ -54,9 +54,9 @@
   - Notes: This is a preventative security measure.
   - Suggested Rollout Risk: LOW.
 
-- [ ] **Task 010**
+- [x] **Task 010**
   - Priority: HIGH
-  - Status: PENDING
+  - Status: COMPLETED
   - Category: Security/Performance
   - Issue: DB Migration: Add `tenantId` to `WebhookLog`.
   - Root Cause: Model was originally designed for global logging and missed the multi-tenant isolation requirement.

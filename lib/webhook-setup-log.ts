@@ -27,6 +27,7 @@ export async function recordWebhookSetupLog(input: WebhookSetupLogInput) {
   try {
     await prisma.webhookLog.create({
       data: {
+        tenantId: input.tenantId,
         type: input.outcome,
         source: input.source,
         event: input.event,

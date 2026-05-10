@@ -1,37 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextResponse } from "next/server";
 import { normalizeWhatsAppE164 } from '@/lib/whatsapp-provider';
-import { prisma } from "@/lib/prisma";
 import { encryptWhatsAppCredentialEnvelope } from "@/lib/whatsapp-channel-credentials";
-import { getTenantLimits, checkChannelLimit } from "@/lib/subscription";
+import { checkChannelLimit } from "@/lib/subscription";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ botId: string }> },
-) {
+export const POST = withAuthAndTenant(async ({ tenantId }, req, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { botId } = await params;
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { tenantId: true },
-    });
-
-    if (!user?.tenantId) {
-      return NextResponse.json({ error: "No tenant found" }, { status: 403 });
-    }
-
+    const { botId } = (await context.params) as { botId: string };
     const body = await req.json();
     const { provider, name, ...credentials } = body;
 
-    const limitStatus = await checkChannelLimit(user.tenantId, botId);
+    const limitStatus = await checkChannelLimit(tenantId, botId);
     if (!limitStatus.allowed) {
       return NextResponse.json(
         {
@@ -49,9 +30,9 @@ export async function POST(
 
     const channelId = provider === "meta_cloud" ? credentials.metaPhoneNumberId : normalizeWhatsAppE164(credentials.twilioFromNumber);
 
-    const channel = await prisma.channel.create({
+    const channel = await db.channel.create({
       data: {
-        tenantId: user.tenantId,
+        tenantId: tenantId,
         botId,
         type: "whatsapp",
         name: name || "WhatsApp",
@@ -69,4 +50,4 @@ export async function POST(
     console.error("[WhatsApp Connect] Error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-}
+});

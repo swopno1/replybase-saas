@@ -1,52 +1,26 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { NextResponse } from "next/server";
 import { decryptTelegramToken } from "@/lib/telegram-crypto";
 import { getTelegramWebhookInfo } from "@/lib/telegram-api";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = 'force-dynamic';
 
-
-
-
-/**
- * GET /api/bots/[botId]/channels/telegram/health?channelId=<id>
- */
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ botId: string }> },
-) {
+export const GET = withAuthAndTenant(async ({ tenantId }, req, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { botId } = (await context.params) as { botId: string };
+    const searchParams = req.nextUrl.searchParams;
+    const channelId = searchParams.get("channelId");
 
-    const { botId } = await params;
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { tenantId: true },
-    });
-
-    if (!user?.tenantId) {
-      return NextResponse.json({ error: "No tenant found" }, { status: 403 });
-    }
-
-    const channelId = req.nextUrl.searchParams.get("channelId");
     if (!channelId) {
-      return NextResponse.json(
-        { error: "channelId is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "channelId is required" }, { status: 400 });
     }
 
-    const channel = await prisma.channel.findFirst({
+    const channel = await db.channel.findFirst({
       where: {
         id: channelId,
         botId,
         type: "telegram",
-        bot: { tenantId: user.tenantId },
+        bot: { tenantId: tenantId },
       },
     });
 
@@ -78,4 +52,4 @@ export async function GET(
       { status: 500 },
     );
   }
-}
+});

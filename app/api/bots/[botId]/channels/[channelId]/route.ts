@@ -1,39 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = 'force-dynamic';
 
+export const GET = withAuthAndTenant(async ({ tenantId }, _req, context, db) => {
+  const { botId, channelId } = (await context.params) as { botId: string; channelId: string };
 
-
-
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ botId: string; channelId: string }> }
-) {
-  const { botId, channelId } = await params;
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    include: { tenant: true },
-  });
-
-  if (!user?.tenantId) {
-    return NextResponse.json({ error: "No tenant found" }, { status: 403 });
-  }
-
-  const channel = await prisma.channel.findFirst({
+  const channel = await db.channel.findFirst({
     where: {
       id: channelId,
       bot: {
         id: botId,
-        tenantId: user.tenantId,
+        tenantId: tenantId,
       },
     },
   });
@@ -43,34 +21,17 @@ export async function GET(
   }
 
   return NextResponse.json({ channel });
-}
+});
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ botId: string; channelId: string }> }
-) {
-  const { botId, channelId } = await params;
-  const session = await getServerSession(authOptions);
+export const PATCH = withAuthAndTenant(async ({ tenantId }, req, context, db) => {
+  const { botId, channelId } = (await context.params) as { botId: string; channelId: string };
 
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    include: { tenant: true },
-  });
-
-  if (!user?.tenantId) {
-    return NextResponse.json({ error: "No tenant found" }, { status: 403 });
-  }
-
-  const existingChannel = await prisma.channel.findFirst({
+  const existingChannel = await db.channel.findFirst({
     where: {
       id: channelId,
       bot: {
         id: botId,
-        tenantId: user.tenantId,
+        tenantId: tenantId,
       },
     },
   });
@@ -82,7 +43,7 @@ export async function PATCH(
   const body = await req.json();
   const { name, config } = body;
 
-  const channel = await prisma.channel.update({
+  const channel = await db.channel.update({
     where: { id: channelId },
     data: {
       ...(name && { name }),
@@ -91,34 +52,17 @@ export async function PATCH(
   });
 
   return NextResponse.json({ channel });
-}
+});
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ botId: string; channelId: string }> }
-) {
-  const { botId, channelId } = await params;
-  const session = await getServerSession(authOptions);
+export const DELETE = withAuthAndTenant(async ({ tenantId }, _req, context, db) => {
+  const { botId, channelId } = (await context.params) as { botId: string; channelId: string };
 
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    include: { tenant: true },
-  });
-
-  if (!user?.tenantId) {
-    return NextResponse.json({ error: "No tenant found" }, { status: 403 });
-  }
-
-  const channel = await prisma.channel.findFirst({
+  const channel = await db.channel.findFirst({
     where: {
       id: channelId,
       bot: {
         id: botId,
-        tenantId: user.tenantId,
+        tenantId: tenantId,
       },
     },
   });
@@ -127,9 +71,9 @@ export async function DELETE(
     return NextResponse.json({ error: "Channel not found" }, { status: 404 });
   }
 
-  await prisma.channel.delete({
+  await db.channel.delete({
     where: { id: channelId },
   });
 
   return NextResponse.json({ success: true });
-}
+});

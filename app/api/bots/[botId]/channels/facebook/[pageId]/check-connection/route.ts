@@ -1,25 +1,14 @@
-import { getServerSession } from "next-auth/next";
-import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { authOptions } from "@/lib/auth";
 import { getFacebookGraphUrl } from "@/lib/server/facebook-utils";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(
-  req: Request,
-  { params }: { params: Promise<{ botId: string; pageId: string }> },
-) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { botId, pageId } = await params;
-  const tenantId = session.user.tenantId;
+export const GET = withAuthAndTenant(async ({ tenantId }, _req, context, db) => {
+  const { botId, pageId } = (await context.params) as { botId: string; pageId: string };
 
   try {
-    const facebookPage = await prisma.facebookPage.findFirst({
+    const facebookPage = await db.facebookPage.findFirst({
       where: {
         facebookId: pageId,
         botId: botId,
@@ -41,7 +30,7 @@ export async function GET(
     const meData = await meRes.json();
     const tokenValid = meRes.ok;
 
-    const subUrl = getFacebookGraphUrl(`\${pageId}/subscribed_apps`, facebookPage.accessToken);
+    const subUrl = getFacebookGraphUrl(`${pageId}/subscribed_apps`, facebookPage.accessToken);
     const subRes = await fetch(subUrl);
     let webhookSubscribed = false;
     if (subRes.ok) {
@@ -50,11 +39,11 @@ export async function GET(
     }
 
     if (webhookSubscribed !== facebookPage.webhookSubscribed) {
-      await prisma.facebookPage.update({ where: { id: facebookPage.id }, data: { webhookSubscribed } });
+      await db.facebookPage.update({ where: { id: facebookPage.id }, data: { webhookSubscribed } });
     }
 
     return NextResponse.json({ success: true, tokenValid, webhookSubscribed, timestamp: new Date().toISOString() });
   } catch (error) {
     return NextResponse.json({ error: "Failed to perform diagnostics" }, { status: 500 });
   }
-}
+});

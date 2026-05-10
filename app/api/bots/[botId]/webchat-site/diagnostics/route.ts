@@ -1,14 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { getOrCreateWebChatSite } from "@/lib/webchat";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = 'force-dynamic';
-
-
-
 
 function getPayloadField(
   payload: Prisma.JsonValue | null,
@@ -22,49 +17,20 @@ function getPayloadField(
   return typeof value === "string" ? value : null;
 }
 
-async function getTenantBot(botId: string, userId: string) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { tenantId: true },
-  });
-
-  if (!user?.tenantId) {
-    return {
-      error: NextResponse.json({ error: "No tenant found" }, { status: 403 }),
-    };
-  }
-
-  const bot = await prisma.bot.findFirst({
-    where: { id: botId, tenantId: user.tenantId },
-    select: { id: true, tenantId: true },
-  });
-
-  if (!bot) {
-    return {
-      error: NextResponse.json({ error: "Bot not found" }, { status: 404 }),
-    };
-  }
-
-  return { bot };
-}
-
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ botId: string }> },
-) {
+export const GET = withAuthAndTenant(async ({ tenantId }, req, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { botId } = (await context.params) as { botId: string };
+
+    const bot = await db.bot.findFirst({
+      where: { id: botId, tenantId: tenantId },
+      select: { id: true, tenantId: true },
+    });
+
+    if (!bot) {
+      return NextResponse.json({ error: "Bot not found" }, { status: 404 });
     }
 
-    const { botId } = await params;
-    const authResult = await getTenantBot(botId, session.user.id);
-    if (authResult.error) {
-      return authResult.error;
-    }
-
-    const channelId = request.nextUrl.searchParams.get("channelId");
+    const channelId = req.nextUrl.searchParams.get("channelId");
     if (!channelId) {
       return NextResponse.json(
         { error: "channelId is required" },
@@ -72,7 +38,7 @@ export async function GET(
       );
     }
 
-    const channel = await prisma.channel.findFirst({
+    const channel = await db.channel.findFirst({
       where: {
         id: channelId,
         botId,
@@ -101,24 +67,24 @@ export async function GET(
     const site = await getOrCreateWebChatSite({
       channelId: channel.id,
       botId: channel.botId,
-      tenantId: channel.bot.tenantId,
+      tenantId: tenantId,
       name: channel.name,
       themeConfig: (channel.config as Prisma.JsonObject | null) || {},
     });
 
     const [latestSession, latestEvent, errorCounts, recentErrors] =
       await Promise.all([
-        prisma.webChatSession.findFirst({
+        db.webChatSession.findFirst({
           where: { siteId: site.id },
           orderBy: { lastSeenAt: "desc" },
           select: { lastSeenAt: true },
         }),
-        prisma.webChatEvent.findFirst({
+        db.webChatEvent.findFirst({
           where: { siteId: site.id },
           orderBy: { createdAt: "desc" },
           select: { createdAt: true },
         }),
-        prisma.$queryRaw<
+        db.$queryRaw<
           Array<{ blockedCount: bigint; rateLimitCount: bigint }>
         >`
         SELECT
@@ -127,7 +93,7 @@ export async function GET(
         FROM "webchat_events"
         WHERE "siteId" = ${site.id} AND "type" = 'ERROR'
       `,
-        prisma.webChatEvent.findMany({
+        db.webChatEvent.findMany({
           where: {
             siteId: site.id,
             type: "ERROR",
@@ -182,4 +148,4 @@ export async function GET(
       { status: 500 },
     );
   }
-}
+});

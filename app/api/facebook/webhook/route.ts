@@ -91,6 +91,7 @@ async function handleMessagingEvent(event: any) {
             type: "message",
             source: "facebook",
             event: eventKey,
+            tenantId: pageRecord.tenantId,
             data: { ...event, botId: pageRecord.botId } as any,
           },
         });
