@@ -1,33 +1,18 @@
-import { getServerSession } from "next-auth/next";
-import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { authOptions } from "@/lib/auth";
 import { getFacebookGraphUrl } from "@/lib/server/facebook-utils";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = "force-dynamic";
 
-export async function DELETE(
-  req: Request,
-  { params }: { params: Promise<{ botId: string; pageId: string }> },
-) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const tenantId = session.user.tenantId;
-  if (!tenantId) {
-    return NextResponse.json({ error: "Tenant ID missing" }, { status: 400 });
-  }
-
-  const { botId, pageId } = await params;
+export const DELETE = withAuthAndTenant(async ({ tenantId }, _req, context, db) => {
+  const { botId, pageId } = (await context.params) as { botId: string; pageId: string };
   if (!pageId) {
     return NextResponse.json({ error: "Page ID is required" }, { status: 400 });
   }
 
   try {
     // Find the Facebook page to verify it belongs to this tenant and bot
-    const facebookPage = await prisma.facebookPage.findFirst({
+    const facebookPage = await db.facebookPage.findFirst({
       where: {
         facebookId: pageId,
         botId: botId,
@@ -46,7 +31,7 @@ export async function DELETE(
     if (facebookPage.webhookSubscribed && facebookPage.accessToken) {
       try {
         const unsubUrl = getFacebookGraphUrl(
-          `\${pageId}/subscribed_apps`,
+          `${pageId}/subscribed_apps`,
           facebookPage.accessToken,
         );
         await fetch(unsubUrl, { method: "DELETE" });
@@ -58,30 +43,30 @@ export async function DELETE(
       }
     }
 
-    // Delete in correct order
-    await prisma.flowAssignment.deleteMany({ where: { pageId: facebookPage.id } });
-    const conversations = await prisma.crmConversation.findMany({
+    // Delete in correct order using the scoped db client
+    await db.flowAssignment.deleteMany({ where: { pageId: facebookPage.id } });
+    const conversations = await db.crmConversation.findMany({
       where: { facebookPageId: facebookPage.id },
       select: { id: true },
     });
     const conversationIds = conversations.map((c) => c.id);
-    await prisma.crmMessage.deleteMany({ where: { conversationId: { in: conversationIds } } });
-    await prisma.internalNote.deleteMany({ where: { conversationId: { in: conversationIds } } });
-    await prisma.crmConversation.deleteMany({ where: { facebookPageId: facebookPage.id } });
-    await prisma.lead.deleteMany({ where: { pageId: facebookPage.id } });
-    await prisma.flowSession.deleteMany({ where: { pageId: facebookPage.id } });
-    await prisma.onboardingSession.deleteMany({ where: { facebookPageId: facebookPage.id } });
-    await prisma.channel.deleteMany({ 
+    await db.crmMessage.deleteMany({ where: { conversationId: { in: conversationIds } } });
+    await db.internalNote.deleteMany({ where: { conversationId: { in: conversationIds } } });
+    await db.crmConversation.deleteMany({ where: { facebookPageId: facebookPage.id } });
+    await db.lead.deleteMany({ where: { pageId: facebookPage.id } });
+    await db.flowSession.deleteMany({ where: { pageId: facebookPage.id } });
+    await db.onboardingSession.deleteMany({ where: { facebookPageId: facebookPage.id } });
+    await db.channel.deleteMany({
       where: { 
         type: "facebook", 
         channelId: facebookPage.facebookId 
       } 
     });
-    await prisma.facebookPage.delete({ where: { id: facebookPage.id } });
+    await db.facebookPage.delete({ where: { id: facebookPage.id } });
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[Facebook Integration] Error unlinking page:", error);
     return NextResponse.json({ error: "Failed to unlink page" }, { status: 500 });
   }
-}
+});

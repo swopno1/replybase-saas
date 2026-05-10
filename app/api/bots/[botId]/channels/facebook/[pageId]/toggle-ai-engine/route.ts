@@ -1,24 +1,13 @@
-import { getServerSession } from "next-auth/next";
-import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { authOptions } from "@/lib/auth";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(
-  req: Request,
-  { params }: { params: Promise<{ botId: string; pageId: string }> },
-) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { botId, pageId } = await params;
-  const tenantId = session.user.tenantId;
+export const POST = withAuthAndTenant(async ({ tenantId }, req, context, db) => {
+  const { botId, pageId } = (await context.params) as { botId: string; pageId: string };
 
   try {
-    const facebookPage = await prisma.facebookPage.findFirst({
+    const facebookPage = await db.facebookPage.findFirst({
       where: { facebookId: pageId, botId: botId, tenantId: tenantId },
     });
 
@@ -29,7 +18,7 @@ export async function POST(
     const { enabled, flowId } = await req.json();
 
     // 1. Update the engine connection status on the page
-    const updated = await prisma.facebookPage.update({
+    const updated = await db.facebookPage.update({
       where: { id: facebookPage.id },
       data: { engineConnected: enabled },
     });
@@ -37,7 +26,7 @@ export async function POST(
     // 2. Manage the FlowAssignment
     if (enabled && flowId) {
       // Create or update the assignment
-      await prisma.flowAssignment.upsert({
+      await db.flowAssignment.upsert({
         where: { pageId: facebookPage.id },
         update: { flowId, isActive: true },
         create: {
@@ -48,7 +37,7 @@ export async function POST(
       });
     } else if (!enabled) {
       // Deactivate the assignment if engine is disabled
-      await prisma.flowAssignment.updateMany({
+      await db.flowAssignment.updateMany({
         where: { pageId: facebookPage.id },
         data: { isActive: false },
       });
@@ -62,4 +51,4 @@ export async function POST(
   } catch (error) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
-}
+});

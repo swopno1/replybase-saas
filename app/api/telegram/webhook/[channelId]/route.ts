@@ -42,6 +42,7 @@ export async function POST(
   { params }: { params: Promise<{ channelId: string }> },
 ) {
   const { channelId } = await params;
+  let channelData: any = null;
   try {
     const channel = await prisma.channel.findFirst({
       where: {
@@ -61,10 +62,12 @@ export async function POST(
         },
       },
     });
+    channelData = channel;
 
     if (!channel || !channel.bot) {
       await prisma.webhookLog.create({
         data: {
+          tenantId: channelData?.bot?.tenantId,
           type: "skipped",
           source: "telegram",
           event: `skip_inactive:${channelId}`,
@@ -101,6 +104,7 @@ export async function POST(
 
       await prisma.webhookLog.create({
         data: {
+          tenantId: channel.bot.tenantId,
           type: "update",
           source: "telegram",
           event: eventKey,
@@ -149,6 +153,7 @@ export async function POST(
   } catch (error) {
     await prisma.webhookLog.create({
       data: {
+        tenantId: channelData?.bot?.tenantId,
         type: "internal_error",
         source: "telegram",
         event: `internal_error:${channelId}`,

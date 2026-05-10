@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { getTenantLimits, checkChannelLimit } from "@/lib/subscription";
-import { authOptions } from "@/lib/auth";
+import { checkChannelLimit } from "@/lib/subscription";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = 'force-dynamic';
 
@@ -26,28 +24,12 @@ const createChannelSchema = z
     }
   });
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ botId: string }> },
-) {
+export const GET = withAuthAndTenant(async ({ tenantId }, _req, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { botId } = (await context.params) as { botId: string };
 
-    const { botId } = await params;
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { tenantId: true },
-    });
-
-    if (!user?.tenantId) {
-      return NextResponse.json({ error: "No tenant found" }, { status: 403 });
-    }
-
-    const bot = await prisma.bot.findFirst({
-      where: { id: botId, tenantId: user.tenantId },
+    const bot = await db.bot.findFirst({
+      where: { id: botId, tenantId: tenantId },
     });
 
     if (!bot) {
@@ -55,7 +37,7 @@ export async function GET(
     }
 
     const [channels, limitStatus] = await Promise.all([
-      prisma.channel.findMany({
+      db.channel.findMany({
         where: { botId },
         include: {
           flowAssignments: {
@@ -67,7 +49,7 @@ export async function GET(
         },
         orderBy: { createdAt: "desc" },
       }),
-      checkChannelLimit(user.tenantId, botId),
+      checkChannelLimit(tenantId, botId),
     ]);
 
     return NextResponse.json({ channels, limitStatus });
@@ -75,37 +57,21 @@ export async function GET(
     console.error("[Channels API] Error fetching channels:", error);
     return NextResponse.json({ error: "Failed to fetch channels" }, { status: 500 });
   }
-}
+});
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ botId: string }> },
-) {
+export const POST = withAuthAndTenant(async ({ tenantId }, req, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { botId } = (await context.params) as { botId: string };
 
-    const { botId } = await params;
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { tenantId: true },
-    });
-
-    if (!user?.tenantId) {
-      return NextResponse.json({ error: "No tenant found" }, { status: 403 });
-    }
-
-    const bot = await prisma.bot.findFirst({
-      where: { id: botId, tenantId: user.tenantId },
+    const bot = await db.bot.findFirst({
+      where: { id: botId, tenantId: tenantId },
     });
 
     if (!bot) {
       return NextResponse.json({ error: "Bot not found" }, { status: 404 });
     }
 
-    const limitStatus = await checkChannelLimit(user.tenantId, botId);
+    const limitStatus = await checkChannelLimit(tenantId, botId);
     if (!limitStatus.allowed) {
       return NextResponse.json(
         {
@@ -119,9 +85,9 @@ export async function POST(
     const body = await req.json();
     const validated = createChannelSchema.parse(body);
 
-    const channel = await prisma.channel.create({
+    const channel = await db.channel.create({
       data: {
-        tenantId: user.tenantId,
+        tenantId: tenantId,
         botId,
         type: validated.type,
         name: validated.name,
@@ -141,4 +107,4 @@ export async function POST(
     console.error("[Channels API] Error creating channel:", error);
     return NextResponse.json({ error: "Failed to create channel" }, { status: 500 });
   }
-}
+});

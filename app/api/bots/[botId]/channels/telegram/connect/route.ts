@@ -1,36 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { NextResponse } from "next/server";
 import { getMe, setTelegramWebhook } from "@/lib/telegram-api";
 import { encryptTelegramToken } from "@/lib/telegram-crypto";
-import { getTenantLimits, checkChannelLimit } from "@/lib/subscription";
+import { checkChannelLimit } from "@/lib/subscription";
 import crypto from "crypto";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ botId: string }> },
-) {
+export const POST = withAuthAndTenant(async ({ tenantId }, req, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { botId } = (await context.params) as { botId: string };
 
-    const { botId } = await params;
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { tenantId: true },
-    });
-
-    if (!user?.tenantId) {
-      return NextResponse.json({ error: "No tenant found" }, { status: 403 });
-    }
-
-    const validatedBot = await prisma.bot.findFirst({
-      where: { id: botId, tenantId: user.tenantId },
+    const validatedBot = await db.bot.findFirst({
+      where: { id: botId, tenantId: tenantId },
     });
 
     if (!validatedBot) {
@@ -51,7 +33,7 @@ export async function POST(
       return NextResponse.json({ error: "Invalid Telegram bot token" }, { status: 400 });
     }
 
-    const limitStatus = await checkChannelLimit(user.tenantId, botId);
+    const limitStatus = await checkChannelLimit(tenantId, botId);
     if (!limitStatus.allowed) {
       return NextResponse.json(
         {
@@ -67,9 +49,9 @@ export async function POST(
 
     const name = channelName || `Telegram @${profile.username || profile.id}`;
 
-    const channel = await prisma.channel.create({
+    const channel = await db.channel.create({
       data: {
-        tenantId: user.tenantId,
+        tenantId: tenantId,
         botId,
         type: "telegram",
         name,
@@ -95,7 +77,7 @@ export async function POST(
         secretToken: webhookSecret
       });
     } catch (e) {
-      await prisma.channel.update({
+      await db.channel.update({
         where: { id: channel.id },
         data: { isActive: false },
       });
@@ -107,4 +89,4 @@ export async function POST(
     console.error("[Telegram Connect] Error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-}
+});

@@ -133,6 +133,7 @@ export async function consumeWebchatInitChallenge(params: {
   const replayEventKey = `init_nonce:${payload.jti}`;
   const existing = await prisma.webhookLog.findFirst({
     where: {
+      tenantId: (await prisma.webChatSite.findUnique({ where: { id: payload.siteId }, select: { tenantId: true } }))?.tenantId,
       source: "webchat_init",
       event: replayEventKey,
     },
@@ -145,6 +146,7 @@ export async function consumeWebchatInitChallenge(params: {
 
   await prisma.webhookLog.create({
     data: {
+      tenantId: (await prisma.webChatSite.findUnique({ where: { id: payload.siteId }, select: { tenantId: true } }))?.tenantId,
       source: "webchat_init",
       type: "nonce_used",
       event: replayEventKey,

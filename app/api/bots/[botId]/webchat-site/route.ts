@@ -1,20 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { getServerSession } from "next-auth";
 import { z } from "zod";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import {
   getOrCreateWebChatSite,
-  normalizeAllowedDomains,
   rotateWebChatSiteCredentials,
+  serializeSite
 } from "@/lib/webchat";
 import { recordWebhookSetupLog } from "@/lib/webhook-setup-log";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = 'force-dynamic';
-
-
-
 
 const updateSchema = z.object({
   channelId: z.string().min(1),
@@ -25,83 +20,28 @@ const updateSchema = z.object({
   rotateSecretKey: z.boolean().optional(),
 });
 
-function serializeSite(site: {
-  id: string;
-  name: string;
-  publicKey: string;
-  secretKey: string;
-  allowedDomains: Prisma.JsonValue;
-  themeConfig: Prisma.JsonValue;
-  channelId: string | null;
-  isActive: boolean;
-}) {
-  return {
-    id: site.id,
-    name: site.name,
-    publicKey: site.publicKey,
-    secretKey: site.secretKey,
-    allowedDomains: Array.isArray(site.allowedDomains)
-      ? site.allowedDomains.filter(
-          (entry): entry is string => typeof entry === "string",
-        )
-      : [],
-    themeConfig:
-      (site.themeConfig as Prisma.JsonObject | null) ||
-      ({} as Prisma.JsonObject),
-    channelId: site.channelId,
-    isActive: site.isActive,
-  };
+function normalizeAllowedDomains(domains: string[]): string[] {
+  return domains
+    .map((d) => d.trim().toLowerCase())
+    .filter((d) => d.length > 0)
+    .map((d) => {
+      try {
+        if (!d.startsWith("http://") && !d.startsWith("https://")) {
+          return new URL(`https://${d}`).origin;
+        }
+        return new URL(d).origin;
+      } catch {
+        return "";
+      }
+    })
+    .filter((d) => d.length > 0);
 }
 
-async function getTenantBot(botId: string, userId: string) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { tenantId: true },
-  });
-
-  if (!user?.tenantId) {
-    return {
-      error: NextResponse.json({ error: "No tenant found" }, { status: 403 }),
-    };
-  }
-
-  const bot = await prisma.bot.findFirst({
-    where: {
-      id: botId,
-      tenantId: user.tenantId,
-    },
-    select: {
-      id: true,
-      tenantId: true,
-    },
-  });
-
-  if (!bot) {
-    return {
-      error: NextResponse.json({ error: "Bot not found" }, { status: 404 }),
-    };
-  }
-
-  return { bot };
-}
-
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ botId: string }> },
-) {
+export const GET = withAuthAndTenant(async ({ tenantId }, req, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { botId } = (await context.params) as { botId: string };
+    const channelId = req.nextUrl.searchParams.get("channelId");
 
-    const { botId } = await params;
-    const authResult = await getTenantBot(botId, session.user.id);
-    if (authResult.error) {
-      return authResult.error;
-    }
-
-    const channelId = request.nextUrl.searchParams.get("channelId");
     if (!channelId) {
       return NextResponse.json(
         { error: "channelId is required" },
@@ -109,7 +49,7 @@ export async function GET(
       );
     }
 
-    const channel = await prisma.channel.findFirst({
+    const channel = await db.channel.findFirst({
       where: {
         id: channelId,
         botId,
@@ -129,7 +69,7 @@ export async function GET(
           where: { isActive: true },
           include: {
             flow: {
-              select: { id: true, name: true }
+              select: { id: true, name: true, isActive: true }
             }
           }
         }
@@ -146,7 +86,7 @@ export async function GET(
     const site = await getOrCreateWebChatSite({
       channelId: channel.id,
       botId: channel.botId,
-      tenantId: channel.bot.tenantId,
+      tenantId: tenantId,
       name: channel.name,
       themeConfig: (channel.config as Prisma.JsonObject | null) || {},
     });
@@ -166,25 +106,13 @@ export async function GET(
       { status: 500 },
     );
   }
-}
+});
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ botId: string }> },
-) {
+export const PATCH = withAuthAndTenant(async ({ tenantId }, req, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { botId } = (await context.params) as { botId: string };
 
-    const { botId } = await params;
-    const authResult = await getTenantBot(botId, session.user.id);
-    if (authResult.error) {
-      return authResult.error;
-    }
-
-    const body = await request.json();
+    const body = await req.json();
     const parsed = updateSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
@@ -208,7 +136,7 @@ export async function PATCH(
       );
     }
 
-    const channel = await prisma.channel.findFirst({
+    const channel = await db.channel.findFirst({
       where: {
         id: parsed.data.channelId,
         botId,
@@ -245,12 +173,12 @@ export async function PATCH(
     const site = await getOrCreateWebChatSite({
       channelId: channel.id,
       botId: channel.botId,
-      tenantId: channel.bot.tenantId,
+      tenantId: tenantId,
       name: channel.name,
       themeConfig: (channel.config as Prisma.JsonObject | null) || {},
     });
 
-    const updatedSite = await prisma.webChatSite.update({
+    const updatedSite = await db.webChatSite.update({
       where: { id: site.id },
       data: {
         ...(parsed.data.name ? { name: parsed.data.name } : {}),
@@ -266,7 +194,7 @@ export async function PATCH(
     });
 
     // Also sync these updates back to the parent Channel record so the UI lists stay updated
-    await prisma.channel.update({
+    await db.channel.update({
       where: { id: channel.id },
       data: {
         ...(parsed.data.name ? { name: parsed.data.name } : {}),
@@ -294,7 +222,7 @@ export async function PATCH(
       source: "webchat",
       event: "webchat_configure",
       outcome: "setup_success",
-      tenantId: channel.bot.tenantId,
+      tenantId: tenantId,
       channelId: channel.id,
       metadata: {
         siteName: rotatedSite.name,
@@ -323,4 +251,4 @@ export async function PATCH(
       { status: 500 },
     );
   }
-}
+});

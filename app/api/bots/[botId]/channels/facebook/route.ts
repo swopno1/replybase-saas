@@ -1,42 +1,24 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
+import { NextResponse } from "next/server";
 import { recordWebhookSetupLog } from "@/lib/webhook-setup-log";
 import { isChannelEnabled } from "@/lib/channel-config";
 import { getFacebookGraphUrl, setupMessengerProfile } from "@/lib/server/facebook-utils";
 import { checkChannelLimit } from "@/lib/subscription";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = "force-dynamic";
 
 // GET /api/bots/[botId]/channels/facebook - Get connected Facebook pages for this bot
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ botId: string }> },
-) {
+export const GET = withAuthAndTenant(async ({ tenantId }, req, context, db) => {
   if (!isChannelEnabled("facebook")) {
     return NextResponse.json({ error: "Facebook channel is not enabled" }, { status: 403 });
   }
 
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { botId } = await params;
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { tenantId: true },
-  });
-
-  if (!user?.tenantId) {
-    return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
-  }
+  const { botId } = (await context.params) as { botId: string };
 
   const [pages, limitStatus] = await Promise.all([
-    prisma.facebookPage.findMany({
+    db.facebookPage.findMany({
       where: {
-        tenantId: user.tenantId,
+        tenantId: tenantId,
       },
       select: {
         id: true,
@@ -50,34 +32,22 @@ export async function GET(
         createdAt: "desc",
       },
     }),
-    checkChannelLimit(user.tenantId, botId),
+    checkChannelLimit(tenantId, botId),
   ]);
 
   return NextResponse.json({ pages, limitStatus });
-}
+});
 
 // POST /api/bots/[botId]/channels/facebook - Connect a page to this specific bot
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ botId: string }> },
-) {
+export const POST = withAuthAndTenant(async ({ tenantId }, req, context, db) => {
   if (!isChannelEnabled("facebook")) {
     return NextResponse.json({ error: "Facebook channel is not enabled" }, { status: 403 });
   }
 
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { botId } = await params;
-  const tenantId = session.user.tenantId;
-  if (!tenantId) {
-    return NextResponse.json({ error: "Tenant ID missing" }, { status: 400 });
-  }
+  const { botId } = (await context.params) as { botId: string };
 
   // Verify bot belongs to tenant
-  const bot = await prisma.bot.findFirst({
+  const bot = await db.bot.findFirst({
     where: { id: botId, tenantId },
   });
   if (!bot) {
@@ -103,7 +73,7 @@ export async function POST(
 
   try {
     // Check if this bot already has a Facebook page connected
-    const existingBotPage = await prisma.facebookPage.findFirst({
+    const existingBotPage = await db.facebookPage.findFirst({
       where: { botId, tenantId },
     });
 
@@ -117,8 +87,8 @@ export async function POST(
       );
     }
 
-    const facebookPage = await prisma.facebookPage.upsert({
-      where: { facebookId: pageId },
+    const facebookPage = await db.facebookPage.upsert({
+      where: { facebookId: pageId, tenantId: tenantId },
       update: {
         name: pageName,
         accessToken: accessToken,
@@ -136,12 +106,13 @@ export async function POST(
     });
 
     // Also sync to the generic Channel table for UI and Limit counting
-    await prisma.channel.upsert({
+    await db.channel.upsert({
       where: { 
         type_channelId: { 
           type: "facebook", 
           channelId: pageId 
-        } 
+        },
+        tenantId: tenantId
       },
       update: {
         name: pageName,
@@ -184,7 +155,7 @@ export async function POST(
       const subData = await subRes.json();
       if (subRes.ok && subData.success) {
         webhookSubscribed = true;
-        await prisma.facebookPage.update({
+        await db.facebookPage.update({
           where: { id: facebookPage.id },
           data: { webhookSubscribed: true },
         });
@@ -205,4 +176,4 @@ export async function POST(
     console.error("[Facebook Connect] Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
-}
+});
