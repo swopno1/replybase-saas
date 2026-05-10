@@ -1,0 +1,96 @@
+[
+  {
+    "order": 0,
+    "type": "message",
+    "content": {
+      "text": "Namaste! 🧘 Welcome to our space. We're so happy you've reached out to explore your wellness journey with us.",
+      "delayMs": 0,
+      "typingEnabled": true,
+      "typingDurationMs": 1200
+    }
+  },
+  {
+    "order": 1,
+    "type": "input",
+    "content": {
+      "text": "What kind of practice calls to you today? ✨",
+      "variableName": "practice_preference",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1000,
+      "quick_replies": [
+        { "title": "🧘 Restorative Yin", "payload": "yin" },
+        { "title": "🔥 Energetic Vinyasa", "payload": "vinyasa" },
+        { "title": "❓ Not Sure", "payload": "unsure" }
+      ]
+    }
+  },
+  {
+    "order": 2,
+    "type": "input",
+    "content": {
+      "text": "Beautiful. How much experience do you have on the mat? We welcome everyone, from curious beginners to regular practitioners. 🙏",
+      "variableName": "yoga_experience",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 900
+    }
+  },
+  {
+    "order": 3,
+    "type": "input",
+    "content": {
+      "text": "I'd love to help you find the right session. By the way, I'm speaking with...?",
+      "variableName": "student_name",
+      "inputType": "text",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 600
+    }
+  },
+  {
+    "order": 4,
+    "type": "input",
+    "content": {
+      "text": "Welcome, {{student_name}}! What's the best email address for us to send our latest schedule and a special intro offer? 📧",
+      "variableName": "student_email",
+      "inputType": "email",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 700
+    }
+  },
+  {
+    "order": 5,
+    "type": "message",
+    "content": {
+      "text": "Wonderful! 🌿 We'll send class options to {{student_email}} very soon. Peace and light — we can't wait to see you on the mat.",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1100
+    }
+  },
+  {
+    "order": 6,
+    "type": "action",
+    "content": {
+      "action": "tag_user",
+      "tags": ["yoga-enquiry", "class-booking-intent", "wellness-lead"]
+    }
+  },
+  {
+    "order": 7,
+    "type": "action",
+    "content": {
+      "action": "update_status",
+      "status": "qualified"
+    }
+  },
+  {
+    "order": 8,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  }
+]

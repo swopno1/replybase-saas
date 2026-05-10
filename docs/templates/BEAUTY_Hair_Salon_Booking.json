@@ -1,0 +1,142 @@
+[
+  {
+    "order": 0,
+    "type": "message",
+    "content": {
+      "text": "Hi there! ✂️ Welcome to our studio. We're here to help you look and feel your absolute best.",
+      "delayMs": 0,
+      "typingEnabled": true,
+      "typingDurationMs": 1100
+    }
+  },
+  {
+    "order": 1,
+    "type": "input",
+    "content": {
+      "text": "What can we do for you today? ✨",
+      "variableName": "style_service_type",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 800,
+      "quick_replies": [
+        { "title": "✂️ Cut & Style", "payload": "cut" },
+        { "title": "🎨 Color / Highlights", "payload": "color" },
+        { "title": "✨ Treatment", "payload": "treatment" }
+      ]
+    }
+  },
+  {
+    "order": 2,
+    "type": "condition",
+    "content": {
+      "conditions": [
+        { "variableName": "style_service_type", "operator": "contains", "value": "cut", "nextNodeOrder": 3 },
+        { "variableName": "style_service_type", "operator": "contains", "value": "style", "nextNodeOrder": 3 },
+        { "variableName": "style_service_type", "operator": "contains", "value": "color", "nextNodeOrder": 4 },
+        { "variableName": "style_service_type", "operator": "contains", "value": "highlight", "nextNodeOrder": 4 },
+        { "variableName": "style_service_type", "operator": "contains", "value": "treatment", "nextNodeOrder": 5 }
+      ],
+      "nextNodeOrder": 6
+    }
+  },
+  {
+    "order": 3,
+    "type": "message",
+    "content": {
+      "text": "Great choice! ✂️ Our stylists specialize in precision cuts and modern styling. Whether you want a fresh trim or a bold new look, we'll match you with the perfect stylist for your hair type.",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1100,
+      "nextNodeOrder": 7
+    }
+  },
+  {
+    "order": 4,
+    "type": "message",
+    "content": {
+      "text": "Beautiful choice! 🎨 From subtle balayage to full color transformations, our color experts use only premium products. We always start with a quick consultation to find your perfect shade.",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1100,
+      "nextNodeOrder": 7
+    }
+  },
+  {
+    "order": 5,
+    "type": "message",
+    "content": {
+      "text": "Excellent! ✨ Our treatments include deep conditioning, keratin smoothing, and scalp rituals. We'll assess your hair and recommend the best option for you.",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1100,
+      "nextNodeOrder": 7
+    }
+  },
+  {
+    "order": 6,
+    "type": "message",
+    "content": {
+      "text": "No problem! Whatever you have in mind, our team can help. We offer a full consultation to find the best service for you. 💇‍♀️",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1000,
+      "nextNodeOrder": 7
+    }
+  },
+  {
+    "order": 7,
+    "type": "input",
+    "content": {
+      "text": "I'd love to get you booked in. What's your name?",
+      "variableName": "client_name",
+      "inputType": "text",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 600
+    }
+  },
+  {
+    "order": 8,
+    "type": "input",
+    "content": {
+      "text": "Nice to meet you, {{client_name}}! What's the best phone number so we can confirm your appointment? 📱",
+      "variableName": "client_phone",
+      "inputType": "phone",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 700
+    }
+  },
+  {
+    "order": 9,
+    "type": "message",
+    "content": {
+      "text": "Lovely! 💇 Our concierge will text {{client_phone}} within the hour to confirm your slot. See you soon!",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1000
+    }
+  },
+  {
+    "order": 10,
+    "type": "action",
+    "content": {
+      "action": "tag_user",
+      "tags": ["salon-booking", "hair-appointment", "style-intent-captured"]
+    }
+  },
+  {
+    "order": 11,
+    "type": "action",
+    "content": {
+      "action": "update_status",
+      "status": "qualified"
+    }
+  },
+  {
+    "order": 12,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  }
+]

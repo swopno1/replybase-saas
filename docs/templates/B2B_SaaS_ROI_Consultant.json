@@ -1,0 +1,110 @@
+[
+  {
+    "order": 0,
+    "type": "message",
+    "content": {
+      "text": "Hi there! 🚀 Interested in seeing how [PRODUCT_NAME] can specifically move the needle for your team? I'm here to show you the path to ROI.",
+      "delayMs": 0,
+      "typingEnabled": true,
+      "typingDurationMs": 1100
+    }
+  },
+  {
+    "order": 1,
+    "type": "input",
+    "content": {
+      "text": "To give you the most relevant context, what's your current team size? 🏢",
+      "variableName": "company_size",
+      "inputType": "text",
+      "delayMs": 600,
+      "typingEnabled": true,
+      "typingDurationMs": 900,
+      "quick_replies": [
+        { "title": "👤 1-10", "payload": "1-10" },
+        { "title": "👥 11-50", "payload": "11-50" },
+        { "title": "🏢 50+", "payload": "50+" }
+      ]
+    }
+  },
+  {
+    "order": 2,
+    "type": "input",
+    "content": {
+      "text": "Got it. Enterprise teams and small squads have different priorities. What's the #1 friction point you're hoping our tool will solve for you?",
+      "variableName": "primary_pain_point",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1000
+    }
+  },
+  {
+    "order": 3,
+    "type": "message",
+    "content": {
+      "text": "That's exactly what we excel at. 🎯 Many teams like yours report a 40%+ increase in efficiency within the first 60 days of solving that exact challenge.",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1000
+    }
+  },
+  {
+    "order": 4,
+    "type": "input",
+    "content": {
+      "text": "Would you like to jump into a 15-minute high-level walkthrough with one of our product experts to see the ROI in action? ✨",
+      "variableName": "demo_requested",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 900,
+      "quick_replies": [
+        { "title": "📅 Book Demo", "payload": "yes" },
+        { "title": "💡 Not now, show features", "payload": "no" }
+      ]
+    }
+  },
+  {
+    "order": 5,
+    "type": "input",
+    "content": {
+      "text": "Excellent. What's your work email address so we can send the priority invite? 📧",
+      "variableName": "work_email",
+      "inputType": "email",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 700
+    }
+  },
+  {
+    "order": 6,
+    "type": "message",
+    "content": {
+      "text": "Perfect choice! ✅ I've sent a priority link to {{work_email}}. Pick a time that works for you, and we'll see you then. Ready to explore our case studies while you wait?",
+      "delayMs": 600,
+      "typingEnabled": true,
+      "typingDurationMs": 1100
+    }
+  },
+  {
+    "order": 7,
+    "type": "action",
+    "content": {
+      "action": "tag_user",
+      "tags": ["saas-lead", "demo-requested", "roi-qualified"]
+    }
+  },
+  {
+    "order": 8,
+    "type": "action",
+    "content": {
+      "action": "update_status",
+      "status": "qualified"
+    }
+  },
+  {
+    "order": 9,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  }
+]

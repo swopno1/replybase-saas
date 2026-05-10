@@ -1,0 +1,113 @@
+[
+  {
+    "order": 0,
+    "type": "message",
+    "content": {
+      "text": "Hey! 🔥 Welcome to the arena. Ready to see what you're truly made of?",
+      "delayMs": 0,
+      "typingEnabled": true,
+      "typingDurationMs": 1100
+    }
+  },
+  {
+    "order": 1,
+    "type": "input",
+    "content": {
+      "text": "Have you faced the whiteboard before, or is this your first time stepping into a CrossFit box? 🏋️",
+      "variableName": "cf_experience",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 900,
+      "quick_replies": [
+        { "title": "💪 Faced the Board", "payload": "experienced" },
+        { "title": "🆕 First Time", "payload": "newbie" },
+        { "title": "❓ Just Curious", "payload": "curious" }
+      ]
+    }
+  },
+  {
+    "order": 2,
+    "type": "input",
+    "content": {
+      "text": "Respect! 👊 What's the main goal you're chasing here?",
+      "variableName": "cf_goal",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 800,
+      "quick_replies": [
+        { "title": "💪 RAW Strength", "payload": "strength" },
+        { "title": "🏃 Unbreakable Endurance", "payload": "endurance" },
+        { "title": "🏅 Competition", "payload": "competition" }
+      ]
+    }
+  },
+  {
+    "order": 3,
+    "type": "input",
+    "content": {
+      "text": "Ready to work. What's your name, athlete?",
+      "variableName": "athlete_name",
+      "inputType": "text",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 600
+    }
+  },
+  {
+    "order": 4,
+    "type": "input",
+    "content": {
+      "text": "Welcome to the team, {{athlete_name}}! What's the best email for us to send your intro pack and safety waiver? 📧",
+      "variableName": "athlete_email",
+      "inputType": "email",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 700
+    }
+  },
+  {
+    "order": 5,
+    "type": "input",
+    "content": {
+      "text": "When would you like to come in for your first free intro session and get your first score on the board? 🕒",
+      "variableName": "intro_date",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 800
+    }
+  },
+  {
+    "order": 6,
+    "type": "message",
+    "content": {
+      "text": "Let's go! 🏆 I've prioritized your session. Our head coach will confirm your slot shortly. Get ready for the grind—it's worth it!",
+      "delayMs": 600,
+      "typingEnabled": true,
+      "typingDurationMs": 1100
+    }
+  },
+  {
+    "order": 7,
+    "type": "action",
+    "content": {
+      "action": "tag_user",
+      "tags": ["crossfit-lead", "trial-requested", "athlete-onboarding"]
+    }
+  },
+  {
+    "order": 8,
+    "type": "action",
+    "content": {
+      "action": "update_status",
+      "status": "qualified"
+    }
+  },
+  {
+    "order": 9,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  }
+]

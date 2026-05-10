@@ -1,0 +1,97 @@
+[
+  {
+    "order": 0,
+    "type": "message",
+    "content": {
+      "text": "Hi there! 👋 Thanks for reaching out. We pride ourselves on delivering high-quality solutions for projects exactly like yours.",
+      "delayMs": 0,
+      "typingEnabled": true,
+      "typingDurationMs": 1200
+    }
+  },
+  {
+    "order": 1,
+    "type": "input",
+    "content": {
+      "text": "To make sure I connect you with the right specialist, tell me a bit about the main challenge you're looking to solve today. 🛠️",
+      "variableName": "service_description",
+      "inputType": "text",
+      "delayMs": 600,
+      "typingEnabled": true,
+      "typingDurationMs": 1000
+    }
+  },
+  {
+    "order": 2,
+    "type": "input",
+    "content": {
+      "text": "Makes sense. Is this something you need resolved urgently, or are you in the planning phase for a later date? 📅",
+      "variableName": "urgency_status",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 900,
+      "quick_replies": [
+        { "title": "🚨 Urgent (ASAP)", "payload": "urgent" },
+        { "title": "📅 Planning (1-3 months)", "payload": "planning" },
+        { "title": "💡 Just Researching", "payload": "research" }
+      ]
+    }
+  },
+  {
+    "order": 3,
+    "type": "input",
+    "content": {
+      "text": "Got it. And who should our team ask for when they reach out with your personalized quote? 😊",
+      "variableName": "customer_name",
+      "inputType": "text",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 700
+    }
+  },
+  {
+    "order": 4,
+    "type": "input",
+    "content": {
+      "text": "Nice to meet you, {{customer_name}}! What's the best phone number to reach you on for a quick 5-minute discovery chat? 📞",
+      "variableName": "phone_number",
+      "inputType": "phone",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 800
+    }
+  },
+  {
+    "order": 5,
+    "type": "message",
+    "content": {
+      "text": "Perfect. ✅ Let's schedule a quick call to go over the details: [SCHEDULE_LINK]",
+      "delayMs": 600,
+      "typingEnabled": true,
+      "typingDurationMs": 1200
+    }
+  },
+  {
+    "order": 6,
+    "type": "action",
+    "content": {
+      "action": "schedule",
+      "scheduleLink": "[SCHEDULE_LINK]",
+      "tags": ["service-request", "new-enquiry"]
+    }
+  },
+  {
+    "order": 7,
+    "type": "action",
+    "content": {
+      "action": "update_status",
+      "status": "qualified"
+    }
+  },
+  {
+    "order": 8,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  }
+]

@@ -1,0 +1,108 @@
+[
+  {
+    "order": 0,
+    "type": "message",
+    "content": {
+      "text": "Hi! 🌿 Thanks for thinking of us. We're excited to help you transform your outdoor space into something extraordinary.",
+      "delayMs": 0,
+      "typingEnabled": true,
+      "typingDurationMs": 1200
+    }
+  },
+  {
+    "order": 1,
+    "type": "input",
+    "content": {
+      "text": "What kind of project do you have in mind today? 🌳",
+      "variableName": "garden_project_intent",
+      "inputType": "text",
+      "delayMs": 600,
+      "typingEnabled": true,
+      "typingDurationMs": 1000,
+      "quick_replies": [
+        { "title": "🌳 Design & Build", "payload": "design_build" },
+        { "title": "🌿 Maintenance", "payload": "maintenance" },
+        { "title": "🚧 Hardscaping", "payload": "hardscaping" }
+      ]
+    }
+  },
+  {
+    "order": 2,
+    "type": "input",
+    "content": {
+      "text": "Love that vision. To help us scope the visit, how would you describe the size of your garden? 🏡",
+      "variableName": "garden_size",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 900
+    }
+  },
+  {
+    "order": 3,
+    "type": "input",
+    "content": {
+      "text": "What's the postcode of the property so we can check our local surveyor's schedule? 📍",
+      "variableName": "property_postcode",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 700
+    }
+  },
+  {
+    "order": 4,
+    "type": "input",
+    "content": {
+      "text": "Great. And who should we ask for when we reach out?",
+      "variableName": "customer_name",
+      "inputType": "text",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 600
+    }
+  },
+  {
+    "order": 5,
+    "type": "input",
+    "content": {
+      "text": "Nice to meet you, {{customer_name}}! What's the best phone number for our surveyor to arrange a visit? 📱",
+      "variableName": "customer_phone",
+      "inputType": "phone",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 700
+    }
+  },
+  {
+    "order": 6,
+    "type": "message",
+    "content": {
+      "text": "Perfect! 🌿 Our surveyor will reach out to {{customer_phone}} to arrange a visit to {{property_postcode}}. We can't wait to bring your vision to life!",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1200
+    }
+  },
+  {
+    "order": 7,
+    "type": "action",
+    "content": {
+      "action": "tag_user",
+      "tags": ["landscaping-lead", "site-visit-requested", "garden-vetted"]
+    }
+  },
+  {
+    "order": 8,
+    "type": "action",
+    "content": {
+      "action": "update_status",
+      "status": "qualified"
+    }
+  },
+  {
+    "order": 9,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  }
+]

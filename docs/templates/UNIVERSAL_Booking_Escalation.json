@@ -1,0 +1,38 @@
+[
+  {
+    "order": 0,
+    "type": "message",
+    "content": {
+      "text": "I'd be happy to get a human expert on the line for you. 👨‍💻 They can give you a deep-dive walkthrough of how ReplyBase fits into your specific workflow.",
+      "delayMs": 0,
+      "typingEnabled": true,
+      "typingDurationMs": 1200
+    }
+  },
+  {
+    "order": 1,
+    "type": "input",
+    "content": {
+      "text": "What's the best email to use for the calendar invite? 📧",
+      "variableName": "lead_email",
+      "inputType": "email",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 800
+    }
+  },
+  {
+    "order": 2,
+    "type": "action",
+    "content": {
+      "action": "booking",
+      "text": "Perfect! I've sent your request to our team. In the meantime, you can pick a time that works for you here: {{booking_link}}",
+      "bookingService": "calendly"
+    }
+  },
+  {
+    "order": 10,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  }
+]

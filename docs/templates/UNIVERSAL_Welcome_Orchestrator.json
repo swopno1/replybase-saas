@@ -1,0 +1,95 @@
+[
+  {
+    "order": 0,
+    "type": "message",
+    "content": {
+      "text": "Hi there! 👋 I'm your ReplyBase assistant. I noticed you landed on our page—super excited to have you here! 🚀",
+      "delayMs": 0,
+      "typingEnabled": true,
+      "typingDurationMs": 1000
+    }
+  },
+  {
+    "order": 1,
+    "type": "input",
+    "content": {
+      "text": "A quick question before we dive in: Are you here to explore how AI chatbots can transform your support, or are you curious about how ReplyBase specifically works for your team?",
+      "variableName": "user_intent_raw",
+      "inputType": "text",
+      "delayMs": 600,
+      "typingEnabled": true,
+      "typingDurationMs": 1200,
+      "quick_replies": [
+        { "title": "💰 Pricing", "payload": "price" },
+        { "title": "✨ Features", "payload": "feature" },
+        { "title": "🏢 Business", "payload": "business" },
+        { "title": "❓ Something else", "payload": "other" }
+      ]
+    }
+  },
+  {
+    "order": 2,
+    "type": "condition",
+    "content": {
+      "variableName": "user_intent_raw",
+      "conditions": [
+        { "operator": "contains", "value": "price", "nextNodeOrder": 3 },
+        { "operator": "contains", "value": "cost", "nextNodeOrder": 3 },
+        { "operator": "contains", "value": "feature", "nextNodeOrder": 4 },
+        { "operator": "contains", "value": "work", "nextNodeOrder": 4 },
+        { "operator": "contains", "value": "business", "nextNodeOrder": 5 },
+        { "operator": "contains", "value": "team", "nextNodeOrder": 5 }
+      ],
+      "nextNodeOrder": 6
+    }
+  },
+  {
+    "order": 3,
+    "type": "message",
+    "content": {
+      "text": "Smart question. 💰 ReplyBase pricing is based on conversation volume, not seats, which usually saves teams 30-50%. Before I give you the numbers, what's your rough monthly conversation volume?",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1200,
+      "nextNodeOrder": 10
+    }
+  },
+  {
+    "order": 4,
+    "type": "message",
+    "content": {
+      "text": "I'd love to show you the magic! ✨ From Smart Intent Recognition to seamless Human Handoff, we've got you covered. What's the biggest support challenge you're looking to solve right now?",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1200,
+      "nextNodeOrder": 10
+    }
+  },
+  {
+    "order": 5,
+    "type": "message",
+    "content": {
+      "text": "That helps a ton! 🏢 Business users usually care most about ROI and reliability. To give you the most relevant info, what industry are you in? (e.g. SaaS, E-commerce, Agency)",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1200,
+      "nextNodeOrder": 10
+    }
+  },
+  {
+    "order": 6,
+    "type": "message",
+    "content": {
+      "text": "Got it. No matter what brought you here, we're ready to help. 🙌 What would moving the needle on your customer experience actually look like for your bottom line?",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1200,
+      "nextNodeOrder": 10
+    }
+  },
+  {
+    "order": 10,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  }
+]

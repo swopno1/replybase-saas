@@ -1,0 +1,84 @@
+[
+  {
+    "order": 0,
+    "type": "message",
+    "content": {
+      "text": "Hi! 💅 Welcome to our studio. Ready to transform your nails into a work of art?",
+      "delayMs": 0,
+      "typingEnabled": true,
+      "typingDurationMs": 1100
+    }
+  },
+  {
+    "order": 1,
+    "type": "input",
+    "content": {
+      "text": "What service are you looking for today? ✨",
+      "variableName": "nail_service_intent",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 900,
+      "quick_replies": [
+        { "title": "💅 Gel Mani", "payload": "mani" },
+        { "title": "✨ Acrylics", "payload": "acrylics" },
+        { "title": "🎨 Custom Art", "payload": "art" }
+      ]
+    }
+  },
+  {
+    "order": 2,
+    "type": "input",
+    "content": {
+      "text": "Exciting choice! And who am I looking forward to seeing for this transformation?",
+      "variableName": "client_name",
+      "inputType": "text",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 600
+    }
+  },
+  {
+    "order": 3,
+    "type": "input",
+    "content": {
+      "text": "Great to meet you, {{client_name}}! What's the best phone number for us to confirm your appointment and send color inspiration? 📱",
+      "variableName": "client_phone",
+      "inputType": "phone",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 700
+    }
+  },
+  {
+    "order": 4,
+    "type": "message",
+    "content": {
+      "text": "Fabulous! 💅 Our nail artists will text {{client_phone}} shortly to lock in your slot. We can't wait to create something beautiful for you!",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1000
+    }
+  },
+  {
+    "order": 5,
+    "type": "action",
+    "content": {
+      "action": "tag_user",
+      "tags": ["nail-salon-booking", "appointment-requested", "style-intent"]
+    }
+  },
+  {
+    "order": 6,
+    "type": "action",
+    "content": {
+      "action": "update_status",
+      "status": "qualified"
+    }
+  },
+  {
+    "order": 7,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  }
+]

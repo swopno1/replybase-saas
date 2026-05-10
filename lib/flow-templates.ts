@@ -86,6 +86,12 @@ export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1200,
+        quick_replies: [
+          { "title": "💰 Pricing", "payload": "price" },
+          { "title": "✨ Features", "payload": "feature" },
+          { "title": "🏢 Business", "payload": "business" },
+          { "title": "❓ Something else", "payload": "other" }
+        ]
       },
       order: 1,
     },
@@ -213,6 +219,10 @@ export const LEAD_GENERATION_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1000,
+        quick_replies: [
+          { "title": "👤 Personal", "payload": "personal" },
+          { "title": "👥 Team / Business", "payload": "team" }
+        ]
       },
       order: 1,
     },
@@ -364,6 +374,95 @@ export const LEAD_CAPTURE_TEMPLATE: FlowTemplateDefinition = {
   ],
 };
 
+export const OMNICHANNEL_DEMO_TEMPLATE: FlowTemplateDefinition = {
+  name: "Revenue Engine: Omnichannel Demo",
+  description:
+    "A high-impact demo flow that showcases identity stitching by moving users from Webchat to WhatsApp/Telegram while maintaining session continuity.",
+  category: "lead-generation",
+  icon: "🔄",
+  group: "Universal",
+  nodes: [
+    {
+      type: "message",
+      content: {
+        text: "The best way to understand ReplyBase is to see it work. 🚀 We are chatting here on the website, but our system can sync this conversation to your phone instantly.",
+        delayMs: 0,
+        typingEnabled: true,
+        typingDurationMs: 1200,
+      },
+      order: 0,
+    },
+    {
+      type: "message",
+      content: {
+        text: "Ready to see the magic? ✨ Click below to switch to WhatsApp. I'll remember everything we've talked about so far.",
+        delayMs: 600,
+        typingEnabled: true,
+        typingDurationMs: 1000,
+        quick_replies: [
+          { "title": "🟢 Switch to WhatsApp", "payload": "wa.me/{{wa_number}}?text=SYNC_{{session_hash}}" },
+          { "title": "🔵 Switch to Telegram", "payload": "t.me/{{tg_bot}}?start=SYNC_{{session_hash}}" },
+          { "title": "💬 Stay here", "payload": "STAY_HERE" }
+        ]
+      },
+      order: 1,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 10,
+    },
+  ],
+};
+
+export const BOOKING_ESCALATION_TEMPLATE: FlowTemplateDefinition = {
+  name: "Revenue Engine: Booking & Escalation",
+  description:
+    "A conversion-focused flow for high-touch demo requests and seamless human agent handoff.",
+  category: "booking",
+  icon: "📅",
+  group: "Universal",
+  nodes: [
+    {
+      type: "message",
+      content: {
+        text: "I'd be happy to get a human expert on the line for you. 👨‍💻 They can give you a deep-dive walkthrough of how ReplyBase fits into your specific workflow.",
+        delayMs: 0,
+        typingEnabled: true,
+        typingDurationMs: 1200,
+      },
+      order: 0,
+    },
+    {
+      type: "input",
+      content: {
+        text: "What's the best email to use for the calendar invite? 📧",
+        variableName: "lead_email",
+        inputType: "email",
+        delayMs: 500,
+        typingEnabled: true,
+        typingDurationMs: 800,
+      },
+      order: 1,
+    },
+    {
+      type: "action",
+      content: {
+        action: "booking",
+        text: "Perfect! I've sent your request to our team. In the meantime, you can pick a time that works for you here: {{booking_link}}",
+        bookingService: "calendly"
+      },
+      order: 2,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 10,
+    },
+  ],
+};
+
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PROFESSIONAL / B2B TEMPLATES
 // ─────────────────────────────────────────────────────────────────────────────
@@ -395,6 +494,11 @@ export const REAL_ESTATE_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
+        quick_replies: [
+          { "title": "🏘️ Buy a Property", "payload": "buy" },
+          { "title": "📈 Sell my Home", "payload": "sell" },
+          { "title": "🔑 Arrange Viewing", "payload": "viewing" }
+        ]
       },
       order: 1,
     },
@@ -579,6 +683,11 @@ export const SERVICES_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 900,
+        quick_replies: [
+          { "title": "🚨 Urgent (ASAP)", "payload": "urgent" },
+          { "title": "📅 Planning (1-3 months)", "payload": "planning" },
+          { "title": "💡 Just Researching", "payload": "research" }
+        ]
       },
       order: 2,
     },
@@ -662,24 +771,34 @@ export const AGENCIES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "In a nutshell, what are the primary goals you're looking to achieve with this project? (e.g. Lead gen, Brand refresh, or full Digital Transformation?)",
+        text: "In a nutshell, what are the primary goals you're looking to achieve with this project? 🚀",
         variableName: "project_goals",
         inputType: "text",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1000,
+        quick_replies: [
+          { "title": "📈 Lead Generation", "payload": "lead_gen" },
+          { "title": "✨ Brand Refresh", "payload": "branding" },
+          { "title": "🌐 Digital Transformation", "payload": "transformation" }
+        ]
       },
       order: 1,
     },
     {
       type: "input",
       content: {
-        text: "Got it—visionary goals! ✨ To help our strategists scope this accurately, do you have a rough budget range in mind? (e.g. Under £10k, £10k-£50k, or £50k+)",
+        text: "Got it—visionary goals! ✨ To help our strategists scope this accurately, do you have a rough budget range in mind?",
         variableName: "budget_range",
         inputType: "text",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 900,
+        quick_replies: [
+          { "title": "💳 Under £10k", "payload": "<10k" },
+          { "title": "🏢 £10k-£50k", "payload": "10k-50k" },
+          { "title": "🚀 £50k+", "payload": ">50k" }
+        ]
       },
       order: 2,
     },
@@ -768,6 +887,11 @@ export const BOOKING_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 900,
+        quick_replies: [
+          { "title": "📅 Consultation", "payload": "consultation" },
+          { "title": "🛠️ Service / Repair", "payload": "service" },
+          { "title": "❓ Other Info", "payload": "other" }
+        ]
       },
       order: 1,
     },
@@ -863,12 +987,17 @@ export const ECOMMERCE_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What can I do for you right now? (e.g., browse products, track an order, or grab a discount code) 🛍️",
+        text: "What can I do for you right now? 🛍️",
         variableName: "ecommerce_intent",
         inputType: "text",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 900,
+        quick_replies: [
+          { "title": "📦 Track Order", "payload": "track" },
+          { "title": "🛍️ Browse Shop", "payload": "browse" },
+          { "title": "🎁 Get Discount", "payload": "discount" }
+        ]
       },
       order: 1,
     },
@@ -1002,12 +1131,17 @@ export const SAAS_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "To give you the most relevant context, what's your current team size? (e.g., 1-10, 11-50, or 50+ employees) 🏢",
+        text: "To give you the most relevant context, what's your current team size? 🏢",
         variableName: "company_size",
         inputType: "text",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 900,
+        quick_replies: [
+          { "title": "👤 1-10", "payload": "1-10" },
+          { "title": "👥 11-50", "payload": "11-50" },
+          { "title": "🏢 50+", "payload": "50+" }
+        ]
       },
       order: 1,
     },
@@ -1036,12 +1170,16 @@ export const SAAS_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Would you like to jump into a 15-minute high-level walkthrough with one of our product experts to see the ROI in action?",
+        text: "Would you like to jump into a 15-minute high-level walkthrough with one of our product experts to see the ROI in action? ✨",
         variableName: "demo_requested",
         inputType: "text",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 900,
+        quick_replies: [
+          { "title": "📅 Book Demo", "payload": "yes" },
+          { "title": "💡 Not now, show features", "payload": "no" }
+        ]
       },
       order: 4,
     },
@@ -1098,7 +1236,7 @@ export const SAAS_TEMPLATE: FlowTemplateDefinition = {
 export const BOUTIQUE_GYM_TEMPLATE: FlowTemplateDefinition = {
   name: "Boutique Gym: Transformation Discovery",
   description:
-    "A fitness-focused flow that assesses goals and availability to drive gym tours and membership conversions. Includes high-intent tagging.",
+    "A value-first gym flow with intent branching. Delivers class info, tour offers, or membership details before capturing lead data.",
   category: "boutique-gym",
   icon: "🏋️",
   group: "Fitness",
@@ -1106,7 +1244,7 @@ export const BOUTIQUE_GYM_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Hey! 💪 Welcome to our community. We're not just a gym—we're here to help you rewrite your fitness story.",
+        text: "Hey! 💪 Welcome to our community. We're not just a gym — we're here to help you rewrite your fitness story.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -1116,72 +1254,115 @@ export const BOUTIQUE_GYM_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "To get started on the right foot, what brings you here today? Are you thinking about joining a new tribe, trying a specialized class, or just want a personal tour? 😊",
+        text: "What brings you here today? 😊",
         variableName: "gym_interest",
         inputType: "text",
         delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 1000,
+        typingDurationMs: 800,
+        quick_replies: [
+          { "title": "🏋️ Join the Gym", "payload": "join" },
+          { "title": "🔥 Try a Class", "payload": "class" },
+          { "title": "👀 Book a Tour", "payload": "tour" },
+        ],
       },
       order: 1,
     },
     {
-      type: "input",
+      type: "condition",
       content: {
-        text: "That sounds like a great start. What's your #1 fitness goal right now? Whether it's strength, feeling better, or a total transformation, we're all ears.",
-        variableName: "fitness_goal",
-        inputType: "text",
-        delayMs: 500,
-        typingEnabled: true,
-        typingDurationMs: 900,
+        conditions: [
+          { variableName: "gym_interest", operator: "contains", value: "join", nextNodeOrder: 3 },
+          { variableName: "gym_interest", operator: "contains", value: "member", nextNodeOrder: 3 },
+          { variableName: "gym_interest", operator: "contains", value: "class", nextNodeOrder: 4 },
+          { variableName: "gym_interest", operator: "contains", value: "tour", nextNodeOrder: 5 },
+        ],
+        nextNodeOrder: 6,
       },
       order: 2,
     },
+    // Membership Path
+    {
+      type: "message",
+      content: {
+        text: "Great choice! 🙌 We offer flexible memberships with no lock-in contracts — including unlimited classes, open gym access, and a free starter session with a coach. Most new members see results within 4 weeks.",
+        delayMs: 500,
+        typingEnabled: true,
+        typingDurationMs: 1200,
+        nextNodeOrder: 7,
+      },
+      order: 3,
+    },
+    // Class Path
+    {
+      type: "message",
+      content: {
+        text: "Love it! 🔥 We run HIIT, Strength, Yoga, and Boxing classes daily — and your first session is always free. Check our full timetable here: [CLASS_TIMETABLE_URL]",
+        delayMs: 500,
+        typingEnabled: true,
+        typingDurationMs: 1100,
+        nextNodeOrder: 7,
+      },
+      order: 4,
+    },
+    // Tour Path
+    {
+      type: "message",
+      content: {
+        text: "You're welcome anytime! 👀 We offer free guided tours 7 days a week. You'll see the gym floor, studios, and meet one of our coaches. No commitment required.",
+        delayMs: 500,
+        typingEnabled: true,
+        typingDurationMs: 1100,
+        nextNodeOrder: 7,
+      },
+      order: 5,
+    },
+    // Default Path
+    {
+      type: "message",
+      content: {
+        text: "No problem! Whatever your fitness goal — strength, weight loss, or just feeling better — we'll find the right path for you. 💪",
+        delayMs: 500,
+        typingEnabled: true,
+        typingDurationMs: 1000,
+        nextNodeOrder: 7,
+      },
+      order: 6,
+    },
+    // Lead capture (value already delivered)
     {
       type: "input",
       content: {
-        text: "I'd love to help you hit that milestone. By the way, I'm speaking with...?",
+        text: "I'd love to get our coach to follow up with you personally. What's your name?",
         variableName: "member_name",
         inputType: "text",
         delayMs: 400,
         typingEnabled: true,
         typingDurationMs: 600,
       },
-      order: 3,
+      order: 7,
     },
     {
       type: "input",
       content: {
-        text: "Nice to meet you, {{member_name}}! What's the best number to reach you on for a quick 2-minute chat about your goals? 📞",
+        text: "Nice to meet you, {{member_name}}! What's the best number for a quick 2-minute chat about getting started? 📱",
         variableName: "member_phone",
         inputType: "phone",
-        delayMs: 500,
+        delayMs: 400,
         typingEnabled: true,
-        typingDurationMs: 800,
+        typingDurationMs: 700,
       },
-      order: 4,
-    },
-    {
-      type: "input",
-      content: {
-        text: "Got it. Finally, what days or times usually work best for your workouts? We'll check our peak times for you.",
-        variableName: "preferred_schedule",
-        inputType: "text",
-        delayMs: 500,
-        typingEnabled: true,
-        typingDurationMs: 800,
-      },
-      order: 5,
+      order: 8,
     },
     {
       type: "message",
       content: {
-        text: "Awesome! 🙌 I've prioritized your info for our head coach. They'll reach out to {{member_phone}} very soon to get you moving. Ready to see our success stories while you wait?",
-        delayMs: 600,
+        text: "You're all set! 🎉 Our head coach will reach out to {{member_phone}} shortly. We can't wait to see you on the gym floor!",
+        delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 1200,
+        typingDurationMs: 1000,
       },
-      order: 6,
+      order: 9,
     },
     {
       type: "action",
@@ -1189,7 +1370,7 @@ export const BOUTIQUE_GYM_TEMPLATE: FlowTemplateDefinition = {
         action: "tag_user",
         tags: ["gym-lead", "membership-intent-high", "goal-captured"],
       },
-      order: 7,
+      order: 10,
     },
     {
       type: "action",
@@ -1197,12 +1378,12 @@ export const BOUTIQUE_GYM_TEMPLATE: FlowTemplateDefinition = {
         action: "update_status",
         status: "qualified",
       },
-      order: 8,
+      order: 11,
     },
     {
       type: "action",
       content: { action: "end_flow" },
-      order: 9,
+      order: 12,
     },
   ],
 };
@@ -1234,6 +1415,12 @@ export const PERSONAL_TRAINING_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
+        quick_replies: [
+          { "title": "💪 Strength", "payload": "strength" },
+          { "title": "🔥 Fat Loss", "payload": "fat_loss" },
+          { "title": "🏅 Performance", "payload": "performance" },
+          { "title": "🧘 Longevity", "payload": "longevity" }
+        ]
       },
       order: 1,
     },
@@ -1358,18 +1545,28 @@ export const CROSSFIT_GYM_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 900,
+        quick_replies: [
+          { "title": "💪 Faced the Board", "payload": "experienced" },
+          { "title": "🆕 First Time", "payload": "newbie" },
+          { "title": "❓ Just Curious", "payload": "curious" }
+        ]
       },
       order: 1,
     },
     {
       type: "input",
       content: {
-        text: "Respect! 👊 What's the main goal you're chasing here? (e.g., RAW strength, unbreakable endurance, or pure competition?)",
+        text: "Respect! 👊 What's the main goal you're chasing here?",
         variableName: "cf_goal",
         inputType: "text",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 800,
+        quick_replies: [
+          { "title": "💪 RAW Strength", "payload": "strength" },
+          { "title": "🏃 Unbreakable Endurance", "payload": "endurance" },
+          { "title": "🏅 Competition", "payload": "competition" }
+        ]
       },
       order: 2,
     },
@@ -1476,12 +1673,17 @@ export const BOOT_CAMP_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Love that choice. 💥 To match you with the right squad, how would you rate your current fitness? (e.g. Just starting, regular mover, or advanced athlete)",
+        text: "Love that choice. 💥 To match you with the right squad, how would you rate your current fitness?",
         variableName: "fitness_level",
         inputType: "text",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 800,
+        quick_replies: [
+          { "title": "🆕 Just Starting", "payload": "beginner" },
+          { "title": "🏃 Regular Mover", "payload": "intermediate" },
+          { "title": "🏅 Advanced Athlete", "payload": "advanced" }
+        ]
       },
       order: 2,
     },
@@ -1564,12 +1766,17 @@ export const YOGA_STUDIO_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What kind of practice calls to you today? Whether it's a restorative Yin class for deep relaxation or an energetic Vinyasa flow, we have a space for you. ✨",
+        text: "What kind of practice calls to you today? ✨",
         variableName: "practice_preference",
         inputType: "text",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
+        quick_replies: [
+          { "title": "🧘 Restorative Yin", "payload": "yin" },
+          { "title": "🔥 Energetic Vinyasa", "payload": "vinyasa" },
+          { "title": "❓ Not Sure", "payload": "unsure" }
+        ]
       },
       order: 1,
     },
@@ -1662,7 +1869,7 @@ export const YOGA_STUDIO_TEMPLATE: FlowTemplateDefinition = {
 export const HAIR_SALON_TEMPLATE: FlowTemplateDefinition = {
   name: "Hair Salon: Style & Booking Consultant",
   description:
-    "A sophisticated salon flow that captures style preferences and stylist choices to drive high-value appointments.",
+    "A value-first salon flow with service branching. Delivers treatment details before capturing lead data for a seamless booking.",
   category: "hair-salon",
   icon: "💇",
   group: "Beauty & Wellness",
@@ -1680,72 +1887,116 @@ export const HAIR_SALON_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What can we do for you today? Whether it's a fresh cut, a bold new color, or a specialized treatment, we've got the expertise you need. ✨",
+        text: "What can we do for you today? ✨",
         variableName: "style_service_type",
         inputType: "text",
         delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 1000,
+        typingDurationMs: 800,
+        quick_replies: [
+          { "title": "✂️ Cut & Style", "payload": "cut" },
+          { "title": "🎨 Color / Highlights", "payload": "color" },
+          { "title": "✨ Treatment", "payload": "treatment" },
+        ],
       },
       order: 1,
     },
     {
-      type: "input",
+      type: "condition",
       content: {
-        text: "Fabulous choice. Do you have a preferred stylist you'd like to work with, or should I recommend our best match for your requested style? 💇‍♀️",
-        variableName: "stylist_preference",
-        inputType: "text",
-        delayMs: 500,
-        typingEnabled: true,
-        typingDurationMs: 900,
+        conditions: [
+          { variableName: "style_service_type", operator: "contains", value: "cut", nextNodeOrder: 3 },
+          { variableName: "style_service_type", operator: "contains", value: "style", nextNodeOrder: 3 },
+          { variableName: "style_service_type", operator: "contains", value: "color", nextNodeOrder: 4 },
+          { variableName: "style_service_type", operator: "contains", value: "highlight", nextNodeOrder: 4 },
+          { variableName: "style_service_type", operator: "contains", value: "treatment", nextNodeOrder: 5 },
+        ],
+        nextNodeOrder: 6,
       },
       order: 2,
     },
+    // Cut Path
+    {
+      type: "message",
+      content: {
+        text: "Great choice! ✂️ Our stylists specialize in precision cuts and modern styling. Whether you want a fresh trim or a bold new look, we'll match you with the perfect stylist for your hair type.",
+        delayMs: 500,
+        typingEnabled: true,
+        typingDurationMs: 1100,
+        nextNodeOrder: 7,
+      },
+      order: 3,
+    },
+    // Color Path
+    {
+      type: "message",
+      content: {
+        text: "Beautiful choice! 🎨 From subtle balayage to full color transformations, our color experts use only premium products. We always start with a quick consultation to find your perfect shade.",
+        delayMs: 500,
+        typingEnabled: true,
+        typingDurationMs: 1100,
+        nextNodeOrder: 7,
+      },
+      order: 4,
+    },
+    // Treatment Path
+    {
+      type: "message",
+      content: {
+        text: "Excellent! ✨ Our treatments include deep conditioning, keratin smoothing, and scalp rituals. We'll assess your hair and recommend the best option for you.",
+        delayMs: 500,
+        typingEnabled: true,
+        typingDurationMs: 1100,
+        nextNodeOrder: 7,
+      },
+      order: 5,
+    },
+    // Default Path
+    {
+      type: "message",
+      content: {
+        text: "No problem! Whatever you have in mind, our team can help. We offer a full consultation to find the best service for you. 💇‍♀️",
+        delayMs: 500,
+        typingEnabled: true,
+        typingDurationMs: 1000,
+        nextNodeOrder: 7,
+      },
+      order: 6,
+    },
+    // Lead capture (value already delivered)
     {
       type: "input",
       content: {
-        text: "Got it. And who should we get booked in for this transformation?",
+        text: "I'd love to get you booked in. What's your name?",
         variableName: "client_name",
         inputType: "text",
         delayMs: 400,
         typingEnabled: true,
         typingDurationMs: 600,
       },
-      order: 3,
+      order: 7,
     },
     {
       type: "input",
       content: {
-        text: "Nice to meet you, {{client_name}}! What's the best phone number for us to confirm your appointment and send style prep tips? 📱",
+        text: "Nice to meet you, {{client_name}}! What's the best phone number so we can confirm your appointment? 📱",
         variableName: "client_phone",
         inputType: "phone",
         delayMs: 400,
         typingEnabled: true,
-        typingDurationMs: 800,
+        typingDurationMs: 700,
       },
-      order: 4,
-    },
-    {
-      type: "input",
-      content: {
-        text: "What date and time would work best for your visit? We'll prioritize your request in our diary. 🕒",
-        variableName: "preferred_datetime",
-        inputType: "text",
-        delayMs: 500,
-        typingEnabled: true,
-        typingDurationMs: 800,
-      },
-      order: 5,
+      order: 8,
     },
     {
       type: "message",
       content: {
-        text: "Lovely! 💇 I've secured your request. Our concierge will check the diary and text you at {{client_phone}} within the hour to confirm everything. See you soon!",
-        delayMs: 600,
+        text: "Lovely! 💇 Our concierge will text {{client_phone}} within the hour to confirm your slot. See you soon!",
+        delayMs: 500,
         typingEnabled: true,
-        typingDurationMs: 1200,
+        typingDurationMs: 1000,
       },
-      order: 6,
+      order: 9,
     },
     {
       type: "action",
@@ -1753,7 +2004,7 @@ export const HAIR_SALON_TEMPLATE: FlowTemplateDefinition = {
         action: "tag_user",
         tags: ["salon-booking", "hair-appointment", "style-intent-captured"],
       },
-      order: 7,
+      order: 10,
     },
     {
       type: "action",
@@ -1761,12 +2012,12 @@ export const HAIR_SALON_TEMPLATE: FlowTemplateDefinition = {
         action: "update_status",
         status: "qualified",
       },
-      order: 8,
+      order: 11,
     },
     {
       type: "action",
       content: { action: "end_flow" },
-      order: 9,
+      order: 12,
     },
   ],
 };
@@ -1798,6 +2049,11 @@ export const BARBERSHOP_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 800,
+        quick_replies: [
+          { "title": "✂️ Haircut / Fade", "payload": "cut" },
+          { "title": "🧔 Beard Sculpt", "payload": "beard" },
+          { "title": "🔥 Full Service", "payload": "full" }
+        ]
       },
       order: 1,
     },
@@ -1904,12 +2160,17 @@ export const DAY_SPA_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What kind of experience calls to you today? From restorative massages to advanced skincare facials, we're here to revitalize you. ✨",
+        text: "What kind of experience calls to you today? ✨",
         variableName: "spa_treatment_goal",
         inputType: "text",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
+        quick_replies: [
+          { "title": "💆 Restorative Massage", "payload": "massage" },
+          { "title": "✨ Skincare Facial", "payload": "facial" },
+          { "title": "🛁 Full Ritual", "payload": "ritual" }
+        ]
       },
       order: 1,
     },
@@ -1922,6 +2183,11 @@ export const DAY_SPA_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 900,
+        quick_replies: [
+          { "title": "👤 For Me", "payload": "self" },
+          { "title": "👥 Group Ritual", "payload": "group" },
+          { "title": "🎁 Special Gift", "payload": "gift" }
+        ]
       },
       order: 2,
     },
@@ -2028,12 +2294,17 @@ export const NAIL_SALON_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "What service are you looking for today? Whether it's a flawless Gel Mani, professional Acrylics, or some custom-designed nail art, we've got you. ✨",
+        text: "What service are you looking for today? ✨",
         variableName: "nail_service_intent",
         inputType: "text",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 900,
+        quick_replies: [
+          { "title": "💅 Gel Mani", "payload": "mani" },
+          { "title": "✨ Acrylics", "payload": "acrylics" },
+          { "title": "🎨 Custom Art", "payload": "art" }
+        ]
       },
       order: 1,
     },
@@ -2132,24 +2403,34 @@ export const CLEANING_SERVICES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "To get started, is this for your home or a commercial property? (e.g. Apartment, House, or Office space)",
+        text: "To get started, is this for your home or a commercial property? 😊",
         variableName: "property_type",
         inputType: "text",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 800,
+        quick_replies: [
+          { "title": "🏡 Residential", "payload": "residential" },
+          { "title": "🏢 Commercial", "payload": "commercial" },
+          { "title": "🔑 End of Tenancy", "payload": "tenancy" }
+        ]
       },
       order: 1,
     },
     {
       type: "input",
       content: {
-        text: "Got it. What kind of clean do you need? (e.g., a deep Spring clean, regular weekly maintenance, or an End of Tenancy service?) ✨",
+        text: "Got it. What kind of clean do you need? ✨",
         variableName: "clean_type_intent",
         inputType: "text",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
+        quick_replies: [
+          { "title": "🧹 Regular Maintenance", "payload": "regular" },
+          { "title": "🧼 Deep / Spring Clean", "payload": "deep" },
+          { "title": "🧴 Specialized Service", "payload": "special" }
+        ]
       },
       order: 2,
     },
@@ -2274,6 +2555,11 @@ export const LANDSCAPING_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1000,
+        quick_replies: [
+          { "title": "🌳 Design & Build", "payload": "design_build" },
+          { "title": "🌿 Maintenance", "payload": "maintenance" },
+          { "title": "🚧 Hardscaping", "payload": "hardscaping" }
+        ]
       },
       order: 1,
     },
@@ -2411,6 +2697,11 @@ export const HANDYMAN_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 900,
+        quick_replies: [
+          { "title": "🚨 Emergency Repair", "payload": "emergency" },
+          { "title": "📅 Scheduled Visit", "payload": "scheduled" },
+          { "title": "💡 Get a Quote", "payload": "quote" }
+        ]
       },
       order: 2,
     },
@@ -2515,6 +2806,11 @@ export const PET_CARE_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1000,
+        quick_replies: [
+          { "title": "🐾 Walking / Daycare", "payload": "walking" },
+          { "title": "✂️ Grooming", "payload": "grooming" },
+          { "title": "🏠 Boarding", "payload": "boarding" }
+        ]
       },
       order: 1,
     },
@@ -2621,12 +2917,17 @@ export const CARE_SERVICES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "To help me guide you, what kind of care are you looking for? Whether it's specialized childcare, support for an elder, or a bit of respite care for yourself. 💙",
+        text: "To help me guide you, what kind of care are you looking for? 💙",
         variableName: "care_type_intent",
         inputType: "text",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1100,
+        quick_replies: [
+          { "title": "👶 Childcare", "payload": "childcare" },
+          { "title": "👵 Elder Care", "payload": "elder_care" },
+          { "title": "🤝 Respite Care", "payload": "respite" }
+        ]
       },
       order: 1,
     },
@@ -2743,6 +3044,11 @@ export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
+        quick_replies: [
+          { "title": "📅 Book a Table", "payload": "book" },
+          { "title": "🍷 View Menu", "payload": "menu" },
+          { "title": "📍 Location / Info", "payload": "location" }
+        ]
       },
       order: 1,
     },
@@ -2919,6 +3225,11 @@ export const HOTEL_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
+        quick_replies: [
+          { "title": "🛌 Book a Room", "payload": "book" },
+          { "title": "✨ Amenities / Info", "payload": "info" },
+          { "title": "📍 Location", "payload": "location" }
+        ]
       },
       order: 1,
     },
@@ -3065,6 +3376,11 @@ export const GOLF_CLUB_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
+        quick_replies: [
+          { "title": "🏌️ Book Tee Time", "payload": "tee" },
+          { "title": "🤝 Memberships", "payload": "member" },
+          { "title": "🛍️ Pro Shop / Info", "payload": "info" }
+        ]
       },
       order: 1,
     },

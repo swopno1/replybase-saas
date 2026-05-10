@@ -1,0 +1,96 @@
+[
+  {
+    "order": 0,
+    "type": "message",
+    "content": {
+      "text": "Hello! 👋 Thank you for reaching out. We're here to help you find the most compassionate and professional care for your family. Take your time — we're here to listen.",
+      "delayMs": 0,
+      "typingEnabled": true,
+      "typingDurationMs": 1400
+    }
+  },
+  {
+    "order": 1,
+    "type": "input",
+    "content": {
+      "text": "To help me guide you, what kind of care are you looking for? 💙",
+      "variableName": "care_type_intent",
+      "inputType": "text",
+      "delayMs": 600,
+      "typingEnabled": true,
+      "typingDurationMs": 1100,
+      "quick_replies": [
+        { "title": "👶 Childcare", "payload": "childcare" },
+        { "title": "👵 Elder Care", "payload": "elder_care" },
+        { "title": "🤝 Respite Care", "payload": "respite" }
+      ]
+    }
+  },
+  {
+    "order": 2,
+    "type": "input",
+    "content": {
+      "text": "I understand. If you're comfortable sharing, could you tell us a bit about who the care is for and any specific needs they might have? 😊",
+      "variableName": "care_recipient_details",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1100
+    }
+  },
+  {
+    "order": 3,
+    "type": "input",
+    "content": {
+      "text": "We appreciate you sharing that. Who should our care coordinator ask for?",
+      "variableName": "contact_name",
+      "inputType": "text",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 600
+    }
+  },
+  {
+    "order": 4,
+    "type": "input",
+    "content": {
+      "text": "Nice to meet you, {{contact_name}}. What's the best phone number for a sensitive, 5-minute chat about your family's needs? 📱",
+      "variableName": "contact_phone",
+      "inputType": "phone",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 900
+    }
+  },
+  {
+    "order": 5,
+    "type": "message",
+    "content": {
+      "text": "Thank you for sharing your journey with us. 💙 One of our senior care coordinators will reach out to {{contact_phone}} personally very soon to discuss how we can best support your family. We're on this path with you.",
+      "delayMs": 600,
+      "typingEnabled": true,
+      "typingDurationMs": 1400
+    }
+  },
+  {
+    "order": 6,
+    "type": "action",
+    "content": {
+      "action": "tag_user",
+      "tags": ["care-services-lead", "family-care-enquiry", "coordinator-follow-up"]
+    }
+  },
+  {
+    "order": 7,
+    "type": "action",
+    "content": {
+      "action": "update_status",
+      "status": "qualified"
+    }
+  },
+  {
+    "order": 8,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  }
+]

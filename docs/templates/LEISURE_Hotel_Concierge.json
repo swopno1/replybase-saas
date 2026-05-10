@@ -1,0 +1,125 @@
+[
+  {
+    "order": 0,
+    "type": "message",
+    "content": {
+      "text": "Welcome! 🏨 We're delighted you're considering a stay with us. I'm here to ensure your visit is perfect from the very first moment.",
+      "delayMs": 0,
+      "typingEnabled": true,
+      "typingDurationMs": 1200
+    }
+  },
+  {
+    "order": 1,
+    "type": "input",
+    "content": {
+      "text": "How can I assist you today? Would you like to secure a room, or are you looking for information about our luxury amenities and check-in times? ✨",
+      "variableName": "hotel_request_intent",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1000,
+      "quick_replies": [
+        { "title": "🛌 Book a Room", "payload": "book" },
+        { "title": "✨ Amenities / Info", "payload": "info" },
+        { "title": "📍 Location", "payload": "location" }
+      ]
+    }
+  },
+  {
+    "order": 2,
+    "type": "condition",
+    "content": {
+      "conditions": [
+        { "variableName": "hotel_request_intent", "operator": "contains", "value": "book", "nextNodeOrder": 3 },
+        { "variableName": "hotel_request_intent", "operator": "contains", "value": "reserv", "nextNodeOrder": 3 },
+        { "variableName": "hotel_request_intent", "operator": "contains", "value": "stay", "nextNodeOrder": 3 }
+      ],
+      "nextNodeOrder": 10
+    }
+  },
+  {
+    "order": 3,
+    "type": "input",
+    "content": {
+      "text": "Excellent choice. 🛌 What dates were you thinking of for your stay, and for how many guests should I prepare for?",
+      "variableName": "stay_details_raw",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1000
+    }
+  },
+  {
+    "order": 4,
+    "type": "input",
+    "content": {
+      "text": "Understood. And what's your full name, please? We'll use this for your priority reservation enquiry.",
+      "variableName": "guest_name",
+      "inputType": "text",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 600
+    }
+  },
+  {
+    "order": 5,
+    "type": "input",
+    "content": {
+      "text": "Welcome, {{guest_name}}! What's the best email to send your personalized reservation options and exclusive offers to? 📧",
+      "variableName": "guest_email",
+      "inputType": "email",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 800
+    }
+  },
+  {
+    "order": 6,
+    "type": "message",
+    "content": {
+      "text": "Perfect. 🥂 Our reservations team will check our availability and send your options to {{guest_email}} shortly. We look forward to welcoming you soon! Ready to see our room gallery?",
+      "delayMs": 600,
+      "typingEnabled": true,
+      "typingDurationMs": 1300,
+      "nextNodeOrder": 7
+    }
+  },
+  {
+    "order": 7,
+    "type": "action",
+    "content": {
+      "action": "tag_user",
+      "tags": ["hotel-booking", "reservation-enquiry", "high-intent-traveler"]
+    }
+  },
+  {
+    "order": 8,
+    "type": "action",
+    "content": {
+      "action": "update_status",
+      "status": "qualified"
+    }
+  },
+  {
+    "order": 9,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  },
+  {
+    "order": 10,
+    "type": "message",
+    "content": {
+      "text": "Of course. You can explore our spa rituals, fitness center, and fine dining options right here: [AMENITIES_URL]. 🧖 Check-in begins at 3pm and check-out is by 11am. Do you have any other specific questions for our concierge?",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1300,
+      "nextNodeOrder": 15
+    }
+  },
+  {
+    "order": 15,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  }
+]

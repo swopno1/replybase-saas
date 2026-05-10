@@ -1,0 +1,97 @@
+[
+  {
+    "order": 0,
+    "type": "message",
+    "content": {
+      "text": "Hi! 🏋️ I'm here to help you smash your personal records. Let's see how we can build a plan that works for you.",
+      "delayMs": 0,
+      "typingEnabled": true,
+      "typingDurationMs": 1200
+    }
+  },
+  {
+    "order": 1,
+    "type": "input",
+    "content": {
+      "text": "What's your primary focus right now?",
+      "variableName": "pt_focus",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 800,
+      "quick_replies": [
+        { "title": "💪 Strength", "payload": "strength" },
+        { "title": "🔥 Fat Loss", "payload": "fat_loss" },
+        { "title": "🏅 Performance", "payload": "performance" },
+        { "title": "🧘 Longevity", "payload": "longevity" }
+      ]
+    }
+  },
+  {
+    "order": 2,
+    "type": "input",
+    "content": {
+      "text": "Love that focus. 💥 Safety first — any previous injuries or health notes I should pass on to your coach? 🩹",
+      "variableName": "pt_health_notes",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 800
+    }
+  },
+  {
+    "order": 3,
+    "type": "input",
+    "content": {
+      "text": "Got it. And who am I looking forward to training?",
+      "variableName": "client_name",
+      "inputType": "text",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 600
+    }
+  },
+  {
+    "order": 4,
+    "type": "input",
+    "content": {
+      "text": "Nice to meet you, {{client_name}}! What's the best phone number so our coach can reach out about your {{pt_focus}} programme? 📱",
+      "variableName": "client_phone",
+      "inputType": "phone",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 700
+    }
+  },
+  {
+    "order": 5,
+    "type": "message",
+    "content": {
+      "text": "Brilliant! 💥 I'll match you with the best coach for {{pt_focus}}. We'll reach out to {{client_phone}} shortly with a game plan. Ready to work? 🏋️",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1100
+    }
+  },
+  {
+    "order": 6,
+    "type": "action",
+    "content": {
+      "action": "tag_user",
+      "tags": ["pt-lead", "intake-complete", "high-performance-intent"]
+    }
+  },
+  {
+    "order": 7,
+    "type": "action",
+    "content": {
+      "action": "update_status",
+      "status": "qualified"
+    }
+  },
+  {
+    "order": 8,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  }
+]

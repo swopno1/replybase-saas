@@ -1,0 +1,84 @@
+[
+  {
+    "order": 0,
+    "type": "message",
+    "content": {
+      "text": "Hey! 💈 Welcome to the shop. Looking for a fresh fade, a classic trim, or the full treatment?",
+      "delayMs": 0,
+      "typingEnabled": true,
+      "typingDurationMs": 1000
+    }
+  },
+  {
+    "order": 1,
+    "type": "input",
+    "content": {
+      "text": "What service can we get done for you today? ✂️",
+      "variableName": "barber_service",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 800,
+      "quick_replies": [
+        { "title": "✂️ Haircut / Fade", "payload": "cut" },
+        { "title": "🧔 Beard Sculpt", "payload": "beard" },
+        { "title": "🔥 Full Service", "payload": "full" }
+      ]
+    }
+  },
+  {
+    "order": 2,
+    "type": "input",
+    "content": {
+      "text": "Ready to work. What's your name?",
+      "variableName": "client_name",
+      "inputType": "text",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 600
+    }
+  },
+  {
+    "order": 3,
+    "type": "input",
+    "content": {
+      "text": "Nice to meet you! What's the best phone number for us to text your confirmation? 📱",
+      "variableName": "client_phone",
+      "inputType": "phone",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 700
+    }
+  },
+  {
+    "order": 4,
+    "type": "message",
+    "content": {
+      "text": "Sorted! ✅ We'll check the schedule and text {{client_phone}} shortly to confirm your chair. See you soon!",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1000
+    }
+  },
+  {
+    "order": 5,
+    "type": "action",
+    "content": {
+      "action": "tag_user",
+      "tags": ["barber-booking", "appointment-request", "walk-in-intent"]
+    }
+  },
+  {
+    "order": 6,
+    "type": "action",
+    "content": {
+      "action": "update_status",
+      "status": "qualified"
+    }
+  },
+  {
+    "order": 7,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  }
+]

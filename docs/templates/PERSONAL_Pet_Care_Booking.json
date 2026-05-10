@@ -1,0 +1,108 @@
+[
+  {
+    "order": 0,
+    "type": "message",
+    "content": {
+      "text": "Hi! 🐾 Welcome. We'd love to help look after your furry family members and ensure they have the best experience.",
+      "delayMs": 0,
+      "typingEnabled": true,
+      "typingDurationMs": 1100
+    }
+  },
+  {
+    "order": 1,
+    "type": "input",
+    "content": {
+      "text": "What can we help you with today? Whether it's expert dog walking, professional grooming, or cozy overnight boarding, we're ready to help. 🐶",
+      "variableName": "pet_service_intent",
+      "inputType": "text",
+      "delayMs": 600,
+      "typingEnabled": true,
+      "typingDurationMs": 1000,
+      "quick_replies": [
+        { "title": "🐾 Walking / Daycare", "payload": "walking" },
+        { "title": "✂️ Grooming", "payload": "grooming" },
+        { "title": "🏠 Boarding", "payload": "boarding" }
+      ]
+    }
+  },
+  {
+    "order": 2,
+    "type": "input",
+    "content": {
+      "text": "Tell us a bit about your pet! What kind of animal are they, and what's their name? We love getting to know our guests. 😊",
+      "variableName": "pet_details",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 900
+    }
+  },
+  {
+    "order": 3,
+    "type": "input",
+    "content": {
+      "text": "Lovely. When were you thinking you'd need our help? Let us know the dates or how often you're looking for care. 🕒",
+      "variableName": "care_schedule",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 900
+    }
+  },
+  {
+    "order": 4,
+    "type": "input",
+    "content": {
+      "text": "And who should we get in touch with to finalize the details?",
+      "variableName": "owner_name",
+      "inputType": "text",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 600
+    }
+  },
+  {
+    "order": 5,
+    "type": "input",
+    "content": {
+      "text": "Nice to meet you! What's the best phone number to reach you on for a quick chat about {{pet_details}}? 📱",
+      "variableName": "owner_phone",
+      "inputType": "phone",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 800
+    }
+  },
+  {
+    "order": 6,
+    "type": "message",
+    "content": {
+      "text": "Paw-some! 🐶 I've secured your interest. Our care team will reach out to {{owner_phone}} very soon to confirm everything and answer any questions you have. Can't wait to meet you and {{pet_details}}!",
+      "delayMs": 600,
+      "typingEnabled": true,
+      "typingDurationMs": 1300
+    }
+  },
+  {
+    "order": 7,
+    "type": "action",
+    "content": {
+      "action": "tag_user",
+      "tags": ["pet-care-lead", "service-enquiry", "pet-details-captured"]
+    }
+  },
+  {
+    "order": 8,
+    "type": "action",
+    "content": {
+      "action": "update_status",
+      "status": "qualified"
+    }
+  },
+  {
+    "order": 9,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  }
+]

@@ -1,0 +1,92 @@
+[
+  {
+    "order": 0,
+    "type": "message",
+    "content": {
+      "text": "Hi! 👋 Looking for something special today? I'm your personal shopping concierge, here to help you find the perfect fit or track your latest haul.",
+      "delayMs": 0,
+      "typingEnabled": true,
+      "typingDurationMs": 1000
+    }
+  },
+  {
+    "order": 1,
+    "type": "input",
+    "content": {
+      "text": "What can I do for you right now? 🛍️",
+      "variableName": "ecommerce_intent",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 900,
+      "quick_replies": [
+        { "title": "📦 Track Order", "payload": "track" },
+        { "title": "🛍️ Browse Shop", "payload": "browse" },
+        { "title": "🎁 Get Discount", "payload": "discount" }
+      ]
+    }
+  },
+  {
+    "order": 2,
+    "type": "condition",
+    "content": {
+      "conditions": [
+        { "variableName": "ecommerce_intent", "operator": "contains", "value": "track", "nextNodeOrder": 3 },
+        { "variableName": "ecommerce_intent", "operator": "contains", "value": "order", "nextNodeOrder": 3 },
+        { "variableName": "ecommerce_intent", "operator": "contains", "value": "browse", "nextNodeOrder": 4 },
+        { "variableName": "ecommerce_intent", "operator": "contains", "value": "shop", "nextNodeOrder": 4 },
+        { "variableName": "ecommerce_intent", "operator": "contains", "value": "discount", "nextNodeOrder": 6 }
+      ],
+      "nextNodeOrder": 7
+    }
+  },
+  {
+    "order": 3,
+    "type": "message",
+    "content": {
+      "text": "I'll fetch that for you! 📦 Just share your order number and email, and I'll pull the latest status from our warehouse in seconds.",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1000,
+      "nextNodeOrder": 10
+    }
+  },
+  {
+    "order": 4,
+    "type": "message",
+    "content": {
+      "text": "Great! You can browse our full collection right here. Want to check out now? Let's complete your purchase! [STORE_URL]/checkout 🛍️ And here's a little secret: use code WELCOME10 for 10% off!",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1200,
+      "nextNodeOrder": 9
+    }
+  },
+  {
+    "order": 6,
+    "type": "message",
+    "content": {
+      "text": "Who doesn't love a deal? 🎁 Use WELCOME20 for 20% off your first purchase! What kind of products are you hoping to use that on?",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1000,
+      "nextNodeOrder": 10
+    }
+  },
+  {
+    "order": 7,
+    "type": "message",
+    "content": {
+      "text": "No problem. Just share what's on your mind and your email, and one of our dedicated support team will get back to you personally. 😊",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1000,
+      "nextNodeOrder": 15
+    }
+  },
+  {
+    "order": 15,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  }
+]

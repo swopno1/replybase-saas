@@ -1,0 +1,125 @@
+[
+  {
+    "order": 0,
+    "type": "message",
+    "content": {
+      "text": "Welcome! 🌸 We're delighted you've chosen to unwind with us. Let's find the perfect ritual for your relaxation.",
+      "delayMs": 0,
+      "typingEnabled": true,
+      "typingDurationMs": 1300
+    }
+  },
+  {
+    "order": 1,
+    "type": "input",
+    "content": {
+      "text": "What kind of experience calls to you today? ✨",
+      "variableName": "spa_treatment_goal",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1000,
+      "quick_replies": [
+        { "title": "💆 Restorative Massage", "payload": "massage" },
+        { "title": "✨ Skincare Facial", "payload": "facial" },
+        { "title": "🛁 Full Ritual", "payload": "ritual" }
+      ]
+    }
+  },
+  {
+    "order": 2,
+    "type": "input",
+    "content": {
+      "text": "Beautiful choice. Is this a mindful treat for yourself, or are you arranging a group ritual or a special gift? 🎁",
+      "variableName": "booking_context",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 900,
+      "quick_replies": [
+        { "title": "👤 For Me", "payload": "self" },
+        { "title": "👥 Group Ritual", "payload": "group" },
+        { "title": "🎁 Special Gift", "payload": "gift" }
+      ]
+    }
+  },
+  {
+    "order": 3,
+    "type": "input",
+    "content": {
+      "text": "I'd love to arrange this for you. By the way, I'm speaking with...?",
+      "variableName": "guest_name",
+      "inputType": "text",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 600
+    }
+  },
+  {
+    "order": 4,
+    "type": "input",
+    "content": {
+      "text": "Welcome, {{guest_name}}! What's the best phone number for us to confirm your details and share our pre-treatment guide? 📱",
+      "variableName": "guest_phone",
+      "inputType": "phone",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 700
+    }
+  },
+  {
+    "order": 5,
+    "type": "input",
+    "content": {
+      "text": "When would you like to visit us? Let us know your preferred date and time. 🕒",
+      "variableName": "preferred_datetime",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 800
+    }
+  },
+  {
+    "order": 6,
+    "type": "input",
+    "content": {
+      "text": "Finally, to ensure your comfort, are there any allergies or special requests I should let our therapists know about? 🌿",
+      "variableName": "spa_special_requests",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 800
+    }
+  },
+  {
+    "order": 7,
+    "type": "message",
+    "content": {
+      "text": "Wonderful! 🛁 I've secured your request. Our spa concierge will be in touch shortly to confirm your ritual and share everything you need for a restorative stay.",
+      "delayMs": 600,
+      "typingEnabled": true,
+      "typingDurationMs": 1300
+    }
+  },
+  {
+    "order": 8,
+    "type": "action",
+    "content": {
+      "action": "tag_user",
+      "tags": ["spa-booking", "treatment-qualified", "wellness-intent-high"]
+    }
+  },
+  {
+    "order": 9,
+    "type": "action",
+    "content": {
+      "action": "update_status",
+      "status": "qualified"
+    }
+  },
+  {
+    "order": 10,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  }
+]

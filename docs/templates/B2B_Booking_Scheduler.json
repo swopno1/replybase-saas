@@ -1,0 +1,97 @@
+[
+  {
+    "order": 0,
+    "type": "message",
+    "content": {
+      "text": "Hi there! 📅 Ready to book your spot? Let's sort out the details.",
+      "delayMs": 0,
+      "typingEnabled": true,
+      "typingDurationMs": 1100
+    }
+  },
+  {
+    "order": 1,
+    "type": "input",
+    "content": {
+      "text": "Which service or specialist are you looking to book with today? 😊",
+      "variableName": "service_type",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 900,
+      "quick_replies": [
+        { "title": "📅 Consultation", "payload": "consultation" },
+        { "title": "🛠️ Service / Repair", "payload": "service" },
+        { "title": "❓ Other Info", "payload": "other" }
+      ]
+    }
+  },
+  {
+    "order": 2,
+    "type": "input",
+    "content": {
+      "text": "Excellent. And who am I looking forward to seeing? (Just your name is fine!)",
+      "variableName": "client_name",
+      "inputType": "text",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 600
+    }
+  },
+  {
+    "order": 3,
+    "type": "input",
+    "content": {
+      "text": "Nice to meet you, {{client_name}}! What's the best phone number for us to send your booking confirmation to? 📱",
+      "variableName": "client_phone",
+      "inputType": "phone",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 700
+    }
+  },
+  {
+    "order": 4,
+    "type": "input",
+    "content": {
+      "text": "Got it. Finally, what's your preferred date and time? We'll do our absolute best to prioritize you. 🕒",
+      "variableName": "preferred_datetime",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 900
+    }
+  },
+  {
+    "order": 5,
+    "type": "message",
+    "content": {
+      "text": "Thanks! ✅ We've received your request. Let's get you booked in right away: [BOOKING_LINK]",
+      "delayMs": 600,
+      "typingEnabled": true,
+      "typingDurationMs": 1200
+    }
+  },
+  {
+    "order": 6,
+    "type": "action",
+    "content": {
+      "action": "booking",
+      "bookingService": "general",
+      "tags": ["booking-request", "new-appointment"]
+    }
+  },
+  {
+    "order": 7,
+    "type": "action",
+    "content": {
+      "action": "update_status",
+      "status": "qualified"
+    }
+  },
+  {
+    "order": 8,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  }
+]

@@ -1,0 +1,141 @@
+[
+  {
+    "order": 0,
+    "type": "message",
+    "content": {
+      "text": "Hey! 💪 Welcome to our community. We're not just a gym — we're here to help you rewrite your fitness story.",
+      "delayMs": 0,
+      "typingEnabled": true,
+      "typingDurationMs": 1200
+    }
+  },
+  {
+    "order": 1,
+    "type": "input",
+    "content": {
+      "text": "What brings you here today? 😊",
+      "variableName": "gym_interest",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 800,
+      "quick_replies": [
+        { "title": "🏋️ Join the Gym", "payload": "join" },
+        { "title": "🔥 Try a Class", "payload": "class" },
+        { "title": "👀 Book a Tour", "payload": "tour" }
+      ]
+    }
+  },
+  {
+    "order": 2,
+    "type": "condition",
+    "content": {
+      "conditions": [
+        { "variableName": "gym_interest", "operator": "contains", "value": "join", "nextNodeOrder": 3 },
+        { "variableName": "gym_interest", "operator": "contains", "value": "member", "nextNodeOrder": 3 },
+        { "variableName": "gym_interest", "operator": "contains", "value": "class", "nextNodeOrder": 4 },
+        { "variableName": "gym_interest", "operator": "contains", "value": "tour", "nextNodeOrder": 5 }
+      ],
+      "nextNodeOrder": 6
+    }
+  },
+  {
+    "order": 3,
+    "type": "message",
+    "content": {
+      "text": "Great choice! 🙌 We offer flexible memberships with no lock-in contracts — including unlimited classes, open gym access, and a free starter session with a coach. Most new members see results within 4 weeks.",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1200,
+      "nextNodeOrder": 7
+    }
+  },
+  {
+    "order": 4,
+    "type": "message",
+    "content": {
+      "text": "Love it! 🔥 We run HIIT, Strength, Yoga, and Boxing classes daily — and your first session is always free. Check our full timetable here: [CLASS_TIMETABLE_URL]",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1100,
+      "nextNodeOrder": 7
+    }
+  },
+  {
+    "order": 5,
+    "type": "message",
+    "content": {
+      "text": "You're welcome anytime! 👀 We offer free guided tours 7 days a week. You'll see the gym floor, studios, and meet one of our coaches. No commitment required.",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1100,
+      "nextNodeOrder": 7
+    }
+  },
+  {
+    "order": 6,
+    "type": "message",
+    "content": {
+      "text": "No problem! Whatever your fitness goal — strength, weight loss, or just feeling better — we'll find the right path for you. 💪",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1000,
+      "nextNodeOrder": 7
+    }
+  },
+  {
+    "order": 7,
+    "type": "input",
+    "content": {
+      "text": "I'd love to get our coach to follow up with you personally. What's your name?",
+      "variableName": "member_name",
+      "inputType": "text",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 600
+    }
+  },
+  {
+    "order": 8,
+    "type": "input",
+    "content": {
+      "text": "Nice to meet you, {{member_name}}! What's the best number for a quick 2-minute chat about getting started? 📱",
+      "variableName": "member_phone",
+      "inputType": "phone",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 700
+    }
+  },
+  {
+    "order": 9,
+    "type": "message",
+    "content": {
+      "text": "You're all set! 🎉 Our head coach will reach out to {{member_phone}} shortly. We can't wait to see you on the gym floor!",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1000
+    }
+  },
+  {
+    "order": 10,
+    "type": "action",
+    "content": {
+      "action": "tag_user",
+      "tags": ["gym-lead", "membership-intent-high", "goal-captured"]
+    }
+  },
+  {
+    "order": 11,
+    "type": "action",
+    "content": {
+      "action": "update_status",
+      "status": "qualified"
+    }
+  },
+  {
+    "order": 12,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  }
+]

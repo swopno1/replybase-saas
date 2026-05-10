@@ -1,0 +1,105 @@
+[
+  {
+    "order": 0,
+    "type": "message",
+    "content": {
+      "text": "Love it! 🚀 Understanding your specific needs helps me recommend the right fit, because enterprise teams need something totally different than solo creators.",
+      "delayMs": 0,
+      "typingEnabled": true,
+      "typingDurationMs": 1200
+    }
+  },
+  {
+    "order": 1,
+    "type": "input",
+    "content": {
+      "text": "Quick question to frame this—are you looking at this for personal projects or to empower your whole team? 😊",
+      "variableName": "lead_segment",
+      "inputType": "text",
+      "delayMs": 600,
+      "typingEnabled": true,
+      "typingDurationMs": 1000,
+      "quick_replies": [
+        { "title": "👤 Personal", "payload": "personal" },
+        { "title": "👥 Team / Business", "payload": "team" }
+      ]
+    }
+  },
+  {
+    "order": 2,
+    "type": "message",
+    "content": {
+      "text": "That makes total sense. SaaS and E-commerce teams usually find that ReplyBase cuts repetitive support time by 70%.",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 800
+    }
+  },
+  {
+    "order": 3,
+    "type": "input",
+    "content": {
+      "text": "By the way, I'm speaking with...?",
+      "variableName": "lead_name",
+      "inputType": "text",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 700
+    }
+  },
+  {
+    "order": 4,
+    "type": "input",
+    "content": {
+      "text": "Nice to meet you, {{lead_name}}! What's the best work email to send an ROI breakdown to? 📧",
+      "variableName": "lead_email",
+      "inputType": "email",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 800
+    }
+  },
+  {
+    "order": 5,
+    "type": "input",
+    "content": {
+      "text": "And just ballpark—how many support conversations is your team handling per day? 10? 100? 1000+?",
+      "variableName": "lead_volume_daily",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 900
+    }
+  },
+  {
+    "order": 6,
+    "type": "message",
+    "content": {
+      "text": "Got it! That volume is a sweet spot for automation. 🎯 I've passed your details to our senior strategists, and they'll reach out to {{lead_email}} within 1 business day with a tailored plan.",
+      "delayMs": 600,
+      "typingEnabled": true,
+      "typingDurationMs": 1200
+    }
+  },
+  {
+    "order": 7,
+    "type": "action",
+    "content": {
+      "action": "tag_user",
+      "tags": ["lead", "orchestra-qualified", "consultant-vetted"]
+    }
+  },
+  {
+    "order": 8,
+    "type": "action",
+    "content": {
+      "action": "update_status",
+      "status": "qualified"
+    }
+  },
+  {
+    "order": 9,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  }
+]

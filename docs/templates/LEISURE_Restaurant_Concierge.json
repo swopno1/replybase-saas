@@ -1,0 +1,149 @@
+[
+  {
+    "order": 0,
+    "type": "message",
+    "content": {
+      "text": "Hello! 🍴 Welcome to our restaurant. We're delighted you've chosen to dine with us. I'm your digital concierge for the evening.",
+      "delayMs": 0,
+      "typingEnabled": true,
+      "typingDurationMs": 1100
+    }
+  },
+  {
+    "order": 1,
+    "type": "input",
+    "content": {
+      "text": "How can I help you today? Would you like to secure a table, explore our latest seasonal menu, or do you have a question about our location? 🍷",
+      "variableName": "restaurant_request_intent",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1000,
+      "quick_replies": [
+        { "title": "📅 Book a Table", "payload": "book" },
+        { "title": "🍷 View Menu", "payload": "menu" },
+        { "title": "📍 Location / Info", "payload": "location" }
+      ]
+    }
+  },
+  {
+    "order": 2,
+    "type": "condition",
+    "content": {
+      "conditions": [
+        { "variableName": "restaurant_request_intent", "operator": "contains", "value": "book", "nextNodeOrder": 3 },
+        { "variableName": "restaurant_request_intent", "operator": "contains", "value": "reserv", "nextNodeOrder": 3 },
+        { "variableName": "restaurant_request_intent", "operator": "contains", "value": "table", "nextNodeOrder": 3 },
+        { "variableName": "restaurant_request_intent", "operator": "contains", "value": "menu", "nextNodeOrder": 11 }
+      ],
+      "nextNodeOrder": 12
+    }
+  },
+  {
+    "order": 3,
+    "type": "input",
+    "content": {
+      "text": "Fantastic! 📅 Let's get you scheduled! For how many people would you like to book, and on what date and time?",
+      "variableName": "booking_details",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1000
+    }
+  },
+  {
+    "order": 4,
+    "type": "input",
+    "content": {
+      "text": "Understood. Are there any dietary requirements or special occasions (like a birthday or anniversary) we should prepare for? 🎂",
+      "variableName": "special_requests_info",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 900
+    }
+  },
+  {
+    "order": 5,
+    "type": "input",
+    "content": {
+      "text": "Perfect. And what's your name so we can secure the reservation for you?",
+      "variableName": "guest_name",
+      "inputType": "text",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 600
+    }
+  },
+  {
+    "order": 6,
+    "type": "input",
+    "content": {
+      "text": "Welcome, {{guest_name}}! What's the best phone number to text your reservation confirmation to? 📱",
+      "variableName": "guest_phone",
+      "inputType": "phone",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 800
+    }
+  },
+  {
+    "order": 7,
+    "type": "message",
+    "content": {
+      "text": "Excellent! 🥂 Your reservation request is set. Want to secure your table now? [RESERVATION_LINK]",
+      "delayMs": 600,
+      "typingEnabled": true,
+      "typingDurationMs": 1200
+    }
+  },
+  {
+    "order": 8,
+    "type": "action",
+    "content": {
+      "action": "booking",
+      "bookingService": "table",
+      "tags": ["restaurant-booking", "reservation-request"]
+    }
+  },
+  {
+    "order": 9,
+    "type": "action",
+    "content": {
+      "action": "update_status",
+      "status": "qualified"
+    }
+  },
+  {
+    "order": 10,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  },
+  {
+    "order": 11,
+    "type": "message",
+    "content": {
+      "text": "You can find our latest seasonal menu and chef's specials right here: [MENU_URL] 🥗 Hope you find something you love! Ready to book once you've had a look?",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1000,
+      "nextNodeOrder": 15
+    }
+  },
+  {
+    "order": 12,
+    "type": "message",
+    "content": {
+      "text": "No problem. If you share what's on your mind and the best way to reach you, I'll make sure one of our team gets back to you personally. We're located at [LOCATION_ADDRESS]. 📍",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1200,
+      "nextNodeOrder": 15
+    }
+  },
+  {
+    "order": 15,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  }
+]

@@ -1,0 +1,108 @@
+[
+  {
+    "order": 0,
+    "type": "message",
+    "content": {
+      "text": "Hi! 🔧 Got something that needs fixing? You're in the right place. I'll help you get this resolved quickly.",
+      "delayMs": 0,
+      "typingEnabled": true,
+      "typingDurationMs": 1000
+    }
+  },
+  {
+    "order": 1,
+    "type": "input",
+    "content": {
+      "text": "Tell me a bit about the job that needs doing. The more detail the better so I can match you with the right specialist! 🛠️",
+      "variableName": "job_description_raw",
+      "inputType": "text",
+      "delayMs": 600,
+      "typingEnabled": true,
+      "typingDurationMs": 1000
+    }
+  },
+  {
+    "order": 2,
+    "type": "input",
+    "content": {
+      "text": "How urgent is this? 🕒",
+      "variableName": "job_urgency",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 900,
+      "quick_replies": [
+        { "title": "🚨 Emergency Repair", "payload": "emergency" },
+        { "title": "📅 Scheduled Visit", "payload": "scheduled" },
+        { "title": "💡 Get a Quote", "payload": "quote" }
+      ]
+    }
+  },
+  {
+    "order": 3,
+    "type": "input",
+    "content": {
+      "text": "What's the postcode or address where the work needs to be carried out? 📍",
+      "variableName": "job_location",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 800
+    }
+  },
+  {
+    "order": 4,
+    "type": "input",
+    "content": {
+      "text": "Great. And who should our team ask for?",
+      "variableName": "customer_name",
+      "inputType": "text",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 600
+    }
+  },
+  {
+    "order": 5,
+    "type": "input",
+    "content": {
+      "text": "Thanks, {{customer_name}}! What's the best phone number for our specialist to reach you on? 📱",
+      "variableName": "customer_phone",
+      "inputType": "phone",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 700
+    }
+  },
+  {
+    "order": 6,
+    "type": "message",
+    "content": {
+      "text": "Sorted! ✅ I've flagged your job as a priority. Our nearest specialist will call {{customer_phone}} shortly to arrange access. We'll get this fixed for you!",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1100
+    }
+  },
+  {
+    "order": 7,
+    "type": "action",
+    "content": {
+      "action": "tag_user",
+      "tags": ["handyman-lead", "repair-request", "location-captured"]
+    }
+  },
+  {
+    "order": 8,
+    "type": "action",
+    "content": {
+      "action": "update_status",
+      "status": "qualified"
+    }
+  },
+  {
+    "order": 9,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  }
+]

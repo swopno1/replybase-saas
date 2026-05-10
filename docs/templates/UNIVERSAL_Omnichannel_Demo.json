@@ -1,0 +1,32 @@
+[
+  {
+    "order": 0,
+    "type": "message",
+    "content": {
+      "text": "The best way to understand ReplyBase is to see it work. 🚀 We are chatting here on the website, but our system can sync this conversation to your phone instantly.",
+      "delayMs": 0,
+      "typingEnabled": true,
+      "typingDurationMs": 1200
+    }
+  },
+  {
+    "order": 1,
+    "type": "message",
+    "content": {
+      "text": "Ready to see the magic? ✨ Click below to switch to WhatsApp. I'll remember everything we've talked about so far.",
+      "delayMs": 600,
+      "typingEnabled": true,
+      "typingDurationMs": 1000,
+      "quick_replies": [
+        { "title": "🟢 Switch to WhatsApp", "payload": "wa.me/{{wa_number}}?text=SYNC_{{session_hash}}" },
+        { "title": "🔵 Switch to Telegram", "payload": "t.me/{{tg_bot}}?start=SYNC_{{session_hash}}" },
+        { "title": "💬 Stay here", "payload": "STAY_HERE" }
+      ]
+    }
+  },
+  {
+    "order": 10,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  }
+]

@@ -1,0 +1,128 @@
+[
+  {
+    "order": 0,
+    "type": "message",
+    "content": {
+      "text": "Welcome! 🏡 Whether you're hunting for your dream home or looking to make a strategic move, I'm here to ensure the process is seamless.",
+      "delayMs": 0,
+      "typingEnabled": true,
+      "typingDurationMs": 1200
+    }
+  },
+  {
+    "order": 1,
+    "type": "input",
+    "content": {
+      "text": "To get started, are you primarily looking to buy a new property, sell your current home, or perhaps arrange a viewing for a listing that caught your eye?",
+      "variableName": "property_goal",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1000,
+      "quick_replies": [
+        { "title": "🏘️ Buy a Property", "payload": "buy" },
+        { "title": "📈 Sell my Home", "payload": "sell" },
+        { "title": "🔑 Arrange Viewing", "payload": "viewing" }
+      ]
+    }
+  },
+  {
+    "order": 2,
+    "type": "condition",
+    "content": {
+      "variableName": "property_goal",
+      "conditions": [
+        { "operator": "contains", "value": "sell", "nextNodeOrder": 3 },
+        { "operator": "contains", "value": "valuation", "nextNodeOrder": 3 },
+        { "operator": "contains", "value": "buy", "nextNodeOrder": 5 },
+        { "operator": "contains", "value": "viewing", "nextNodeOrder": 7 }
+      ],
+      "nextNodeOrder": 9
+    }
+  },
+  {
+    "order": 3,
+    "type": "input",
+    "content": {
+      "text": "Excellent choice. Strategic sellers always get the best results. 📈 What's the postcode of the property you're thinking of selling?",
+      "variableName": "seller_postcode",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1000
+    }
+  },
+  {
+    "order": 4,
+    "type": "message",
+    "content": {
+      "text": "Got it. We'll prepare a preliminary market report for {{seller_postcode}}. What's the best number for our valuation expert to reach you on? 📞",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1100,
+      "nextNodeOrder": 11
+    }
+  },
+  {
+    "order": 5,
+    "type": "input",
+    "content": {
+      "text": "Fantastic! 🏘️ To find the perfect match, what's your preferred area and rough budget range?",
+      "variableName": "buyer_preferences",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1000
+    }
+  },
+  {
+    "order": 6,
+    "type": "message",
+    "content": {
+      "text": "That helps a lot. We have several off-market listings in that range. What email should we send these exclusive properties to? 📧",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1100,
+      "nextNodeOrder": 11
+    }
+  },
+  {
+    "order": 7,
+    "type": "input",
+    "content": {
+      "text": "Of course! Nothing beats seeing a property in person. 🔑 Which listing are you interested in, and what's your name?",
+      "variableName": "viewing_request_info",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1100
+    }
+  },
+  {
+    "order": 8,
+    "type": "message",
+    "content": {
+      "text": "Great to meet you! We'll coordinate with the owners right away. What's the best phone number to confirm your viewing time? 📱",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1000,
+      "nextNodeOrder": 11
+    }
+  },
+  {
+    "order": 9,
+    "type": "message",
+    "content": {
+      "text": "I'll connect you with a property specialist who can help with any specific questions you have. 🙌",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 1000,
+      "nextNodeOrder": 11
+    }
+  },
+  {
+    "order": 11,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  }
+]

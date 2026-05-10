@@ -1,0 +1,101 @@
+[
+  {
+    "order": 0,
+    "type": "message",
+    "content": {
+      "text": "Welcome! 🚀 We're excited to hear about your vision. Let's get the core strategy down so we can connect you with the right strategist.",
+      "delayMs": 0,
+      "typingEnabled": true,
+      "typingDurationMs": 1200
+    }
+  },
+  {
+    "order": 1,
+    "type": "input",
+    "content": {
+      "text": "In a nutshell, what are the primary goals you're looking to achieve with this project? 🚀",
+      "variableName": "project_goals",
+      "inputType": "text",
+      "delayMs": 600,
+      "typingEnabled": true,
+      "typingDurationMs": 1000,
+      "quick_replies": [
+        { "title": "📈 Lead Generation", "payload": "lead_gen" },
+        { "title": "✨ Brand Refresh", "payload": "branding" },
+        { "title": "🌐 Digital Transformation", "payload": "transformation" }
+      ]
+    }
+  },
+  {
+    "order": 2,
+    "type": "input",
+    "content": {
+      "text": "Got it—visionary goals! ✨ To help our strategists scope this accurately, do you have a rough budget range in mind?",
+      "variableName": "budget_range",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 900,
+      "quick_replies": [
+        { "title": "💳 Under £10k", "payload": "<10k" },
+        { "title": "🏢 £10k-£50k", "payload": "10k-50k" },
+        { "title": "🚀 £50k+", "payload": ">50k" }
+      ]
+    }
+  },
+  {
+    "order": 3,
+    "type": "input",
+    "content": {
+      "text": "Makes total sense. And what's your ideal timeline for hitting those milestones?",
+      "variableName": "project_timeline",
+      "inputType": "text",
+      "delayMs": 500,
+      "typingEnabled": true,
+      "typingDurationMs": 800
+    }
+  },
+  {
+    "order": 4,
+    "type": "input",
+    "content": {
+      "text": "Perfect. Where should we send our initial thoughts and a preliminary strategy outline? 📧",
+      "variableName": "contact_email",
+      "inputType": "email",
+      "delayMs": 400,
+      "typingEnabled": true,
+      "typingDurationMs": 700
+    }
+  },
+  {
+    "order": 5,
+    "type": "message",
+    "content": {
+      "text": "Fantastic! 🎯 One of our senior strategists will review your brief and follow up at {{contact_email}} within 1 business day. Ready to see some of our previous success stories while you wait?",
+      "delayMs": 600,
+      "typingEnabled": true,
+      "typingDurationMs": 1200
+    }
+  },
+  {
+    "order": 6,
+    "type": "action",
+    "content": {
+      "action": "tag_user",
+      "tags": ["agency-lead", "discovery-complete", "high-intent"]
+    }
+  },
+  {
+    "order": 7,
+    "type": "action",
+    "content": {
+      "action": "update_status",
+      "status": "qualified"
+    }
+  },
+  {
+    "order": 8,
+    "type": "action",
+    "content": { "action": "end_flow" }
+  }
+]
