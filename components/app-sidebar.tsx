@@ -69,10 +69,22 @@ const items = [
     channelId: "telegram" as ChannelId,
   },
   {
+    title: "Facebook Messenger",
+    url: "/integrations/facebook",
+    icon: FacebookLogo,
+    channelId: "facebook" as ChannelId,
+  },
+  {
     title: "WhatsApp Business",
     url: "/integrations/whatsapp",
     icon: MessageCircle,
     channelId: "whatsapp" as ChannelId,
+  },
+  {
+    title: "Web Chat",
+    url: "/integrations/webchat",
+    icon: Globe,
+    channelId: "webchat" as ChannelId,
   },
   {
     title: "Activity",

@@ -119,13 +119,30 @@ export const DELETE: (
       );
     }
 
+    // Filter for contacts
     const where = ids === "ALL" ? {} : { id: { in: ids } };
+    // Filter for related records using contactId
+    const relatedWhere = ids === "ALL" ? {} : { contactId: { in: ids } };
 
-    const { count } = await db.contact.deleteMany({
-      where,
+    // Use a transaction to ensure all related data is cleaned up before contacts are deleted
+    const result = await db.$transaction(async (tx) => {
+      // 1. Delete ContactIdentities
+      await tx.contactIdentity.deleteMany({ where: relatedWhere });
+      
+      // 2. Delete CrmConversations (Messages, Notes, and WebChatSessions will cascade)
+      await tx.crmConversation.deleteMany({ where: relatedWhere });
+      
+      // 3. Delete Leads
+      await tx.lead.deleteMany({ where: relatedWhere });
+      
+      // 4. Delete OnboardingSessions
+      await tx.onboardingSession.deleteMany({ where: relatedWhere });
+
+      // 5. Finally, delete the Contacts
+      return await tx.contact.deleteMany({ where });
     });
 
-    return successResponse({ count });
+    return successResponse({ count: result.count });
   } catch (error) {
     console.error("[Contacts API] Batch delete error:", error);
     return errorResponse("Failed to delete contacts");

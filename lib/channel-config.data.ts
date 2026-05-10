@@ -13,7 +13,7 @@ export const CHANNEL_CONFIG_DATA: Record<ChannelId, ChannelConfigData> = {
     displayName: "Facebook Messenger",
     description: "Meta Facebook Messenger integration",
     enabled: true,
-    uiVisible: true,
+    uiVisible: false,
     notes: "Meta verified and active",
   },
   telegram: {
@@ -27,7 +27,7 @@ export const CHANNEL_CONFIG_DATA: Record<ChannelId, ChannelConfigData> = {
     displayName: "Web Chat",
     description: "Embedded webchat widget for websites",
     enabled: true,
-    uiVisible: true,
+    uiVisible: false,
     notes: "Production ready",
   },
   whatsapp: {

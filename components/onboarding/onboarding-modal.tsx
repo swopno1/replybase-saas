@@ -82,6 +82,7 @@ const CONVERSION_GOAL_OPTIONS = [
 const CTA_OPTIONS = [
   { value: "call", label: "Phone Call", icon: Phone },
   { value: "whatsapp", label: "WhatsApp", icon: MessageSquare },
+  { value: "telegram", label: "Telegram", icon: Zap },
   { value: "email", label: "Email", icon: Mail },
   { value: "form", label: "Contact Form", icon: Target },
   { value: "booking_link", label: "Booking Link", icon: Calendar },
