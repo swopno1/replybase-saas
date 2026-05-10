@@ -22,7 +22,7 @@
   - Some high-volume relations (Messages -> Conversations) may eventually need partitioning if message volume reaches millions per tenant.
 
 ## Operational Recommendations
-1. **Critical**: Implement a migration to add `tenantId` to `WebhookLog` to close the security isolation gap.
+1. **Priority #1**: Implement a migration to add `tenantId` to `WebhookLog` to close the security isolation gap. This is the most significant remaining multi-tenant integrity risk.
 2. **Standard**: Ensure `pnpm prisma db push --accept-data-loss` is ONLY used in development; production must strictly use `prisma migrate deploy`.
 3. **Advanced**: Introduce a "Data Retention Policy" automated script to archive/delete messages and logs based on tenant settings.
 

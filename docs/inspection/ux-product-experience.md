@@ -16,6 +16,7 @@
 - **Consistency**: Unified inbox feel across Webchat, FB, and Telegram.
 
 ## Strategic Product Gaps
-1. **Lead Connect**: Leads are currently siloed; automated CRM pushes are needed.
-2. **Advanced Analytics**: Deeper insights into AI vs Human resolution rates.
-3. **Collaborative Tools**: Internal notes are good, but real-time presence indicators (who is viewing a chat) would prevent dual-handling.
+1. **Interactive Dashboard**: Metric cards and funnel stages should be clickable for instant drill-downs.
+2. **Mobile Management**: High-friction Flow Editor on small screens requires a simplified "Flow Summary" mode.
+3. **Advanced Analytics**: Deeper insights into AI vs Human resolution rates.
+4. **Collaborative Tools**: Internal notes are good, but real-time presence indicators (who is viewing a chat) would prevent dual-handling.

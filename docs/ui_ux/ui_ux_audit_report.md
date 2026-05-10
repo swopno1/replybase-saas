@@ -15,7 +15,7 @@
 ### 2. Dashboard & Navigation (Score: 4/5)
 - **Strengths**: Clear activation funnel and status indicators.
 - **Gaps**: Interaction density is low; many cards are static when they could lead to filtered views.
-- **Recommendation**: Make funnel stages clickable to view corresponding leads/conversations.
+- **Recommendation**: Make funnel stages clickable to view corresponding leads/conversations. Implement "Activation Milestone" interactivity where clicking a milestone navigates to the setup page for that feature.
 
 ### 3. Messaging & CRM (Score: 3.5/5)
 - **Strengths**: Unified inbox works across all channels.

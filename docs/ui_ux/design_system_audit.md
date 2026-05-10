@@ -6,9 +6,9 @@
 - **Badges**: Effective use of color-coded badges for status (`Enabled`, `Active`, `New`).
 
 ## Component Library
-- **DataTable**: Robust, supports pagination and multi-selection. Needs custom empty state components.
+- **DataTable**: Robust, supports pagination and multi-selection. Standardize "Empty State" templates with actionable CTAs across all tables.
 - **Modals**: Standardized `ConfirmationProvider` used for sensitive actions (Delete Bot, Delete Conversation).
-- **Skeletons**: Good coverage for main pages; need extension to detail pages.
+- **Skeletons**: Good coverage for main pages; need extension to detail pages (Conversation Detail, Lead Profile).
 
 ## Design Debt
 - **Icons**: Mostly Lucide-react; ensure consistent stroke width and sizing across all views.
