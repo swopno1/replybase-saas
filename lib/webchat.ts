@@ -80,25 +80,37 @@ export async function rotateWebChatSiteCredentials(params: {
   siteId: string;
   rotatePublicKey?: boolean;
   rotateSecretKey?: boolean;
-}) {
+}): Promise<ActiveWebChatSite | null> {
   const rotatePublicKey = Boolean(params.rotatePublicKey);
   const rotateSecretKey = Boolean(params.rotateSecretKey);
 
   if (!rotatePublicKey && !rotateSecretKey) {
-    return prisma.webChatSite.findUnique({
+    const site = await prisma.webChatSite.findUnique({
       where: { id: params.siteId },
+      include: {
+        bot: {
+          select: { id: true, tenantId: true },
+        },
+      },
     });
+    return site ? toActiveWebChatSite(site) : null;
   }
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
-      return await prisma.webChatSite.update({
+      const site = await prisma.webChatSite.update({
         where: { id: params.siteId },
         data: {
           ...(rotatePublicKey ? { publicKey: generatePublicKey() } : {}),
           ...(rotateSecretKey ? { secretKey: generateSecretKey() } : {}),
         },
+        include: {
+          bot: {
+            select: { id: true, tenantId: true },
+          },
+        },
       });
+      return toActiveWebChatSite(site);
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -521,5 +533,18 @@ export async function resolveWebchatVisitorSession(params: {
     contact,
     conversation,
     webChatSession,
+  };
+}
+
+export function serializeSite(site: ActiveWebChatSite) {
+  return {
+    id: site.id,
+    name: site.name,
+    publicKey: site.publicKey,
+    secretKey: site.secretKey,
+    channelId: site.channelId,
+    allowedDomains: site.allowedDomains,
+    isActive: site.isActive,
+    themeConfig: site.themeConfig,
   };
 }

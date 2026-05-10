@@ -3,11 +3,9 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import logger from "@/lib/logger";
 import { messageQueue } from "@/lib/queue";
+import { decryptWhatsAppCredentialEnvelope } from "@/lib/whatsapp-channel-credentials";
 import {
-  decryptWhatsAppCredentialEnvelope,
   normalizeWhatsAppE164,
-} from "@/lib/whatsapp-utils";
-import {
   verifyTwilioSignature,
   verifyWebhookSignature,
 } from "@/lib/whatsapp-provider";

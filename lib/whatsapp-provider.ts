@@ -344,3 +344,26 @@ export function verifyTwilioSignature(params: {
 
   return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(provided));
 }
+
+export function verifyWebhookSignature(
+  payload: string,
+  signature: string,
+  appSecret: string,
+): boolean {
+  if (!signature.startsWith("sha256=")) return false;
+
+  const sig = signature.substring(7); // remove 'sha256='
+  const expectedSig = crypto
+    .createHmac("sha256", appSecret)
+    .update(payload)
+    .digest("hex");
+
+  // Convert hex strings to Buffers for timing-safe comparison
+  const sigBuffer = Buffer.from(sig, "hex");
+  const expectedSigBuffer = Buffer.from(expectedSig, "hex");
+
+  // Ensure both buffers are the same length
+  if (sigBuffer.length !== expectedSigBuffer.length) return false;
+
+  return crypto.timingSafeEqual(sigBuffer, expectedSigBuffer);
+}
