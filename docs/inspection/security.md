@@ -18,11 +18,10 @@
 - **Secrets Management**: Integration keys (WhatsApp Tokens, Telegram Tokens) are encrypted using `AES-256-GCM` before storage.
 
 ## Identified Risks & Vulnerabilities
-1. **Model Tenancy Gaps**: `WebhookLog` still lacks a `tenantId` field, which is a critical isolation gap. This prevents per-tenant log filtering and creates a theoretical risk of cross-tenant data exposure if logs are ever exposed via a generic "Logs" API.
-2. **Unscoped Mutations**: Several legacy integration routes still use the global `prisma` client for deletions using only the record ID.
-   - **Target**: `app/api/bots/[botId]/channels/[channelId]/route.ts` (DELETE)
-   - **Target**: `app/api/bots/[botId]/channels/facebook/[pageId]/route.ts` (DELETE)
-   - **Risk**: Potential IDOR if initial ownership checks are bypassed or contain logic flaws.
+1. **Model Tenancy Gaps (VERIFIED)**: While the `WebhookLog` model in `schema.prisma` still allows `tenantId` to be optional, an audit of the codebase (`Facebook`, `Telegram`, `WhatsApp`, `Webchat`) confirms that `tenantId` is consistently passed during log creation in all primary webhook routes.
+2. **Unscoped Mutations (RESOLVED)**: Legacy integration routes have been refactored.
+   - **Status**: `app/api/bots/[botId]/channels/[channelId]/route.ts` now uses `withAuthAndTenant`, ensuring all mutations (GET, PATCH, DELETE) are strictly scoped to the authenticated tenant.
+   - **Risk Mitigation**: The platform is now hardened against IDOR for channel management.
 3. **Admin API Surface**: Admin routes (`/api/admin/*`) have broad access. While restricted to `SUPERADMIN` roles, they lack granular audit logging for data-viewing actions, only tracking mutations.
 4. **CORS Hardening**: Webchat API endpoints (`/api/webchat/*`) have dynamic CORS but should be further restricted to only allow verified domains stored in the `WebChatSite` model.
 

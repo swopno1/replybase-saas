@@ -33,14 +33,14 @@
   - Suggested Rollout Risk: LOW.
 
 - [ ] **UX-008**
-  - Priority: LOW
+  - Priority: MEDIUM
   - Status: PENDING
   - Category: Dashboard
   - Issue: Interaction: Interactive Dashboard Funnel.
-  - Root Cause: Dashboard funnel cards are currently static informational displays.
-  - UX/Business Impact: Improves navigation flow and helps users reach important data faster.
-  - Objective: Make dashboard funnel cards clickable to navigate to pre-filtered Lead/Conversation lists.
-  - Detailed Instructions: Wrap funnel cards in Next.js Link components with query parameters for the target list page.
+  - Root Cause: Dashboard funnel cards (StatusCards and Activation Milestones) are currently static.
+  - UX/Business Impact: Improves navigation flow and guides users to the next setup action instantly.
+  - Objective: Make dashboard cards clickable to navigate to relevant settings or integration pages.
+  - Detailed Instructions: 1. Update `components/dashboard/status-cards.tsx` to wrap "Connected Channels" in a Link to `/integrations/telegram`. 2. Update `app/(dashboard)/page.tsx` to wrap Milestone items in Links to their `actionHref`.
   - Expected Deliverables: Updated dashboard layout with interactive cards.
   - Dependencies: None.
   - Notes: Ensure hover states reflect interactivity.

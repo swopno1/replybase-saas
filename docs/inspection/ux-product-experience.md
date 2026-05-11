@@ -16,7 +16,11 @@
 - **Consistency**: Unified inbox feel across Webchat, FB, and Telegram.
 
 ## Strategic Product Gaps
-1. **Interactive Dashboard**: Metric cards and funnel stages should be clickable for instant drill-downs.
-2. **Mobile Management**: High-friction Flow Editor on small screens requires a simplified "Flow Summary" mode.
+1. **Interactive Dashboard (IMPLEMENTATION PATH)**:
+   - **Status Cards**: Make "Connected Channels" clickable (links to `/integrations/telegram`) and "Lead Alerts" (links to `/settings?tab=notifications`).
+   - **Activation Milestones**: Wrap milestone cards in `Link` components to guide users directly to the setup action.
+2. **Mobile Management (IMPLEMENTATION PATH)**:
+   - **Flow Editor**: Replace the complex card-based editor with a linearized "Flow Summary" view on viewports < 768px.
+   - **UX**: Use a read-only list for node overview with "Edit Content" modals for simple text adjustments.
 3. **Advanced Analytics**: Deeper insights into AI vs Human resolution rates.
 4. **Collaborative Tools**: Internal notes are good, but real-time presence indicators (who is viewing a chat) would prevent dual-handling.
