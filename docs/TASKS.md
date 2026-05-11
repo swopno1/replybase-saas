@@ -114,10 +114,10 @@
   - Status: PENDING
   - Category: Bug
   - Issue: Account Deletion Regression.
-  - Root Cause: `TypeError: Cannot read properties of undefined (reading 'updateMany')` in `app/api/users/account/route.ts`.
-  - UX/Business Impact: Users cannot delete their accounts, potentially violating GDPR compliance.
-  - Objective: Fix the `TypeError` in the account deletion handler.
-  - Detailed Instructions: Debug `app/api/users/account/route.ts` around line 37. Ensure all Prisma models are correctly accessed and the user/tenant context is valid.
+  - Root Cause: `TypeError: Cannot read properties of undefined (reading 'updateMany')` in unit tests.
+  - UX/Business Impact: Prevents CI/CD stability; though likely a test-only bug, it blocks verification of GDPR flows.
+  - Objective: Fix the `TypeError` in `tests/api/users/account-delete-route.test.ts` by adding missing transaction mocks.
+  - Detailed Instructions: The route handler in `app/api/users/account/route.ts` was updated to clean up `adminActivity`, `passwordResetToken`, and other models, but the corresponding unit test mocks were not updated. Add these models to the `tx` object in the test file.
   - Expected Deliverables: Passing `tests/api/users/account-delete-route.test.ts`.
   - Dependencies: None.
   - Suggested Rollout Risk: LOW.
