@@ -2,7 +2,7 @@
   {
     "type": "message",
     "content": {
-      "text": "👋 Hello! Welcome to ViveScript Solutions. How can we help you today?",
+      "text": "👋 Hello! Welcome to ReplyBase. How can we help you today?",
       "buttons": [
         { "type": "postback", "title": "View Services", "payload": "services" },
         { "type": "postback", "title": "Pricing Info", "payload": "pricing" },
