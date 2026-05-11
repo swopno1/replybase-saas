@@ -10,9 +10,9 @@ ReplyBase has achieved "Production Stability" with its multi-bot, multi-channel 
 - **Architecture**: Multi-tenant isolation remains the platform's strongest asset, now supported by a robust BullMQ background processing layer.
 
 ## Immediate Priorities
-1. **Critical Remediations**: Add `tenantId` to `WebhookLog` and refactor channel deletions to be strictly scoped.
-2. **Enterprise Growth**: Kick off implementation of the proposed Granular IAM system to support team-based workflows.
-3. **UX Polish**: Standardize skeleton loading states across the dashboard and CRM to improve perceived speed.
+1. **Critical Remediations**: Fix unit test mocks for the account deletion regression (Task 014).
+2. **Interactive UX**: Execute the "Interactive Funnel" proposal to move the dashboard from "Reporting" to "Active Management."
+3. **Mobile Resilience**: Implement the "Mobile Flow Summary" to enable bot management on the go.
 
 ## Roadmap Status
 - **Phase 3 (Operations & Scale)**: 85% Complete. Usage buffering and Queue refactor are live. Metrics caching is the final major milestone.
