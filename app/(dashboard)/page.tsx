@@ -448,74 +448,76 @@ export default async function DashboardPage() {
         </DashboardErrorBoundary>
       )}
 
-      <DashboardErrorBoundary title="Activation Milestones">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between gap-4">
-              <CardTitle>Activation Milestones</CardTitle>
-              <Badge
-                variant={
-                  completedMilestones === onboardingMilestones.length
-                    ? "default"
-                    : "secondary"
-                }
-              >
-                {completedMilestones}/{onboardingMilestones.length} completed
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {onboardingMilestones.map((milestone, idx) => {
-              const isNextAction =
-                !milestone.completed &&
-                onboardingMilestones.slice(0, idx).every((m) => m.completed);
-              return (
-                <div
-                  key={milestone.id}
-                  className={`flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center md:justify-between${isNextAction ? " border-primary bg-primary/5" : ""}`}
+      {completedMilestones < onboardingMilestones.length && (
+        <DashboardErrorBoundary title="Activation Milestones">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between gap-4">
+                <CardTitle>Activation Milestones</CardTitle>
+                <Badge
+                  variant={
+                    completedMilestones === onboardingMilestones.length
+                      ? "default"
+                      : "secondary"
+                  }
                 >
-                  <div className="flex items-start gap-3">
-                    {milestone.completed ? (
-                      <CheckCircle2 className="mt-0.5 h-5 w-5 text-green-600" />
-                    ) : (
-                      <Circle className="mt-0.5 h-5 w-5 text-muted-foreground" />
-                    )}
-                    <div>
-                      <p className="font-medium">{milestone.title}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {milestone.description}
-                      </p>
-                      {milestone.completedAt && (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Completed on{" "}
-                          {milestone.completedAt.toLocaleDateString("en-US")}
-                        </p>
+                  {completedMilestones}/{onboardingMilestones.length} completed
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {onboardingMilestones.map((milestone, idx) => {
+                const isNextAction =
+                  !milestone.completed &&
+                  onboardingMilestones.slice(0, idx).every((m) => m.completed);
+                return (
+                  <div
+                    key={milestone.id}
+                    className={`flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center md:justify-between${isNextAction ? " border-primary bg-primary/5" : ""}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      {milestone.completed ? (
+                        <CheckCircle2 className="mt-0.5 h-5 w-5 text-green-600" />
+                      ) : (
+                        <Circle className="mt-0.5 h-5 w-5 text-muted-foreground" />
                       )}
-                      <a 
-                        href={milestone.docHref} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="mt-2 text-[10px] text-primary hover:underline flex items-center gap-1 font-bold"
-                      >
-                        Guide: How to complete this step <ExternalLink className="h-2 w-2" />
-                      </a>
+                      <div>
+                        <p className="font-medium">{milestone.title}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {milestone.description}
+                        </p>
+                        {milestone.completedAt && (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Completed on{" "}
+                            {milestone.completedAt.toLocaleDateString("en-US")}
+                          </p>
+                        )}
+                        <a 
+                          href={milestone.docHref} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="mt-2 text-[10px] text-primary hover:underline flex items-center gap-1 font-bold"
+                        >
+                          Guide: How to complete this step <ExternalLink className="h-2 w-2" />
+                        </a>
+                      </div>
                     </div>
+                    {!milestone.completed && (
+                      <MilestoneAction 
+                        id={milestone.id}
+                        actionLabel={milestone.actionLabel}
+                        actionHref={milestone.actionHref}
+                        isNextAction={isNextAction}
+                        tenantId={user.tenantId}
+                      />
+                    )}
                   </div>
-                  {!milestone.completed && (
-                    <MilestoneAction 
-                      id={milestone.id}
-                      actionLabel={milestone.actionLabel}
-                      actionHref={milestone.actionHref}
-                      isNextAction={isNextAction}
-                      tenantId={user.tenantId}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-      </DashboardErrorBoundary>
+                );
+              })}
+            </CardContent>
+          </Card>
+        </DashboardErrorBoundary>
+      )}
 
       {/* Subscription Status - Wrapped in Error Boundary */}
       <DashboardErrorBoundary title="Subscription">

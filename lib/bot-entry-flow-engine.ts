@@ -161,12 +161,24 @@ async function resolveFlow(params: {
           __runtime: createInitialRuntimeState(flow.id),
           contact_name: contact?.name || "",
           business_type: (contact as any)?.businessType || "", // Cast for safety
+          sync_hash: "", // Placeholder, will be set after session is created
         },
         isActive: true,
       },
     });
 
-    return { flow, session, isNewSession: true };
+    // Update with the session ID as sync_hash for cross-channel parity
+    const updatedSession = await prisma.flowSession.update({
+      where: { id: session.id },
+      data: {
+        variables: {
+          ...(session.variables as Record<string, any>),
+          sync_hash: session.id,
+        },
+      },
+    });
+
+    return { flow, session: updatedSession, isNewSession: true };
   }
 
   // Final resolution logic
@@ -412,6 +424,8 @@ export async function executeBotEntryFlowFirst(params: {
   mergedVariables.contact_is_qualified = contactRecord?.email
     ? "true"
     : "false";
+  mergedVariables.session_id = session.id;
+  mergedVariables.sync_hash = (session.variables as any)?.sync_hash || session.id;
 
   const runtime = getRuntimeState(mergedVariables, session.flowId);
   const responses: Array<
@@ -709,6 +723,8 @@ export async function executeBotEntryFlowFirst(params: {
   }
 
   const waitingForInput = Boolean(currentNode && currentNode.type === "input");
+  const shouldFallbackToAi = completed && !responses.length;
+
   runtime.activeFlowId = completed ? runtime.rootFlowId : activeFlow.id;
   setRuntimeState(mergedVariables, runtime);
 
@@ -722,18 +738,19 @@ export async function executeBotEntryFlowFirst(params: {
     },
   });
 
-  if (!responses.length && activeFlow.fallbackMessage) {
+  if (!responses.length && activeFlow.fallbackMessage && !shouldFallbackToAi) {
     responses.push({ type: "text", text: activeFlow.fallbackMessage, quickReplies: [] as any[] });
   }
 
   return {
-    handled: responses.length > 0 || completed || waitingForInput,
+    handled: (responses.length > 0 || completed || waitingForInput) && !shouldFallbackToAi,
     responses,
     flowId: activeFlow.id,
     flowName: activeFlow.name,
     flowSessionId: session.id,
     completed,
     waitingForInput,
+    shouldFallbackToAi,
     fallbackMessage: activeFlow.fallbackMessage || null,
   };
 }

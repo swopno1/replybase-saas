@@ -161,3 +161,15 @@
   - Expected Deliverables: Full media support across WhatsApp Cloud API and CRM dashboard.
   - Dependencies: S3/Storage infrastructure.
   - Suggested Rollout Risk: MEDIUM (storage costs and bandwidth).
+- [x] **Task 018**
+  - Priority: HIGH
+  - Status: COMPLETED
+  - Category: QA/AI
+  - Issue: Omnichannel Conversational Audit & V6 Orchestration Stabilization.
+  - Root Cause: Naming mismatches between DB flows and V6 templates; Flow engine blocking AI fallback.
+  - UX/Business Impact: Ensures high-reliability routing to conversion flows and seamless AI takeover for edge cases.
+  - Objective: Perform production-grade conversational inspection, sync flow names, and improve handover logic.
+  - Detailed Instructions: 1. Sync DB flow names with V6 Master Orchestrator. 2. Implement `shouldFallbackToAi` in the flow engine. 3. Audit conversion psychology and lead capture breakpoints.
+  - Expected Deliverables: Updated `lib/bot-entry-flow-engine.ts`, synced flows in DB, and 8 comprehensive audit reports in `docs/testing/`.
+  - Dependencies: None.
+  - Suggested Rollout Risk: LOW.

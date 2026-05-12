@@ -12,10 +12,10 @@ export type AiTask = "onboarding" | "chat" | "general";
  */
 const MODELS = {
   gemini: {
-    main: "gemini-3.1-flash-lite-preview",
-    premium: "gemini-3-flash-preview",
-    fallback: "gemini-2.5-flash-lite",
-    embedding: "gemini-embedding-2",
+    main: "gemini-1.5-flash",
+    premium: "gemini-1.5-pro",
+    fallback: "gemini-1.5-flash",
+    embedding: "text-embedding-004",
   },
   openai: {
     main: "gpt-4o-mini",
@@ -76,6 +76,7 @@ export function getAiModel({
     default: {
       const client = createGoogleGenerativeAI({
         apiKey: apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+        headers: { "x-goog-api-key": apiKey || (process.env.GOOGLE_GENERATIVE_AI_API_KEY as string) },
       });
 
       // 1. Handle Explicit Fallback
