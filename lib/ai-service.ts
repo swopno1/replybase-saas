@@ -4,9 +4,35 @@ import { anthropic, createAnthropic } from "@ai-sdk/anthropic";
 import { LanguageModel } from "ai";
 import { prisma } from "./prisma";
 
-// --- 1. TYPES & SCHEMA ---
 export type AiProvider = "default" | "gemini" | "openai" | "anthropic" | "digitalocean";
-export type AiTask = "onboarding" | "chat" | "general" | "summary" | "tagging" | "intent" | "analysis";
+export type AiTask = "onboarding" | "chat" | "general";
+
+/**
+ * Resolves the model configuration at runtime to allow for environment variable overrides.
+ */
+function getModelConfig() {
+  return {
+    gemini: {
+      main: process.env.AI_MODEL_GEMINI_MAIN || "gemini-1.5-flash",
+      premium: process.env.AI_MODEL_GEMINI_PREMIUM || "gemini-1.5-pro",
+      fallback: process.env.AI_MODEL_GEMINI_FALLBACK || "gemini-1.5-flash",
+      embedding: "text-embedding-004",
+    },
+    openai: {
+      main: process.env.AI_MODEL_OPENAI_MAIN || "gpt-4o-mini",
+      premium: process.env.AI_MODEL_OPENAI_PREMIUM || "gpt-4o",
+    },
+    anthropic: {
+      main: process.env.AI_MODEL_ANTHROPIC_MAIN || "claude-3-haiku-latest",
+      premium: process.env.AI_MODEL_ANTHROPIC_PREMIUM || "claude-3-5-sonnet-latest",
+    },
+    digitalocean: {
+      main: process.env.AI_MODEL_DO_MAIN || "llama-3.1-8b-instruct",
+      premium: process.env.AI_MODEL_DO_PREMIUM || "llama-3.1-70b-instruct",
+      fallback: process.env.AI_MODEL_DO_FALLBACK || "llama-3.1-8b-instruct",
+    },
+  };
+}
 
 export interface GetAiModelOptions {
   provider: AiProvider;
@@ -15,79 +41,24 @@ export interface GetAiModelOptions {
   planName?: string;
   task?: AiTask;
   isFallback?: boolean;
+  useReasoning?: boolean; // Support for Reasoning/Thinking models
 }
 
-// --- 2. THE MODEL DIRECTORY (PROVIDER IDs) ---
-const MODELS = {
-  gemini: {
-    main: "gemini-1.5-flash",
-    premium: "gemini-1.5-pro",
-    fallback: "gemini-1.5-flash",
-    embedding: "text-embedding-004",
-  },
-  openai: {
-    main: "gpt-4o-mini",
-    premium: "gpt-4o",
-  },
-  anthropic: {
-    main: "claude-3-haiku-latest",
-    premium: "claude-3-5-sonnet-latest",
-  },
-  digitalocean: {
-    main: "meta-llama-3-8b",
-    premium: "meta-llama-3-70b",
-  }
-} as const;
+/**
+ * Returns the appropriate AI model based on provider, optional custom model, task type, and plan.
+ * "default" provider can be configured via DEFAULT_AI_PROVIDER env var (defaults to gemini).
+ */
+export function getAiModel(options: GetAiModelOptions): LanguageModel {
+  const {
+    provider,
+    apiKey,
+    model: manualModel,
+    planName = "free",
+    task = "general",
+    isFallback = false,
+    useReasoning = false,
+  } = options;
 
-// --- 3. THE ROUTING TABLE (ORCHESTRATION RULES) ---
-// This defines which provider/model is used for which task by default.
-const TASK_ROUTING: Record<AiTask, { provider: AiProvider; model: string; priority: string }> = {
-  chat: {
-    provider: "digitalocean",
-    model: MODELS.digitalocean.main,
-    priority: "latency",
-  },
-  onboarding: {
-    provider: "openai",
-    model: MODELS.openai.premium,
-    priority: "reasoning",
-  },
-  summary: {
-    provider: "digitalocean",
-    model: MODELS.digitalocean.main,
-    priority: "cost",
-  },
-  tagging: {
-    provider: "digitalocean",
-    model: MODELS.digitalocean.main,
-    priority: "latency",
-  },
-  intent: {
-    provider: "digitalocean",
-    model: MODELS.digitalocean.main,
-    priority: "latency",
-  },
-  analysis: {
-    provider: "gemini",
-    model: MODELS.gemini.main,
-    priority: "context",
-  },
-  general: {
-    provider: "digitalocean",
-    model: MODELS.digitalocean.main,
-    priority: "latency",
-  }
-};
-
-// --- 4. THE CORE EXECUTION ENGINE ---
-export function getAiModel({
-  provider,
-  apiKey,
-  model,
-  planName = "free",
-  task = "general",
-  isFallback = false,
-}: GetAiModelOptions): LanguageModel {
   const plan = planName.toLowerCase();
   const isPro = plan.includes("pro") || plan.includes("business");
 
@@ -103,29 +74,43 @@ export function getAiModel({
 
   // B. Priority Logic: Pro plans and Onboarding always prefer premium models.
   const isHighPriority = task === "onboarding" || isPro;
+  const config = getModelConfig();
 
-  // C. Initialize Provider SDKs
-  switch (resolvedProvider) {
-    case "digitalocean": {
-      const client = createOpenAI({
-        apiKey: apiKey || process.env.DIGITALOCEAN_AI_KEY,
-        baseURL: process.env.DIGITALOCEAN_AI_BASE_URL || "https://inference.do-ai.run/v1",
-      });
-      return client(resolvedModel || (isHighPriority ? MODELS.digitalocean.premium : MODELS.digitalocean.main));
-    }
+  // Resolve "default" provider
+  let effectiveProvider = provider;
+  if (provider === "default") {
+    effectiveProvider = (process.env.DEFAULT_AI_PROVIDER as AiProvider) || "gemini";
+    // Avoid infinite loop if DEFAULT_AI_PROVIDER is set to "default"
+    if (effectiveProvider === "default") effectiveProvider = "gemini";
+  }
 
+  switch (effectiveProvider) {
     case "openai": {
       const client = createOpenAI({
         apiKey: apiKey || process.env.OPENAI_API_KEY,
       });
-      return client(resolvedModel || (isHighPriority ? MODELS.openai.premium : MODELS.openai.main));
+      return client(manualModel || (isHighPriority ? config.openai.premium : config.openai.main));
     }
 
     case "anthropic": {
       const client = createAnthropic({
         apiKey: apiKey || process.env.ANTHROPIC_API_KEY,
       });
-      return client(resolvedModel || (isHighPriority ? MODELS.anthropic.premium : MODELS.anthropic.main));
+      return client(manualModel || (isHighPriority ? config.anthropic.premium : config.anthropic.main));
+    }
+
+    case "digitalocean": {
+      // DigitalOcean AI Inference is OpenAI-compatible
+      const client = createOpenAI({
+        baseURL: "https://inference.do-ai.run/v1",
+        apiKey: apiKey || process.env.DIGITALOCEAN_TOKEN,
+      });
+
+      const doModelId = isFallback
+        ? config.digitalocean.fallback
+        : (isHighPriority ? config.digitalocean.premium : config.digitalocean.main);
+
+      return client(manualModel || doModelId);
     }
 
     case "gemini":
@@ -134,10 +119,15 @@ export function getAiModel({
         apiKey: apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
       });
 
-      if (isFallback) return client(resolvedModel || MODELS.gemini.fallback);
-      
+      // 1. Handle Explicit Fallback
+      if (isFallback) {
+        return client(manualModel || config.gemini.fallback);
+      }
+
+      // 2. Resolve Model ID
+      let resolvedModel = manualModel;
       if (!resolvedModel) {
-        resolvedModel = isHighPriority ? MODELS.gemini.premium : MODELS.gemini.main;
+        resolvedModel = isHighPriority ? config.gemini.premium : config.gemini.main;
       }
       return client(resolvedModel);
     }
@@ -181,4 +171,4 @@ export function getSystemModel(
 /**
  * Standard embedding model for vector operations.
  */
-export const embedModel = google.embeddingModel(MODELS.gemini.embedding);
+export const embedModel = google.embeddingModel(getModelConfig().gemini.embedding);
