@@ -148,7 +148,6 @@
   - Dependencies: None.
   - Suggested Rollout Risk: LOW.
 
-
 - [ ] **Task 017**
   - Priority: LOW
   - Status: PENDING
@@ -161,6 +160,7 @@
   - Expected Deliverables: Full media support across WhatsApp Cloud API and CRM dashboard.
   - Dependencies: S3/Storage infrastructure.
   - Suggested Rollout Risk: MEDIUM (storage costs and bandwidth).
+
 - [x] **Task 018**
   - Priority: HIGH
   - Status: COMPLETED
@@ -186,3 +186,4 @@
   - Expected Deliverables: Simulation Lab tab in Admin Panel, Sandbox-aware flow engine, and comprehensive simulation reports.
   - Dependencies: Task 018.
   - Suggested Rollout Risk: LOW (Admin-only feature).
+

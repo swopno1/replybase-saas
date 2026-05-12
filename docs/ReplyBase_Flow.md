@@ -44,24 +44,11 @@ The AI extracts `business_type`, `primary_channels`, and `monthly_volume`. It MU
 - **Confidence < 0.60**: Hard prompt.
   - *Bot*: "I want to give you an exact ROI estimate. Roughly how many messages do you handle a month?"
 
-### 3.2 Intent-Weighted Sales Pressure (Anti-Fatigue)
-The Fallback AI adjusts how aggressively it pushes CTAs based on conversational context:
-- **High Intent** (Asking about features, integrations): CTA attached to every answer.
-- **Research Intent** (Asking general API docs, data privacy): Provide info. Ask a follow-up question. CTA only every 3rd turn.
-- **Objection State** (Pricing concerns, missing features): Zero CTA. Focus entirely on value recovery and offer `Subflow: Human_Booking`.
-
-### 3.3 Hard Escalation Boundaries (Human Safety Net)
-The AI immediately terminates generation and triggers `Subflow: Human_Escalation` if the user input contains:
-- `intent: billing_dispute`
-- `intent: refund_request`
-- `intent: enterprise_security / compliance`
-- `sentiment: angry / frustrated`
-
 ---
 
 ## 📦 MODULE 4: THE SUB-FLOWS (THE SPOKES)
 
-### 📍 Sub-Flow 1: Welcome & Onboarding
+### 📍 Sub-Flow 1: Welcome & Onboarding (Master Orchestrator)
 - **Node**: `welcome_start`
 - **Type**: `message`
 - **Message**: "👋 Hey — welcome to ReplyBase. We automate customer conversations across Webchat, Messenger, and WhatsApp without losing the human touch.\n\nWhat's your main goal today?"
@@ -69,19 +56,22 @@ The AI immediately terminates generation and triggers `Subflow: Human_Escalation
   - 📊 See Pricing & ROI ➔ `Trigger: subflow_pricing`
   - 📱 See Live Demo ➔ `Trigger: subflow_demo`
   - 📅 Book a Walkthrough ➔ `Trigger: subflow_booking`
+  - 🚀 Start Free Trial ➔ `Trigger: subflow_checkout`
+
+### 📍 Fallback: Identity-Conditional Capture
+*Triggered if no quick start is selected.*
+- **Condition**: Does the CRM already have `email` and `name`?
+  - **If YES**: Confirm identity: "I've got your details as {{contact_name}} ({{contact_email}}). Is that still the best way to reach you if we get disconnected?"
+  - **If NO**: Ask for name and email politely to ensure connection continuity.
 
 ### 📍 Sub-Flow 2: Pricing, ROI & Lead Capture
 - **Node**: `pricing_discovery`
 - **Logic**: Check `monthly_volume` state. If missing or confidence < 0.85, ask. Else, skip to `plan_recommendation`.
-- **Node**: `plan_recommendation`
-- **Message**: "For a {{business_type}} handling {{monthly_volume}} messages, the Pro Plan is your best fit. It allows you to recover leads missed after hours and centralizes {{primary_channels}} for total CRM continuity."
 - **Node**: `roi_lead_capture`
 - **Message**: "I've generated a clear ROI projection for your setup. Where should I email the breakdown so you can review it later with your team?"
 - **Action**: Validate email. `Trigger: send_roi_webhook`.
-- **Next**: Provide Checkout or Booking options.
 
-### 📍 Sub-Flow 3: Omnichannel Continuity Demo (Hardened)
-*This replaces the fragile "say HELLO" mechanic with a cryptographic token handshake to guarantee identity stitching.*
+### 📍 Sub-Flow 3: Omnichannel Continuity Demo
 - **Node**: `demo_intro`
 - **Message**: "The best way to understand ReplyBase is to see it work. We are chatting here on the website, but if you click the WhatsApp link below, our system will sync this session to your phone instantly."
 - **Action**: Generate `{{session_hash}}`.
@@ -89,25 +79,12 @@ The AI immediately terminates generation and triggers `Subflow: Human_Escalation
   - 🟢 Switch to WhatsApp (URL: `wa.me/{{number}}?text=SYNC_{{session_hash}}`)
   - 🔵 Switch to Telegram (URL: `t.me/{{bot}}?start=SYNC_{{session_hash}}`)
   - 💬 Stay here ➔ `Trigger: hub_fallback`
-- **System Backend Logic**: When the WhatsApp API receives `SYNC_abc123`, it merges the Webchat CRM profile with the WhatsApp Phone Number. Bot replies on WhatsApp: "Session synced! 👋 Picking up exactly where we left off. You were looking at the Pro Plan..."
 
 ### 📍 Sub-Flow 4: Stateful Secure Checkout
 - **Node**: `checkout_portal`
-- **Logic Rule**:
-  - If `user.state == trial_consumed` ➔ Generate Standard Payment Link.
-  - If `user.state == new_lead` ➔ Generate 14-Day Free Trial Link.
 - **Message**: "Excellent. I've pre-configured your secure checkout page using your email ({{lead_email}}) so you can start in seconds."
 - **Buttons**:
   - [💳 Go to Secure Checkout (URL: {{stripe_url}})]
-  - [Wait, I have a question] ➔ `Trigger: hub_fallback`
-
-### 📍 Sub-Flow 5: Human Booking & Escalation
-- **Node**: `booking_start`
-- **Triggered by**: User request, Enterprise threshold, or AI Escalation logic.
-- **Message Logic**:
-  - *If Standard Booking*: "Let's get you set up. What date and time works best for a 15-min walkthrough?"
-  - *If Escalation*: "I want to make sure you get the most accurate guidance on this. I'm pulling in a human specialist."
-- **Action**: Hand over to Live Chat queue OR trigger Calendar API.
 
 ---
 
@@ -119,19 +96,3 @@ The orchestrator monitors state asynchronously. If a user enters a conversion su
 2. **The Checkout Abandonment (1 hour post-click)**:
    - **Condition**: `checkout_clicked == true` AND `subscription_active == false`.
    - **Action**: Send Email. "Hey {{name}}, ready to activate that trial? Here's your secure link to resume: {{stripe_url}}"
-3. **The Post-Demo Abandonment (24 hours)**:
-   - **Condition**: `omnichannel_verified == true` AND `subscription_active == false`.
-   - **Action**: Send Email. "You saw how seamless the cross-platform memory is. Ready to build it for {{business_type}}?"
-
----
-
-## 📊 CRM ENRICHMENT METRICS
-Variables pushed to CRM (HubSpot/Internal) on every update:
-- `lead_score` (Int)
-- `business_type` (String)
-- `monthly_volume` (Int)
-- `primary_channels` (Array)
-- `omnichannel_verified` (Boolean)
-- `checkout_abandoned` (Boolean)
-- `escalation_triggered` (Boolean)
-- `objection_category` (String - e.g., "pricing", "tech")

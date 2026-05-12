@@ -61,10 +61,61 @@
       },
       {
         "order": 400,
-        "type": "action",
+        "type": "condition",
         "content": {
-          "action": "end_flow",
-          "description": "Handover to AI Fallback Orchestrator"
+          "variableName": "contact_is_qualified",
+          "conditions": [
+            { "operator": "equals", "value": "true", "nextNodeOrder": 410 }
+          ],
+          "nextNodeOrder": 420
+        }
+      },
+      {
+        "order": 410,
+        "type": "message",
+        "content": {
+          "text": "I've got your details as {{contact_name}} ({{contact_email}}). Is that still the best way to reach you if we get disconnected?",
+          "quick_replies": [
+            { "title": "✅ Yes, that's correct", "payload": "IDENTITY_CONFIRMED" },
+            { "title": "✏️ No, update my info", "payload": "IDENTITY_UPDATE" }
+          ]
+        }
+      },
+      {
+        "order": 411,
+        "type": "condition",
+        "content": {
+          "variableName": "last_user_message_normalized",
+          "conditions": [
+            { "operator": "contains", "value": "yes", "nextNodeOrder": 600 },
+            { "operator": "contains", "value": "correct", "nextNodeOrder": 600 }
+          ],
+          "nextNodeOrder": 420
+        }
+      },
+      {
+        "order": 420,
+        "type": "input",
+        "content": {
+          "text": "Before we continue, I'd love to know who I'm chatting with. What's your name?",
+          "variableName": "lead_name"
+        }
+      },
+      {
+        "order": 430,
+        "type": "input",
+        "content": {
+          "text": "Nice to meet you, {{lead_name}}! And what's your email? This is just so we can follow up if we lose connection.",
+          "variableName": "lead_email",
+          "inputType": "email"
+        }
+      },
+      {
+        "order": 440,
+        "type": "message",
+        "content": {
+          "text": "Thanks! I've saved that. Now, feel free to ask me anything about ReplyBase, or choose one of our quick starts above.",
+          "nextNodeOrder": 600
         }
       },
       {
@@ -73,6 +124,14 @@
         "content": {
           "action": "call_flow",
           "targetFlowName": "Sub-Flow: Checkout"
+        }
+      },
+      {
+        "order": 600,
+        "type": "action",
+        "content": {
+          "action": "end_flow",
+          "description": "Handover to AI Fallback Orchestrator"
         }
       }
     ]
