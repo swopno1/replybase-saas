@@ -41,6 +41,8 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
   GOOGLE_GENERATIVE_AI_API_KEY: z.string().optional(),
+  DIGITALOCEAN_TOKEN: z.string().optional(),
+  DEFAULT_AI_PROVIDER: z.enum(["gemini", "openai", "anthropic", "digitalocean"]).optional().default("gemini"),
 
   // TELEGRAM
   TELEGRAM_TOKEN_ENCRYPTION_KEY: z.string().optional(),
