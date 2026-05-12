@@ -1,38 +1,15 @@
-# Migration Guide: DigitalOcean AI Inference
-
-## Phase 1: Environment Setup
-1. Generate a **Model Access Key** in the DigitalOcean Control Panel.
-2. Add `DIGITALOCEAN_TOKEN` to the production environment variables.
-3. Set `DEFAULT_AI_PROVIDER=digitalocean`.
-
-## Phase 2: Service Layer Update
-1. Modify `lib/ai-service.ts` to include the `digitalocean` provider.
-2. Update `getAiModel` to handle the `openai` client with the DO base URL.
-
-## Phase 3: Testing & Validation
-1. Run local tests using `scripts/test-chatbot.js` pointing to the DO provider.
-2. Monitor `webhook_logs` for any AI-related failures.
-
-## Phase 4: Rollout
-1. Deploy to Staging.
-2. Verify Llama 3.1 performance for "Chat Fallback".
-3. Promote to Production.
-
-## Rollback Plan
-If DO Inference experiences downtime or significant regression in quality:
-1. Change `DEFAULT_AI_PROVIDER` back to `gemini` (default).
-2. Restart the app/workers.
 # DigitalOcean AI Migration Guide
 
-This guide outlines the step-by-step process for migrating ReplyBase AI workloads from OpenAI/Gemini to **DigitalOcean Gradient (AI Platform)**.
+This guide outlines the step-by-step process for migrating ReplyBase AI workloads from OpenAI/Gemini to **DigitalOcean AI Inference (Gradient)**.
+
+---
 
 ## 1. Enrollment & Key Generation
 Before updating the application, you must enable the AI services in your DigitalOcean account.
 
 1.  **Login to DigitalOcean**: [cloud.digitalocean.com](https://cloud.digitalocean.com)
-2.  **Navigate to AI Platform**: Click on "AI" in the left sidebar.
-3.  **Enroll in Gradient**: If prompted, enroll in the "Gradient AI Platform" or "GenAI Platform" preview/public release.
-4.  **Create Model Access Key**:
+2.  **Navigate to AI Platform**: Click on **AI** in the left sidebar.
+3.  **Create Model Access Key**:
     *   Go to **Settings** within the AI section.
     *   Navigate to **Access Keys**.
     *   Generate a new **Model Access Key**.
@@ -43,31 +20,59 @@ Before updating the application, you must enable the AI services in your Digital
 ## 2. Environment Configuration (Coolify)
 Update your environment variables in the Coolify dashboard for the ReplyBase project.
 
-### Required Environment Variables
+### Core Connectivity
 | Variable | Value / Description |
 | :--- | :--- |
 | `DIGITALOCEAN_AI_KEY` | The Model Access Key generated in Step 1. |
 | `DIGITALOCEAN_AI_BASE_URL` | `https://inference.do-ai.run/v1` |
-| `AI_STRATEGY` | `hybrid` (Optional, if using our custom router) |
+
+### Task-Based Routing (Hybrid Strategy)
+The platform now supports global task routing via environment variables.
+| Variable | Recommended Value |
+| :--- | :--- |
+| `DEFAULT_CHAT_PROVIDER` | `digitalocean` (Low Latency) |
+| `DEFAULT_ONBOARDING_PROVIDER` | `openai` (High Reasoning) |
+| `DEFAULT_ANALYSIS_PROVIDER` | `gemini` (Large Context) |
+| `DEFAULT_SUMMARY_PROVIDER` | `digitalocean` (Cost Efficiency) |
+| `DEFAULT_AI_PROVIDER` | `digitalocean` (System Fallback) |
+
+### Model ID Overrides (Optional)
+| Variable | Default Value |
+| :--- | :--- |
+| `AI_MODEL_DO_MAIN` | `llama-3.1-8b-instruct` |
+| `AI_MODEL_DO_PREMIUM` | `llama-3.1-70b-instruct` |
 
 ---
 
+## 3. Application Architecture
+We use a unified service file to define model IDs, provider initialization, and task-based routing logic.
 
-### Step 3: Deployment
-1.  Commit changes to the repository.
-2.  Trigger a deployment in Coolify.
-3.  Verify the new environment variables are active.
+**File**: `lib/ai-service.ts`
 
-### Step 4: Verification
-Use the **Admin Simulation Lab** (once implemented) or internal test accounts to verify:
-- [ ] TTFT (Time To First Token) is < 500ms.
-- [ ] No network timeouts between the Droplet and the AI Inference engine.
-- [ ] Correct model is being used for the specific task.
+### Why this architecture?
+1.  **Zero-Downtime Switching**: Change a provider globally just by updating an ENV var in Coolify.
+2.  **Plan-Based Scaling**: Pro/Business users automatically get premium models (e.g., Llama 70B or GPT-4o) while Free users use cost-efficient models (e.g., Llama 8B).
+3.  **Intra-DC Latency**: By using `digitalocean` as the `DEFAULT_CHAT_PROVIDER`, we minimize "Network Tax" by keeping traffic within the DO ecosystem.
 
 ---
 
-## 5. Tips & Tricks for DigitalOcean AI
-- **Streaming is Mandatory**: For the best UX on DO, always enable streaming. Since the network latency is low, the perceived speed is significantly higher when tokens start appearing instantly.
-- **Regional Co-location**: Ensure your Droplet is in the same region as your AI inference (e.g., NYC, SFO, AMS). Check the DO dashboard for "Regional Availability" of specific models.
-- **Quantization**: If self-hosting via GPU Droplets later, use 4-bit or 8-bit quantization to fit larger models on smaller GPUs without significant quality loss.
-- **Fallback Logic**: Always implement a fallback to OpenAI in your `AiService` in case of rate limits or temporary outages on the Gradient platform.
+## 4. Verification & Testing
+
+### Step 1: Connectivity Test
+Run the test script to ensure your `DIGITALOCEAN_AI_KEY` is working:
+```bash
+npx tsx scripts/test-chatbot.js --provider=digitalocean
+```
+
+### Step 2: TTFT Check
+Use the **Admin Simulation Lab** or browser dev tools to verify:
+- [ ] **TTFT (Time To First Token)** is < 500ms.
+- [ ] **Response Quality**: Verify Llama 3.1 8B handles intent extraction correctly.
+
+---
+
+## 5. Rollback Plan
+If DigitalOcean experiences downtime or significant regression:
+1.  In Coolify, change `DEFAULT_CHAT_PROVIDER` to `openai` or `gemini`.
+2.  Redeploy/Restart the application.
+3.  The system will immediately route all chat traffic to the fallback provider.

@@ -3,14 +3,26 @@ import { openai, createOpenAI } from "@ai-sdk/openai";
 import { anthropic, createAnthropic } from "@ai-sdk/anthropic";
 import { LanguageModel } from "ai";
 import { prisma } from "./prisma";
+import logger from "./logger";
 
+// --- 1. TYPES & SCHEMA ---
 export type AiProvider = "default" | "gemini" | "openai" | "anthropic" | "digitalocean";
-export type AiTask = "onboarding" | "chat" | "general";
+export type AiTask = "onboarding" | "chat" | "general" | "summary" | "tagging" | "intent" | "analysis";
+
+export interface GetAiModelOptions {
+  provider: AiProvider;
+  apiKey?: string;
+  model?: string;
+  planName?: string;
+  task?: AiTask;
+  isFallback?: boolean;
+}
 
 /**
  * Resolves the model configuration at runtime to allow for environment variable overrides.
+ * This centralizes all model IDs in one place.
  */
-function getModelConfig() {
+export function getModelDirectory() {
   return {
     gemini: {
       main: process.env.AI_MODEL_GEMINI_MAIN || "gemini-1.5-flash",
@@ -27,26 +39,50 @@ function getModelConfig() {
       premium: process.env.AI_MODEL_ANTHROPIC_PREMIUM || "claude-3-5-sonnet-latest",
     },
     digitalocean: {
-      main: process.env.AI_MODEL_DO_MAIN || "llama-3.1-8b-instruct",
-      premium: process.env.AI_MODEL_DO_PREMIUM || "llama-3.1-70b-instruct",
-      fallback: process.env.AI_MODEL_DO_FALLBACK || "llama-3.1-8b-instruct",
+      main: process.env.AI_MODEL_DO_MAIN || "meta-llama-3.1-8b-instruct",
+      premium: process.env.AI_MODEL_DO_PREMIUM || "meta-llama-3.1-70b-instruct",
+      fallback: process.env.AI_MODEL_DO_FALLBACK || "meta-llama-3.1-8b-instruct",
     },
   };
 }
 
-export interface GetAiModelOptions {
-  provider: AiProvider;
-  apiKey?: string;
-  model?: string;
-  planName?: string;
-  task?: AiTask;
-  isFallback?: boolean;
-  useReasoning?: boolean; // Support for Reasoning/Thinking models
+/**
+ * Defines the default provider and model for each task type.
+ * This allows us to shift workloads globally without changing business logic.
+ */
+export function getTaskRouting(): Record<AiTask, { provider: AiProvider; modelId?: string }> {
+  return {
+    chat: {
+      provider: (process.env.DEFAULT_CHAT_PROVIDER as AiProvider) || "digitalocean",
+      modelId: process.env.DEFAULT_CHAT_MODEL, 
+    },
+    onboarding: {
+      provider: (process.env.DEFAULT_ONBOARDING_PROVIDER as AiProvider) || "openai",
+      modelId: process.env.DEFAULT_ONBOARDING_MODEL,
+    },
+    summary: {
+      provider: (process.env.DEFAULT_SUMMARY_PROVIDER as AiProvider) || "digitalocean",
+    },
+    tagging: {
+      provider: (process.env.DEFAULT_TAGGING_PROVIDER as AiProvider) || "digitalocean",
+    },
+    intent: {
+      provider: (process.env.DEFAULT_INTENT_PROVIDER as AiProvider) || "digitalocean",
+    },
+    analysis: {
+      provider: (process.env.DEFAULT_ANALYSIS_PROVIDER as AiProvider) || "gemini",
+    },
+    general: {
+      provider: (process.env.DEFAULT_AI_PROVIDER as AiProvider) || "gemini",
+    }
+  };
 }
 
+// --- 2. THE CORE EXECUTION ENGINE ---
+
 /**
- * Returns the appropriate AI model based on provider, optional custom model, task type, and plan.
- * "default" provider can be configured via DEFAULT_AI_PROVIDER env var (defaults to gemini).
+ * The primary factory function for creating AI models.
+ * It handles provider initialization, task-based routing, and plan-based scaling.
  */
 export function getAiModel(options: GetAiModelOptions): LanguageModel {
   const {
@@ -56,61 +92,58 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
     planName = "free",
     task = "general",
     isFallback = false,
-    useReasoning = false,
   } = options;
 
   const plan = planName.toLowerCase();
   const isPro = plan.includes("pro") || plan.includes("business");
-
-  // A. Resolve System Defaults if provider is "default"
-  let resolvedProvider = provider;
-  let resolvedModel = model;
-
-  if (provider === "default") {
-    const config = TASK_ROUTING[task] || TASK_ROUTING.general;
-    resolvedProvider = config.provider;
-    resolvedModel = resolvedModel || config.model;
-  }
-
-  // B. Priority Logic: Pro plans and Onboarding always prefer premium models.
   const isHighPriority = task === "onboarding" || isPro;
-  const config = getModelConfig();
+  
+  const models = getModelDirectory();
+  const routing = getTaskRouting();
 
-  // Resolve "default" provider
+  // A. Resolve "default" provider and model
   let effectiveProvider = provider;
+  let effectiveModel = manualModel;
+
   if (provider === "default") {
-    effectiveProvider = (process.env.DEFAULT_AI_PROVIDER as AiProvider) || "gemini";
-    // Avoid infinite loop if DEFAULT_AI_PROVIDER is set to "default"
-    if (effectiveProvider === "default") effectiveProvider = "gemini";
+    const taskConfig = routing[task] || routing.general;
+    effectiveProvider = taskConfig.provider;
+    effectiveModel = effectiveModel || taskConfig.modelId;
   }
+
+  // B. Initialize Provider SDKs
+  let modelInstance: LanguageModel;
 
   switch (effectiveProvider) {
+    case "digitalocean": {
+      // DigitalOcean AI Inference is OpenAI-compatible
+      const client = createOpenAI({
+        baseURL: process.env.DIGITALOCEAN_AI_BASE_URL || "https://inference.do-ai.run/v1",
+        apiKey: apiKey || process.env.DIGITALOCEAN_AI_KEY || process.env.DIGITALOCEAN_TOKEN,
+      });
+
+      const defaultModel = isFallback 
+        ? models.digitalocean.fallback 
+        : (isHighPriority ? models.digitalocean.premium : models.digitalocean.main);
+
+      modelInstance = client(effectiveModel || defaultModel);
+      break;
+    }
+
     case "openai": {
       const client = createOpenAI({
         apiKey: apiKey || process.env.OPENAI_API_KEY,
       });
-      return client(manualModel || (isHighPriority ? config.openai.premium : config.openai.main));
+      modelInstance = client(effectiveModel || (isHighPriority ? models.openai.premium : models.openai.main));
+      break;
     }
 
     case "anthropic": {
       const client = createAnthropic({
         apiKey: apiKey || process.env.ANTHROPIC_API_KEY,
       });
-      return client(manualModel || (isHighPriority ? config.anthropic.premium : config.anthropic.main));
-    }
-
-    case "digitalocean": {
-      // DigitalOcean AI Inference is OpenAI-compatible
-      const client = createOpenAI({
-        baseURL: "https://inference.do-ai.run/v1",
-        apiKey: apiKey || process.env.DIGITALOCEAN_TOKEN,
-      });
-
-      const doModelId = isFallback
-        ? config.digitalocean.fallback
-        : (isHighPriority ? config.digitalocean.premium : config.digitalocean.main);
-
-      return client(manualModel || doModelId);
+      modelInstance = client(effectiveModel || (isHighPriority ? models.anthropic.premium : models.anthropic.main));
+      break;
     }
 
     case "gemini":
@@ -119,22 +152,27 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
         apiKey: apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
       });
 
-      // 1. Handle Explicit Fallback
       if (isFallback) {
-        return client(manualModel || config.gemini.fallback);
+        modelInstance = client(effectiveModel || models.gemini.fallback);
+      } else {
+        modelInstance = client(effectiveModel || (isHighPriority ? models.gemini.premium : models.gemini.main));
       }
-
-      // 2. Resolve Model ID
-      let resolvedModel = manualModel;
-      if (!resolvedModel) {
-        resolvedModel = isHighPriority ? config.gemini.premium : config.gemini.main;
-      }
-      return client(resolvedModel);
+      break;
     }
   }
+
+  logger.debug({ 
+    task, 
+    provider: effectiveProvider, 
+    model: effectiveModel || "auto", 
+    isPro, 
+    isFallback 
+  }, "[AiService] Model Resolved");
+
+  return modelInstance;
 }
 
-// --- 5. HIGH-LEVEL HELPERS ---
+// --- 3. HIGH-LEVEL HELPERS ---
 
 /**
  * Gets a model for a specific tenant, respecting their custom API settings if provided.
@@ -171,4 +209,4 @@ export function getSystemModel(
 /**
  * Standard embedding model for vector operations.
  */
-export const embedModel = google.embeddingModel(getModelConfig().gemini.embedding);
+export const embedModel = google.embeddingModel(getModelDirectory().gemini.embedding);

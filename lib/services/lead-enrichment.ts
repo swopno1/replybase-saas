@@ -37,7 +37,7 @@ export class LeadEnrichmentService {
 
       // Get appropriate AI model for the tenant
       const model = await getTenantModel(lead.tenantId, {
-        task: "general",
+        task: "analysis",
       });
 
       const { object: insights } = await generateObject({
