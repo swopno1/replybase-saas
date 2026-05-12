@@ -24,6 +24,7 @@
 
 ## Optimization Roadmap
 1. **Redis Caching**: Implement `getDashboardStats` with Redis-based caching. Target: Dashboard metrics with a 300s TTL.
+   - *Strategy*: Follow the L1/L2 pattern in `lib/subscription.ts`. Cache results of heavy aggregations (`CRMMessage` counts, `Lead` status counts) in Redis with `dashboard:stats:[tenantId]` key.
 2. **N+1 Consolidation**: Refactor `BotList` and `ChannelConfig` to fetch channel statuses in a single batched query per bot rather than individual calls.
 3. **Log Pruning**: Implement a cron job to move `WebhookLog` entries older than 30 days to cold storage or delete them.
 4. **Asset Optimization**: Optimize the Webchat Widget bundle size (currently ~120kb) to improve initial page load on client sites.

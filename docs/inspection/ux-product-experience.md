@@ -19,6 +19,7 @@
 1. **Interactive Dashboard (IMPLEMENTATION PATH)**:
    - **Status Cards**: Make "Connected Channels" clickable (links to `/integrations/telegram`) and "Lead Alerts" (links to `/settings?tab=notifications`).
    - **Activation Milestones**: Wrap milestone cards in `Link` components to guide users directly to the setup action.
+   - **UX Standard**: Use `cursor-pointer` and hover transitions (e.g., `hover:bg-accent`) to signal interactivity on dashboard cards.
 2. **Mobile Management (IMPLEMENTATION PATH)**:
    - **Flow Editor**: Replace the complex card-based editor with a linearized "Flow Summary" view on viewports < 768px.
    - **UX**: Use a read-only list for node overview with "Edit Content" modals for simple text adjustments.

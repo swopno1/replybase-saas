@@ -23,7 +23,8 @@
    - **Status**: `app/api/bots/[botId]/channels/[channelId]/route.ts` now uses `withAuthAndTenant`, ensuring all mutations (GET, PATCH, DELETE) are strictly scoped to the authenticated tenant.
    - **Risk Mitigation**: The platform is now hardened against IDOR for channel management.
 3. **Admin API Surface**: Admin routes (`/api/admin/*`) have broad access. While restricted to `SUPERADMIN` roles, they lack granular audit logging for data-viewing actions, only tracking mutations.
-4. **CORS Hardening**: Webchat API endpoints (`/api/webchat/*`) have dynamic CORS but should be further restricted to only allow verified domains stored in the `WebChatSite` model.
+4. **Command Injection Risk (NEW)**: `app/api/admin/tests/route.ts` uses `child_process.exec` for triggering load tests. Although protected by `isPlatformAdmin`, this should be refactored to `execFile` or a safer invocation pattern to prevent potential injection via environment variables or misconfiguration.
+5. **CORS Hardening**: Webchat API endpoints (`/api/webchat/*`) have dynamic CORS but should be further restricted to only allow verified domains stored in the `WebChatSite` model.
 
 ## Compliance
 - **GDPR**: Data deletion requests are supported (`/api/cron/process-data-deletions`).
