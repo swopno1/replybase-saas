@@ -37,7 +37,7 @@ function asStringList(value: unknown): string[] {
 }
 
 const REPLYBASE_SITE_URL = "https://replybase.co.uk";
-const REPLYBASE_LOGO_URL = `${REPLYBASE_SITE_URL}/image/logo.png`;
+const REPLYBASE_LOGO_URL = `${REPLYBASE_SITE_URL}/image/replybase-logo.jpg`;
 
 function escapeHtml(value: string) {
   if (!value) return "";
