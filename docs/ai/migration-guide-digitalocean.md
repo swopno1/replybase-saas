@@ -44,7 +44,18 @@ The platform now supports global task routing via environment variables.
 
 ---
 
-## 3. Application Architecture
+## 3. Future-Proofing: Next-Gen Model Integration
+As the AI landscape evolves, you can swap the internal models for "Disruptor" models by updating the following environment variables:
+
+| Goal | Target Model | Env Overrides |
+| :--- | :--- | :--- |
+| **Max Cost Savings** | **GPT-oss-20b** | `DEFAULT_SUMMARY_PROVIDER=openai`, `AI_MODEL_OPENAI_MAIN=gpt-oss-20b` |
+| **Highest Reasoning** | **Claude Sonnet 4.6** | `DEFAULT_ONBOARDING_PROVIDER=anthropic`, `AI_MODEL_ANTHROPIC_MAIN=claude-sonnet-4.6` |
+| **Disruptive Chat** | **GPT-oss-120b** | `DEFAULT_CHAT_PROVIDER=openai`, `AI_MODEL_OPENAI_MAIN=gpt-oss-120b` |
+
+---
+
+## 4. Application Architecture
 We use a unified service file to define model IDs, provider initialization, and task-based routing logic.
 
 **File**: `lib/ai-service.ts`
@@ -56,7 +67,7 @@ We use a unified service file to define model IDs, provider initialization, and 
 
 ---
 
-## 4. Verification & Testing
+## 5. Verification & Testing
 
 ### Step 1: Connectivity Test
 Run the test script to ensure your `DIGITALOCEAN_AI_KEY` is working:
@@ -71,7 +82,7 @@ Use the **Admin Simulation Lab** or browser dev tools to verify:
 
 ---
 
-## 5. Rollback Plan
+## 6. Rollback Plan
 If DigitalOcean experiences downtime or significant regression:
 1.  In Coolify, change `DEFAULT_CHAT_PROVIDER` to `openai` or `gemini`.
 2.  Redeploy/Restart the application.

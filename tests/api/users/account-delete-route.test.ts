@@ -53,7 +53,10 @@ describe("DELETE /api/users/account", () => {
         deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
       crmMessage: { deleteMany: vi.fn() },
-      crmConversation: { deleteMany: vi.fn() },
+      crmConversation: { 
+        deleteMany: vi.fn(),
+        updateMany: vi.fn()
+      },
       contactIdentity: { deleteMany: vi.fn() },
       lead: { deleteMany: vi.fn() },
       channel: { deleteMany: vi.fn() },
@@ -61,11 +64,23 @@ describe("DELETE /api/users/account", () => {
       facebookPage: { deleteMany: vi.fn() },
       flow: { deleteMany: vi.fn() },
       contact: { deleteMany: vi.fn() },
-      usageLog: { deleteMany: vi.fn() },
+      usageLog: { 
+        deleteMany: vi.fn(),
+        updateMany: vi.fn()
+      },
       bot: { deleteMany: vi.fn() },
       onboardingSession: { deleteMany: vi.fn() },
       onboardingMetrics: { deleteMany: vi.fn() },
       tenant: { delete: vi.fn() },
+      adminActivity: { 
+        updateMany: vi.fn(),
+        deleteMany: vi.fn()
+      },
+      passwordResetToken: { deleteMany: vi.fn() },
+      activityLog: { updateMany: vi.fn() },
+      churnFeedback: { updateMany: vi.fn() },
+      newsletterSubscriber: { updateMany: vi.fn() },
+      dataDeletionRequest: { updateMany: vi.fn() },
     };
 
     vi.mocked(prisma.$transaction).mockImplementation(async (fn) =>
@@ -113,7 +128,10 @@ describe("DELETE /api/users/account", () => {
         deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
       crmMessage: { deleteMany: vi.fn().mockResolvedValue({ count: 1 }) },
-      crmConversation: { deleteMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      crmConversation: { 
+        deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
+        updateMany: vi.fn()
+      },
       contactIdentity: { deleteMany: vi.fn().mockResolvedValue({ count: 1 }) },
       lead: { deleteMany: vi.fn().mockResolvedValue({ count: 1 }) },
       channel: { deleteMany: vi.fn().mockResolvedValue({ count: 1 }) },
@@ -121,7 +139,10 @@ describe("DELETE /api/users/account", () => {
       facebookPage: { deleteMany: vi.fn().mockResolvedValue({ count: 1 }) },
       flow: { deleteMany: vi.fn().mockResolvedValue({ count: 1 }) },
       contact: { deleteMany: vi.fn().mockResolvedValue({ count: 1 }) },
-      usageLog: { deleteMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      usageLog: { 
+        deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
+        updateMany: vi.fn()
+      },
       bot: { deleteMany: vi.fn().mockResolvedValue({ count: 1 }) },
       onboardingSession: {
         deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
@@ -130,6 +151,15 @@ describe("DELETE /api/users/account", () => {
         deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
       tenant: { delete: vi.fn().mockResolvedValue({ id: "tenant_1" }) },
+      adminActivity: { 
+        updateMany: vi.fn(),
+        deleteMany: vi.fn()
+      },
+      passwordResetToken: { deleteMany: vi.fn() },
+      activityLog: { updateMany: vi.fn() },
+      churnFeedback: { updateMany: vi.fn() },
+      newsletterSubscriber: { updateMany: vi.fn() },
+      dataDeletionRequest: { updateMany: vi.fn() },
     };
 
     vi.mocked(prisma.$transaction).mockImplementation(async (fn) =>

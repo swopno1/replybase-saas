@@ -2,12 +2,12 @@
 
 | Feature | OpenAI | Anthropic | Gemini (Google) | DigitalOcean |
 |---------|--------|-----------|-----------------|--------------|
-| **Primary Model** | GPT-4o / mini | Claude 3.5 / Haiku | Gemini 1.5 Pro/Flash | Llama 3.1 (8B/70B) |
-| **Speed** | Very Fast | Fast | Fast | Fast (Serverless) |
-| **Reasoning** | Excellent | Exceptional | Good | Good (Llama 3.1) |
+| **Primary Model** | GPT-5 / GPT-oss | Claude 4.5 / Sonnet 4.6 | Gemini 1.5 Pro/Flash | Llama 4 / 3.3 (DO) |
+| **Speed** | Ultra Fast (Nano) | Fast | Fast | Fast (Internal) |
+| **Reasoning** | State-of-the-art | Exceptional | Good | High (Llama 3.3) |
 | **Context Window** | 128k | 200k | 1M+ | 128k |
 | **Integration** | OpenAI SDK | Anthropic SDK | Google SDK | OpenAI SDK (Comp) |
-| **Cost** | Medium | High | Low | **Very Low** |
+| **Cost** | Ultra Low (oss) | High | Low | **Very Low** |
 | **Privacy** | Standard | High | Standard | **High (Isolated)** |
 
 ## Summary
@@ -64,6 +64,6 @@ In the context of **Chat Support**, network latency and "snappiness" (Time to Fi
 
 | Tier | Provider | Rationale |
 | :--- | :--- | :--- |
-| **Chat Tier (Fast)** | **DigitalOcean** | **LATENCY IS KING.** Sub-500ms TTFT is only possible here. |
-| **Reasoning Tier** | **OpenAI** | Highest quality for complex, high-stakes sales. |
-| **Big Data Tier** | **Gemini** | Best for processing massive conversation logs. |
+| **Chat Tier (Fast)** | **DigitalOcean / GPT-oss-120b** | **LATENCY IS KING.** Sub-500ms TTFT + disruptive pricing. |
+| **Reasoning Tier** | **Claude Sonnet 4.6** | Highest quality for complex, high-stakes sales flows. |
+| **Big Data Tier** | **Gemini / Qwen 3.5** | Best for processing massive conversation logs and historical analysis. |

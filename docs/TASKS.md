@@ -122,9 +122,9 @@
   - Dependencies: None.
   - Suggested Rollout Risk: LOW.
 
-- [ ] **Task 015**
+- [x] **Task 015**
   - Priority: HIGH
-  - Status: PENDING
+  - Status: COMPLETED
   - Category: Security
   - Issue: Admin Test Runner: Refactor `exec` to `execFile`.
   - Root Cause: Potential command injection risk in `app/api/admin/tests/route.ts` due to use of shell-expanding `exec`.
@@ -187,3 +187,15 @@
   - Dependencies: Task 018.
   - Suggested Rollout Risk: LOW (Admin-only feature).
 
+- [x] **Task 020**
+  - Priority: HIGH
+  - Status: COMPLETED
+  - Category: Infrastructure/AI
+  - Issue: DigitalOcean AI Inference Migration.
+  - Root Cause: Need for lower latency (intra-DC) and higher cost efficiency for AI workloads.
+  - UX/Business Impact: ~40% latency reduction for chat and ~61% cost reduction for AI OpEx.
+  - Objective: Migrate core AI workloads from OpenAI/Gemini to DigitalOcean Gradient (Llama 3.1).
+  - Detailed Instructions: 1. Unify AI service and routing. 2. Implement task-based provider selection via ENV vars. 3. Update documentation and verify build.
+  - Expected Deliverables: Unified `lib/ai-service.ts`, updated `docs/ai/migration-guide-digitalocean.md`, and passing build.
+  - Dependencies: None.
+  - Suggested Rollout Risk: LOW.

@@ -85,4 +85,16 @@ By shifting the primary chat load to DigitalOcean, we achieve a rare "Double Win
 1.  **Lower Latency**: Responses feel instantaneous due to intra-DC routing.
 2.  **Higher Margin**: Reducing AI OpEx by **61%** significantly increases the profitability of the Pro/Business subscription tiers.
 
-This strategy is not just about saving money; it's about building a product that is physically impossible to match by competitors who rely solely on third-party public APIs.
+---
+
+## 5. Next-Gen Model Projections (Roadmap)
+Based on emerging model catalogs, we have identified "Disruptive" models that could further reduce our OpEx while increasing reasoning capabilities:
+
+| Model | Purpose | Estimated Cost (In/Out) | Strategic Advantage |
+| :--- | :--- | :--- | :--- |
+| **OpenAI GPT-oss-120b** | Main Chat | $0.10 / $0.70 | Large-model reasoning at small-model prices. |
+| **OpenAI GPT-5 Nano** | Intent/Utility | $0.05 / $0.40 | 50% cheaper than current utility tier. |
+| **Claude Sonnet 4.6** | Onboarding | $3.00 / $15.00 | Higher reasoning for complex sales flows. |
+| **Qwen3 32B** | Backup Chat | $0.25 / $0.55 | High-performance open-weights alternative. |
+
+**Estimated Future Savings**: If these prices are realized, our monthly OpEx for 5,000 customers could drop from **$245.00** to under **$150.00**, representing a total savings of **~76%** vs. the original pure OpenAI strategy.

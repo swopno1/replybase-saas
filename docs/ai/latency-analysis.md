@@ -1,18 +1,3 @@
-# Latency Analysis: AI Inference
-
-## Objectives
-Minimize the "Time to First Token" (TTFT) for Webchat and WhatsApp users to maintain engagement.
-
-## Benchmarks (Target)
-- **DO Llama 3.1 8B**: < 300ms TTFT
-- **DO Llama 3.1 70B**: < 600ms TTFT
-- **GPT-4o-mini**: < 400ms TTFT
-
-## Latency Reduction Strategies
-1. **Regional Proximity**: Deploying ReplyBase App in DO `lon1` (London) and using Inference in the same region where available.
-2. **Streaming**: Always use `streamText` from Vercel AI SDK to show immediate progress.
-3. **Prompt Caching**: Utilize DigitalOcean's prompt caching features (if supported) for large system prompts in `ai-fallback.ts`.
-4. **Small Models for Extraction**: Use 8B models for `generateObject` tasks to ensure rapid JSON extraction.
 # Latency Analysis: The "Chat-First" Infrastructure Advantage
 
 ## 1. Why Latency Kills Chat Support
@@ -47,14 +32,16 @@ The most critical metric for "Perceived Snappiness."
 
 ---
 
-## 4. Throughput & Perceived Speed
-By leveraging **Streaming (SSE)** on DigitalOcean:
-1.  User sends message.
-2.  DO internal network handles the request in <20ms.
-3.  Llama 3 8B starts streaming the first token in ~400ms.
-4.  **First word appears on user's screen in ~420ms.**
+## 4. Next-Gen Latency Projections (2026+)
+With the introduction of ultra-optimized models like **GPT-5 Nano** and **Nemotron-nano**, we expect a secondary drop in "Model Init" time:
 
-This performance profile makes the AI feel "locally hosted" and instantaneous, which is a key differentiator for the ReplyBase Webchat widget.
+| Tier | Model | Est. Model Init | Est. Total TTFT (on DO) |
+| :--- | :--- | :--- | :--- |
+| **Utility** | **GPT-5 Nano** | **150ms** | **170ms** |
+| **Standard** | **GPT-oss-120b** | **300ms** | **320ms** |
+| **Premium** | **Claude Sonnet 4.6** | **450ms** | **470ms** |
+
+**Strategic Goal**: Achieve "Sub-200ms" perceived latency for standard intent/extraction tasks by the end of 2026.
 
 ---
 
