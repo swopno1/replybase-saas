@@ -2,6 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { SimulationLab } from "@/components/admin/simulation/SimulationLab";
 import {
   Card,
   CardContent,
@@ -47,7 +48,7 @@ import {
   Bot,
   Activity,
   CreditCard,
-  History,
+  History, Flask,
   Shield,
   ExternalLink,
   Plus,
@@ -522,7 +523,7 @@ export default function SubscriberDetailPage({
         }}
         className="space-y-4"
       >
-        <TabsList className="grid w-full grid-cols-5 h-auto">
+        <TabsList className="grid w-full grid-cols-6 h-auto">
           <TabsTrigger value="overview" className="flex items-center gap-2 py-2">
             <User className="h-4 w-4" /> Overview
           </TabsTrigger>
@@ -537,6 +538,9 @@ export default function SubscriberDetailPage({
           </TabsTrigger>
           <TabsTrigger value="logs" className="flex items-center gap-2 py-2">
             <History className="h-4 w-4" /> Logs & Activity
+          </TabsTrigger>
+          <TabsTrigger value="simulation" className="flex items-center gap-2 py-2 text-primary font-semibold">
+            <Flask className="h-4 w-4" /> Simulation Lab
           </TabsTrigger>
         </TabsList>
 
@@ -1177,6 +1181,9 @@ export default function SubscriberDetailPage({
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+      <TabsContent value="simulation">
+          <SimulationLab subscriberId={id} />
         </TabsContent>
       </Tabs>
     </div>
