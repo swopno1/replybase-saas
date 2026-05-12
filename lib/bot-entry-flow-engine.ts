@@ -1,4 +1,15 @@
 import { Prisma } from "@prisma/client";
+
+export interface ExecutionTraceStep {
+  nodeId: string;
+  type: string;
+  status: "success" | "failure" | "skipped";
+  variablesBefore: Record<string, unknown>;
+  variablesAfter: Record<string, unknown>;
+  responses: any[];
+  error?: string;
+  durationMs?: number;
+}
 import { prisma } from "@/lib/prisma";
 import { checkTenantUsageLimits } from "@/lib/subscription";
 import {
@@ -41,6 +52,7 @@ async function applyDelayWithOptionalTyping(
 const STALE_SESSION_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 async function resolveFlow(params: {
+  isSimulation?: boolean;
   tenantId: string;
   contactId: string;
   scopeKey: string;
@@ -84,7 +96,7 @@ async function resolveFlow(params: {
       }
     } else {
       // Stale session (> 24 h inactive) — expire it.
-      await prisma.flowSession.update({
+      if (!params.isSimulation) await prisma.flowSession.update({
         where: { id: activeSession.id },
         data: { isActive: false },
       });
@@ -235,6 +247,7 @@ function mergeTags(existing: unknown, incoming?: string[]) {
 }
 
 async function persistLeadCapture(params: {
+  isSimulation?: boolean;
   tenantId: string;
   contactId: string;
   flowId: string;
@@ -275,7 +288,7 @@ async function persistLeadCapture(params: {
   };
 
   if (Object.keys(contactData).length > 0) {
-    await prisma.contact.update({
+    if (!params.isSimulation) await prisma.contact.update({
       where: { id: params.contactId },
       data: contactData,
     });
@@ -349,14 +362,14 @@ async function persistLeadCapture(params: {
   };
 
   if (existingLead) {
-    await prisma.lead.update({
+    if (!params.isSimulation) await prisma.lead.update({
       where: { id: existingLead.id },
       data: leadData,
     });
     return;
   }
 
-  await prisma.lead.create({
+  if (!params.isSimulation) await prisma.lead.create({
     data: leadData,
   });
 }
@@ -364,6 +377,7 @@ async function persistLeadCapture(params: {
 import { incrementTenantUsage } from "./subscription";
 
 export async function executeBotEntryFlowFirst(params: {
+  isSimulation?: boolean;
   tenantId: string;
   botId: string;
   contactId: string;
@@ -379,7 +393,7 @@ export async function executeBotEntryFlowFirst(params: {
   }
 
   // Centralized usage tracking for flow executions
-  await incrementTenantUsage(
+  if (!params.isSimulation) await incrementTenantUsage(
     params.tenantId,
     "flow_execution",
     1,
@@ -444,8 +458,10 @@ export async function executeBotEntryFlowFirst(params: {
     activeFlow.nodes[0];
   let completed = false;
   let safetyCounter = 0;
+  const executionTrace: ExecutionTraceStep[] = [];
 
   while (currentNode && safetyCounter < 30) {
+    const variablesBefore = { ...mergedVariables };
     safetyCounter += 1;
     const content = (currentNode.content || {}) as FlowNodeContent;
 
@@ -501,6 +517,17 @@ export async function executeBotEntryFlowFirst(params: {
           currentNode.order,
           content.nextNodeOrder,
         );
+
+        if (params.isSimulation) {
+          executionTrace.push({
+            nodeId: variablesBefore.last_node_id as string || "start",
+            type: "logic",
+            status: "success",
+            variablesBefore,
+            variablesAfter: { ...mergedVariables },
+            responses: [...responses],
+          });
+        }
         break;
       }
       case "input": {
@@ -572,6 +599,7 @@ export async function executeBotEntryFlowFirst(params: {
             : undefined;
 
           await persistLeadCapture({
+            isSimulation: params.isSimulation,
             tenantId: params.tenantId,
             contactId: params.contactId,
             flowId: runtime.rootFlowId,
@@ -583,6 +611,7 @@ export async function executeBotEntryFlowFirst(params: {
 
         if (content.action === "update_status") {
           await persistLeadCapture({
+            isSimulation: params.isSimulation,
             tenantId: params.tenantId,
             contactId: params.contactId,
             flowId: runtime.rootFlowId,
@@ -630,7 +659,7 @@ export async function executeBotEntryFlowFirst(params: {
         }
 
         if (content.action === "booking") {
-          await prisma.activityLog.create({
+          if (!params.isSimulation) await prisma.activityLog.create({
             data: {
               tenantId: params.tenantId,
               type: "BOOKING_REQUESTED",
@@ -663,7 +692,7 @@ export async function executeBotEntryFlowFirst(params: {
 
         if (content.action === "trigger_webhook") {
           const { dispatchWebhook } = await import("@/lib/services/webhook-dispatcher");
-          await dispatchWebhook(params.tenantId, "flow.action", {
+          if (!params.isSimulation) await dispatchWebhook(params.tenantId, "flow.action", {
             contactId: params.contactId,
             action: content.action,
             nodeId: currentNode.id,
@@ -677,6 +706,17 @@ export async function executeBotEntryFlowFirst(params: {
           currentNode.order,
           content.nextNodeOrder,
         );
+
+        if (params.isSimulation) {
+          executionTrace.push({
+            nodeId: variablesBefore.last_node_id as string || "start",
+            type: "logic",
+            status: "success",
+            variablesBefore,
+            variablesAfter: { ...mergedVariables },
+            responses: [...responses],
+          });
+        }
         break;
       }
       case "wait": {
@@ -687,6 +727,17 @@ export async function executeBotEntryFlowFirst(params: {
           currentNode.order,
           content.nextNodeOrder,
         );
+
+        if (params.isSimulation) {
+          executionTrace.push({
+            nodeId: variablesBefore.last_node_id as string || "start",
+            type: "logic",
+            status: "success",
+            variablesBefore,
+            variablesAfter: { ...mergedVariables },
+            responses: [...responses],
+          });
+        }
         break;
       }
       case "typing": {
@@ -698,6 +749,17 @@ export async function executeBotEntryFlowFirst(params: {
           currentNode.order,
           content.nextNodeOrder,
         );
+
+        if (params.isSimulation) {
+          executionTrace.push({
+            nodeId: variablesBefore.last_node_id as string || "start",
+            type: "logic",
+            status: "success",
+            variablesBefore,
+            variablesAfter: { ...mergedVariables },
+            responses: [...responses],
+          });
+        }
         break;
       }
       case "end": {
@@ -728,7 +790,7 @@ export async function executeBotEntryFlowFirst(params: {
   runtime.activeFlowId = completed ? runtime.rootFlowId : activeFlow.id;
   setRuntimeState(mergedVariables, runtime);
 
-  await prisma.flowSession.update({
+  if (!params.isSimulation) await prisma.flowSession.update({
     where: { id: session.id },
     data: {
       variables: mergedVariables as Prisma.InputJsonValue,
@@ -752,5 +814,6 @@ export async function executeBotEntryFlowFirst(params: {
     waitingForInput,
     shouldFallbackToAi,
     fallbackMessage: activeFlow.fallbackMessage || null,
+    executionTrace: params.isSimulation ? executionTrace : undefined,
   };
 }
