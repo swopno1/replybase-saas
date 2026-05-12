@@ -54,6 +54,42 @@ type MetaWebhookPayload = {
           text?: {
             body?: string;
           };
+          image?: {
+            caption?: string;
+            id?: string;
+            mime_type?: string;
+          };
+          audio?: {
+            id?: string;
+            mime_type?: string;
+          };
+          video?: {
+            caption?: string;
+            id?: string;
+            mime_type?: string;
+          };
+          document?: {
+            filename?: string;
+            caption?: string;
+            id?: string;
+            mime_type?: string;
+          };
+          button?: {
+            text?: string;
+            payload?: string;
+          };
+          interactive?: {
+            type?: string;
+            button_reply?: {
+              id?: string;
+              title?: string;
+            };
+            list_reply?: {
+              id?: string;
+              title?: string;
+              description?: string;
+            };
+          };
         }>;
         statuses?: Array<{
           id?: string;
@@ -150,8 +186,7 @@ async function ensureContactAndConversation(params: {
     "whatsapp-message",
     {
       type: "whatsapp",
-      botId: params.channel.botId,
-      payload: params,
+      ...params,
     },
     { jobId: `whatsapp:${params.messageId}` },
   );
@@ -257,20 +292,37 @@ async function processMetaPayload(params: {
       }
 
       for (const message of value.messages || []) {
-        if (
-          message.type !== "text" ||
-          !message.text?.body ||
-          !message.from ||
-          !message.id
-        ) {
-          continue;
+        if (!message.from || !message.id) continue;
+
+        let inboundText = "";
+        const messageType = message.type;
+
+        if (messageType === "text" && message.text?.body) {
+          inboundText = message.text.body;
+        } else if (messageType === "image") {
+          inboundText = `[Image] ${message.image?.caption || ""}`.trim();
+        } else if (messageType === "audio") {
+          inboundText = "[Audio Message]";
+        } else if (messageType === "video") {
+          inboundText = `[Video] ${message.video?.caption || ""}`.trim();
+        } else if (messageType === "document") {
+          inboundText = `[Document] ${message.document?.filename || ""}`.trim();
+        } else if (messageType === "button") {
+          inboundText = message.button?.text || "[Button Click]";
+        } else if (messageType === "interactive" && message.interactive?.button_reply) {
+          inboundText = message.interactive.button_reply.title || "[Button Reply]";
+        } else {
+          inboundText = `[Unsupported Message Type: ${messageType}]`;
         }
+
+        if (!inboundText) continue;
+
         ensureContactAndConversation({
           channel,
           waId: message.from,
           profileName: value.contacts?.[0]?.profile?.name,
           rawPhone: message.from,
-          inboundText: message.text.body,
+          inboundText,
           messageId: message.id,
           timestamp: message.timestamp,
         }).catch((err) => {

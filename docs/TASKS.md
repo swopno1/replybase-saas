@@ -134,3 +134,30 @@
   - Expected Deliverables: Hardened admin test execution endpoint.
   - Dependencies: None.
   - Suggested Rollout Risk: LOW.
+
+- [x] **Task 016**
+  - Priority: HIGH
+  - Status: COMPLETED
+  - Category: QA/DevOps
+  - Issue: WhatsApp Production Reliability Audit & Integration Testing.
+  - Root Cause: Need for final production-grade validation before enterprise onboarding.
+  - UX/Business Impact: Ensures 100% reliability for WhatsApp channel, preventing multi-tenant leaks and quota bypass.
+  - Objective: Perform deep inspection and implement robust integration tests for all supported WhatsApp providers.
+  - Detailed Instructions: 1. Inspect provider abstractions and webhook handlers. 2. Implement integration tests for tenant isolation, worker logic, reliability, and subscription limits. 3. Generate production readiness reports.
+  - Expected Deliverables: Passing integration test suite (`tests/integration/whatsapp/`) and comprehensive audit documentation in `docs/testing/`.
+  - Dependencies: None.
+  - Suggested Rollout Risk: LOW.
+
+
+- [ ] **Task 017**
+  - Priority: LOW
+  - Status: PENDING
+  - Category: Features
+  - Issue: Advanced WhatsApp Media Support (Storage & Outbound).
+  - Root Cause: Current integration only supports textual recognition of media; binary storage and outbound media sending are missing.
+  - UX/Business Impact: Enables full rich-media conversations (images, PDFs, voice) in the CRM dashboard.
+  - Objective: Implement binary media persistence (S3/GCS) for incoming messages and extend provider logic for outbound media.
+  - Detailed Instructions: 1. Add `metadata` field to `CrmMessage` model. 2. Implement media download/upload service for incoming `media_id`. 3. Add `sendWhatsAppMedia` to `lib/whatsapp-provider.ts`. 4. Update UI to render images and file download links.
+  - Expected Deliverables: Full media support across WhatsApp Cloud API and CRM dashboard.
+  - Dependencies: S3/Storage infrastructure.
+  - Suggested Rollout Risk: MEDIUM (storage costs and bandwidth).
