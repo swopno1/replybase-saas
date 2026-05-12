@@ -61,8 +61,18 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
 
   const plan = planName.toLowerCase();
   const isPro = plan.includes("pro") || plan.includes("business");
-  
-  // Logic: Onboarding and Pro plans always prefer higher reasoning/premium models.
+
+  // A. Resolve System Defaults if provider is "default"
+  let resolvedProvider = provider;
+  let resolvedModel = model;
+
+  if (provider === "default") {
+    const config = TASK_ROUTING[task] || TASK_ROUTING.general;
+    resolvedProvider = config.provider;
+    resolvedModel = resolvedModel || config.model;
+  }
+
+  // B. Priority Logic: Pro plans and Onboarding always prefer premium models.
   const isHighPriority = task === "onboarding" || isPro;
   const config = getModelConfig();
 
@@ -107,7 +117,6 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
     default: {
       const client = createGoogleGenerativeAI({
         apiKey: apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-        headers: { "x-goog-api-key": apiKey || (process.env.GOOGLE_GENERATIVE_AI_API_KEY as string) },
       });
 
       // 1. Handle Explicit Fallback
@@ -120,14 +129,15 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
       if (!resolvedModel) {
         resolvedModel = isHighPriority ? config.gemini.premium : config.gemini.main;
       }
-
       return client(resolvedModel);
     }
   }
 }
 
+// --- 5. HIGH-LEVEL HELPERS ---
+
 /**
- * High-level helper to get a model for a specific tenant, automatically fetching their settings.
+ * Gets a model for a specific tenant, respecting their custom API settings if provided.
  */
 export async function getTenantModel(
   tenantId: string,
@@ -135,11 +145,7 @@ export async function getTenantModel(
 ): Promise<LanguageModel> {
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
-    select: {
-      aiProvider: true,
-      aiApiKey: true,
-      aiModel: true,
-    },
+    select: { aiProvider: true, aiApiKey: true, aiModel: true },
   });
 
   return getAiModel({
@@ -151,7 +157,7 @@ export async function getTenantModel(
 }
 
 /**
- * High-level helper to get a system-managed model (e.g. for background tasks).
+ * Gets a system-managed model (e.g. for background automation) based on task config.
  */
 export function getSystemModel(
   options: Omit<GetAiModelOptions, "provider" | "apiKey" | "model">,
@@ -163,6 +169,6 @@ export function getSystemModel(
 }
 
 /**
- * Returns the recommended embedding model for vector operations.
+ * Standard embedding model for vector operations.
  */
 export const embedModel = google.embeddingModel(getModelConfig().gemini.embedding);
