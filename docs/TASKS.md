@@ -117,7 +117,20 @@
   - Root Cause: `TypeError: Cannot read properties of undefined (reading 'updateMany')` in unit tests.
   - UX/Business Impact: Prevents CI/CD stability; though likely a test-only bug, it blocks verification of GDPR flows.
   - Objective: Fix the `TypeError` in `tests/api/users/account-delete-route.test.ts` by adding missing transaction mocks.
-  - Detailed Instructions: The route handler in `app/api/users/account/route.ts` was updated to clean up `adminActivity`, `passwordResetToken`, and other models, but the corresponding unit test mocks were not updated. Add these models to the `tx` object in the test file.
+  - Detailed Instructions: The route handler in `app/api/users/account/route.ts` was updated to clean up `adminActivity`, `passwordResetToken`, `activityLog`, `usageLog`, `churnFeedback`, `newsletterSubscriber`, and `dataDeletionRequest` models, but the corresponding unit test mocks were not updated. Add these models with `updateMany` (and `deleteMany` where applicable) to the `tx` object in `tests/api/users/account-delete-route.test.ts`.
   - Expected Deliverables: Passing `tests/api/users/account-delete-route.test.ts`.
+  - Dependencies: None.
+  - Suggested Rollout Risk: LOW.
+
+- [ ] **Task 015**
+  - Priority: HIGH
+  - Status: PENDING
+  - Category: Security
+  - Issue: Admin Test Runner: Refactor `exec` to `execFile`.
+  - Root Cause: Potential command injection risk in `app/api/admin/tests/route.ts` due to use of shell-expanding `exec`.
+  - UX/Business Impact: Critical security hardening for platform administrative functions.
+  - Objective: Replace `exec` with `execFile` or `spawn` to invoke the load test script safely.
+  - Detailed Instructions: 1. In `app/api/admin/tests/route.ts`, replace the `exec` call with `execFile`. 2. Ensure arguments are passed as an array to avoid shell interpretation.
+  - Expected Deliverables: Hardened admin test execution endpoint.
   - Dependencies: None.
   - Suggested Rollout Risk: LOW.

@@ -40,10 +40,10 @@
   - Root Cause: Dashboard funnel cards (StatusCards and Activation Milestones) are currently static.
   - UX/Business Impact: Improves navigation flow and guides users to the next setup action instantly.
   - Objective: Make dashboard cards clickable to navigate to relevant settings or integration pages.
-  - Detailed Instructions: 1. Update `components/dashboard/status-cards.tsx` to wrap "Connected Channels" in a Link to `/integrations/telegram`. 2. Update `app/(dashboard)/page.tsx` to wrap Milestone items in Links to their `actionHref`.
+  - Detailed Instructions: 1. Update `components/dashboard/status-cards.tsx` to wrap "Connected Channels" and "Lead Alerts" in `Link` components. 2. Update `app/(dashboard)/page.tsx` to wrap Milestone items in `Link` components using their `actionHref`. 3. Add `hover:bg-accent cursor-pointer transition-colors` to the wrapper cards.
   - Expected Deliverables: Updated dashboard layout with interactive cards.
   - Dependencies: None.
-  - Notes: Ensure hover states reflect interactivity.
+  - Notes: Ensure hover states reflect interactivity and use standard shadcn/ui accent colors.
   - Suggested Rollout Risk: LOW.
 
 - [ ] **UX-009**

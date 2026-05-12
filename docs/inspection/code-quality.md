@@ -12,12 +12,12 @@
 - **Reuse**: Strong component reuse in the dashboard (`DataTable`, `AppSidebar`, `SubscriptionStatus`).
 
 ## Testing Coverage
-- **Unit Tests**: Pass rate ~97.9% (279/285 passed).
+- **Unit Tests**: Pass rate ~97.9% (279/285 passed) - *Last Audit: July 2026*.
   - **Identified Regressions**:
     1. **Task 014 (Account Deletion)**: `tests/api/users/account-delete-route.test.ts` fails with `TypeError: Cannot read properties of undefined (reading 'updateMany')`.
-       - **Root Cause**: Unit test mocks are out of sync with the route handler's data cleanup logic.
+       - **Root Cause**: Unit test mocks in `tests/api/users/account-delete-route.test.ts` are missing mocks for `adminActivity`, `passwordResetToken`, `activityLog`, `usageLog`, `churnFeedback`, `newsletterSubscriber`, and `dataDeletionRequest`.
     2. **Webchat Engine**: `tests/webchat/webchat-conversation-engine.test.ts` fails with `TypeError: Cannot read properties of undefined (reading 'some')` in `LeadService.syncContactIdentifiedStatus`.
-    3. **Batch Actions**: `tests/api/contacts-conversations-batch.test.ts` fails during contact deletion.
+    3. **Batch Actions**: `tests/api/contacts-conversations-batch.test.ts` fails during contact deletion with `db.$transaction is not a function`.
     4. **UI Timeouts**: `tests/facebook-ui.test.tsx` times out in restricted environments (CI).
   - **Resolution Plan**: Update unit test mocks for the account deletion suite and investigating the `LeadService` missing identity check.
 - **E2E Tests**: Playwright integration for critical paths like Webchat and Bot Creation.
