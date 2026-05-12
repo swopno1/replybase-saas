@@ -134,3 +134,16 @@
   - Expected Deliverables: Hardened admin test execution endpoint.
   - Dependencies: None.
   - Suggested Rollout Risk: LOW.
+
+- [x] **Task 016**
+  - Priority: HIGH
+  - Status: COMPLETED
+  - Category: Reliability/Testing
+  - Issue: WhatsApp Production Reliability & Test Suite Hardening.
+  - Root Cause: Lack of deep integration tests for multi-provider WhatsApp architecture and async worker.
+  - UX/Business Impact: Ensures stable messaging for enterprise clients and prevents regressions in billing and multi-tenant isolation.
+  - Objective: Implement comprehensive test suite for WhatsApp Webhook and Worker, covering Meta, Twilio, and 360dialog.
+  - Detailed Instructions: 1. Create `tests/api/whatsapp/webhook.test.ts` for provider-specific webhook handling. 2. Create `tests/services/whatsapp-worker.test.ts` for end-to-end worker logic (flow execution, usage limits, identity stitching). 3. Audit and document edge cases (duplicate webhooks, signature verification).
+  - Expected Deliverables: Passing WhatsApp integration tests, production readiness report, and edge case documentation.
+  - Dependencies: BullMQ, Redis, Prisma.
+  - Suggested Rollout Risk: LOW.

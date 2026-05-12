@@ -16,6 +16,7 @@ import {
   maskSecret,
   verifyTwilioSignature,
   validateWhatsAppProviderConnection,
+  sendWhatsAppText,
 } from "@/lib/whatsapp-provider";
 
 // ---------------------------------------------------------------------------
@@ -379,5 +380,120 @@ describe("validateWhatsAppProviderConnection", () => {
         error: "Failed to validate 360dialog credentials",
       });
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// sendWhatsAppText
+// ---------------------------------------------------------------------------
+describe("sendWhatsAppText", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+    return () => {
+      vi.unstubAllGlobals();
+    };
+  });
+
+  it("sends a Meta Cloud text message successfully", async () => {
+    const input = {
+      provider: "meta_cloud" as const,
+      credentials: {
+        accessToken: "test_token",
+        phoneNumberId: "12345",
+      },
+      to: "1234567890",
+      text: "Hello Meta",
+    };
+
+    (global.fetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ messages: [{ id: "wam_123" }] }),
+    });
+
+    const result = await sendWhatsAppText(input);
+
+    expect(result).toEqual({
+      success: true,
+      providerMessageId: "wam_123",
+    });
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/12345/messages"),
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          Authorization: "Bearer test_token",
+        }),
+        body: expect.stringContaining("Hello Meta"),
+      }),
+    );
+  });
+
+  it("sends a Twilio text message successfully", async () => {
+    const input = {
+      provider: "twilio" as const,
+      credentials: {
+        accountSid: "AC123",
+        authToken: "secret",
+        fromNumber: "14155238886",
+      },
+      to: "1234567890",
+      text: "Hello Twilio",
+    };
+
+    (global.fetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ sid: "SM123" }),
+    });
+
+    const result = await sendWhatsAppText(input);
+
+    expect(result).toEqual({
+      success: true,
+      providerMessageId: "SM123",
+    });
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("AC123/Messages.json"),
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "Content-Type": "application/x-www-form-urlencoded",
+        }),
+        body: expect.stringContaining("Hello+Twilio"),
+      }),
+    );
+  });
+
+  it("sends a 360dialog text message successfully", async () => {
+    const input = {
+      provider: "360dialog" as const,
+      credentials: {
+        apiKey: "d360_key",
+        channelId: "chan_123",
+      },
+      to: "1234567890",
+      text: "Hello 360",
+    };
+
+    (global.fetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ messages: [{ id: "d360_123" }] }),
+    });
+
+    const result = await sendWhatsAppText(input);
+
+    expect(result).toEqual({
+      success: true,
+      providerMessageId: "d360_123",
+    });
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/messages"),
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "D360-API-KEY": "d360_key",
+        }),
+        body: expect.stringContaining("Hello 360"),
+      }),
+    );
   });
 });
