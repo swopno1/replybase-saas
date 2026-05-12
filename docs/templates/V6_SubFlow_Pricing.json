@@ -1,35 +1,37 @@
 [
   {
-    "type": "condition",
+    "type": "message",
     "content": {
-      "variableName": "business_type",
-      "conditions": [
-        { "operator": "contains", "value": "", "nextNodeOrder": 2 }
-      ],
-      "nextNodeOrder": 1
+      "text": "I'd love to prepare a tailored ROI breakdown for your setup."
     }
   },
   {
     "type": "input",
     "content": {
-      "text": "I'd love to give you an exact ROI breakdown. What kind of business do you run? (e.g. Real Estate, Clinic, eCommerce)",
+      "text": "Where should I email the breakdown so you don't lose your progress?",
+      "variableName": "contact_email",
+      "inputType": "email",
+      "validationMessage": "That doesn't look like a valid email. Could you double-check?"
+    }
+  },
+  {
+    "type": "action",
+    "content": {
+      "action": "tag_user",
+      "tags": ["lead", "pricing_interest"]
+    }
+  },
+  {
+    "type": "input",
+    "content": {
+      "text": "Thanks! And what kind of business do you run? (e.g. Real Estate, Clinic, eCommerce)",
       "variableName": "business_type"
     }
   },
   {
-    "type": "condition",
-    "content": {
-      "variableName": "monthly_volume",
-      "conditions": [
-        { "operator": "greater_than", "value": "0", "nextNodeOrder": 4 }
-      ],
-      "nextNodeOrder": 3
-    }
-  },
-  {
     "type": "input",
     "content": {
-      "text": "Got it. And roughly how many messages do you handle across your channels monthly?",
+      "text": "Got it. Roughly how many inbound messages do you handle monthly?",
       "variableName": "monthly_volume",
       "inputType": "number"
     }
@@ -37,32 +39,21 @@
   {
     "type": "message",
     "content": {
-      "text": "Honestly, {{business_type}} sounds like a strong fit for our automation logic. I've got a clear ROI projection for your setup.",
-      "nextNodeOrder": 5
-    }
-  },
-  {
-    "type": "input",
-    "content": {
-      "text": "Where should I email the breakdown so you can review it later with your team?",
-      "variableName": "lead_email",
-      "inputType": "email"
-    }
-  },
-  {
-    "type": "action",
-    "content": {
-      "action": "tag_user",
-      "tags": ["pricing_lead", "qualified_prospect"]
+      "text": "Perfect. I'm finalizing your breakdown now. Based on your volume, our Pro Plan is likely your best fit — it recovers leads missed after hours and centralizes all your channels for total CRM continuity.",
+      "buttons": [
+        { "type": "postback", "title": "🚀 Start 14-Day Trial", "payload": "INTENT_CHECKOUT" },
+        { "type": "postback", "title": "📱 See Live Demo", "payload": "INTENT_DEMO" },
+        { "type": "postback", "title": "📅 Book a Walkthrough", "payload": "INTENT_BOOKING" }
+      ]
     }
   },
   {
     "type": "message",
     "content": {
-      "text": "Sent! 📩 Based on your volume, the Pro Plan is likely your best fit. It helps recover leads missed after hours and ensures total CRM continuity.",
+      "text": "To ensure you see our reply instantly, I highly recommend syncing this conversation to your WhatsApp:",
       "buttons": [
-        { "type": "postback", "title": "🚀 Start 14-Day Trial", "payload": "INTENT_CHECKOUT" },
-        { "type": "postback", "title": "📱 See Live Demo", "payload": "INTENT_DEMO" }
+        { "type": "postback", "title": "🟢 Switch to WhatsApp", "payload": "SYNC_{{sync_hash}}" },
+        { "type": "postback", "title": "💬 Stay here", "payload": "STAY_HERE" }
       ]
     }
   }

@@ -8,7 +8,8 @@
         { "type": "postback", "title": "📱 See Live Demo", "payload": "INTENT_DEMO" },
         { "type": "postback", "title": "📅 Book a Walkthrough", "payload": "INTENT_BOOKING" },
         { "type": "postback", "title": "🚀 Start Free Trial", "payload": "INTENT_CHECKOUT" }
-      ]
+      ],
+      "variableName": "user_intent"
     }
   },
   {
@@ -16,12 +17,17 @@
     "content": {
       "variableName": "last_user_message_normalized",
       "conditions": [
+        { "operator": "contains", "value": "intent_pricing", "nextNodeOrder": 2 },
         { "operator": "contains", "value": "price", "nextNodeOrder": 2 },
         { "operator": "contains", "value": "cost", "nextNodeOrder": 2 },
+        { "operator": "contains", "value": "roi", "nextNodeOrder": 2 },
+        { "operator": "contains", "value": "intent_demo", "nextNodeOrder": 3 },
         { "operator": "contains", "value": "demo", "nextNodeOrder": 3 },
         { "operator": "contains", "value": "work", "nextNodeOrder": 3 },
+        { "operator": "contains", "value": "intent_booking", "nextNodeOrder": 4 },
         { "operator": "contains", "value": "book", "nextNodeOrder": 4 },
         { "operator": "contains", "value": "call", "nextNodeOrder": 4 },
+        { "operator": "contains", "value": "intent_checkout", "nextNodeOrder": 6 },
         { "operator": "contains", "value": "trial", "nextNodeOrder": 6 },
         { "operator": "contains", "value": "start", "nextNodeOrder": 6 }
       ],

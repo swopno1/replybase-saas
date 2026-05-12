@@ -173,3 +173,16 @@
   - Expected Deliverables: Updated `lib/bot-entry-flow-engine.ts`, synced flows in DB, and 8 comprehensive audit reports in `docs/testing/`.
   - Dependencies: None.
   - Suggested Rollout Risk: LOW.
+
+- [ ] **Task 019**
+  - Priority: HIGH
+  - Status: IN_PROGRESS
+  - Category: QA/Admin
+  - Issue: Admin Conversation Simulation & QA Module.
+  - Root Cause: Lack of internal tools to verify subscriber bot logic without affecting production data.
+  - UX/Business Impact: Significant improvement in bot reliability, onboarding efficiency, and sales demo capabilities.
+  - Objective: Design and implement a production-grade Simulation Lab in the Admin Panel for testing subscriber bots.
+  - Detailed Instructions: 1. Modify flow engine to support a side-effect-free 'Sandbox Mode'. 2. Create `/api/admin/subscribers/[id]/simulate` API. 3. Build a visual Simulation Lab UI in the subscriber detail page with chat, timeline, and AI/CRM inspectors. 4. Implement predefined test scenarios and reporting.
+  - Expected Deliverables: Simulation Lab tab in Admin Panel, Sandbox-aware flow engine, and comprehensive simulation reports.
+  - Dependencies: Task 018.
+  - Suggested Rollout Risk: LOW (Admin-only feature).
