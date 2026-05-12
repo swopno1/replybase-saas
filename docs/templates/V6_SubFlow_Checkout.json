@@ -2,7 +2,7 @@
   {
     "type": "condition",
     "content": {
-      "variableName": "lead_email",
+      "variableName": "contact_email",
       "conditions": [
         { "operator": "contains", "value": "@", "nextNodeOrder": 2 }
       ],
@@ -13,8 +13,15 @@
     "type": "input",
     "content": {
       "text": "Great! Let's get your 14-day trial started. What email should we use for your account?",
-      "variableName": "lead_email",
+      "variableName": "contact_email",
       "inputType": "email"
+    }
+  },
+  {
+    "type": "action",
+    "content": {
+      "action": "tag_user",
+      "tags": ["lead", "trial_interest"]
     }
   },
   {

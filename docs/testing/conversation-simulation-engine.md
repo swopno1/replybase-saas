@@ -25,3 +25,16 @@ The engine captures:
 
 ### Scenarios
 Predefined scenarios are stored as JSON templates that inject specific messages and initial variables to test specific paths (e.g., "Angry Customer", "Pricing Query").
+
+## Advanced Testing Features
+
+The engine supports simulating various edge cases and stress tests:
+- **Sequential Runner**: Automates a sequence of messages to test long-form conversations.
+- **Delayed Response**: Simulates network latency or slow AI responses.
+- **Rapid-fire Simulation**: Sends multiple messages in quick succession to test race conditions and idempotency.
+- **Multi-language**: Injects language-specific headers or variables to test internationalization flows.
+- **Error Injection**:
+    - **AI Timeout**: Simulates a failure in the AI service.
+    - **Duplicate Webhooks**: Sends the same event twice to verify idempotency logic.
+    - **Missing Variables**: Skips required variables to test fallback/error handling.
+    - **Subscription Limits**: Simulates a tenant reaching their message or lead quota.

@@ -2,8 +2,32 @@
   {
     "type": "message",
     "content": {
-      "text": "The best way to understand ReplyBase is to see it work. We are chatting here on the website, but if you click below, our system will sync this session to your phone instantly.",
-      "nextNodeOrder": 1
+      "text": "The best way to understand ReplyBase is to see it work. We are chatting here on the website, but if you click below, our system will sync this session to your phone instantly."
+    }
+  },
+  {
+    "type": "condition",
+    "content": {
+      "variableName": "contact_email",
+      "conditions": [
+        { "operator": "contains", "value": "@", "nextNodeOrder": 3 }
+      ],
+      "nextNodeOrder": 2
+    }
+  },
+  {
+    "type": "input",
+    "content": {
+      "text": "Before we switch, what's your email so we can keep your session linked?",
+      "variableName": "contact_email",
+      "inputType": "email"
+    }
+  },
+  {
+    "type": "action",
+    "content": {
+      "action": "tag_user",
+      "tags": ["lead", "demo_interest"]
     }
   },
   {
@@ -11,8 +35,8 @@
     "content": {
       "text": "Ready to see the magic? Click below to switch to WhatsApp. I'll remember everything we've talked about.",
       "buttons": [
-        { "type": "postback", "title": "🟢 Switch to WhatsApp", "payload": "wa.me/{{wa_number}}?text=SYNC_{{session_hash}}" },
-        { "type": "postback", "title": "🔵 Switch to Telegram", "payload": "t.me/{{tg_bot}}?start=SYNC_{{session_hash}}" },
+        { "type": "postback", "title": "🟢 Switch to WhatsApp", "payload": "SYNC_{{sync_hash}}" },
+        { "type": "postback", "title": "🔵 Switch to Telegram", "payload": "SYNC_TG_{{sync_hash}}" },
         { "type": "postback", "title": "💬 Stay here", "payload": "STAY_HERE" }
       ]
     }

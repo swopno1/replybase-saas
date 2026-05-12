@@ -257,12 +257,18 @@ async function persistLeadCapture(params: {
   channelId?: string;
 }) {
   const name = getVariableString(params.variables, "lead_name", "name");
-  const email = getVariableString(params.variables, "lead_email", "email");
+  const email = getVariableString(
+    params.variables,
+    "lead_email",
+    "email",
+    "contact_email",
+  );
   const phone = getVariableString(
     params.variables,
     "lead_phone",
     "phone",
     "mobile",
+    "contact_phone",
   );
   const company = getVariableString(
     params.variables,
@@ -557,9 +563,13 @@ export async function executeBotEntryFlowFirst(params: {
         let nextNode = null;
         if (content.conditions) {
           for (const condition of content.conditions) {
+            // Fall back to parent content.variableName when individual
+            // condition entries don't specify their own variableName.
+            const varName = condition.variableName || content.variableName;
             if (
+              varName &&
               evaluateCondition(
-                mergedVariables[condition.variableName] as
+                mergedVariables[varName] as
                   | string
                   | number
                   | boolean
