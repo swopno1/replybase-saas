@@ -28,7 +28,16 @@ export const POST = withAuthAndTenant(async ({ tenantId }, req, context, db) => 
       credentials,
     });
 
-    const channelId = provider === "meta_cloud" ? credentials.metaPhoneNumberId : normalizeWhatsAppE164(credentials.twilioFromNumber);
+    let channelId: string;
+    if (provider === "meta_cloud") {
+      channelId = credentials.metaPhoneNumberId;
+    } else if (provider === "twilio") {
+      channelId = normalizeWhatsAppE164(credentials.twilioFrom);
+    } else if (provider === "360dialog") {
+      channelId = credentials.dialogChannelId;
+    } else {
+      return NextResponse.json({ error: "Unsupported provider" }, { status: 400 });
+    }
 
     const channel = await db.channel.create({
       data: {

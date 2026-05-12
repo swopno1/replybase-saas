@@ -1,39 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import logger from "@/lib/logger";
-import { messageQueue } from "@/lib/queue";
-import { decryptWhatsAppCredentialEnvelope } from "@/lib/whatsapp-channel-credentials";
+import {
+  decryptWhatsAppCredentialEnvelope,
+} from "@/lib/whatsapp-channel-credentials";
 import {
   normalizeWhatsAppE164,
   verifyTwilioSignature,
   verifyWebhookSignature,
 } from "@/lib/whatsapp-provider";
+import { messageQueue } from "@/lib/queue";
+import logger from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
-type WhatsAppChannelWithBot = {
-  id: string;
-  botId: string;
-  config: Prisma.JsonObject | null;
-  accessToken: string | null;
-  bot: {
-    id: string;
-    tenantId: string;
-    name: string;
-    entryFlow?: string | null;
+type WhatsAppChannelWithBot = Prisma.ChannelGetPayload<{
+  include: {
+    bot: {
+      select: {
+        id: true;
+        tenantId: true;
+        name: true;
+        entryFlow: true;
+      };
+    };
   };
+}> & {
+  accessToken: string;
 };
 
 type MetaWebhookPayload = {
-  object?: string;
+  object: string;
   entry?: Array<{
-    id?: string;
+    id: string;
     changes?: Array<{
-      field?: string;
       value?: {
+        messaging_product: string;
         metadata?: {
-          phone_number_id?: string;
+          display_phone_number: string;
+          phone_number_id: string;
         };
         contacts?: Array<{
           wa_id?: string;
@@ -188,13 +193,16 @@ async function processMetaPayload(params: {
   }
 
   const envelope = decryptWhatsAppCredentialEnvelope(channel.accessToken);
-  if (envelope.provider !== "meta_cloud") {
+  if (envelope.provider !== "meta_cloud" && envelope.provider !== "360dialog") {
     return NextResponse.json({ received: true, matched: false }, { status: 200 });
   }
 
+  // 360dialog v2 webhooks use the Meta format but might not include the signature in the same way,
+  // or use a different secret. We only enforce signature if provider is meta_cloud and we have a secret.
   const appSecret =
     (envelope.credentials as { appSecret?: string }).appSecret ||
-    getAppSecretFallback();
+    (envelope.provider === "meta_cloud" ? getAppSecretFallback() : null);
+
   if (appSecret) {
     if (!params.signature) {
       return NextResponse.json({ error: "Missing signature" }, { status: 403 });

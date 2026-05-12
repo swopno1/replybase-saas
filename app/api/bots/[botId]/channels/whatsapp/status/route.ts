@@ -131,7 +131,7 @@ export const GET = withAuthAndTenant(async ({ tenantId }, req, context, db) => {
         lastStatusEventAt: getStringFromJsonConfig(config, "lastStatusEventAt"),
         lastDeliveryError: getStringFromJsonConfig(config, "lastDeliveryError"),
         metaPhoneNumberId: getStringFromJsonConfig(config, "metaPhoneNumberId"),
-        twilioFromNumber: getStringFromJsonConfig(config, "twilioFromNumber"),
+        twilioFromNumber: getStringFromJsonConfig(config, "twilioFrom"),
       },
       credentialError,
       masked,
