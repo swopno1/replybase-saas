@@ -21,13 +21,7 @@ function WebchatE2EHarnessContent() {
   const mobileMode = searchParams.get("mobileMode") || "auto";
 
   // Move the environment check after all hooks, so hooks are always called
-  const isNotAvailable =
-    typeof window !== "undefined" && process.env.NODE_ENV !== "development";
-
   useEffect(() => {
-    if (isNotAvailable) {
-      return;
-    }
     const existing = document.getElementById("replybase-webchat-e2e-script");
     if (existing) {
       existing.remove();
