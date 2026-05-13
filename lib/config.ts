@@ -58,10 +58,11 @@ export const APP_CONFIG = {
         analysis: process.env.AI_MODEL_ANTHROPIC_ANALYSIS || "claude-3-5-sonnet-latest",
       },
       digitalocean: {
+        // FIXED: Added vendor prefixes to resolve 404 errors
         main: process.env.AI_MODEL_DO_MAIN || "gpt-oss-120b",
         utility: process.env.AI_MODEL_DO_UTILITY || "gpt-oss-20b",
-        premium: process.env.AI_MODEL_DO_PREMIUM || "llama-3.1-70b-instruct",
-        analysis: process.env.AI_MODEL_DO_ANALYSIS || "llama-3.1-70b-instruct",
+        premium: process.env.AI_MODEL_DO_PREMIUM || "meta-llama-3.1-70b-instruct",
+        analysis: process.env.AI_MODEL_DO_ANALYSIS || "meta-llama-3.1-70b-instruct",
       },
       gemini: {
         main: process.env.AI_MODEL_GEMINI_MAIN || "gemini-2.5-flash",
