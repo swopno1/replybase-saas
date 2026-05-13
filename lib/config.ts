@@ -26,13 +26,12 @@ export const APP_CONFIG = {
     initialEmail: process.env.INITIAL_ADMIN_EMAIL || "amirhossain.limon@gmail.com",
   },
 
-  // --- AI Orchestration (DigitalOcean Primary Strategy) ---
+  // --- AI Orchestration (Fixed Routing) ---
   ai: {
     providers: {
-      // Prioritize digitalocean for production workloads
       chat: process.env.DEFAULT_CHAT_PROVIDER || "digitalocean",
-      onboarding: process.env.DEFAULT_ONBOARDING_PROVIDER || "digitalocean",
-      analysis: process.env.DEFAULT_ANALYSIS_PROVIDER || "openai", // GPT-5 Nano fallback
+      onboarding: process.env.DEFAULT_ONBOARDING_PROVIDER || "anthropic", // Keep Claude on Anthropic
+      analysis: process.env.DEFAULT_ANALYSIS_PROVIDER || "openai",
       summary: process.env.DEFAULT_SUMMARY_PROVIDER || "digitalocean",
       default: process.env.DEFAULT_AI_PROVIDER || "digitalocean",
     },
@@ -46,8 +45,8 @@ export const APP_CONFIG = {
         main: process.env.AI_MODEL_ANTHROPIC_MAIN || "claude-sonnet-4.6",
       },
       digitalocean: {
-        main: process.env.AI_MODEL_DO_MAIN || "gpt-oss-120b", // Use the primary target model
-        premium: process.env.AI_MODEL_DO_PREMIUM || "claude-sonnet-4.6", // If supported via DO, else fallback
+        main: process.env.AI_MODEL_DO_MAIN || "gpt-oss-120b",
+        premium: process.env.AI_MODEL_DO_PREMIUM || "llama-3.1-70b-instruct", // FIXED: DO hosts Llama, not Claude
       },
       gemini: {
         main: process.env.AI_MODEL_GEMINI_MAIN || "gemini-1.5-flash",
