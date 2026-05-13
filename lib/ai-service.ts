@@ -113,7 +113,8 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
       const client = createOpenAI({
         baseURL: APP_CONFIG.ai.baseUrl,
         apiKey: apiKey || process.env.DIGITALOCEAN_AI_KEY || process.env.DIGITALOCEAN_TOKEN,
-      });
+        compatibility: "strict", // Forces use of /chat/completions instead of /responses
+      } as any);
 
       // Task-based model selection for DigitalOcean
       let defaultModel = models.digitalocean.main;
