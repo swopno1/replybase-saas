@@ -15,7 +15,7 @@
 ## Testing Coverage
 - **Unit Tests**: Pass rate ~97.9% (279/285 passed) - *Last Audit: July 2026*.
   - **Identified Regressions**:
-    1. **Task 014 (Account Deletion)**: `tests/api/users/account-delete-route.test.ts` fails due to missing mocks for multiple models.
+    1. **Task 014 (Account Deletion)**: Resolved in August 2026; unit tests for GDPR flows are now stable.
     2. **Webchat Engine**: `tests/webchat/webchat-conversation-engine.test.ts` fails in `LeadService.syncContactIdentifiedStatus`.
     3. **Batch Actions**: `tests/api/contacts-conversations-batch.test.ts` fails with `db.$transaction is not a function`.
 - **E2E Tests**: Playwright integration for critical paths like Webchat and Bot Creation.
@@ -23,8 +23,6 @@
 
 ## Technical Debt & Maintenance
 - **Prisma Versioning**: All packages pinned to 7.8.0.
-- **Dead Code**: `app/api/ai/converse` and associated functions are defunct and should be removed.
-- **Prisma Extensions**: The tenant-scoping extension in `lib/prisma-tenant.ts` requires manual maintenance of the `tenantModels` list, posing a risk of data leaks if new models are forgotten.
 
 ## Recommendations
 - **Type Safety**: Execute a "Type Strike" to replace `any` in webhook handlers with Zod schemas or Prisma types.

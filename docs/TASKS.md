@@ -1,61 +1,14 @@
-# ReplyBase Project Tasks - Master Backlog
+# ReplyBase Master Task List - Operational Intelligence Hub
 
-## 1. Security & Data Integrity
+## 1. Core Stability & DevOps
 
-- [x] **Task 001**
+- [ ] **Task 001**
   - Priority: HIGH
-  - Status: COMPLETED
-  - Category: Security
+  - Status: PENDING
+  - Category: Performance/Database
   - Severity: HIGH
-  - Issue: Missing `tenantId` in `WebhookLog` model.
-  - Root Cause: Early implementation prioritized functionality over strict multi-tenant log isolation.
-  - Business Impact: Risk of cross-tenant log leakage and degraded query performance.
-  - Objective: Add `tenantId` to `WebhookLog` and update all creation calls.
-  - Detailed Instructions: 1. Update `schema.prisma`. 2. Update all `prisma.webhookLog.create` calls. 3. Backfill existing data.
-  - Expected Deliverables: Scoped webhook logs.
-  - Dependencies: None.
-  - Notes: Completed in Task 001/010 cycle.
-  - Rollout Risk: LOW.
-
-- [x] **Task 002**
-  - Priority: MEDIUM
-  - Status: COMPLETED
-  - Category: Security
-  - Severity: MEDIUM
-  - Issue: Legacy "check-then-act" patterns in API routes.
-  - Root Cause: Standard implementation pattern before adoption of atomic scoped lookups.
-  - Business Impact: Potential IDOR vulnerabilities.
-  - Objective: Refactor API routes to use atomic scoped lookups (`{ id, tenantId }`).
-  - Detailed Instructions: Audit all routes and replace ownership checks followed by actions with single atomic queries.
-  - Expected Deliverables: Hardened API handlers.
-  - Dependencies: None.
-  - Notes: Completed in July 2026.
-  - Rollout Risk: LOW.
-
-- [ ] **Task 021**
-  - Priority: MEDIUM
-  - Status: PENDING
-  - Category: Security/Observability
-  - Severity: MEDIUM
-  - Issue: Granular Admin Audit Logging.
-  - Root Cause: Admin activity logging currently only tracks mutations, leaving a gap in "Read-access" visibility for sensitive data.
-  - Business Impact: Essential for Enterprise-grade security and SOC2/GDPR compliance.
-  - Objective: Implement read-access logging for sensitive Admin API routes.
-  - Detailed Instructions: 1. Create a `withAdminAudit` wrapper for GET handlers. 2. Log access to PII, conversation logs, and tenant credentials. 3. Ensure logs are stored with a TTL.
-  - Expected Deliverables: Logging decorator and updated admin API handlers.
-  - Dependencies: None.
-  - Notes: High priority for Enterprise tier.
-  - Rollout Risk: LOW.
-
-## 2. Infrastructure & Reliability
-
-- [ ] **Task 011**
-  - Priority: HIGH
-  - Status: PENDING
-  - Category: Performance
-  - Severity: MEDIUM
-  - Issue: Redis Metrics Caching (Implementation).
-  - Root Cause: Dashboard stats (Lead counts, Conversation volume) are computed on the fly from the DB.
+  - Issue: Dashboard Metrics Latency.
+  - Root Cause: Real-time aggregation of dashboard stats (Lead counts, Conversation volume) are computed on the fly from the DB.
   - Business Impact: Significant improvement in dashboard load times and reduction in DB CPU usage during peak hours.
   - Objective: Implement Redis-based caching for all dashboard metric components.
   - Detailed Instructions: 1. Wrap `app/(dashboard)/page.tsx` data queries in a caching utility. 2. Use `dashboard:stats:[tenantId]` keys with a 5-minute TTL. 3. Implement event-driven cache invalidation.
@@ -79,22 +32,7 @@
   - Notes: Essential for production stability.
   - Rollout Risk: LOW.
 
-## 3. Product & Feature Expansion
-
-- [x] **Task 005**
-  - Priority: HIGH
-  - Status: COMPLETED
-  - Category: Features
-  - Severity: HIGH
-  - Issue: Outbound Lead Push (Webhook Action) in Flow Engine.
-  - Root Cause: Customer request for real-time CRM integration.
-  - Business Impact: Enables real-time lead sync with CRMs, increasing product "stickiness".
-  - Objective: Implement Webhook Action node in Flow Engine.
-  - Detailed Instructions: 1. Add 'trigger_webhook' action. 2. Implement reliable delivery via BullMQ.
-  - Expected Deliverables: Webhook dispatcher service and UI for action node.
-  - Dependencies: None.
-  - Notes: Completed in Lead Connect & Action Engine cycle.
-  - Rollout Risk: LOW.
+## 2. Product & Feature Expansion
 
 - [ ] **Task 006**
   - Priority: LOW
@@ -126,23 +64,7 @@
   - Notes: Requires storage scaling plan.
   - Rollout Risk: MEDIUM.
 
-- [x] **Task 020**
-  - Priority: HIGH
-  - Status: COMPLETED
-  - Category: Infrastructure/AI
-  - Severity: HIGH
-  - Issue: DigitalOcean AI Inference Migration.
-  - Root Cause: Need for lower latency and cost efficiency.
-  - Business Impact: ~40% latency reduction and ~61% cost reduction.
-  - Objective: Migrate AI workloads to DigitalOcean Gradient.
-  - Detailed Instructions: 1. Unify AI service. 2. Implement provider selection via ENV.
-  - Expected Deliverables: Unified ai-service.ts.
-  - Dependencies: None.
-  - Notes: Migration completed August 2026.
-  - Rollout Risk: LOW.
-
-
-## 4. UI/UX Polish
+## 3. UI/UX & Interaction Polish
 
 - [ ] **Task 012**
   - Priority: MEDIUM
@@ -156,7 +78,7 @@
   - Detailed Instructions: 1. Detect mobile agent. 2. Replace visual editor with list of nodes.
   - Expected Deliverables: Mobile-optimized flow summary component.
   - Dependencies: None.
-  - Notes: See docs/proposals_mobile-read-only-flow/overview.md.
+  - Notes: See docs/proposals_mobile-flow-summary/STRATEGIC_OVERVIEW.md.
   - Rollout Risk: LOW.
 
 - [ ] **Task UX-008**
@@ -174,17 +96,92 @@
   - Notes: Consolidated from Task 013.
   - Rollout Risk: LOW.
 
-- [x] **Task 014**
-  - Priority: HIGH
-  - Status: COMPLETED
-  - Category: Bug
-  - Severity: MEDIUM
-  - Issue: Account Deletion Regression.
-  - Root Cause: Missing transaction mocks in unit tests.
-  - Business Impact: Blocks CI/CD stability for GDPR flows.
-  - Objective: Fix TypeError in account-delete-route.test.ts.
-  - Detailed Instructions: Add missing model mocks to the tx object in tests.
-  - Expected Deliverables: Passing account deletion tests.
+- [ ] **UX-001**
+  - Priority: LOW
+  - Status: PENDING
+  - Category: Layout
+  - Severity: LOW
+  - Issue: Generic "No results" empty states.
+  - Root Cause: Default table implementation lacks actionable guidance for empty datasets.
+  - Business Impact: Users may feel stuck or confused in fresh accounts.
+  - Objective: Replace generic "No results" with actionable empty states in all tables.
+  - Detailed Instructions: Create a reusable `EmptyState` component with an icon, title, description, and primary CTA button.
+  - Expected Deliverables: Reusable component and implementation in Contacts, Conversations, and Bots tables.
   - Dependencies: None.
-  - Notes: Completed August 2026.
+  - Notes: Standardize across all modules.
+  - Rollout Risk: LOW.
+
+- [ ] **UX-002**
+  - Priority: LOW
+  - Status: PENDING
+  - Category: Polish
+  - Severity: LOW
+  - Issue: Inconsistent icon stroke weights.
+  - Root Cause: Ad-hoc icon usage without strict design system enforcement.
+  - Business Impact: Degraded premium feel and visual noise.
+  - Objective: Standardize icon stroke width (Lucide default) across the platform.
+  - Detailed Instructions: Audit all Lucide icon imports and ensure no custom `strokeWidth` overrides exist unless intentionally varied.
+  - Expected Deliverables: Consistent visual iconography.
+  - Dependencies: None.
+  - Notes: Improves platform-wide coherence.
+  - Rollout Risk: LOW.
+
+- [ ] **UX-003**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Performance
+  - Severity: MEDIUM
+  - Issue: Missing skeleton loaders in Detail views.
+  - Root Cause: Asynchronous data fetching causes jarring layout shifts.
+  - Business Impact: Perceived slowness and poor user experience during loading.
+  - Objective: Implement skeleton loading states for Conversation Detail and Settings views.
+  - Detailed Instructions: Create skeleton primitives matching the layout of the detail views and show them while `isLoading` is true.
+  - Expected Deliverables: Skeleton components for core detail views.
+  - Dependencies: None.
+  - Notes: High impact on perceived performance.
+  - Rollout Risk: LOW.
+
+- [ ] **UX-007**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Onboarding
+  - Severity: MEDIUM
+  - Issue: Onboarding: Interstitial Loading State.
+  - Root Cause: Direct redirect from plan selection to dashboard feels jarring.
+  - Business Impact: Increases perceived professionalism and allows time for workspace provisioning.
+  - Objective: Add a "Preparing your workspace" interstitial.
+  - Detailed Instructions: Create a new page with a progress bar and helpful tips while backend finalizes setup.
+  - Expected Deliverables: Interstitial component and updated navigation logic.
+  - Dependencies: None.
+  - Notes: Use Framer Motion for smooth transitions.
+  - Rollout Risk: LOW.
+
+- [ ] **UX-009**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: CRM
+  - Severity: LOW
+  - Issue: Feedback: Implementation of "AI Thinking" indicators.
+  - Root Cause: Users are unaware when AI fallback is generating a response.
+  - Business Impact: Reduces user frustration during AI generation periods.
+  - Objective: Show "Bot is drafting response..." indicator in the conversation list.
+  - Detailed Instructions: Update the conversation list to check for active background jobs related to a conversation ID.
+  - Expected Deliverables: Real-time "Thinking" indicator in the dashboard.
+  - Dependencies: WebSocket or polling mechanism.
+  - Notes: See Task 018 for engine context.
+  - Rollout Risk: LOW.
+
+- [ ] **UX-010**
+  - Priority: LOW
+  - Status: PENDING
+  - Category: Onboarding
+  - Severity: LOW
+  - Issue: Polish: Success/Celebration states.
+  - Root Cause: Completing setup steps feels clinical.
+  - Business Impact: Increases user "Setup Momentum" and emotional connection.
+  - Objective: Add celebratory micro-interactions when milestones are achieved.
+  - Detailed Instructions: Use `canvas-confetti` or Framer Motion effects when a milestone status changes to completed.
+  - Expected Deliverables: Celebration effects on Dashboard.
+  - Dependencies: None.
+  - Notes: See app/(dashboard)/page.tsx for milestone logic.
   - Rollout Risk: LOW.
