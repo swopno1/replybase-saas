@@ -27,14 +27,14 @@ export function getModelDirectory() {
   return {
     gemini: {
       main: config.gemini.main,
-      premium: config.gemini.main, // Default to main for gemini unless specialized
+      premium: config.gemini.main,
       fallback: config.gemini.main,
       embedding: "text-embedding-004",
     },
     openai: {
       main: config.openai.main,
       utility: config.openai.utility,
-      premium: config.openai.main, // Primary chat model is already high-reasoning
+      premium: config.openai.main,
     },
     anthropic: {
       main: config.anthropic.main,
@@ -43,6 +43,7 @@ export function getModelDirectory() {
     digitalocean: {
       main: config.digitalocean.main,
       premium: config.digitalocean.premium,
+      utility: config.digitalocean.utility,
       fallback: config.digitalocean.main,
     },
   };
@@ -57,8 +58,8 @@ export function getTaskRouting(): Record<AiTask, { provider: AiProvider; modelId
     chat: { provider: providers.chat as AiProvider },
     onboarding: { provider: providers.onboarding as AiProvider },
     summary: { provider: providers.summary as AiProvider },
-    tagging: { provider: providers.summary as AiProvider }, // Alias to summary for utility
-    intent: { provider: providers.summary as AiProvider }, // Alias to summary for utility
+    tagging: { provider: providers.summary as AiProvider },
+    intent: { provider: providers.summary as AiProvider },
     analysis: { provider: providers.analysis as AiProvider },
     general: { provider: providers.default as AiProvider }
   };
@@ -82,6 +83,7 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
   const plan = planName.toLowerCase();
   const isPro = plan.includes("pro") || plan.includes("business");
   const isHighPriority = task === "onboarding" || isPro;
+  const isUtilityTask = task === "intent" || task === "tagging" || task === "summary";
   
   const models = getModelDirectory();
   const routing = getTaskRouting();
@@ -106,9 +108,15 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
         apiKey: apiKey || process.env.DIGITALOCEAN_AI_KEY || process.env.DIGITALOCEAN_TOKEN,
       });
 
-      const defaultModel = isFallback 
-        ? models.digitalocean.main 
-        : (isHighPriority ? models.digitalocean.premium : models.digitalocean.main);
+      // Task-based model selection for DigitalOcean
+      let defaultModel = models.digitalocean.main;
+      if (isFallback) {
+        defaultModel = models.digitalocean.main;
+      } else if (isHighPriority) {
+        defaultModel = models.digitalocean.premium;
+      } else if (isUtilityTask) {
+        defaultModel = models.digitalocean.utility;
+      }
 
       modelInstance = client(effectiveModel || defaultModel);
       break;
@@ -119,10 +127,7 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
         apiKey: apiKey || process.env.OPENAI_API_KEY,
       });
       
-      // Use utility model (Nano) for low-priority tasks if using OpenAI
-      const isUtilityTask = task === "intent" || task === "tagging" || task === "summary";
       const defaultModel = isUtilityTask ? models.openai.utility : models.openai.main;
-      
       modelInstance = client(effectiveModel || defaultModel);
       break;
     }
