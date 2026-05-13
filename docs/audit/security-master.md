@@ -11,7 +11,7 @@ ReplyBase maintains a robust, multi-layered security posture optimized for a mul
 - **Strict Dev Login**: A custom `STRICT_DEV_LOGIN` flag in `auth.ts` protects development environments.
 
 ## 2. Multi-Tenant Isolation & Authorization
-- **Primary Mechanism**: Prisma Client Extension (`getTenantPrisma`) automatically injects `tenantId` into all queries.
+- **Primary Mechanism**: Prisma Client Extension (`getTenantPrisma`) automatically injects `tenantId` into all queries. It uses Prisma DMMF introspection to automatically identify and scope all models containing a `tenantId` field, eliminating manual maintenance risks.
 - **Secondary Mechanism**: `withAuthAndTenant` wrapper provides a pre-scoped client to API handlers, ensuring atomic tenant enforcement.
 - **Middleware**: Root-level middleware enforces a "Default Deny" policy for protected routes (`/api/*`, `/admin/*`, `/settings/*`).
 - **Role-Based Access Control (RBAC)**: Supports `USER`, `ADMIN`, and `SUPERADMIN` roles.
@@ -38,7 +38,6 @@ ReplyBase maintains a robust, multi-layered security posture optimized for a mul
 - **Prompt Injection (MEDIUM)**: The AI fallback mechanism is susceptible to prompt injection. **Remediation**: Implement strict LLM guardrail prompts.
 - **CORS Hardening (MEDIUM)**: Webchat API endpoints (`/api/webchat/*`) use dynamic CORS. **Remediation**: Strictly enforce `allowedDomains` whitelist from `WebChatSite` model.
 - **Admin Read-Only Audit (MEDIUM)**: Gap remains in logging "Read-only" access to sensitive PII/tenant data by Superadmins. **Remediation**: Implement Task 021.
-- **Manual Tenant Model List (HIGH)**: The tenant isolation list in `lib/prisma-tenant.ts` requires manual maintenance. **Remediation**: Implement automated introspection-based model registration.
 
 ## 6. Remediation Roadmap
 - **COMPLETED**: Scoped mutation hardening for all channel routes.
