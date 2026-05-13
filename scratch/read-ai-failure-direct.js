@@ -7,8 +7,9 @@ async function main() {
 
   try {
     await client.connect();
+    // Corrected table name: test_history
     const res = await client.query(`
-      SELECT * FROM "TestHistory" 
+      SELECT * FROM test_history 
       WHERE type = 'ai_diagnostic' AND status = 'failed' 
       ORDER BY "createdAt" DESC 
       LIMIT 1

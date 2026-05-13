@@ -89,13 +89,20 @@ export async function POST(req: Request) {
 
       return NextResponse.json(record);
     } catch (e: any) {
+      console.error("[AdminAiTest] Diagnostic Error:", e);
       const record = await prisma.testHistory.create({
         data: {
           type: "ai_diagnostic",
           name: name || "AI Diagnostic Failed",
           status: "failed",
           duration: 0,
-          output: JSON.stringify({ error: e.message }),
+          output: JSON.stringify({ 
+            error: e.message,
+            name: e.name,
+            cause: e.cause,
+            stack: e.stack,
+            url: e.url, // AI SDK sometimes includes the failed URL
+          }),
         },
       });
       return NextResponse.json(record, { status: 500 });

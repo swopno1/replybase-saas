@@ -111,9 +111,8 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
   switch (effectiveProvider) {
     case "digitalocean": {
       const client = createOpenAI({
-        baseURL: APP_CONFIG.ai.baseUrl,
+        baseURL: APP_CONFIG.ai.baseUrl, // Ensure this is exactly https://inference.do-ai.run/v1
         apiKey: apiKey || process.env.DIGITALOCEAN_AI_KEY || process.env.DIGITALOCEAN_TOKEN,
-        compatibility: "strict", // Forces use of /chat/completions instead of /responses
       } as any);
 
       // Task-based model selection for DigitalOcean
