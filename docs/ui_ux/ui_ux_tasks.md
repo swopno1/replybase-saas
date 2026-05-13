@@ -1,74 +1,91 @@
-# ReplyBase UI/UX Tasks
+# ReplyBase UI/UX Tasks - Visual & Interaction Backlog
 
-## Immediate Improvements
-- [ ] **UX-001**: Replace generic "No results" with actionable empty states in all tables.
-  - Impact: Guides users toward the next positive action.
-- [ ] **UX-002**: Standardize icon stroke width (Lucide default) across all navigation and action items.
-  - Impact: Improves visual consistency and premium feel.
+- [ ] **UX-001**
+  - Priority: LOW
+  - Status: PENDING
+  - Category: Layout
+  - Severity: LOW
+  - Issue: Generic "No results" empty states.
+  - Root Cause: Default table implementation lacks actionable guidance for empty datasets.
+  - Business Impact: Users may feel stuck or confused in fresh accounts.
+  - Objective: Replace generic "No results" with actionable empty states in all tables.
+  - Detailed Instructions: Create a reusable `EmptyState` component with an icon, title, description, and primary CTA button.
+  - Expected Deliverables: Reusable component and implementation in Contacts, Conversations, and Bots tables.
+  - Dependencies: None.
+  - Notes: Standardize across all modules.
+  - Rollout Risk: LOW.
 
-## Visual Polish
-- [ ] **UX-003**: Implement skeleton loading states for the Conversation Detail view.
-  - Impact: Eliminates jarring layout shifts during polling/loading.
-- [ ] **UX-004**: Add hover transitions to sidebar menu items.
-  - Impact: Provides better interactive feedback.
+- [ ] **UX-002**
+  - Priority: LOW
+  - Status: PENDING
+  - Category: Polish
+  - Severity: LOW
+  - Issue: Inconsistent icon stroke weights.
+  - Root Cause: Ad-hoc icon usage without strict design system enforcement.
+  - Business Impact: Degraded premium feel and visual noise.
+  - Objective: Standardize icon stroke width (Lucide default) across the platform.
+  - Detailed Instructions: Audit all Lucide icon imports and ensure no custom `strokeWidth` overrides exist unless intentionally varied.
+  - Expected Deliverables: Consistent visual iconography.
+  - Dependencies: None.
+  - Notes: Improves platform-wide coherence.
+  - Rollout Risk: LOW.
 
-## Advanced UX
-- [ ] **UX-005**: Design and implement a "Read-only" summary view for the Flow Editor on mobile.
-  - Impact: Improves mobile usability without needing complex editor controls.
-- [ ] **UX-006**: Add real-time typing indicators for human handoff in the chat interface.
-  - Impact: Professionalizes the chat experience.
+- [ ] **UX-003**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Performance
+  - Severity: MEDIUM
+  - Issue: Missing skeleton loaders in Detail views.
+  - Root Cause: Asynchronous data fetching causes jarring layout shifts.
+  - Business Impact: Perceived slowness and poor user experience during loading.
+  - Objective: Implement skeleton loading states for Conversation Detail and Settings views.
+  - Detailed Instructions: Create skeleton primitives matching the layout of the detail views and show them while `isLoading` is true.
+  - Expected Deliverables: Skeleton components for core detail views.
+  - Dependencies: None.
+  - Notes: High impact on perceived performance.
+  - Rollout Risk: LOW.
 
 - [ ] **UX-007**
   - Priority: MEDIUM
   - Status: PENDING
   - Category: Onboarding
+  - Severity: MEDIUM
   - Issue: Onboarding: Interstitial Loading State.
-  - Root Cause: Direct redirect from plan selection to dashboard feels jarring and unpolished.
-  - UX/Business Impact: Increases perceived professionalism and allows time for background workspace provisioning.
-  - Objective: Add a "Preparing your workspace" interstitial between plan selection and dashboard redirect.
-  - Detailed Instructions: Create a new page/component that displays a progress bar and helpful tips while the backend finalizes setup.
-  - Expected Deliverables: New interstitial component and updated navigation logic.
+  - Root Cause: Direct redirect from plan selection to dashboard feels jarring.
+  - Business Impact: Increases perceived professionalism and allows time for workspace provisioning.
+  - Objective: Add a "Preparing your workspace" interstitial.
+  - Detailed Instructions: Create a new page with a progress bar and helpful tips while backend finalizes setup.
+  - Expected Deliverables: Interstitial component and updated navigation logic.
   - Dependencies: None.
   - Notes: Use Framer Motion for smooth transitions.
-  - Suggested Rollout Risk: LOW.
-
-- [ ] **UX-008**
-  - Priority: MEDIUM
-  - Status: PENDING
-  - Category: Dashboard
-  - Issue: Interaction: Interactive Dashboard Funnel.
-  - Root Cause: Dashboard funnel cards (StatusCards and Activation Milestones) are currently static.
-  - UX/Business Impact: Improves navigation flow and guides users to the next setup action instantly.
-  - Objective: Make dashboard cards clickable to navigate to relevant settings or integration pages.
-  - Detailed Instructions: 1. Update `components/dashboard/status-cards.tsx` to wrap "Connected Channels" and "Lead Alerts" in `Link` components. 2. Update `app/(dashboard)/page.tsx` to wrap Milestone items in `Link` components using their `actionHref`. 3. Add `hover:bg-accent cursor-pointer transition-colors` to the wrapper cards.
-  - Expected Deliverables: Updated dashboard layout with interactive cards.
-  - Dependencies: None.
-  - Notes: Ensure hover states reflect interactivity and use standard shadcn/ui accent colors.
-  - Suggested Rollout Risk: LOW.
+  - Rollout Risk: LOW.
 
 - [ ] **UX-009**
   - Priority: MEDIUM
   - Status: PENDING
   - Category: CRM
+  - Severity: LOW
   - Issue: Feedback: Implementation of "AI Thinking" indicators.
-  - Root Cause: Users are unaware when the AI fallback is generating a response, leading to perceived silence.
-  - UX/Business Impact: Reduces user frustration and signals that the system is active.
-  - Objective: Show a "Bot is drafting response..." indicator in the conversation list when AI fallback is active.
-  - Detailed Instructions: Update the conversation list component to check for active background jobs related to a conversation ID.
-  - Expected Deliverables: Real-time "Thinking" indicator in the dashboard UI.
-  - Dependencies: WebSocket or polling mechanism for background job status.
-  - Notes: Important for perceived quality.
-  - Suggested Rollout Risk: LOW.
+  - Root Cause: Users are unaware when AI fallback is generating a response.
+  - Business Impact: Reduces user frustration during AI generation periods.
+  - Objective: Show "Bot is drafting response..." indicator in the conversation list.
+  - Detailed Instructions: Update the conversation list to check for active background jobs related to a conversation ID.
+  - Expected Deliverables: Real-time "Thinking" indicator in the dashboard.
+  - Dependencies: WebSocket or polling mechanism.
+  - Notes: See Task 018 for engine context.
+  - Rollout Risk: LOW.
 
 - [ ] **UX-010**
   - Priority: LOW
   - Status: PENDING
   - Category: Onboarding
+  - Severity: LOW
   - Issue: Polish: Success/Celebration states.
-  - Root Cause: Successfully completing setup steps (e.g., connecting a channel) feels clinical and lacks positive reinforcement.
-  - UX/Business Impact: Increases user "Setup Momentum" and emotional connection to the product.
+  - Root Cause: Completing setup steps feels clinical.
+  - Business Impact: Increases user "Setup Momentum" and emotional connection.
   - Objective: Add celebratory micro-interactions when milestones are achieved.
-  - Detailed Instructions: 1. Use `canvas-confetti` or a Framer Motion celebration effect when a milestone status changes to completed. 2. Show a specific success toast with a "What's Next" recommendation.
-  - Expected Deliverables: Celebration effects on the Dashboard and Milestone completion pages.
+  - Detailed Instructions: Use `canvas-confetti` or Framer Motion effects when a milestone status changes to completed.
+  - Expected Deliverables: Celebration effects on Dashboard.
   - Dependencies: None.
-  - Suggested Rollout Risk: LOW.
+  - Notes: See app/(dashboard)/page.tsx for milestone logic.
+  - Rollout Risk: LOW.

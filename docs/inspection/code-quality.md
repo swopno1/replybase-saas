@@ -1,35 +1,33 @@
-# Code Quality Audit Report - ReplyBase SaaS
+# Code Quality Audit Report - ReplyBase SaaS (Updated August 2026)
 
 ## Standards & Tooling
 - **TypeScript**: Strict mode enabled.
-- **Linting**: ESLint configured (Next.js defaults + custom rules).
+- **Linting**: ESLint configured (Next.js defaults + custom rules). Approximately 135 ESLint problems exist, including problematic synchronous `setState` calls in `useEffect`.
 - **Type Safety**:
-  - Improved: Significantly reduced `any` usage in core services (`prisma-tenant`, `ai-fallback`).
-  - Remaining: Legacy webhook handlers and some dashboard components still use `any` for complex payloads.
+  - **Identified Risk**: High usage of `any` type (752 instances) across the codebase, particularly in webhook handlers and complex dashboard components.
+  - **Progress**: Significantly reduced `any` usage in core services (`prisma-tenant`, `ai-fallback`).
 
-## Code Organization
-- **Logic Separation**: Moving business logic from API routes to `lib/services/` (e.g., `LeadEnrichmentService`, `BillingService`).
-- **Reuse**: Strong component reuse in the dashboard (`DataTable`, `AppSidebar`, `SubscriptionStatus`).
+## Code Structure & Modularity
+- **High Modularity**: The project excels at separating concerns. `lib/` contains well-defined services, while `app/` focuses on routing and data fetching.
+- **Service Layer**: Business logic is encapsulated in dedicated services (e.g., `LeadEnrichmentService`, `BillingService`), ensuring reusability.
+- **Component Organization**: Use of `shadcn/ui` ensures a consistent look and feel and promotes reusable UI primitives.
 
 ## Testing Coverage
 - **Unit Tests**: Pass rate ~97.9% (279/285 passed) - *Last Audit: July 2026*.
   - **Identified Regressions**:
-    1. **Task 014 (Account Deletion)**: `tests/api/users/account-delete-route.test.ts` fails with `TypeError: Cannot read properties of undefined (reading 'updateMany')`.
-       - **Root Cause**: Unit test mocks in `tests/api/users/account-delete-route.test.ts` are missing mocks for `adminActivity`, `passwordResetToken`, `activityLog`, `usageLog`, `churnFeedback`, `newsletterSubscriber`, and `dataDeletionRequest`.
-    2. **Webchat Engine**: `tests/webchat/webchat-conversation-engine.test.ts` fails with `TypeError: Cannot read properties of undefined (reading 'some')` in `LeadService.syncContactIdentifiedStatus`.
-    3. **Batch Actions**: `tests/api/contacts-conversations-batch.test.ts` fails during contact deletion with `db.$transaction is not a function`.
-    4. **UI Timeouts**: `tests/facebook-ui.test.tsx` times out in restricted environments (CI).
-  - **Resolution Plan**: Update unit test mocks for the account deletion suite and investigating the `LeadService` missing identity check.
+    1. **Task 014 (Account Deletion)**: `tests/api/users/account-delete-route.test.ts` fails due to missing mocks for multiple models.
+    2. **Webchat Engine**: `tests/webchat/webchat-conversation-engine.test.ts` fails in `LeadService.syncContactIdentifiedStatus`.
+    3. **Batch Actions**: `tests/api/contacts-conversations-batch.test.ts` fails with `db.$transaction is not a function`.
 - **E2E Tests**: Playwright integration for critical paths like Webchat and Bot Creation.
 - **Manual Verification**: High focus on multi-tenant isolation testing.
 
-## Technical Debt
-1. **Prisma Versioning**: All packages pinned to 7.8.0.
-2. **ESLint Debt**: Resolved "Update while rendering" warnings by moving state updates to `useEffect` or `setTimeout`.
-3. **Dead Code**: Removed deprecated AI functions and routes (`converse()`).
+## Technical Debt & Maintenance
+- **Prisma Versioning**: All packages pinned to 7.8.0.
+- **Dead Code**: `app/api/ai/converse` and associated functions are defunct and should be removed.
+- **Prisma Extensions**: The tenant-scoping extension in `lib/prisma-tenant.ts` requires manual maintenance of the `tenantModels` list, posing a risk of data leaks if new models are forgotten.
 
 ## Recommendations
-- **Refactor**: Complete the migration of all bot-related logic into a centralized service layer (`lib/services/`).
-- **Mutation Scoping**: Standardize on `withAuthAndTenant` for all authenticated API routes to ensure atomic tenant enforcement.
-- **Typed Payloads**: Replace `any` in webhook handlers (Meta/Telegram) with generated Zod schemas or Prisma types.
-- **Documentation**: Maintain JSDoc comments for complex flow execution logic.
+- **Type Safety**: Execute a "Type Strike" to replace `any` in webhook handlers with Zod schemas or Prisma types.
+- **ESLint Cleanup**: Resolve remaining "Update while rendering" warnings.
+- **Refactor**: Complete the migration of all bot-related logic into the centralized service layer.
+- **Mutation Scoping**: Standardize on `withAuthAndTenant` for all authenticated API routes.
