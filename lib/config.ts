@@ -26,10 +26,9 @@ export const APP_CONFIG = {
     initialEmail: process.env.INITIAL_ADMIN_EMAIL || "amirhossain.limon@gmail.com",
   },
 
-  // --- AI Orchestration (DigitalOcean-Only Strategy) ---
+  // --- AI Orchestration (Standardized Multi-Provider) ---
   ai: {
     providers: {
-      // All tasks default to DigitalOcean to use DIGITALOCEAN_AI_KEY
       chat: process.env.DEFAULT_CHAT_PROVIDER || "digitalocean",
       onboarding: process.env.DEFAULT_ONBOARDING_PROVIDER || "digitalocean", 
       analysis: process.env.DEFAULT_ANALYSIS_PROVIDER || "digitalocean",
@@ -40,19 +39,26 @@ export const APP_CONFIG = {
       openai: {
         main: process.env.AI_MODEL_OPENAI_MAIN || "gpt-oss-120b",
         utility: process.env.AI_MODEL_OPENAI_UTILITY || "gpt-5-nano",
+        premium: process.env.AI_MODEL_OPENAI_PREMIUM || "gpt-oss-120b",
         analysis: process.env.AI_MODEL_OPENAI_ANALYSIS || "qwen-3.5-397b",
       },
       anthropic: {
-        main: process.env.AI_MODEL_ANTHROPIC_MAIN || "claude-sonnet-4.6",
+        main: process.env.AI_MODEL_ANTHROPIC_MAIN || "claude-3-5-sonnet-latest",
+        utility: process.env.AI_MODEL_ANTHROPIC_UTILITY || "claude-3-haiku-latest",
+        premium: process.env.AI_MODEL_ANTHROPIC_PREMIUM || "claude-3-5-sonnet-latest",
+        analysis: process.env.AI_MODEL_ANTHROPIC_ANALYSIS || "claude-3-5-sonnet-latest",
       },
       digitalocean: {
-        // DigitalOcean hosted models
         main: process.env.AI_MODEL_DO_MAIN || "gpt-oss-120b",
-        premium: process.env.AI_MODEL_DO_PREMIUM || "llama-3.1-70b-instruct",
         utility: process.env.AI_MODEL_DO_UTILITY || "gpt-oss-20b",
+        premium: process.env.AI_MODEL_DO_PREMIUM || "llama-3.1-70b-instruct",
+        analysis: process.env.AI_MODEL_DO_ANALYSIS || "llama-3.1-70b-instruct",
       },
       gemini: {
-        main: process.env.AI_MODEL_GEMINI_MAIN || "gemini-1.5-flash",
+        main: process.env.AI_MODEL_GEMINI_MAIN || "gemini-2.5-flash",
+        utility: process.env.AI_MODEL_GEMINI_UTILITY || "gemini-3.1-flash-lite",
+        premium: process.env.AI_MODEL_GEMINI_PREMIUM || "gemini-3-flash",
+        analysis: process.env.AI_MODEL_GEMINI_ANALYSIS || "gemma-4-31b",
       },
     },
     baseUrl: process.env.DIGITALOCEAN_AI_BASE_URL || "https://inference.do-ai.run/v1",
