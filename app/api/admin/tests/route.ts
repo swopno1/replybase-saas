@@ -139,22 +139,22 @@ export async function POST(req: Request) {
 
   if (type === "load") {
     if (isProduction && !allowProductionLoad) {
-      return NextResponse.json({
-        error: "Load tests are disabled in production. Set ALLOW_PRODUCTION_LOAD_TESTS=true to enable."
-      }, { status: 403 });
+        return NextResponse.json({
+            error: "Load tests are disabled in production. Set ALLOW_PRODUCTION_LOAD_TESTS=true to enable."
+        }, { status: 403 });
     }
 
     execFile("pnpm", ["tsx", "scripts/run-load-tests.ts"], async (error) => {
-      if (error) {
-        console.error("Admin triggered load test failed", error);
-        await recordActivity({
-          tenantId: session.user.tenantId,
-          userId: session.user.id,
-          type: "LOAD_TEST_FAILURE",
-          title: "Load Test Execution Failed",
-          description: `A background load test failed to start or complete: ${error.message}`,
-        });
-      }
+        if (error) {
+          console.error("Admin triggered load test failed", error);
+          await recordActivity({
+            tenantId: session.user.tenantId,
+            userId: session.user.id,
+            type: "LOAD_TEST_FAILURE",
+            title: "Load Test Execution Failed",
+            description: `A background load test failed to start or complete: ${error.message}`,
+          });
+        }
     });
     return NextResponse.json({ message: "Load test triggered" });
   }
