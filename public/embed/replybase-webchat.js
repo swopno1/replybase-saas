@@ -88,8 +88,12 @@
   var seenHumanMessageIds = Object.create(null);
   var pendingMessages = [];
 
-  var addMessage = function (kind, text) {
-    pendingMessages.push({ kind: kind, text: text });
+  var addMessage = function (kind, text, quickReplies) {
+    pendingMessages.push({
+      kind: kind,
+      text: text,
+      quickReplies: quickReplies,
+    });
     if ((kind === "bot" || kind === "agent") && !isOpen) {
       unreadCount += 1;
     }
@@ -183,6 +187,16 @@
       primaryColor +
       "; box-shadow: 0 0 0 3px rgba(15,118,110,0.15); }",
       ".rb-send { min-width: 64px; border-radius: 10px; color: #fff; font-weight: 600; }",
+      ".rb-quick-replies { display: flex; flex-wrap: wrap; gap: 8px; margin-top: -4px; margin-bottom: 8px; align-self: flex-start; }",
+      ".rb-quick-reply { background: #fff; border: 1px solid " +
+        primaryColor +
+        "; color: " +
+        primaryColor +
+        "; border-radius: 18px; padding: 6px 14px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }",
+      ".rb-quick-reply:hover { background: " +
+        primaryColor +
+        "; color: #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transform: translateY(-1px); }",
+      ".rb-quick-reply:active { transform: translateY(0); }",
       ".rb-note { align-self: center; color: #64748b; font-size: 12px; text-align: center; }",
       ".rb-typing { align-self: flex-start; color: #64748b; font-size: 12px; font-style: italic; }",
       ".rb-note.is-consent { border: 1px dashed #f59e0b; background: #fffbeb; color: #92400e; padding: 12px; border-radius: 12px; width: 100%; }",
@@ -284,11 +298,34 @@
     }
 
     // Re-define addMessage and addSystemNote to use the DOM
-    addMessage = function (kind, text) {
+    addMessage = function (kind, text, quickReplies) {
       var bubble = document.createElement("div");
       bubble.className = "rb-message " + kind;
       bubble.textContent = text;
       messages.appendChild(bubble);
+
+      if (Array.isArray(quickReplies) && quickReplies.length > 0) {
+        var qrContainer = document.createElement("div");
+        qrContainer.className = "rb-quick-replies";
+        quickReplies.forEach(function (qr) {
+          var btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "rb-quick-reply";
+          btn.textContent = qr.title;
+          btn.addEventListener("click", function () {
+            // Remove the quick replies after click to prevent multiple choices
+            if (qrContainer.parentNode) {
+              qrContainer.parentNode.removeChild(qrContainer);
+            }
+            // Use the payload if available, otherwise the title
+            input.value = qr.payload || qr.title;
+            sendMessage();
+          });
+          qrContainer.appendChild(btn);
+        });
+        messages.appendChild(qrContainer);
+      }
+
       messages.scrollTop = messages.scrollHeight;
 
       if ((kind === "bot" || kind === "agent") && !isOpen) {
@@ -351,7 +388,7 @@
 
           hideBotTyping();
           if (entry.type === "text" && typeof entry.text === "string") {
-            addMessage("bot", entry.text);
+            addMessage("bot", entry.text, entry.quickReplies);
           }
         });
       });
@@ -612,7 +649,7 @@
       if (m.kind === "system") {
         addSystemNote(m.text);
       } else {
-        addMessage(m.kind, m.text);
+        addMessage(m.kind, m.text, m.quickReplies);
       }
     });
 
@@ -930,6 +967,7 @@
         return {
           type: "text",
           text: item.text,
+          quickReplies: item.quickReplies || [],
         };
       });
   }
