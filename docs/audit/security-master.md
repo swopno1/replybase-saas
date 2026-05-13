@@ -13,6 +13,7 @@ ReplyBase maintains a robust, multi-layered security posture optimized for a mul
 ## 2. Multi-Tenant Isolation & Authorization
 - **Primary Mechanism**: Prisma Client Extension (`getTenantPrisma`) automatically injects `tenantId` into all queries. It uses Prisma DMMF introspection to automatically identify and scope all models containing a `tenantId` field, eliminating manual maintenance risks.
 - **Secondary Mechanism**: `withAuthAndTenant` wrapper provides a pre-scoped client to API handlers, ensuring atomic tenant enforcement.
+- **Hardening Logic**: Critical IDOR risks (e.g., in `lib/bot-entry-flow-engine.ts`) have been remediated by replacing `findUnique` with strict `findFirst` queries that include `tenantId` in the `where` clause.
 - **Middleware**: Root-level middleware enforces a "Default Deny" policy for protected routes (`/api/*`, `/admin/*`, `/settings/*`).
 - **Role-Based Access Control (RBAC)**: Supports `USER`, `ADMIN`, and `SUPERADMIN` roles.
   - `SUPERADMIN` (`isAdmin: true`) can access global flows and admin routes.
@@ -38,11 +39,14 @@ ReplyBase maintains a robust, multi-layered security posture optimized for a mul
 - **Prompt Injection (MEDIUM)**: The AI fallback mechanism is susceptible to prompt injection. **Remediation**: Implement strict LLM guardrail prompts.
 - **CORS Hardening (MEDIUM)**: Webchat API endpoints (`/api/webchat/*`) use dynamic CORS. **Remediation**: Strictly enforce `allowedDomains` whitelist from `WebChatSite` model.
 - **Admin Read-Only Audit (MEDIUM)**: Gap remains in logging "Read-only" access to sensitive PII/tenant data by Superadmins. **Remediation**: Implement Task 021.
+- **Over-privileged Admin Access**: Admin users have broad access to tenant data for support purposes, which presents a trust-boundary risk.
 
-## 6. Remediation Roadmap
+## 6. Remediation & Enhancement Roadmap
 - **COMPLETED**: Scoped mutation hardening for all channel routes.
 - **COMPLETED**: Admin Test Runner security refactor (`execFile`).
 - **COMPLETED**: Multi-tenant isolation enforcement for `WebhookLog`.
 - **HIGH**: Implement Granular Admin Audit Logging (Task 021).
 - **MEDIUM**: Enforce CORS `allowedDomains` for Webchat.
 - **LOW**: Implement LLM Guardrails for AI fallback.
+- **PROPOSED**: "Impersonation Mode" for secure support troubleshooting (Audit-logged).
+- **PROPOSED**: System alerts for failed BullMQ jobs via Slack/Discord.
