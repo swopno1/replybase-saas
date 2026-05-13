@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { execFile } from "child_process";
 import { isPlatformAdmin } from "@/lib/admin";
 import { recordActivity } from "@/lib/activity-log";
+import { getAiModel, type AiProvider, type AiTask } from "@/lib/ai-service";
+import { generateText } from "ai";
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -51,16 +53,61 @@ export async function POST(req: Request) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  const { type, name } = await req.json();
+  const { type, name, provider, task, prompt } = await req.json();
 
+  // --- AI DIAGNOSTIC TEST ---
+  if (type === "ai") {
+    try {
+      const start = Date.now();
+      const model = getAiModel({
+        provider: (provider as AiProvider) || "default",
+        task: (task as AiTask) || "chat",
+      });
+
+      const result = await generateText({
+        model,
+        prompt: prompt || "Say 'AI Connectivity Verified'",
+        max_tokens: 50,
+      } as any);
+
+      const duration = Date.now() - start;
+
+      const record = await prisma.testHistory.create({
+        data: {
+          type: "ai_diagnostic",
+          name: name || `AI Diagnostic (${provider || "default"})`,
+          status: "passed",
+          duration: duration,
+          output: JSON.stringify({
+            provider,
+            task,
+            text: result.text,
+            usage: result.usage,
+          }),
+        },
+      });
+
+      return NextResponse.json(record);
+    } catch (e: any) {
+      const record = await prisma.testHistory.create({
+        data: {
+          type: "ai_diagnostic",
+          name: name || "AI Diagnostic Failed",
+          status: "failed",
+          duration: 0,
+          output: JSON.stringify({ error: e.message }),
+        },
+      });
+      return NextResponse.json(record, { status: 500 });
+    }
+  }
+
+  // --- SMOKE TEST ---
   if (type === "smoke") {
     const start = Date.now();
     try {
       // 1. DB Check
       await prisma.$queryRaw`SELECT 1`;
-
-      // 2. Stripe Connectivity Check (Simplified)
-      // In real scenario, we'd check if Stripe secret is valid
 
       const result = await prisma.testHistory.create({
         data: {
@@ -73,7 +120,6 @@ export async function POST(req: Request) {
       });
       return NextResponse.json(result);
     } catch (e) {
-      // Alerting: Log failure to ActivityLog
       await recordActivity({
         tenantId: session.user.tenantId,
         userId: session.user.id,
@@ -87,6 +133,7 @@ export async function POST(req: Request) {
     }
   }
 
+  // --- LOAD TEST ---
   const allowProductionLoad = process.env.ALLOW_PRODUCTION_LOAD_TESTS === "true";
   const isProduction = process.env.NODE_ENV === "production";
 

@@ -78,6 +78,28 @@ export default function AdminTestsPage() {
     );
   };
 
+  const runAiDiagnostic = async () => {
+    toast.promise(
+      fetch("/api/admin/tests", {
+        method: "POST",
+        body: JSON.stringify({ 
+          type: "ai", 
+          provider: "digitalocean", 
+          task: "chat",
+          name: "AI Connectivity Diagnostic" 
+        }),
+      }),
+      {
+        loading: "Testing AI connectivity (DigitalOcean)...",
+        success: (res) => {
+          fetchResults();
+          return "AI connectivity verified";
+        },
+        error: "AI diagnostic failed",
+      }
+    );
+  };
+
   const exportCSV = () => {
     window.open("/api/admin/tests?format=csv", "_blank");
   };
@@ -98,9 +120,12 @@ export default function AdminTestsPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">System Testing & Performance</h1>
-          <p className="text-muted-foreground">Monitor system health and load test metrics.</p>
+          <p className="text-muted-foreground">Monitor system health, AI connectivity, and load test metrics.</p>
         </div>
         <div className="flex gap-2">
+          <Button onClick={runAiDiagnostic} variant="outline" className="flex gap-2">
+            <Activity className="h-4 w-4" /> AI Diagnostic
+          </Button>
           <Button onClick={runSmokeTest} className="flex gap-2">
             <Activity className="h-4 w-4" /> Run Health Checks
           </Button>
