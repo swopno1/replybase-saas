@@ -20,6 +20,15 @@ export const APP_CONFIG = {
     strictDevLogin: process.env.STRICT_DEV_LOGIN === "true",
   },
 
+  // --- Infrastructure ---
+  infra: {
+    redisUrl: process.env.REDIS_URL || "redis://localhost:6379",
+    upstash: {
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    }
+  },
+
   // --- Administration ---
   admin: {
     emails: (process.env.ADMIN_EMAILS || "replybase1@gmail.com").split(",").map(e => e.trim().toLowerCase()).filter(Boolean),

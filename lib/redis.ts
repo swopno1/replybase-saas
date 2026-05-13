@@ -1,10 +1,10 @@
 import Redis from "ioredis";
-import { env } from "./env";
+import { APP_CONFIG } from "./config";
 
-const isBuild = process.env.NEXT_PHASE === "phase-production-build";
+const isBuild = APP_CONFIG.meta.isBuild;
 
 const getRedisUrl = () => {
-  return process.env.REDIS_URL || "redis://localhost:6379";
+  return APP_CONFIG.infra.redisUrl;
 };
 
 // During build, we use a mock to avoid connection errors

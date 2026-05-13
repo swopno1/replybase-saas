@@ -1,10 +1,11 @@
 import { Queue, Worker, Job } from "bullmq";
 import { redis } from "./redis";
 import logger from "./logger";
+import { APP_CONFIG } from "./config";
 
 const QUEUE_NAME = "message-processing";
 
-const isBuild = process.env.NEXT_PHASE === "phase-production-build";
+const isBuild = APP_CONFIG.meta.isBuild;
 
 const getQueueConnection = () => {
   if (isBuild || !redis) return undefined;
