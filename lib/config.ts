@@ -38,11 +38,11 @@ export const APP_CONFIG = {
   // --- AI Orchestration (Standardized Multi-Provider) ---
   ai: {
     providers: {
-      chat: process.env.DEFAULT_CHAT_PROVIDER || "gemini",
-      onboarding: process.env.DEFAULT_ONBOARDING_PROVIDER || "gemini",
-      analysis: process.env.DEFAULT_ANALYSIS_PROVIDER || "gemini",
-      summary: process.env.DEFAULT_SUMMARY_PROVIDER || "gemini",
-      default: process.env.DEFAULT_AI_PROVIDER || "gemini",
+      chat: process.env.DEFAULT_CHAT_PROVIDER || "digitalocean",
+      onboarding: process.env.DEFAULT_ONBOARDING_PROVIDER || "digitalocean",
+      analysis: process.env.DEFAULT_ANALYSIS_PROVIDER || "digitalocean",
+      summary: process.env.DEFAULT_SUMMARY_PROVIDER || "digitalocean",
+      default: process.env.DEFAULT_AI_PROVIDER || "digitalocean",
     },
     models: {
       openai: {
