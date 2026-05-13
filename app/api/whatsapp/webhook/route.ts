@@ -9,7 +9,7 @@ import {
   verifyTwilioSignature,
   verifyWebhookSignature,
 } from "@/lib/whatsapp-provider";
-import { messageQueue } from "@/lib/queue";
+import { messageQueue, MessageJobData } from "@/lib/queue";
 import logger from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -186,8 +186,9 @@ async function ensureContactAndConversation(params: {
     "whatsapp-message",
     {
       type: "whatsapp",
-      ...params,
-    },
+      botId: params.channel.botId,
+      payload: params,
+    } as MessageJobData,
     { jobId: `whatsapp:${params.messageId}` },
   );
 
@@ -326,7 +327,7 @@ async function processMetaPayload(params: {
           messageId: message.id,
           timestamp: message.timestamp,
         }).catch((err) => {
-          logger.error({ error: err }, "[WhatsApp Webhook] Async processing error");
+          logger.error(err, "[WhatsApp Webhook] Async processing error");
         });
       }
     }
@@ -407,7 +408,7 @@ async function processTwilioPayload(
     messageId: messageSid,
   }).catch((err) => {
     logger.error(
-      { error: err },
+      err,
       "[WhatsApp Webhook] Async Twilio processing error",
     );
   });
@@ -465,7 +466,7 @@ export async function POST(req: NextRequest) {
       signature: req.headers.get("x-hub-signature-256"),
     });
   } catch (error) {
-    logger.error({ error }, "[WhatsApp Webhook] Error");
+    logger.error(error, "[WhatsApp Webhook] Error");
     return NextResponse.json({ received: false }, { status: 500 });
   }
 }
