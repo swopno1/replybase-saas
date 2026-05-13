@@ -87,29 +87,30 @@ export async function aiFallback({
   }
 
   // --- MODULE 2, LAYER 3: GENERATIVE FALLBACK AI (Cost: High) ---
-  const systemPrompt = buildFallbackSystemPrompt(bot.context as any, bot.name || undefined);
-  
+  const systemPrompt = buildFallbackSystemPrompt(
+    bot.context as any,
+    bot.name || undefined,
+  );
+
   // MODULE 3.2: INTENT-WEIGHTED SALES PRESSURE
   let salesNudge = "";
   if (intentData.intent === "pricing" || intentData.intent === "demo") {
-    salesNudge = "\n\n(Nudge: Gently encourage them to start a 14-day free trial or book a demo.)";
+    salesNudge =
+      "\n\n(Nudge: Gently encourage them to start a 14-day free trial or book a demo.)";
   }
-
-  let promptMessages: ModelMessage[] = [
-    { role: "system", content: systemPrompt + salesNudge },
-    ...messages,
-  ] as ModelMessage[];
 
   // Cross-channel context: ALL plans get history so context is never lost.
   // Pro/Business gets a deeper window (12 msgs), Free/Starter gets 6.
   const plan = planName.toLowerCase();
-  const historyDepth = (plan.includes("pro") || plan.includes("business")) ? 12 : 6;
+  const historyDepth =
+    plan.includes("pro") || plan.includes("business") ? 12 : 6;
 
   const currentConv = await prisma.crmConversation.findUnique({
     where: { id: conversationId },
-    select: { contactId: true }
+    select: { contactId: true },
   });
 
+  let historyBlock = "";
   if (currentConv?.contactId) {
     const allMessages = await prisma.crmMessage.findMany({
       where: {
@@ -121,22 +122,26 @@ export async function aiFallback({
       take: historyDepth,
       include: {
         conversation: {
-          select: { channel: true }
-        }
+          select: { channel: true },
+        },
       },
     });
 
     if (allMessages.length > 0) {
-      const historyBlock = `Recent Cross-Channel History:\n${allMessages
+      historyBlock = `\n\nRecent Cross-Channel History:\n${allMessages
         .reverse()
-        .map((m) => `[${m.conversation.channel.toUpperCase()}] [${m.source}] ${m.content}`)
+        .map(
+          (m) =>
+            `[${m.conversation.channel.toUpperCase()}] [${m.source}] ${m.content}`,
+        )
         .join("\n")}`;
-      promptMessages[0].content += `\n\n${historyBlock}`;
     }
   }
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+  const finalSystemPrompt = systemPrompt + salesNudge + historyBlock;
 
   try {
     // LAYER 3: Primary Generative Attempt
@@ -147,7 +152,8 @@ export async function aiFallback({
 
     const aiStream = await streamText({
       model: primaryModel,
-      messages: promptMessages,
+      system: finalSystemPrompt,
+      messages: messages,
       output: Output.text(),
       abortSignal: controller.signal,
       onFinish: async () => {
@@ -158,8 +164,11 @@ export async function aiFallback({
     });
     return aiStream;
   } catch (primaryError) {
-    console.error("[AI Fallback] Primary model failed, attempting secondary fallback:", primaryError);
-    
+    console.error(
+      "[AI Fallback] Primary model failed, attempting secondary fallback:",
+      primaryError,
+    );
+
     try {
       // LAYER 4: Secondary Generative Attempt (Emergency Fallback)
       const secondaryModel = await getTenantModel(bot.tenantId, {
@@ -170,7 +179,8 @@ export async function aiFallback({
 
       const secondaryStream = await streamText({
         model: secondaryModel,
-        messages: promptMessages,
+        system: finalSystemPrompt,
+        messages: messages,
         output: Output.text(),
         abortSignal: controller.signal,
         onFinish: async () => {
