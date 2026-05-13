@@ -21,7 +21,7 @@
   - Impact: Critical for production data safety and disaster recovery.
 
 ## 3. Product & Feature Expansion
-- [ ] **Task 005**: Implement Outbound Lead Push (Webhook Action) in Flow Engine.
+- [x] **Task 005**: Implement Outbound Lead Push (Webhook Action) in Flow Engine.
   - Priority: HIGH
   - Category: Features
   - Impact: Enables real-time lead sync with CRMs, significantly increasing product "stickiness".
@@ -109,9 +109,9 @@
   - Dependencies: None.
   - Suggested Rollout Risk: LOW.
 
-- [ ] **Task 014**
+- [x] **Task 014**
   - Priority: HIGH
-  - Status: PENDING
+  - Status: COMPLETED
   - Category: Bug
   - Issue: Account Deletion Regression.
   - Root Cause: `TypeError: Cannot read properties of undefined (reading 'updateMany')` in unit tests.
