@@ -1,53 +1,55 @@
-# DigitalOcean AI Migration & Future-Proofing Guide
+# DigitalOcean AI Migration Guide (Production)
 
-This guide outlines the process for migrating to **DigitalOcean AI Inference** and configuring the platform with our **Primary** target models for maximum performance and efficiency.
+This guide outlines the finalized steps to migrate ReplyBase AI workloads to DigitalOcean AI Inference while maintaining a lean, centralized configuration system.
 
----
+## 1. Infrastructure Requirements
+- **DigitalOcean Token**: Ensure you have a functional DO Token with `read/write` access.
+- **Gradient Project ID**: Required if using specialized models outside the standard inference API.
+- **Intra-Datacenter Routing**: For sub-500ms TTFT, ensure the app is deployed in the same region as the DO Inference endpoint.
 
-## 1. Enrollment & Connectivity
-1.  **Generate Keys**: Create a Model Access Key in the DigitalOcean AI Console.
-2.  **Base URL**: `https://inference.do-ai.run/v1` (OpenAI Compatible).
+## 2. Environment Configuration
+The application now uses a centralized configuration system (`lib/config.ts`). Only secrets and regional overrides should be placed in your `.env` file.
 
----
+### Mandatory Secret
+```bash
+# Required to authenticate with DigitalOcean AI Inference API
+DIGITALOCEAN_AI_KEY=your_do_token_here
+```
 
-## 2. Environment Configuration (Primary Task Routing)
-Update your Coolify environment variables to establish the primary orchestration logic.
+### Optional Overrides
+The following are managed in `lib/config.ts` but can be overridden if necessary:
+```bash
+# Base URL for the Inference API
+DIGITALOCEAN_AI_BASE_URL=https://inference.do-ai.run/v1
 
-| Task Variable | Recommended Primary Model | Provider |
-| :--- | :--- | :--- |
-| `DEFAULT_CHAT_PROVIDER` | **GPT-oss-120b** | `openai` |
-| `DEFAULT_ONBOARDING_PROVIDER` | **Claude Sonnet 4.6** | `anthropic` |
-| `DEFAULT_ANALYSIS_PROVIDER` | **Qwen 3.5 397B** | `openai` (or Qwen API) |
-| `DEFAULT_SUMMARY_PROVIDER` | **GPT-5 Nano** | `openai` |
+# Override the Primary models if a newer version is released
+AI_MODEL_DO_MAIN=meta-llama-3.1-8b-instruct
+AI_MODEL_DO_PREMIUM=meta-llama-3.1-70b-instruct
+```
 
----
+## 3. Deployment Strategy
 
-## 3. Specific Model ID Configuration
-Ensure the following Model ID overrides are set in your environment to point to the primary catalog selections:
+### Step A: Configuration Lock-in
+Verify that `lib/config.ts` has the correct **Primary Target Models** for DigitalOcean:
+- **Chat**: `meta-llama-3.1-8b-instruct` (Managed by `AI_MODEL_DO_MAIN`)
+- **Reasoning/Onboarding**: `meta-llama-3.1-70b-instruct` (Managed by `AI_MODEL_DO_PREMIUM`)
 
-| Env Variable | Value |
-| :--- | :--- |
-| `AI_MODEL_OPENAI_MAIN` | `gpt-oss-120b` |
-| `AI_MODEL_OPENAI_UTILITY` | `gpt-5-nano` |
-| `AI_MODEL_ANTHROPIC_MAIN` | `claude-sonnet-4.6` |
-| `AI_MODEL_DO_MAIN` | `llama-3.1-8b-instruct` (Internal Fallback) |
+### Step B: Clean Environment
+Ensure your production `.env` is free of legacy variables. The migration to `lib/config.ts` means you no longer need `DEFAULT_CHAT_PROVIDER` or `DEFAULT_AI_PROVIDER` in your environment unless you are deviating from the system default.
 
----
+### Step C: Coolify / Docker Deployment
+When deploying via Coolify or Docker:
+1. Provide the `DIGITALOCEAN_AI_KEY`.
+2. Set `NODE_ENV=production`.
+3. Set `NEXTAUTH_URL` and `NEXT_PUBLIC_APP_URL` to the production domain.
 
-## 4. Operational Modes
-The platform supports specialized modes by overriding the primary providers:
+## 4. Performance Monitoring
+- **TTFT Target**: < 500ms for Chat tasks.
+- **TPOT Target**: > 50 tokens/sec for Summary tasks.
+- Monitor these metrics via the Admin Dashboard.
 
-### "Max Margin" Mode (Utility Focus)
-*   **Purpose**: Near-zero cost for background tasks.
-*   **Setting**: `DEFAULT_SUMMARY_PROVIDER=openai` + `AI_MODEL_OPENAI_UTILITY=gpt-5-nano`.
-
-### "Elite Reasoning" Mode (Onboarding Focus)
-*   **Purpose**: Flawless bot flow generation.
-*   **Setting**: `DEFAULT_ONBOARDING_PROVIDER=anthropic` + `AI_MODEL_ANTHROPIC_MAIN=claude-sonnet-4.6`.
-
----
-
-## 5. Verification & Health Checks
-- [ ] **Connectivity**: Run `npx tsx scripts/test-chatbot.js --provider=openai` to verify GPT-oss-120b connectivity.
-- [ ] **Latency**: Ensure Chat TTFT (Time To First Token) is **<500ms** in the Admin Simulation Lab.
-- [ ] **Fallback**: Temporarily disable the OpenAI key to verify the system cascades to **DigitalOcean (Llama 3.1)** automatically.
+## 5. Verification
+After deployment, use the **Admin AI Test Runner** to verify:
+1. Connectivity to the `digitalocean` provider.
+2. Latency metrics for the `meta-llama-3.1-8b-instruct` model.
+3. Successful fallback to `gemini` if the DO API is unreachable.

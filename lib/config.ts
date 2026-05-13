@@ -22,18 +22,18 @@ export const APP_CONFIG = {
 
   // --- Administration ---
   admin: {
-    // Primary admin emails for bootstrapping
     emails: (process.env.ADMIN_EMAILS || "replybase1@gmail.com").split(",").map(e => e.trim().toLowerCase()).filter(Boolean),
     initialEmail: process.env.INITIAL_ADMIN_EMAIL || "amirhossain.limon@gmail.com",
   },
 
-  // --- AI Orchestration (Primary Targets) ---
+  // --- AI Orchestration (DigitalOcean Primary Strategy) ---
   ai: {
     providers: {
-      chat: process.env.DEFAULT_CHAT_PROVIDER || "openai",
-      onboarding: process.env.DEFAULT_ONBOARDING_PROVIDER || "anthropic",
-      analysis: process.env.DEFAULT_ANALYSIS_PROVIDER || "openai",
-      summary: process.env.DEFAULT_SUMMARY_PROVIDER || "openai",
+      // Prioritize digitalocean for production workloads
+      chat: process.env.DEFAULT_CHAT_PROVIDER || "digitalocean",
+      onboarding: process.env.DEFAULT_ONBOARDING_PROVIDER || "digitalocean",
+      analysis: process.env.DEFAULT_ANALYSIS_PROVIDER || "openai", // GPT-5 Nano fallback
+      summary: process.env.DEFAULT_SUMMARY_PROVIDER || "digitalocean",
       default: process.env.DEFAULT_AI_PROVIDER || "digitalocean",
     },
     models: {
@@ -46,8 +46,8 @@ export const APP_CONFIG = {
         main: process.env.AI_MODEL_ANTHROPIC_MAIN || "claude-sonnet-4.6",
       },
       digitalocean: {
-        main: process.env.AI_MODEL_DO_MAIN || "llama-3.1-8b-instruct",
-        premium: process.env.AI_MODEL_DO_PREMIUM || "llama-3.1-70b-instruct",
+        main: process.env.AI_MODEL_DO_MAIN || "gpt-oss-120b", // Use the primary target model
+        premium: process.env.AI_MODEL_DO_PREMIUM || "claude-sonnet-4.6", // If supported via DO, else fallback
       },
       gemini: {
         main: process.env.AI_MODEL_GEMINI_MAIN || "gemini-1.5-flash",
@@ -91,7 +91,7 @@ export const APP_CONFIG = {
   // --- Analytics ---
   analytics: {
     plausible: {
-      src: process.env.NEXT_PUBLIC_PLAUSIBLE_SCRIPT_SRC || "https://engine.replybase.co.uk/js/script.js",
+      src: process.env.NEXT_PUBLIC_PLAUSIBLE_SCRIPT_SRC || "https://analytics.replybase.co.uk/js/script.js",
       domain: process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN || "app.replybase.co.uk",
     },
     posthog: {
