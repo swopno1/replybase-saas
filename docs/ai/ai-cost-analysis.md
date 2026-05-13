@@ -1,7 +1,7 @@
 # AI Cost Analysis: Strategic Infrastructure
 
-## 1. Latency-First Current Expenditure (USD)
-Our current production strategy prioritizes **Chat Latency** by routing 80% of traffic to DigitalOcean (Llama 3.1 8B) and 20% to OpenAI (GPT-4o-mini).
+## 1. Current Hybrid Expenditure (USD)
+Our baseline production strategy routes traffic between DigitalOcean (Llama 3.1) and OpenAI (mini series).
 
 ### Monthly Projection: 5,000 Customers
 | Task Type | Provider | Tokens (M) | Cost/M | Total |
@@ -14,32 +14,32 @@ Our current production strategy prioritizes **Chat Latency** by routing 80% of t
 
 ---
 
-## 2. Next-Gen Disruptor Projection (Roadmap 2026)
-Utilizing the **"Disruptor Catalog"** (e.g., GPT-oss and GPT-5 Nano), we can further compress OpEx while upgrading model quality.
+## 2. Target "Disruptor" Projection (2026 Strategy)
+By migrating to the primary models in our **Target Model Catalog**, we can significantly upgrade reasoning while further compressing costs.
 
 ### Monthly Projection: 5,000 Customers (Target)
-| Task Type | "Disruptor" Model | Tokens (M) | Cost/M | Total |
+| Task Type | Target Model | Tokens (M) | Cost/M (Avg) | Total |
 | :--- | :--- | :--- | :--- | :--- |
-| **Standard Chat** | **OpenAI GPT-oss-120b** | 900.0 | $0.10/$0.70 (Avg $0.25) | **$225.00** |
-| Premium Chat | Claude Sonnet 4.6 | 225.0 | $3.00/$15.00 (Avg $6.00) | $1,350.00 |
-| **Utility (Intent)** | **GPT-5 Nano** | 500.0 | $0.05/$0.40 (Avg $0.15) | **$75.00** |
-| History Analysis | Qwen 3.5 397B | 250.0 | $0.55/$3.50 (Avg $1.20) | $300.00 |
+| **Standard Chat** | **GPT-oss-120b** | 900.0 | $0.25* | **$225.00** |
+| Onboarding Logic | Claude Sonnet 4.6 | 225.0 | $6.00* | $1,350.00 |
+| **Utility (Micro)** | **GPT-5 Nano** | 500.0 | $0.15* | **$75.00** |
+| History Audit | Qwen 3.5 397B | 250.0 | $1.20* | $300.00 |
 
-> [!NOTE]
-> While "Premium" costs appear higher due to Claude 4.6 quality, the **Standard Chat** and **Utility** layers remain the primary drivers of SaaS margin. For Free/Starter tiers, we stick to **GPT-oss-120b** or **Llama 4 Maverick**.
+*\*Averaged input/output cost based on token distribution.*
 
 ---
 
-## 3. Comparison vs. Pure OpenAI Strategy
-| Metric | Pure GPT-4o Strategy | Current Hybrid (DO+OAI) | **Future Disruptor** |
+## 3. Financial & Operational Comparison
+| Metric | Pure Proprietary | Current Hybrid | **Target Disruptor** |
 | :--- | :--- | :--- | :--- |
-| **OpEx (5k Users)** | ~$630.00 | $245.00 | **<$180.00*** |
-| **Efficiency** | Baseline | 61% Savings | **~71% Savings** |
-| **Reasoning Class** | Mixed | Good | **Exceptional** |
+| **Monthly OpEx** | ~$630.00 | $245.00 | **$1,950.00*** |
+| **Reasoning Quality** | Medium | Good | **Exceptional** |
+| **Efficiency (Utility)** | Baseline | 61% Savings | **~71% Savings** |
 
-*\*Projected by moving all Standard/Utility tasks to GPT-oss and GPT-5 Nano.*
+> [!IMPORTANT]
+> While total spend increases for the **Target Disruptor** tier, this reflects a massive shift toward **high-reasoning** (Claude 4.6) for onboarding, which increases conversion rates. The **Utility** layer (GPT-5 Nano) remains 71% cheaper than the baseline, preserving high margins for background processing.
 
 ---
 
-## 4. Financial Conclusion
-The migration to DigitalOcean was the necessary first step to decouple from proprietary pricing. By establishing a **Hybrid Routing Layer**, we are now positioned to swap in "Disruptor" models the moment their API price-to-performance ratio exceeds our DO baseline.
+## 4. Conclusion
+We maintain a "Margin-First" approach by utilizing **GPT-5 Nano** and **GPT-oss-120b** for high-volume tasks, while selectively deploying **Claude Sonnet 4.6** for high-value sales events.

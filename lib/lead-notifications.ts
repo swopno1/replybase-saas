@@ -213,7 +213,6 @@ async function sendEmailLeadNotification(
     subject,
     text,
     html,
-    from: process.env.LEAD_NOTIFICATION_EMAIL_FROM || "ReplyBase <noreply@replybase.co.uk>",
   });
 
   if (!result.ok) {

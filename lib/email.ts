@@ -1,3 +1,5 @@
+import { APP_CONFIG } from "./config";
+
 /**
  * Shared email utility using Resend API.
  */
@@ -12,9 +14,7 @@ type SendEmailParams = {
 
 export async function sendEmail({ to, subject, text, html, from }: SendEmailParams) {
   const resendApiKey = process.env.RESEND_API_KEY;
-  const defaultFrom = process.env.TRIAL_REMINDER_EMAIL_FROM || 
-                      process.env.LEAD_NOTIFICATION_EMAIL_FROM || 
-                      "ReplyBase <noreply@replybase.co.uk>";
+  const defaultFrom = APP_CONFIG.email.from;
 
   if (!resendApiKey) {
     console.warn("RESEND_API_KEY is not set. Email not sent:", { to, subject });
@@ -54,7 +54,7 @@ export async function sendEmail({ to, subject, text, html, from }: SendEmailPara
  * Specifically for password resets.
  */
 export async function sendResetEmail(email: string, token: string) {
-  const resetUrl = `${process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/auth/reset-password?token=${token}`;
+  const resetUrl = `${APP_CONFIG.meta.baseUrl}/auth/reset-password?token=${token}`;
   
   const subject = "Reset your ReplyBase password";
   const text = `

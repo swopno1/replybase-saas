@@ -10,6 +10,7 @@ import { getTenantSubscriptionStatus } from "@/lib/subscription";
 import { exchangeLongLivedToken } from "@/lib/server/facebook-utils";
 import { isChannelEnabled } from "@/lib/channel-config";
 import { generateAppSecretProof } from "@/lib/server/facebook-utils";
+import { APP_CONFIG } from "@/lib/config";
 
 type FacebookProfile = {
   id: string;
@@ -21,10 +22,9 @@ export const authOptions: NextAuthOptions = {
   adapter: {
     ...PrismaAdapter(prisma),
     createUser: async (data: Omit<AdapterUser, "id">) => {
-      const adminEmails = (process.env.ADMIN_EMAILS || "").split(",").map(e => e.trim().toLowerCase());
       const isInitialAdmin = data.email && (
-        data.email.toLowerCase() === process.env.INITIAL_ADMIN_EMAIL?.toLowerCase() ||
-        adminEmails.includes(data.email.toLowerCase())
+        data.email.toLowerCase() === APP_CONFIG.admin.initialEmail.toLowerCase() ||
+        APP_CONFIG.admin.emails.includes(data.email.toLowerCase())
       );
 
       // Create tenant first
@@ -38,7 +38,6 @@ export const authOptions: NextAuthOptions = {
         data: {
           ...data,
           tenantId: tenant.id,
-          // Bootstrap a platform admin based on environment configuration.
           isAdmin: Boolean(isInitialAdmin),
           role: isInitialAdmin ? "SUPERADMIN" : "USER",
         },
@@ -59,10 +58,6 @@ export const authOptions: NextAuthOptions = {
                   "public_profile,pages_show_list,pages_manage_metadata,pages_messaging,business_management",
               },
             },
-            // Business app flow must not request `email` and must use a
-            // custom request fn so the token is passed as Authorization: Bearer
-            // (not via the OIDC client). appsecret_proof is required when
-            // "Require App Secret" is enabled in Meta app settings.
             userinfo: {
               async request({ tokens }: { tokens: { access_token?: string } }) {
                 const appSecret = process.env.FACEBOOK_CLIENT_SECRET as string;
@@ -157,44 +152,20 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
   },
   callbacks: {
-    async signIn({ user, account }) {
-      // Strict dev-only login rule to prevent unauthorized access to dev versions
-      // This is controlled by environment variables to ensure it doesn't affect main/prod
-      if (process.env.STRICT_DEV_LOGIN === "true") {
+    async signIn({ user }) {
+      if (APP_CONFIG.meta.strictDevLogin) {
         const allowedEmails = ["replybase1@gmail.com", "amirhossain.limon@gmail.com"];
         const userEmail = user?.email?.toLowerCase().trim();
         
         if (!userEmail || !allowedEmails.includes(userEmail)) {
           console.warn(`[STRICT LOGIN] Blocked login attempt from: ${userEmail}`);
-          return false; // Deny login
+          return false;
         }
       }
-
-      // HOTFIX: NextAuth Prisma adapter does not update the access_token of an existing account 
-      // when a user re-authenticates. We must manually update it to prevent stale token errors (Subcode 460).
-      if (account && account.provider === "facebook" && user?.id && account.access_token) {
-        try {
-          // PRODUCTION GRADE: Exchange short-lived token for a long-lived one (60 days)
-          const longLivedToken = await exchangeLongLivedToken(account.access_token);
-          const tokenToSave = longLivedToken || account.access_token;
-
-          await prisma.account.updateMany({
-            where: { userId: user.id, provider: "facebook" },
-            data: {
-              access_token: tokenToSave,
-              providerAccountId: account.providerAccountId,
-            },
-          });
-        } catch (error) {
-          console.error("[NextAuth] Failed to update Facebook token:", error);
-        }
-      }
-
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
-        // Fetch user with tenant to get tenantId
         const dbUser = await prisma.user.findUnique({
           where: { id: user.id },
           select: { tenantId: true, isAdmin: true, role: true },
@@ -206,31 +177,25 @@ export const authOptions: NextAuthOptions = {
         token.role = dbUser?.role || "USER";
         token.lastSubscriptionCheck = Date.now();
 
-        // --- IMPERSONATION LOGIC ---
-        // If the user is an admin, check for impersonation cookie
         if (token.isAdmin || token.role === "SUPERADMIN") {
           try {
             const { cookies } = await import("next/headers");
             const cookieStore = await cookies();
             const impersonatedId = cookieStore.get("replybase_impersonation_target")?.value;
             if (impersonatedId) {
-              token.originalTenantId = token.tenantId; // Store original for switching back
+              token.originalTenantId = token.tenantId;
               token.tenantId = impersonatedId;
               token.isImpersonating = true;
             }
-          } catch (e) {
-            // Silently fail if cookies() is not available in this context
-          }
+          } catch (e) {}
         }
 
-        // Fetch subscription status separately to avoid complex nested includes typing issues
         if (token.tenantId) {
           token.subscriptionStatus = await getTenantSubscriptionStatus(token.tenantId as string);
         } else {
           token.subscriptionStatus = "inactive";
         }
       } else {
-        // Refresh subscription status if token is more than 15 minutes old
         const now = Date.now();
         const lastCheck = (token.lastSubscriptionCheck as number) || 0;
         const FIFTEEN_MINUTES = 15 * 60 * 1000;
@@ -240,6 +205,21 @@ export const authOptions: NextAuthOptions = {
           token.lastSubscriptionCheck = now;
         }
       }
+
+      // Handle Facebook token updates
+      if (account && account.provider === "facebook" && token.id && account.access_token) {
+        try {
+          const longLivedToken = await exchangeLongLivedToken(account.access_token);
+          const tokenToSave = longLivedToken || account.access_token;
+          await prisma.account.updateMany({
+            where: { userId: token.id as string, provider: "facebook" },
+            data: { access_token: tokenToSave },
+          });
+        } catch (error) {
+          console.error("[NextAuth] Failed to update Facebook token:", error);
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {
@@ -248,7 +228,7 @@ export const authOptions: NextAuthOptions = {
         session.user.tenantId = token.tenantId as string;
         session.user.subscriptionStatus = token.subscriptionStatus as string;
         session.user.isAdmin = token.isAdmin as boolean;
-        session.user.role = token.role as any; // Cast to any to satisfy next-auth's loose session typing, or use import if needed
+        session.user.role = token.role as any;
         session.user.isImpersonating = token.isImpersonating as boolean;
         session.user.originalTenantId = token.originalTenantId as string;
       }

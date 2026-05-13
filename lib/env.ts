@@ -7,7 +7,7 @@ const envSchema = z.object({
 
   // AUTH
   AUTH_SECRET: z.string().min(32),
-  CHANNEL_CREDENTIALS_ENCRYPTION_KEY: z.string().min(32),
+  CHANNEL_CREDENTIALS_ENCRYPTION_KEY: z.string().min(32).optional(),
   NEXTAUTH_URL: z.string().url(),
 
   // OAUTH
@@ -41,8 +41,8 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
   GOOGLE_GENERATIVE_AI_API_KEY: z.string().optional(),
-  DIGITALOCEAN_TOKEN: z.string().optional(),
-  DEFAULT_AI_PROVIDER: z.enum(["gemini", "openai", "anthropic", "digitalocean"]).optional().default("gemini"),
+  DIGITALOCEAN_AI_KEY: z.string().optional(),
+  DIGITALOCEAN_TOKEN: z.string().optional(), // Legacy support
 
   // TELEGRAM
   TELEGRAM_TOKEN_ENCRYPTION_KEY: z.string().optional(),
@@ -52,8 +52,8 @@ const envSchema = z.object({
   UPSTASH_REDIS_REST_TOKEN: z.preprocess((val) => (val === "" ? undefined : val), z.string().optional()),
 
   // SECRETS & ADMIN
-  API_SECRET_KEY: z.string().min(16),
-  CRON_SECRET: z.string().min(16),
+  API_SECRET_KEY: z.string().min(16).optional(),
+  CRON_SECRET: z.string().min(16).optional(),
 });
 
 // Validate env vars

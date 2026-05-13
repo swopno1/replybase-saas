@@ -1,12 +1,7 @@
 import { prisma } from "@/lib/prisma";
+import { APP_CONFIG } from "./config";
 
 export type WebchatRolloutMode = "off" | "pilot" | "tiered" | "ga";
-
-const ROLLOUT_MODE_ENV = "WEBCHAT_ROLLOUT_MODE";
-const ENABLED_TENANTS_ENV = "WEBCHAT_ENABLED_TENANT_IDS";
-const DISABLED_TENANTS_ENV = "WEBCHAT_DISABLED_TENANT_IDS";
-const PILOT_TENANTS_ENV = "WEBCHAT_PILOT_TENANT_IDS";
-const ALLOWED_PLANS_ENV = "WEBCHAT_ALLOWED_PLAN_NAMES";
 
 export type WebchatRolloutDecision = {
   allowed: boolean;
@@ -35,43 +30,20 @@ export type WebchatRolloutConfig = {
   allowedPlanNames: string[];
 };
 
-function parseCsvEnv(value: string | undefined): Set<string> {
-  if (!value) {
-    return new Set();
-  }
+// --- ENV KEYS ---
+const ROLLOUT_MODE_ENV = "WEBCHAT_ROLLOUT_MODE";
+const ENABLED_TENANTS_ENV = "WEBCHAT_ENABLED_TENANT_IDS";
+const DISABLED_TENANTS_ENV = "WEBCHAT_DISABLED_TENANT_IDS";
+const PILOT_TENANTS_ENV = "WEBCHAT_PILOT_TENANT_IDS";
+const ALLOWED_PLANS_ENV = "WEBCHAT_ALLOWED_PLAN_NAMES";
 
-  return new Set(
-    value
-      .split(",")
-      .map((entry) => entry.trim())
-      .filter(Boolean),
-  );
+function parseCsv(value: string | undefined): string[] {
+  if (!value) return [];
+  return value.split(",").map((v) => v.trim()).filter(Boolean);
 }
 
 function normalizePlanName(name: string | null | undefined): string {
   return (name || "").trim().toLowerCase();
-}
-
-function parseRolloutMode(): WebchatRolloutMode {
-  const mode = (process.env[ROLLOUT_MODE_ENV] || "off").toLowerCase();
-  if (mode === "pilot" || mode === "tiered" || mode === "ga") {
-    return mode;
-  }
-  return "off";
-}
-
-function toSortedList(values: Set<string>) {
-  return Array.from(values).sort((a, b) => a.localeCompare(b));
-}
-
-function applyCsvEnv(key: string, values: string[]) {
-  const normalized = values.map((entry) => entry.trim()).filter(Boolean);
-  if (normalized.length === 0) {
-    delete process.env[key];
-    return;
-  }
-
-  process.env[key] = normalized.join(",");
 }
 
 function getBooleanFeature(
@@ -86,37 +58,42 @@ function getBooleanFeature(
   return typeof value === "boolean" ? value : undefined;
 }
 
+/**
+ * Gets rollout configuration. Prioritizes runtime process.env overrides
+ * (set by Admin UI) over static APP_CONFIG defaults.
+ */
 export function getWebchatRolloutConfig(): WebchatRolloutConfig {
+  const defaults = APP_CONFIG.webchat.rollout;
+  
   return {
-    mode: parseRolloutMode(),
-    enabledTenantIds: toSortedList(
-      parseCsvEnv(process.env[ENABLED_TENANTS_ENV]),
-    ),
-    disabledTenantIds: toSortedList(
-      parseCsvEnv(process.env[DISABLED_TENANTS_ENV]),
-    ),
-    pilotTenantIds: toSortedList(parseCsvEnv(process.env[PILOT_TENANTS_ENV])),
-    allowedPlanNames: toSortedList(
-      new Set(
-        Array.from(parseCsvEnv(process.env[ALLOWED_PLANS_ENV])).map((name) =>
-          normalizePlanName(name),
-        ),
-      ),
-    ),
+    mode: (process.env[ROLLOUT_MODE_ENV] as WebchatRolloutMode) || defaults.mode,
+    enabledTenantIds: process.env[ENABLED_TENANTS_ENV] 
+      ? parseCsv(process.env[ENABLED_TENANTS_ENV]) 
+      : defaults.enabledTenants,
+    disabledTenantIds: process.env[DISABLED_TENANTS_ENV] 
+      ? parseCsv(process.env[DISABLED_TENANTS_ENV]) 
+      : defaults.disabledTenants,
+    pilotTenantIds: process.env[PILOT_TENANTS_ENV] 
+      ? parseCsv(process.env[PILOT_TENANTS_ENV]) 
+      : defaults.pilotTenants,
+    allowedPlanNames: process.env[ALLOWED_PLANS_ENV] 
+      ? parseCsv(process.env[ALLOWED_PLANS_ENV]).map(normalizePlanName) 
+      : defaults.allowedPlans,
   };
 }
 
+/**
+ * Updates the rollout configuration at runtime by setting environment variables.
+ * Note: These changes do not persist across server restarts.
+ */
 export function updateWebchatRolloutConfig(
   input: WebchatRolloutConfig,
 ): WebchatRolloutConfig {
   process.env[ROLLOUT_MODE_ENV] = input.mode;
-  applyCsvEnv(ENABLED_TENANTS_ENV, input.enabledTenantIds);
-  applyCsvEnv(DISABLED_TENANTS_ENV, input.disabledTenantIds);
-  applyCsvEnv(PILOT_TENANTS_ENV, input.pilotTenantIds);
-  applyCsvEnv(
-    ALLOWED_PLANS_ENV,
-    input.allowedPlanNames.map((name) => normalizePlanName(name)),
-  );
+  process.env[ENABLED_TENANTS_ENV] = input.enabledTenantIds.join(",");
+  process.env[DISABLED_TENANTS_ENV] = input.disabledTenantIds.join(",");
+  process.env[PILOT_TENANTS_ENV] = input.pilotTenantIds.join(",");
+  process.env[ALLOWED_PLANS_ENV] = input.allowedPlanNames.join(",");
 
   return getWebchatRolloutConfig();
 }

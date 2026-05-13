@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { env } from "./env";
+import { APP_CONFIG } from "./config";
 
 export type RateLimitResult = {
   allowed: boolean;
@@ -21,7 +22,7 @@ type ScopePolicy = {
 // Internal memory store
 const counters = new Map<string, CounterState>();
 
-const isDev = process.env.NODE_ENV === "development";
+const isDev = APP_CONFIG.meta.isDev;
 
 const defaultPolicies: Record<string, ScopePolicy> = {
   auth: { limit: isDev ? 100 : 10, windowMs: 60_000 }, // More permissive in dev

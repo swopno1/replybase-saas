@@ -1,41 +1,53 @@
 # DigitalOcean AI Migration & Future-Proofing Guide
 
-This guide outlines the process for migrating to **DigitalOcean AI Inference** and maintaining a future-proof "Disruptor" model strategy.
+This guide outlines the process for migrating to **DigitalOcean AI Inference** and configuring the platform with our **Primary** target models for maximum performance and efficiency.
 
 ---
 
 ## 1. Enrollment & Connectivity
-1.  **Generate Keys**: Create a Model Access Key in the DO AI Console.
+1.  **Generate Keys**: Create a Model Access Key in the DigitalOcean AI Console.
 2.  **Base URL**: `https://inference.do-ai.run/v1` (OpenAI Compatible).
 
 ---
 
-## 2. Environment Configuration (Task Routing)
-Update your Coolify environment variables to establish the "Hybrid Baseline."
+## 2. Environment Configuration (Primary Task Routing)
+Update your Coolify environment variables to establish the primary orchestration logic.
 
-| Task Variable | Recommended Value |
+| Task Variable | Recommended Primary Model | Provider |
+| :--- | :--- | :--- |
+| `DEFAULT_CHAT_PROVIDER` | **GPT-oss-120b** | `openai` |
+| `DEFAULT_ONBOARDING_PROVIDER` | **Claude Sonnet 4.6** | `anthropic` |
+| `DEFAULT_ANALYSIS_PROVIDER` | **Qwen 3.5 397B** | `openai` (or Qwen API) |
+| `DEFAULT_SUMMARY_PROVIDER` | **GPT-5 Nano** | `openai` |
+
+---
+
+## 3. Specific Model ID Configuration
+Ensure the following Model ID overrides are set in your environment to point to the primary catalog selections:
+
+| Env Variable | Value |
 | :--- | :--- |
-| `DEFAULT_CHAT_PROVIDER` | `digitalocean` |
-| `DEFAULT_ONBOARDING_PROVIDER` | `openai` (or `anthropic` for Sonnet 4.6) |
-| `DEFAULT_ANALYSIS_PROVIDER` | `gemini` |
-| `DEFAULT_SUMMARY_PROVIDER` | `digitalocean` (or `openai` for GPT-5 Nano) |
+| `AI_MODEL_OPENAI_MAIN` | `gpt-oss-120b` |
+| `AI_MODEL_OPENAI_UTILITY` | `gpt-5-nano` |
+| `AI_MODEL_ANTHROPIC_MAIN` | `claude-sonnet-4.6` |
+| `AI_MODEL_DO_MAIN` | `llama-3.1-8b-instruct` (Internal Fallback) |
 
 ---
 
-## 3. Swapping in Disruptor Models
-The platform is designed to swap models without code changes. Use the following overrides in Coolify:
+## 4. Operational Modes
+The platform supports specialized modes by overriding the primary providers:
 
-### To enable "Max Efficiency" Mode:
-*   `DEFAULT_SUMMARY_PROVIDER=openai`
-*   `AI_MODEL_OPENAI_MAIN=gpt-5-nano` (Target: $0.05/1M)
+### "Max Margin" Mode (Utility Focus)
+*   **Purpose**: Near-zero cost for background tasks.
+*   **Setting**: `DEFAULT_SUMMARY_PROVIDER=openai` + `AI_MODEL_OPENAI_UTILITY=gpt-5-nano`.
 
-### To enable "Elite Chat" Mode:
-*   `DEFAULT_CHAT_PROVIDER=openai`
-*   `AI_MODEL_OPENAI_MAIN=gpt-oss-120b` (Target: Large reasoning, low cost)
+### "Elite Reasoning" Mode (Onboarding Focus)
+*   **Purpose**: Flawless bot flow generation.
+*   **Setting**: `DEFAULT_ONBOARDING_PROVIDER=anthropic` + `AI_MODEL_ANTHROPIC_MAIN=claude-sonnet-4.6`.
 
 ---
 
-## 4. Verification Checklist
-- [ ] **TTFT Check**: Use Admin Simulation Lab to verify chat starts in <500ms.
-- [ ] **Provider Fallback**: Disable the DO key temporarily and verify the system cascades to Gemini/OpenAI automatically.
-- [ ] **Build Stability**: Ensure `pnpm run build` succeeds after any model ID changes.
+## 5. Verification & Health Checks
+- [ ] **Connectivity**: Run `npx tsx scripts/test-chatbot.js --provider=openai` to verify GPT-oss-120b connectivity.
+- [ ] **Latency**: Ensure Chat TTFT (Time To First Token) is **<500ms** in the Admin Simulation Lab.
+- [ ] **Fallback**: Temporarily disable the OpenAI key to verify the system cascades to **DigitalOcean (Llama 3.1)** automatically.

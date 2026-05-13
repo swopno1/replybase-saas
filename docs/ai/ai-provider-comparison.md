@@ -1,35 +1,37 @@
-# AI Provider Comparison Matrix: Next-Gen Edition
+# AI Provider Comparison Matrix: Target Selections
 
-| Feature | OpenAI (Disruptor) | Anthropic (Premium) | DigitalOcean (Internal) | Google (Large Context) |
-| :--- | :--- | :--- | :--- | :--- |
-| **Main Models** | **GPT-oss-120b**, GPT-5 Nano | **Claude Sonnet 4.6**, Opus 4.7 | Llama 4 Maverick, Llama 3.3 | Gemini 1.5 Pro/Flash |
-| **Latency** | Ultra Fast (Nano) | Fast | **Instant (Intra-DC)** | Fast |
-| **Cost** | **Ultra Low (oss series)** | High | Very Low | Low |
-| **Reasoning** | Exceptional (GPT-5) | Best-in-Class (Opus) | High (Llama 4) | Good |
-| **Context** | 128k | 200k | 128k | **1M - 2M+** |
+| Feature | OpenAI (Target) | Anthropic (Target) | DigitalOcean (Baseline) |
+| :--- | :--- | :--- | :--- |
+| **Primary Models** | **GPT-oss-120b**, GPT-5 Nano | **Claude Sonnet 4.6**, o3 mini* | Llama 4 Maverick |
+| **Latency** | Ultra Fast (Nano) | Fast | **Instant (Intra-DC)** |
+| **Cost** | **Ultra Low (Disruptor)** | High | Very Low |
+| **Reasoning** | Exceptional (GPT-oss) | **Best-in-Class (Sonnet)** | High (Llama 4) |
+| **Integration** | OpenAI SDK | Anthropic SDK | OpenAI SDK (Comp) |
 
----
-
-## 1. Task-Specific Selection Criteria
-
-### Real-Time Chat (The Latency Winner)
-*   **Ideal**: **DigitalOcean (Llama 4)** or **OpenAI (GPT-oss-120b)**.
-*   **Rationale**: These models provide the best balance of "snappiness" (TTFT) and reasoning for standard customer queries.
-
-### Onboarding & Sales Logic (The Intelligence Winner)
-*   **Ideal**: **Anthropic Claude Sonnet 4.6**.
-*   **Rationale**: For multi-step flow generation and complex sales objection handling, Claude's instruction following is unmatched.
-
-### Background Intent & Tagging (The Cost Winner)
-*   **Ideal**: **OpenAI GPT-5 Nano**.
-*   **Rationale**: At $0.05/1M tokens, it is the most efficient way to run AI on every single incoming message for routing.
+*\*o3 mini is listed as an Anthropic-category competitor for reasoning tasks.*
 
 ---
 
-## 2. Infrastructure Advantage
-By utilizing a **Hybrid Strategy**, ReplyBase is not locked into any single provider. If a new "Disruptor" model (like **DeepSeek R1** or **Qwen 3.5**) significantly beats current pricing, we can re-route traffic in minutes via environment variables.
+## 1. Workload Mapping
 
-### Strategic Ranking
-1.  **Latency Tier**: DigitalOcean (Internal Backbone)
-2.  **Reasoning Tier**: Anthropic (Sonnet 4.x)
-3.  **Scale Tier**: OpenAI (oss/Nano series)
+### The "Chat Engine" (Latency Priority)
+*   **Target 1: GPT-oss-120b** (Proprietary Disruptor)
+*   **Target 2: Llama 4 Maverick** (Open-Weights Leader)
+*   **Rationale**: These models provide the best "snappiness" for customer-facing webchat.
+
+### The "Onboarding Brain" (Intelligence Priority)
+*   **Target 1: Claude Sonnet 4.6** (Precision Leader)
+*   **Target 2: OpenAI o3 mini** (Reasoning-for-Value)
+*   **Rationale**: Used for generating bot flows and handling complex sales objections.
+
+### The "Utility Layer" (Cost Priority)
+*   **Target 1: GPT-5 Nano** (Extreme Efficiency)
+*   **Target 2: GPT-oss-20b** (Disruptive Utility)
+*   **Rationale**: Used for running background intent analysis on every incoming message.
+
+---
+
+## 2. Final Strategic Ranking
+1.  **Latency Layer**: DigitalOcean (Internal Network Advantage)
+2.  **Efficiency Layer**: OpenAI Disruptor Series (GPT-oss, Nano)
+3.  **Intelligence Layer**: Anthropic Claude (Sonnet 4.x)
