@@ -2,7 +2,7 @@ const { Client } = require('pg');
 
 async function main() {
   const client = new Client({
-    connectionString: "postgres://postgres:2b1HcgrA4TZHQ7L8MPsCwUAM9QbFafetMu0agPoAk4onrILLZb1kKjVeVyKaAHFL@104.248.160.102:5432/replybase_saas"
+    connectionString: process.env.DATABASE_URL
   });
 
   try {
