@@ -104,19 +104,47 @@ function toErrorMessage(data: unknown, fallback: string): string {
   return fallback;
 }
 
+export function normalizeCredentials(
+  provider: WhatsAppProvider,
+  creds: any,
+): WhatsAppProviderCredentials {
+  if (provider === "meta_cloud") {
+    return {
+      accessToken: creds.accessToken || creds.metaAccessToken,
+      phoneNumberId: creds.phoneNumberId || creds.metaPhoneNumberId,
+      businessAccountId: creds.businessAccountId || creds.metaBusinessId,
+      appSecret: creds.appSecret || creds.metaAppSecret,
+    };
+  }
+  if (provider === "twilio") {
+    return {
+      accountSid: creds.accountSid || creds.twilioSid,
+      authToken: creds.authToken || creds.twilioAuthToken,
+      fromNumber: creds.fromNumber || creds.twilioFrom,
+    };
+  }
+  if (provider === "360dialog") {
+    return {
+      apiKey: creds.apiKey || creds.dialogApiKey,
+      channelId: creds.channelId || creds.dialogChannelId,
+    };
+  }
+  return creds;
+}
+
 export async function validateWhatsAppProviderConnection(input: {
   provider: WhatsAppProvider;
   credentials: WhatsAppProviderCredentials;
 }): Promise<WhatsAppValidationResult> {
+  const creds = normalizeCredentials(input.provider, input.credentials);
+
   if (input.provider === "meta_cloud") {
-    const credentials = input.credentials as MetaCloudCredentials;
-    // Use Authorization header — never put access_token in the URL
-    // query string to avoid leaking it in server access logs.
-    const url = `${META_GRAPH_BASE}/${encodeURIComponent(credentials.phoneNumberId)}?fields=id,display_phone_number,verified_name`;
+    const meta = creds as MetaCloudCredentials;
+    const url = `${META_GRAPH_BASE}/${encodeURIComponent(meta.phoneNumberId)}?fields=id,display_phone_number,verified_name`;
     const response = await fetch(url, {
       method: "GET",
       headers: {
-        Authorization: `Bearer ${credentials.accessToken}`,
+        Authorization: `Bearer ${meta.accessToken}`,
       },
     });
     const data = await parseJsonSafe(response);
@@ -134,19 +162,19 @@ export async function validateWhatsAppProviderConnection(input: {
     return {
       valid: true,
       normalized: {
-        phoneNumberId: credentials.phoneNumberId,
+        phoneNumberId: meta.phoneNumberId,
       },
     };
   }
 
   if (input.provider === "twilio") {
-    const credentials = input.credentials as TwilioCredentials;
+    const twilio = creds as TwilioCredentials;
     const auth = Buffer.from(
-      `${credentials.accountSid}:${credentials.authToken}`,
+      `${twilio.accountSid}:${twilio.authToken}`,
     ).toString("base64");
 
     const response = await fetch(
-      `${TWILIO_BASE}/Accounts/${encodeURIComponent(credentials.accountSid)}.json`,
+      `${TWILIO_BASE}/Accounts/${encodeURIComponent(twilio.accountSid)}.json`,
       {
         method: "GET",
         headers: {
@@ -166,16 +194,16 @@ export async function validateWhatsAppProviderConnection(input: {
     return {
       valid: true,
       normalized: {
-        fromNumber: normalizeWhatsAppE164(credentials.fromNumber),
+        fromNumber: normalizeWhatsAppE164(twilio.fromNumber),
       },
     };
   }
 
-  const credentials = input.credentials as Dialog360Credentials;
+  const d360 = creds as Dialog360Credentials;
   const response = await fetch(`${D360_BASE}/api/v2/contacts`, {
     method: "GET",
     headers: {
-      "D360-API-KEY": credentials.apiKey,
+      "D360-API-KEY": d360.apiKey,
     },
   });
 
@@ -190,7 +218,7 @@ export async function validateWhatsAppProviderConnection(input: {
   return {
     valid: true,
     normalized: {
-      channelId: credentials.channelId,
+      channelId: d360.channelId,
     },
   };
 }
@@ -198,8 +226,10 @@ export async function validateWhatsAppProviderConnection(input: {
 export async function sendWhatsAppText(
   input: WhatsAppSendTextInput,
 ): Promise<WhatsAppSendResult> {
+  const creds = normalizeCredentials(input.provider, input.credentials);
+
   if (input.provider === "meta_cloud") {
-    const credentials = input.credentials as MetaCloudCredentials;
+    const meta = creds as MetaCloudCredentials;
     const body: any = {
       messaging_product: "whatsapp",
       recipient_type: "individual",
@@ -231,12 +261,12 @@ export async function sendWhatsAppText(
     }
 
     const response = await fetch(
-      `${META_GRAPH_BASE}/${encodeURIComponent(credentials.phoneNumberId)}/messages`,
+      `${META_GRAPH_BASE}/${encodeURIComponent(meta.phoneNumberId)}/messages`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${credentials.accessToken}`,
+          Authorization: `Bearer ${meta.accessToken}`,
         },
         body: JSON.stringify(body),
       },
@@ -261,19 +291,19 @@ export async function sendWhatsAppText(
   }
 
   if (input.provider === "twilio") {
-    const credentials = input.credentials as TwilioCredentials;
+    const twilio = creds as TwilioCredentials;
     const auth = Buffer.from(
-      `${credentials.accountSid}:${credentials.authToken}`,
+      `${twilio.accountSid}:${twilio.authToken}`,
     ).toString("base64");
 
     const body = new URLSearchParams({
       To: `whatsapp:${normalizeWhatsAppE164(input.to)}`,
-      From: `whatsapp:${normalizeWhatsAppE164(credentials.fromNumber)}`,
+      From: `whatsapp:${normalizeWhatsAppE164(twilio.fromNumber)}`,
       Body: input.text,
     });
 
     const response = await fetch(
-      `${TWILIO_BASE}/Accounts/${encodeURIComponent(credentials.accountSid)}/Messages.json`,
+      `${TWILIO_BASE}/Accounts/${encodeURIComponent(twilio.accountSid)}/Messages.json`,
       {
         method: "POST",
         headers: {
@@ -303,12 +333,12 @@ export async function sendWhatsAppText(
     };
   }
 
-  const credentials = input.credentials as Dialog360Credentials;
+  const d360 = creds as Dialog360Credentials;
   const response = await fetch(`${D360_BASE}/messages`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "D360-API-KEY": credentials.apiKey,
+      "D360-API-KEY": d360.apiKey,
     },
     body: JSON.stringify({
       messaging_product: "whatsapp",

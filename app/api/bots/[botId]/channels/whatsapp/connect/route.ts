@@ -23,21 +23,38 @@ export const POST = withAuthAndTenant(async ({ tenantId }, req, context, db) => 
       );
     }
 
-    const encryptedToken = encryptWhatsAppCredentialEnvelope({
-      provider,
-      credentials,
-    });
-
+    let normalizedCredentials = {};
     let channelId: string;
+
     if (provider === "meta_cloud") {
+      normalizedCredentials = {
+        accessToken: credentials.metaAccessToken,
+        phoneNumberId: credentials.metaPhoneNumberId,
+        businessAccountId: credentials.metaBusinessId,
+        appSecret: credentials.metaAppSecret,
+      };
       channelId = credentials.metaPhoneNumberId;
     } else if (provider === "twilio") {
+      normalizedCredentials = {
+        accountSid: credentials.twilioSid,
+        authToken: credentials.twilioAuthToken,
+        fromNumber: credentials.twilioFrom,
+      };
       channelId = normalizeWhatsAppE164(credentials.twilioFrom);
     } else if (provider === "360dialog") {
+      normalizedCredentials = {
+        apiKey: credentials.dialogApiKey,
+        channelId: credentials.dialogChannelId,
+      };
       channelId = credentials.dialogChannelId;
     } else {
       return NextResponse.json({ error: "Unsupported provider" }, { status: 400 });
     }
+
+    const encryptedToken = encryptWhatsAppCredentialEnvelope({
+      provider,
+      credentials: normalizedCredentials as any,
+    });
 
     const channel = await db.channel.create({
       data: {

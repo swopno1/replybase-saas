@@ -231,6 +231,9 @@ export async function processWhatsAppJob(payload: any) {
 
             // Increment Usage
             await incrementTenantUsage(tenantId, "message", 1, targetBotId, channel.id);
+          } else {
+            logger.error({ botId, waId, error: sendResult.error }, "[Worker] Failed to send Flow response");
+            throw new Error(`WhatsApp send failed (Flow): ${sendResult.error}`);
           }
         }
       }
@@ -288,25 +291,28 @@ export async function processWhatsAppJob(payload: any) {
       text: replyText,
     });
 
-    if (sendResult.success) {
-      await prisma.crmMessage.create({
-        data: {
-          tenantId: tenantId,
-          conversationId: conversation.id,
-          direction: "outbound",
-          content: replyText,
-          source: "ai",
-        },
-      });
+      if (sendResult.success) {
+        await prisma.crmMessage.create({
+          data: {
+            tenantId: tenantId,
+            conversationId: conversation.id,
+            direction: "outbound",
+            content: replyText,
+            source: "ai",
+          },
+        });
 
-      // Increment Usage
-      await incrementTenantUsage(tenantId, "message", 1, targetBotId, channel.id);
+        // Increment Usage
+        await incrementTenantUsage(tenantId, "message", 1, targetBotId, channel.id);
 
-      await Promise.allSettled([
-        recordMilestoneEvent(tenantId, "first-channel", { channelType: "whatsapp", channelId: channel.id }),
-        recordMilestoneEvent(tenantId, "first-automated-reply", { channelType: "whatsapp", source: "ai" }),
-      ]);
-    }
+        await Promise.allSettled([
+          recordMilestoneEvent(tenantId, "first-channel", { channelType: "whatsapp", channelId: channel.id }),
+          recordMilestoneEvent(tenantId, "first-automated-reply", { channelType: "whatsapp", source: "ai" }),
+        ]);
+      } else {
+        logger.error({ botId, waId, error: sendResult.error }, "[Worker] Failed to send AI response");
+        throw new Error(`WhatsApp send failed (AI): ${sendResult.error}`);
+      }
   } catch (aiError) {
     logger.error({ error: aiError }, "[WhatsApp Worker] AI error");
   }
