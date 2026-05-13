@@ -19,14 +19,14 @@ export function Logo({ openInNewTab = false, className = "" }: LogoProps) {
   return (
     <Link href="https://replybase.co.uk" {...linkProps} className={className}>
       <div className="flex items-center gap-2">
-        {/* TODO: Replace with actual logo image path */}
-        <div className="bg-white text-primary-foreground flex size-12 items-center justify-center rounded-md">
+        <div className="bg-white text-primary-foreground flex size-12 items-center justify-center rounded-md overflow-hidden">
           <Image
-            src="/image/logo.png"
+            src="/image/replybase-logo.jpg"
             alt="ReplyBase"
             width={64}
             height={64}
-            className="h-12 w-12"
+            className="h-12 w-12 object-contain"
+            priority
           />
         </div>
 
