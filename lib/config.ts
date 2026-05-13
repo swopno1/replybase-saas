@@ -80,7 +80,7 @@ export const APP_CONFIG = {
     metricsEnabled: process.env.WEBCHAT_METRICS_ENABLED !== "false",
     rateLimitStore: process.env.WEBCHAT_RATE_LIMIT_STORE || "memory",
     rollout: {
-      mode: (process.env.WEBCHAT_ROLLOUT_MODE || "ga").toLowerCase(),
+      mode: (process.env.WEBCHAT_ROLLOUT_MODE || "off").toLowerCase(),
       enabledTenants: (process.env.WEBCHAT_ENABLED_TENANT_IDS || "").split(",").map(id => id.trim()).filter(Boolean),
       disabledTenants: (process.env.WEBCHAT_DISABLED_TENANT_IDS || "").split(",").map(id => id.trim()).filter(Boolean),
       pilotTenants: (process.env.WEBCHAT_PILOT_TENANT_IDS || "").split(",").map(id => id.trim()).filter(Boolean),

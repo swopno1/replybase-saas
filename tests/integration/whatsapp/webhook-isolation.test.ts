@@ -98,10 +98,10 @@ describe("WhatsApp Webhook Tenant Isolation", () => {
     expect(messageQueue.add).toHaveBeenCalledWith(
       "whatsapp-message",
       expect.objectContaining({
-        botId: botId,
-        payload: expect.objectContaining({
-          waId: "447700900000",
-          inboundText: "Hello from Tenant 1",
+        waId: "447700900000",
+        inboundText: "Hello from Tenant 1",
+        channel: expect.objectContaining({
+          botId: botId,
         }),
       }),
       expect.anything()
@@ -217,10 +217,16 @@ describe("WhatsApp Webhook Tenant Isolation", () => {
       phoneNumberId,
     });
 
+    const bodyText = JSON.stringify(imagePayload);
+    const signature = generateMetaSignature(bodyText, APP_SECRET);
+
     const req = new NextRequest("http://localhost/api/whatsapp/webhook", {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(imagePayload),
+      headers: { 
+        "content-type": "application/json",
+        "x-hub-signature-256": signature,
+      },
+      body: bodyText,
     });
 
     await POST(req);
@@ -228,8 +234,9 @@ describe("WhatsApp Webhook Tenant Isolation", () => {
     expect(messageQueue.add).toHaveBeenCalledWith(
       "whatsapp-message",
       expect.objectContaining({
-        payload: expect.objectContaining({
-          inboundText: "[Image] Cool photo",
+        inboundText: "[Image] Cool photo",
+        channel: expect.objectContaining({
+          id: "chan_media",
         }),
       }),
       expect.anything()

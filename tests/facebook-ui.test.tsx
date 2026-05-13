@@ -52,7 +52,7 @@ describe('Facebook Integration UI Compliance', () => {
 
   it('should render branding and display required legal links', async () => {
     global.fetch = vi.fn().mockImplementation((url) => {
-      if (url.includes('/api/integrations/facebook/pages')) {
+      if (url.includes('/api/facebook/user-pages')) {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ connected: false, pages: [] }),
@@ -71,7 +71,7 @@ describe('Facebook Integration UI Compliance', () => {
 
     // Wait for the "Continue with Facebook" button
     await waitFor(() => {
-      const button = screen.getByText(/Continue with Facebook/i);
+      const button = screen.getByText(/Link Facebook Account/i);
       expect(button).toBeTruthy();
     }, { timeout: 5000 });
 
@@ -86,7 +86,7 @@ describe('Facebook Integration UI Compliance', () => {
 
   it('should render diagnostic button and handle connection check when connected', async () => {
     global.fetch = vi.fn().mockImplementation((url) => {
-      if (url.includes('/api/integrations/facebook/pages')) {
+      if (url.includes('/api/facebook/user-pages')) {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({
@@ -96,9 +96,8 @@ describe('Facebook Integration UI Compliance', () => {
                 id: '123',
                 name: 'Test Page',
                 connected: true,
-                webhookSubscribed: true,
-                category: 'Test Category',
-                botId: 'bot-123'
+                botId: 'bot-123',
+                category: 'Test Category'
               }
             ]
           }),

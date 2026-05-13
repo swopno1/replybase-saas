@@ -91,7 +91,7 @@ export class LeadService {
     const hasName = !!contact.name && contact.name !== "Anonymous";
     const hasEmail = !!contact.email;
     const hasPhone = !!contact.phone;
-    const hasSocialIdentity = contact.identities.some(i => 
+    const hasSocialIdentity = (contact.identities || []).some(i => 
       ["whatsapp_wa_id", "facebook_id", "telegram_user_id"].includes(i.type)
     );
 
@@ -99,7 +99,7 @@ export class LeadService {
     const isIdentified = hasName && (hasEmail || hasPhone || hasSocialIdentity);
 
     if (isIdentified) {
-      const existingLead = contact.leads[0];
+      const existingLead = (contact.leads || [])[0];
       const tagToAdd = "QUALIFIED";
 
       if (existingLead) {

@@ -16,6 +16,10 @@ vi.mock("@/lib/prisma", () => ({
       count: vi.fn(),
       deleteMany: vi.fn(),
     },
+    contactIdentity: { deleteMany: vi.fn() },
+    lead: { deleteMany: vi.fn() },
+    onboardingSession: { deleteMany: vi.fn() },
+    $transaction: vi.fn((fn) => fn(prisma)),
   },
 }));
 
