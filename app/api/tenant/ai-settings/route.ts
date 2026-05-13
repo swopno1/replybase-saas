@@ -37,7 +37,7 @@ export async function PATCH(req: NextRequest) {
     const { aiProvider, aiApiKey, aiModel } = body;
 
     // Validate provider
-    const validProviders = ["default", "gemini", "openai", "anthropic"];
+    const validProviders = ["default", "gemini", "openai", "anthropic", "digitalocean"];
     if (!validProviders.includes(aiProvider)) {
       return NextResponse.json(
         { error: "Invalid AI provider" },
@@ -49,7 +49,20 @@ export async function PATCH(req: NextRequest) {
     const validModels: Record<string, string[]> = {
       openai: ["gpt-4o", "gpt-4o-mini"],
       anthropic: ["claude-3-5-sonnet-latest", "claude-3-haiku-latest"],
-      gemini: ["gemini-3-flash-preview", "gemini-3.1-flash-lite-preview", "gemini-2.5-flash-lite", "gemma-2-27b-it"],
+      gemini: [
+        "gemini-2.0-flash", 
+        "gemini-2.0-pro-exp-02-05", 
+        "gemini-1.5-flash", 
+        "gemini-2.0-flash-lite-preview",
+        "gemini-1.5-pro",
+        "gemma-2-27b-it"
+      ],
+      digitalocean: [
+        "openai-gpt-oss-120b",
+        "openai-gpt-oss-20b",
+        "llama3.3-70b-instruct",
+        "gemma-4-31B-it"
+      ],
       default: [],
     };
 

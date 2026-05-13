@@ -127,7 +127,7 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
         defaultModel = models.digitalocean.utility;
       }
 
-      modelInstance = client(effectiveModel || defaultModel);
+      modelInstance = client.chat(effectiveModel || defaultModel);
       break;
     }
 

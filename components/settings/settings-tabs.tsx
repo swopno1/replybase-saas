@@ -917,6 +917,7 @@ function SettingsTabsInner() {
                     }
                   >
                     <option value="default">Default (Replybase Managed)</option>
+                    <option value="digitalocean">DigitalOcean (High Performance)</option>
                     <option value="openai">OpenAI</option>
                     <option value="anthropic">Anthropic</option>
                     <option value="gemini">Google Gemini (User Provided)</option>
@@ -924,7 +925,9 @@ function SettingsTabsInner() {
                   <div className="text-xs text-muted-foreground space-y-1">
                     <p>
                       {aiSettings.aiProvider === "default"
-                        ? "Uses Replybase-managed Gemini 1.5 Flash/Pro based on your plan. No configuration required."
+                        ? "Uses Replybase-managed AI based on your plan. No configuration required."
+                        : aiSettings.aiProvider === "digitalocean"
+                        ? "Leverages high-performance models hosted on DigitalOcean Infrastructure."
                         : "Configure your own API credentials and model selection below."}
                     </p>
                   </div>
@@ -937,7 +940,11 @@ function SettingsTabsInner() {
                       <Input
                         id="aiApiKey"
                         type="password"
-                        placeholder={`Enter your ${aiSettings.aiProvider} API key`}
+                        placeholder={
+                          aiSettings.aiProvider === "digitalocean" 
+                            ? "DigitalOcean AI Key" 
+                            : `Enter your ${aiSettings.aiProvider} API key`
+                        }
                         value={aiSettings.aiApiKey}
                         onChange={(e) =>
                           setAiSettings({
@@ -969,6 +976,14 @@ function SettingsTabsInner() {
                         <option value="" disabled>
                           Select a model
                         </option>
+                        {aiSettings.aiProvider === "digitalocean" && (
+                          <>
+                            <option value="openai-gpt-oss-120b">GPT-oss-120b (Premium)</option>
+                            <option value="openai-gpt-oss-20b">GPT-oss-20b (Fast)</option>
+                            <option value="llama3.3-70b-instruct">Llama 3.3 70B (State-of-the-Art)</option>
+                            <option value="gemma-4-31B-it">Gemma 4 31B (Advanced)</option>
+                          </>
+                        )}
                         {aiSettings.aiProvider === "openai" && (
                           <>
                             <option value="gpt-4o">GPT-4o (Advanced)</option>
@@ -989,18 +1004,11 @@ function SettingsTabsInner() {
                         )}
                         {aiSettings.aiProvider === "gemini" && (
                           <>
-                            <option value="gemini-3-flash-preview">
-                              Gemini 3 Flash (Premium)
-                            </option>
-                            <option value="gemini-3.1-flash-lite-preview">
-                              Gemini 3.1 Flash Lite (Main)
-                            </option>
-                            <option value="gemini-2.5-flash-lite">
-                              Gemini 2.5 Flash Lite (Fallback)
-                            </option>
-                            <option value="gemma-2-27b-it">
-                              Gemma 2 27B
-                            </option>
+                            <option value="gemini-2.0-flash">Gemini 2.0 Flash (Fast & Capable)</option>
+                            <option value="gemini-2.0-pro-exp-02-05">Gemini 2.0 Pro (Experimental)</option>
+                            <option value="gemini-1.5-flash">Gemini 1.5 Flash (Legacy Fast)</option>
+                            <option value="gemini-1.5-pro">Gemini 1.5 Pro (Legacy Advanced)</option>
+                            <option value="gemma-2-27b-it">Gemma 2 27B</option>
                           </>
                         )}
                       </select>

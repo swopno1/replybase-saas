@@ -38,11 +38,11 @@ export const APP_CONFIG = {
   // --- AI Orchestration (Standardized Multi-Provider) ---
   ai: {
     providers: {
-      chat: process.env.DEFAULT_CHAT_PROVIDER || "digitalocean",
-      onboarding: process.env.DEFAULT_ONBOARDING_PROVIDER || "digitalocean", 
-      analysis: process.env.DEFAULT_ANALYSIS_PROVIDER || "digitalocean",
-      summary: process.env.DEFAULT_SUMMARY_PROVIDER || "digitalocean",
-      default: process.env.DEFAULT_AI_PROVIDER || "digitalocean",
+      chat: process.env.DEFAULT_CHAT_PROVIDER || "gemini",
+      onboarding: process.env.DEFAULT_ONBOARDING_PROVIDER || "gemini",
+      analysis: process.env.DEFAULT_ANALYSIS_PROVIDER || "gemini",
+      summary: process.env.DEFAULT_SUMMARY_PROVIDER || "gemini",
+      default: process.env.DEFAULT_AI_PROVIDER || "gemini",
     },
     models: {
       openai: {
@@ -61,14 +61,14 @@ export const APP_CONFIG = {
         // FIXED: Using exact IDs from DO documentation examples
         main: process.env.AI_MODEL_DO_MAIN || "openai-gpt-oss-120b",
         utility: process.env.AI_MODEL_DO_UTILITY || "openai-gpt-oss-20b",
-        premium: process.env.AI_MODEL_DO_PREMIUM || "llama3.3-70b-instruct", 
+        premium: process.env.AI_MODEL_DO_PREMIUM || "llama3.3-70b-instruct",
         analysis: process.env.AI_MODEL_DO_ANALYSIS || "gemma-4-31B-it",
       },
       gemini: {
-        main: process.env.AI_MODEL_GEMINI_MAIN || "gemini-2.5-flash",
-        utility: process.env.AI_MODEL_GEMINI_UTILITY || "gemini-3.1-flash-lite",
-        premium: process.env.AI_MODEL_GEMINI_PREMIUM || "gemini-3-flash",
-        analysis: process.env.AI_MODEL_GEMINI_ANALYSIS || "gemma-4-31B-it",
+        main: process.env.AI_MODEL_GEMINI_MAIN || "gemini-2.0-flash",
+        premium: process.env.AI_MODEL_GEMINI_PREMIUM || "gemini-2.0-pro-exp-02-05",
+        utility: process.env.AI_MODEL_GEMINI_UTILITY || "gemini-1.5-flash",
+        analysis: process.env.AI_MODEL_GEMINI_ANALYSIS || "gemini-2.0-flash-lite-preview",
       },
     },
     baseUrl: process.env.DIGITALOCEAN_AI_BASE_URL || "https://inference.do-ai.run/v1",
