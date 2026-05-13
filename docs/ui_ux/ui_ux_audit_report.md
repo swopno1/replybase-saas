@@ -12,15 +12,15 @@
 - **Gaps**: Missing a "Success/Celebration" moment when the first channel is connected. The transition from onboarding to dashboard feels slightly abrupt.
 - **Recommendation**: Implement a "Preparing your Workspace" interstitial with a progress bar and tips.
 
-### 2. Dashboard & Navigation (Score: 4/5)
-- **Strengths**: Clear activation funnel and status indicators.
-- **Gaps**: Interaction density is low; many cards are static when they could lead to filtered views.
-- **Recommendation**: Make funnel stages clickable to view corresponding leads/conversations. Implement "Activation Milestone" interactivity where clicking a milestone navigates to the setup page for that feature.
+### 2. Dashboard & Navigation (Score: 4.2/5)
+- **Strengths**: Activation funnel provides a clear roadmap; real-time tracking via `DashboardFunnelTracker`.
+- **Gaps (Task UX-008)**: Low interaction density. StatusCards (Connected Channels, Lead Alerts) and Activation Milestones are static.
+- **Recommendation**: Implement interactivity on all dashboard summary elements. Wrap milestone cards in `Link` components using `actionHref`. Add hover transitions (`hover:bg-accent`) and `cursor-pointer` to signal clickability.
 
-### 3. Messaging & CRM (Score: 3.5/5)
-- **Strengths**: Unified inbox works across all channels.
-- **Gaps**: Perceived performance is hit by loading states. Skeleton loaders are missing in the conversation detail view, causing layout shifts.
-- **Recommendation**: Implement skeleton UI for message threads and lead profiles.
+### 3. Messaging & CRM (Score: 3.8/5)
+- **Strengths**: Unified inbox; robust identity stitching for cross-channel contacts.
+- **Gaps**: Perceived performance during data fetching. Layout shifts occur when conversation history loads.
+- **Recommendation**: Standardize skeleton UI for the conversation view (Task UX-003). Add "AI Thinking" indicators to signal background bot processing (Task UX-009).
 
 ## Micro-interaction Strategy
 - **Motion**: Use `framer-motion` for subtle entry animations on dashboard cards.
