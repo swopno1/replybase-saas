@@ -199,3 +199,29 @@
   - Expected Deliverables: Unified `lib/ai-service.ts`, updated `docs/ai/migration-guide-digitalocean.md`, and passing build.
   - Dependencies: None.
   - Suggested Rollout Risk: LOW.
+
+- [ ] **Task 021**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Security/Observability
+  - Issue: Granular Admin Audit Logging.
+  - Root Cause: Admin activity logging currently only tracks mutations, leaving a gap in "Read-access" visibility for sensitive data.
+  - UX/Business Impact: Essential for Enterprise-grade security and SOC2/GDPR compliance.
+  - Objective: Implement read-access logging for sensitive Admin API routes.
+  - Detailed Instructions: 1. Create a `withAdminAudit` wrapper for GET handlers. 2. Log access to PII, conversation logs, and tenant credentials. 3. Ensure logs are stored with a TTL or in a separate storage if volume is high.
+  - Expected Deliverables: Logging decorator and updated admin API handlers.
+  - Dependencies: None.
+  - Suggested Rollout Risk: LOW.
+
+- [ ] **Task 022**
+  - Priority: HIGH
+  - Status: PENDING
+  - Category: Performance
+  - Issue: Redis Metrics Caching (Implementation).
+  - Root Cause: Dashboard stats (Lead counts, Conversation volume) are computed on the fly from the DB.
+  - UX/Business Impact: Significant improvement in dashboard load times and reduction in DB CPU usage during peak hours.
+  - Objective: Implement Redis-based caching for all dashboard metric components.
+  - Detailed Instructions: 1. Wrap `app/(dashboard)/page.tsx` data queries in a caching utility. 2. Use `dashboard:stats:[tenantId]` keys with a 5-minute TTL. 3. Implement event-driven cache invalidation in `lib/services/lead-service.ts` and `whatsapp-worker.ts`.
+  - Expected Deliverables: Cached metrics layer and invalidation logic.
+  - Dependencies: Redis infrastructure.
+  - Suggested Rollout Risk: MEDIUM (ensure invalidation is reliable).

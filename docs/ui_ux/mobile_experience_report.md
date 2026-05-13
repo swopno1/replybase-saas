@@ -5,8 +5,8 @@
 - **Messaging UX**: The chat interface correctly handles the mobile keyboard, maintaining visibility of the latest messages.
 
 ## High-Friction Mobile Scenarios
-- **Flow Editor**: Editing complex tree structures on mobile remains the primary friction point.
-  - **Proposed Solution**: Implement a "Read-only Summary" mode for mobile users that shows the flow steps as a simple list with "Edit" buttons for text content only. See `docs/proposals_mobile-read-only-flow/overview.md` for full strategy.
+- **Flow Editor (Task 012)**: Editing complex tree structures on mobile remains the primary friction point. Graph manipulation is error-prone on touch screens.
+  - **Proposed Solution**: Implement a linearized "Flow Summary" view for mobile users (< 768px). This view will show the bot logic as a vertical list of nodes, allowing text editing via modals while hiding the visual graph. See `docs/proposals_mobile-read-only-flow/overview.md`.
 - **Channel Configuration**: Meta/WhatsApp OAuth flows are handled well, but the final connection confirmation toast is sometimes obscured by the browser's bottom navigation bar.
 
 ## Mobile-Specific Opportunities

@@ -59,3 +59,16 @@
   - Dependencies: WebSocket or polling mechanism for background job status.
   - Notes: Important for perceived quality.
   - Suggested Rollout Risk: LOW.
+
+- [ ] **UX-010**
+  - Priority: LOW
+  - Status: PENDING
+  - Category: Onboarding
+  - Issue: Polish: Success/Celebration states.
+  - Root Cause: Successfully completing setup steps (e.g., connecting a channel) feels clinical and lacks positive reinforcement.
+  - UX/Business Impact: Increases user "Setup Momentum" and emotional connection to the product.
+  - Objective: Add celebratory micro-interactions when milestones are achieved.
+  - Detailed Instructions: 1. Use `canvas-confetti` or a Framer Motion celebration effect when a milestone status changes to completed. 2. Show a specific success toast with a "What's Next" recommendation.
+  - Expected Deliverables: Celebration effects on the Dashboard and Milestone completion pages.
+  - Dependencies: None.
+  - Suggested Rollout Risk: LOW.

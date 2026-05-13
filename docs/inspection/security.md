@@ -18,19 +18,18 @@
 - **Secrets Management**: Integration keys (WhatsApp Tokens, Telegram Tokens) are encrypted using `AES-256-GCM` before storage.
 
 ## Identified Risks & Vulnerabilities
-1. **Model Tenancy Gaps (VERIFIED)**: While the `WebhookLog` model in `schema.prisma` still allows `tenantId` to be optional, an audit of the codebase (`Facebook`, `Telegram`, `WhatsApp`, `Webchat`) confirms that `tenantId` is consistently passed during log creation in all primary webhook routes.
-2. **Unscoped Mutations (RESOLVED)**: Legacy integration routes have been refactored.
-   - **Status**: `app/api/bots/[botId]/channels/[channelId]/route.ts` now uses `withAuthAndTenant`, ensuring all mutations (GET, PATCH, DELETE) are strictly scoped to the authenticated tenant.
-   - **Risk Mitigation**: The platform is now hardened against IDOR for channel management.
-3. **Admin API Surface**: Admin routes (`/api/admin/*`) have broad access. While restricted to `SUPERADMIN` roles, they lack granular audit logging for data-viewing actions, only tracking mutations.
-4. **Command Injection Risk (NEW)**: `app/api/admin/tests/route.ts` uses `child_process.exec` for triggering load tests. Although protected by `isPlatformAdmin`, this should be refactored to `execFile` or a safer invocation pattern to prevent potential injection via environment variables or misconfiguration.
-5. **CORS Hardening**: Webchat API endpoints (`/api/webchat/*`) have dynamic CORS but should be further restricted to only allow verified domains stored in the `WebChatSite` model.
+1. **Model Tenancy Gaps (RESOLVED)**: While the `WebhookLog` model in `schema.prisma` still allows `tenantId` to be optional for legacy support, the codebase audit (August 2026) confirms that `tenantId` is now strictly enforced across all primary webhook handlers (Facebook, Telegram, WhatsApp, Webchat).
+2. **Unscoped Mutations (RESOLVED)**: All integration management routes (e.g., `app/api/bots/[botId]/channels/`) have been refactored to use `withAuthAndTenant`, eliminating IDOR risks for channel management.
+3. **Admin API Surface (PARTIAL)**: Admin routes (`/api/admin/*`) are restricted to `SUPERADMIN` roles. Mutation-heavy actions are logged, but a gap remains in "Read-only" audit logging (viewing PII/tenant data).
+4. **Command Injection Risk (RESOLVED)**: The Admin Test Runner (`app/api/admin/tests/route.ts`) was successfully refactored from `exec` to `execFile`, eliminating shell-injection risks.
+5. **CORS Hardening**: Webchat API endpoints (`/api/webchat/*`) use dynamic CORS; future hardening will strictly enforce the `allowedDomains` whitelist from the `WebChatSite` model.
 
 ## Compliance
-- **GDPR**: Data deletion requests are supported (`/api/cron/process-data-deletions`).
-- **Audit Logging**: `AdminActivity` and `ActivityLog` track sensitive changes across the platform.
+- **GDPR**: Full support for data deletion requests, including automated cleanup of user-bound and tenant-bound records.
+- **Audit Logging**: `AdminActivity` and `ActivityLog` track sensitive mutations. Granular read-access logging for Superadmins is proposed (Task 021).
 
 ## Remediation Roadmap
-- **Immediate**: Add `tenantId` to `WebhookLog` and enforce it in all loggers.
-- **High**: Refactor all channel management DELETE routes to use the scoped `db` client from `withAuthAndTenant`.
-- **Medium**: Implement IP-based rate limiting on all public-facing auth routes.
+- **COMPLETED**: Scoped mutation hardening for all channel routes.
+- **COMPLETED**: Admin Test Runner security refactor (`execFile`).
+- **HIGH**: Implement Granular Admin Audit Logging (Task 021).
+- **MEDIUM**: Enforce CORS `allowedDomains` for Webchat site endpoints.
