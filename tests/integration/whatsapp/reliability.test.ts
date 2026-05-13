@@ -86,7 +86,7 @@ describe("WhatsApp Reliability & Resilience", () => {
     expect(messageQueue.add).toHaveBeenCalledWith(
       "whatsapp-message",
       expect.anything(),
-      expect.objectContaining({ jobId: `whatsapp:${messageId}` })
+      expect.objectContaining({ jobId: `whatsapp-${messageId}` })
     );
   });
 

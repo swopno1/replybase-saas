@@ -153,7 +153,7 @@ describe("WhatsApp Production E2E Cycle Simulation", () => {
         messageId: "wamid.123",
         inboundText: "Hello ReplyBase",
       }),
-      expect.objectContaining({ jobId: "whatsapp:wamid.123" })
+      expect.objectContaining({ jobId: "whatsapp-wamid.123" })
     );
 
     // 4. SIMULATE WORKER EXECUTION

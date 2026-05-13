@@ -189,7 +189,7 @@ async function ensureContactAndConversation(params: {
       botId: params.channel.botId,
       payload: params,
     } as MessageJobData,
-    { jobId: `whatsapp:${params.messageId}` },
+    { jobId: `whatsapp-${params.messageId}` },
   );
 
   prisma.webhookLog

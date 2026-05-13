@@ -4,7 +4,7 @@ This document lists critical edge cases identified during the production audit a
 
 ## 1. Webhook Concurrency & Duplication
 - **Scenario**: Meta sends the same message multiple times due to a timeout or network glitch.
-- **Handling**: ReplyBase uses `jobId: "whatsapp:${messageId}"` in BullMQ. Redis prevents multiple jobs with the same ID from being queued, ensuring a single message is processed only once.
+- **Handling**: ReplyBase uses `jobId: "whatsapp-${messageId}"` in BullMQ. Redis prevents multiple jobs with the same ID from being queued, ensuring a single message is processed only once.
 
 ## 2. 24-Hour Service Window
 - **Scenario**: An agent or AI attempts to reply to a user more than 24 hours after their last inbound message.
