@@ -1,89 +1,41 @@
-# DigitalOcean AI Migration Guide
+# DigitalOcean AI Migration & Future-Proofing Guide
 
-This guide outlines the step-by-step process for migrating ReplyBase AI workloads from OpenAI/Gemini to **DigitalOcean AI Inference (Gradient)**.
-
----
-
-## 1. Enrollment & Key Generation
-Before updating the application, you must enable the AI services in your DigitalOcean account.
-
-1.  **Login to DigitalOcean**: [cloud.digitalocean.com](https://cloud.digitalocean.com)
-2.  **Navigate to AI Platform**: Click on **AI** in the left sidebar.
-3.  **Create Model Access Key**:
-    *   Go to **Settings** within the AI section.
-    *   Navigate to **Access Keys**.
-    *   Generate a new **Model Access Key**.
-    *   **Important**: Copy this key immediately; it will not be shown again.
+This guide outlines the process for migrating to **DigitalOcean AI Inference** and maintaining a future-proof "Disruptor" model strategy.
 
 ---
 
-## 2. Environment Configuration (Coolify)
-Update your environment variables in the Coolify dashboard for the ReplyBase project.
+## 1. Enrollment & Connectivity
+1.  **Generate Keys**: Create a Model Access Key in the DO AI Console.
+2.  **Base URL**: `https://inference.do-ai.run/v1` (OpenAI Compatible).
 
-### Core Connectivity
-| Variable | Value / Description |
+---
+
+## 2. Environment Configuration (Task Routing)
+Update your Coolify environment variables to establish the "Hybrid Baseline."
+
+| Task Variable | Recommended Value |
 | :--- | :--- |
-| `DIGITALOCEAN_AI_KEY` | The Model Access Key generated in Step 1. |
-| `DIGITALOCEAN_AI_BASE_URL` | `https://inference.do-ai.run/v1` |
-
-### Task-Based Routing (Hybrid Strategy)
-The platform now supports global task routing via environment variables.
-| Variable | Recommended Value |
-| :--- | :--- |
-| `DEFAULT_CHAT_PROVIDER` | `digitalocean` (Low Latency) |
-| `DEFAULT_ONBOARDING_PROVIDER` | `openai` (High Reasoning) |
-| `DEFAULT_ANALYSIS_PROVIDER` | `gemini` (Large Context) |
-| `DEFAULT_SUMMARY_PROVIDER` | `digitalocean` (Cost Efficiency) |
-| `DEFAULT_AI_PROVIDER` | `digitalocean` (System Fallback) |
-
-### Model ID Overrides (Optional)
-| Variable | Default Value |
-| :--- | :--- |
-| `AI_MODEL_DO_MAIN` | `llama-3.1-8b-instruct` |
-| `AI_MODEL_DO_PREMIUM` | `llama-3.1-70b-instruct` |
+| `DEFAULT_CHAT_PROVIDER` | `digitalocean` |
+| `DEFAULT_ONBOARDING_PROVIDER` | `openai` (or `anthropic` for Sonnet 4.6) |
+| `DEFAULT_ANALYSIS_PROVIDER` | `gemini` |
+| `DEFAULT_SUMMARY_PROVIDER` | `digitalocean` (or `openai` for GPT-5 Nano) |
 
 ---
 
-## 3. Future-Proofing: Next-Gen Model Integration
-As the AI landscape evolves, you can swap the internal models for "Disruptor" models by updating the following environment variables:
+## 3. Swapping in Disruptor Models
+The platform is designed to swap models without code changes. Use the following overrides in Coolify:
 
-| Goal | Target Model | Env Overrides |
-| :--- | :--- | :--- |
-| **Max Cost Savings** | **GPT-oss-20b** | `DEFAULT_SUMMARY_PROVIDER=openai`, `AI_MODEL_OPENAI_MAIN=gpt-oss-20b` |
-| **Highest Reasoning** | **Claude Sonnet 4.6** | `DEFAULT_ONBOARDING_PROVIDER=anthropic`, `AI_MODEL_ANTHROPIC_MAIN=claude-sonnet-4.6` |
-| **Disruptive Chat** | **GPT-oss-120b** | `DEFAULT_CHAT_PROVIDER=openai`, `AI_MODEL_OPENAI_MAIN=gpt-oss-120b` |
+### To enable "Max Efficiency" Mode:
+*   `DEFAULT_SUMMARY_PROVIDER=openai`
+*   `AI_MODEL_OPENAI_MAIN=gpt-5-nano` (Target: $0.05/1M)
 
----
-
-## 4. Application Architecture
-We use a unified service file to define model IDs, provider initialization, and task-based routing logic.
-
-**File**: `lib/ai-service.ts`
-
-### Why this architecture?
-1.  **Zero-Downtime Switching**: Change a provider globally just by updating an ENV var in Coolify.
-2.  **Plan-Based Scaling**: Pro/Business users automatically get premium models (e.g., Llama 70B or GPT-4o) while Free users use cost-efficient models (e.g., Llama 8B).
-3.  **Intra-DC Latency**: By using `digitalocean` as the `DEFAULT_CHAT_PROVIDER`, we minimize "Network Tax" by keeping traffic within the DO ecosystem.
+### To enable "Elite Chat" Mode:
+*   `DEFAULT_CHAT_PROVIDER=openai`
+*   `AI_MODEL_OPENAI_MAIN=gpt-oss-120b` (Target: Large reasoning, low cost)
 
 ---
 
-## 5. Verification & Testing
-
-### Step 1: Connectivity Test
-Run the test script to ensure your `DIGITALOCEAN_AI_KEY` is working:
-```bash
-npx tsx scripts/test-chatbot.js --provider=digitalocean
-```
-
-### Step 2: TTFT Check
-Use the **Admin Simulation Lab** or browser dev tools to verify:
-- [ ] **TTFT (Time To First Token)** is < 500ms.
-- [ ] **Response Quality**: Verify Llama 3.1 8B handles intent extraction correctly.
-
----
-
-## 6. Rollback Plan
-If DigitalOcean experiences downtime or significant regression:
-1.  In Coolify, change `DEFAULT_CHAT_PROVIDER` to `openai` or `gemini`.
-2.  Redeploy/Restart the application.
-3.  The system will immediately route all chat traffic to the fallback provider.
+## 4. Verification Checklist
+- [ ] **TTFT Check**: Use Admin Simulation Lab to verify chat starts in <500ms.
+- [ ] **Provider Fallback**: Disable the DO key temporarily and verify the system cascades to Gemini/OpenAI automatically.
+- [ ] **Build Stability**: Ensure `pnpm run build` succeeds after any model ID changes.
