@@ -27,23 +27,29 @@ export function getModelDirectory() {
   return {
     gemini: {
       main: config.gemini.main,
-      premium: config.gemini.main,
+      utility: config.gemini.utility,
+      premium: config.gemini.premium,
+      analysis: config.gemini.analysis,
       fallback: config.gemini.main,
       embedding: "text-embedding-004",
     },
     openai: {
       main: config.openai.main,
       utility: config.openai.utility,
-      premium: config.openai.main,
+      premium: config.openai.premium,
+      analysis: config.openai.analysis,
     },
     anthropic: {
       main: config.anthropic.main,
-      premium: config.anthropic.main,
+      utility: config.anthropic.utility,
+      premium: config.anthropic.premium,
+      analysis: config.anthropic.analysis,
     },
     digitalocean: {
       main: config.digitalocean.main,
-      premium: config.digitalocean.premium,
       utility: config.digitalocean.utility,
+      premium: config.digitalocean.premium,
+      analysis: config.digitalocean.analysis,
       fallback: config.digitalocean.main,
     },
   };
@@ -84,6 +90,7 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
   const isPro = plan.includes("pro") || plan.includes("business");
   const isHighPriority = task === "onboarding" || isPro;
   const isUtilityTask = task === "intent" || task === "tagging" || task === "summary";
+  const isAnalysisTask = task === "analysis";
   
   const models = getModelDirectory();
   const routing = getTaskRouting();
@@ -112,6 +119,8 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
       let defaultModel = models.digitalocean.main;
       if (isFallback) {
         defaultModel = models.digitalocean.main;
+      } else if (isAnalysisTask) {
+        defaultModel = models.digitalocean.analysis;
       } else if (isHighPriority) {
         defaultModel = models.digitalocean.premium;
       } else if (isUtilityTask) {
@@ -127,7 +136,13 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
         apiKey: apiKey || process.env.OPENAI_API_KEY,
       });
       
-      const defaultModel = isUtilityTask ? models.openai.utility : models.openai.main;
+      let defaultModel = models.openai.main;
+      if (isAnalysisTask) {
+        defaultModel = models.openai.analysis;
+      } else if (isUtilityTask) {
+        defaultModel = models.openai.utility;
+      }
+      
       modelInstance = client(effectiveModel || defaultModel);
       break;
     }
@@ -145,7 +160,17 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
       const client = createGoogleGenerativeAI({
         apiKey: apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
       });
-      modelInstance = client(effectiveModel || models.gemini.main);
+      
+      let defaultModel = models.gemini.main;
+      if (isAnalysisTask) {
+        defaultModel = models.gemini.analysis;
+      } else if (isUtilityTask) {
+        defaultModel = models.gemini.utility;
+      } else if (isHighPriority) {
+        defaultModel = models.gemini.premium;
+      }
+      
+      modelInstance = client(effectiveModel || defaultModel);
       break;
     }
   }
