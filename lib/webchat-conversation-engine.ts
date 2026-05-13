@@ -1,3 +1,4 @@
+import { randomInt } from "crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
@@ -460,8 +461,8 @@ async function resolveFlow(params: {
   async function startFlowSession(
     flow: NonNullable<Awaited<ReturnType<typeof loadAccessibleFlow>>>,
   ) {
-    const syncHash = Math.random().toString(36).substring(2, 8).toUpperCase();
-    
+    const syncHash = randomInt(2176782336).toString(36).padStart(6, "0").toUpperCase();
+
     const session = await prisma.flowSession.create({
       data: {
         userId: params.contactId,
