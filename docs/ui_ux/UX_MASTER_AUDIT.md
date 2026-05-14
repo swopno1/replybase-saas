@@ -6,7 +6,7 @@ ReplyBase provides a high-performance, professional dashboard experience optimiz
 ## 1. Dashboard & Core Experience
 - **Navigation**: The sidebar-based navigation is intuitive and standard. Hover transitions have been standardized to provide immediate interactive feedback.
 - **Data Tables**: Table layouts are consistent, utilizing `DataTable` primitives. **Gap**: Actionable empty states are still missing in some secondary views (Task UX-001).
-- **Interactivity**: Dashboard StatusCards and Activation Milestones are being updated to be fully interactive (Task UX-008), guiding users to relevant setup actions.
+- **Interactivity (PENDING - Aug 2026)**: Dashboard StatusCards and Activation Milestones are still largely static. Task UX-008 remains active to transform these into navigation-rich interactive elements using `Link` components and `cursor-pointer` styles.
 - **Feedback Systems**: Success/Celebration motion effects are proposed for onboarding completion to drive engagement (Task UX-008).
 
 ## 2. Mobile Experience & Responsiveness

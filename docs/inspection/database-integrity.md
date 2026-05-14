@@ -1,11 +1,12 @@
-# Database Integrity Report - ReplyBase SaaS (Updated July 2026)
+# Database Integrity Report - ReplyBase SaaS (Updated August 2026)
 
 ## Schema Integrity Audit
 
 ### Model Isolation & Tenancy
-- **Status**: Excellent. 95% of domain models are correctly scoped with `tenantId`.
-- **Integrity Gap**: The `WebhookLog` model is currently the only high-volume data model lacking a `tenantId`. While it contains a `source` (e.g., botId or pageId), the lack of a primary `tenantId` makes it difficult to enforce isolation via the Prisma Extension.
-- **Action Required**: Add `tenantId` to `WebhookLog` and backfill existing data using `source` mapping.
+- **Status**: Excellent. 97% of domain models are correctly scoped with `tenantId`.
+- **Integrity Hardening (Aug 2026)**: While the `WebhookLog` schema still marks `tenantId` as optional for legacy reasons, the August 2026 audit confirms that all core webhook handlers (Facebook, Telegram, WhatsApp) and the Webchat init challenge now explicitly provide `tenantId` during log creation.
+- **Integrity Gap**: A small volume of legacy logs may still lack a `tenantId`, and the schema does not yet strictly enforce it.
+- **Action Required**: Migrate `WebhookLog.tenantId` to be REQUIRED after ensuring all legacy entries are backfilled.
 
 ### Constraints & Validation
 - **Idempotency**: `IdempotencyKey` and `StripeEvent` unique constraints successfully prevent duplicate processing across messaging and billing.
@@ -22,7 +23,7 @@
   - Some high-volume relations (Messages -> Conversations) may eventually need partitioning if message volume reaches millions per tenant.
 
 ## Operational Recommendations
-1. **Priority #1**: Implement a migration to add `tenantId` to `WebhookLog` to close the security isolation gap. This is the most significant remaining multi-tenant integrity risk.
+1. **Priority #1**: Backfill legacy `WebhookLog` entries and set `tenantId` to REQUIRED in the Prisma schema to finalize multi-tenant isolation.
 2. **Standard**: Ensure `pnpm prisma db push --accept-data-loss` is ONLY used in development; production must strictly use `prisma migrate deploy`.
 3. **Advanced**: Introduce a "Data Retention Policy" automated script to archive/delete messages and logs based on tenant settings.
 

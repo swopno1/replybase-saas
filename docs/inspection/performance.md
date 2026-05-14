@@ -10,7 +10,7 @@
 - **Query Efficiency**: Scoped Prisma queries are efficient due to `tenantId` indexing.
 - **Caching Strategy**:
     - **Implemented**: A dual-layer TTL cache (L1 in-memory Map, L2 Redis) for tenant limits and subscription status in `lib/subscription.ts`.
-    - **Opportunity**: Dashboard metrics (Lead counts, Conversion rates) are currently calculated on-the-fly. **Task 011** aims to implement Redis-based caching (`dashboard:stats:[tenantId]`) with a 5-minute TTL.
+- **Opportunity (PENDING - Aug 2026)**: Dashboard metrics (Lead counts, Conversation volume) are still calculated on-the-fly from the DB. **Task 011** remains a high-priority efficiency gain to implement Redis-based caching (`dashboard:stats:[tenantId]`) with a 5-minute TTL.
 - **N+1 Issues**: Batching is implemented for Message and Lead lookups. However, `BotList` and `ChannelConfig` still perform sequential channel status checks. These should be consolidated into a single join or batched query.
 
 ### 3. Usage Logging & Data Operations

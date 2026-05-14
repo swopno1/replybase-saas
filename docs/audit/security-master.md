@@ -37,12 +37,12 @@ ReplyBase maintains a robust, multi-layered security posture optimized for a mul
 ## 5. Identified Risks & Vulnerabilities
 - **Prompt Injection (MEDIUM)**: The AI fallback mechanism is susceptible to prompt injection. **Remediation**: Implement strict LLM guardrail prompts.
 - **CORS Hardening (MEDIUM)**: Webchat API endpoints (`/api/webchat/*`) use dynamic CORS. **Remediation**: Strictly enforce `allowedDomains` whitelist from `WebChatSite` model.
-- **Admin Read-Only Audit (MEDIUM)**: Gap remains in logging "Read-only" access to sensitive PII/tenant data by Superadmins. **Remediation**: Implement Task 021.
+- **Admin Read-Only Audit (MEDIUM - PENDING)**: Gap remains in logging "Read-only" access to sensitive PII/tenant data by Superadmins. While Admin test execution is logged, general browse access to PII is not granularly audited. **Remediation**: Implement Task 021.
 
 ## 6. Remediation Roadmap
 - **COMPLETED**: Scoped mutation hardening for all channel routes.
 - **COMPLETED**: Admin Test Runner security refactor (`execFile`).
-- **COMPLETED**: Multi-tenant isolation enforcement for `WebhookLog`.
+- **COMPLETED**: Multi-tenant isolation enforcement for `WebhookLog` (Logical enforcement via code).
 - **HIGH**: Implement Granular Admin Audit Logging (Task 021).
 - **MEDIUM**: Enforce CORS `allowedDomains` for Webchat.
 - **LOW**: Implement LLM Guardrails for AI fallback.

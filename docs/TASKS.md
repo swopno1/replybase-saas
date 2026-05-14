@@ -14,7 +14,7 @@
   - Detailed Instructions: 1. Wrap `app/(dashboard)/page.tsx` data queries in a caching utility. 2. Use `dashboard:stats:[tenantId]` keys with a 5-minute TTL. 3. Implement event-driven cache invalidation.
   - Expected Deliverables: Cached metrics layer and invalidation logic.
   - Dependencies: Redis infrastructure.
-  - Notes: Consolidated from Task 003 and 022.
+  - Notes: Consolidated from Task 003 and 022. Aug 2026 Audit confirmed this is still pending and high priority for dashboard responsiveness.
   - Rollout Risk: MEDIUM.
 
 - [ ] **Task 004**
@@ -93,7 +93,7 @@
   - Detailed Instructions: 1. Update status-cards.tsx with Links. 2. Wrap Milestone items in Links.
   - Expected Deliverables: Interactive dashboard layout.
   - Dependencies: None.
-  - Notes: Consolidated from Task 013.
+  - Notes: Consolidated from Task 013. Aug 2026 Audit confirmed StatusCards and Milestones remain static and require this interactivity upgrade.
   - Rollout Risk: LOW.
 
 - [ ] **UX-001**

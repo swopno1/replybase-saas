@@ -4,7 +4,7 @@
 - **TypeScript**: Strict mode enabled.
 - **Linting**: ESLint configured (Next.js defaults + custom rules). Approximately 135 ESLint problems exist, including problematic synchronous `setState` calls in `useEffect`.
 - **Type Safety**:
-  - **Identified Risk**: High usage of `any` type (752 instances) across the codebase, particularly in webhook handlers and complex dashboard components.
+  - **Identified Risk**: High usage of `any` type (849+ instances) across the codebase, particularly in webhook handlers and complex dashboard components.
   - **Progress**: Significantly reduced `any` usage in core services (`prisma-tenant`, `ai-fallback`).
 
 ## Code Structure & Modularity
@@ -13,7 +13,7 @@
 - **Component Organization**: Use of `shadcn/ui` ensures a consistent look and feel and promotes reusable UI primitives.
 
 ## Testing Coverage
-- **Unit Tests**: Pass rate ~97.9% (279/285 passed) - *Last Audit: July 2026*.
+- **Unit Tests**: Pass rate ~97.9% (279/285 passed) - *Last Audit: August 2026*.
   - **Identified Regressions**:
     1. **Task 014 (Account Deletion)**: Resolved in August 2026; unit tests for GDPR flows are now stable.
     2. **Webchat Engine**: `tests/webchat/webchat-conversation-engine.test.ts` fails in `LeadService.syncContactIdentifiedStatus`.
