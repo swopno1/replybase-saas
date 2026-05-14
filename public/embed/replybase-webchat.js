@@ -725,43 +725,15 @@
     startAgentReplyPolling();
   }
 
-  // --- Loading indicator ---
-  var loadingDiv = document.createElement("div");
-  loadingDiv.id = "replybase-webchat-loading";
-  loadingDiv.style.position = "fixed";
-  loadingDiv.style.bottom = "20px";
-  loadingDiv.style.right = "20px";
-  loadingDiv.style.background = "#f1f5f9";
-  loadingDiv.style.color = "#0f172a";
-  loadingDiv.style.padding = "16px 24px";
-  loadingDiv.style.border = "1px solid #cbd5e1";
-  loadingDiv.style.borderRadius = "12px";
-  loadingDiv.style.zIndex = "2147483647";
-  loadingDiv.style.fontFamily = "'Segoe UI', Tahoma, sans-serif";
-  loadingDiv.textContent = "Loading chat widget...";
-  document.body.appendChild(loadingDiv);
+  // --- Status logging ---
+  console.log("[ReplyBase Webchat] Loading chat widget...");
 
   function showError(message) {
-    var errorDiv = document.createElement("div");
-    errorDiv.id = "replybase-webchat-error";
-    errorDiv.style.position = "fixed";
-    errorDiv.style.bottom = "20px";
-    errorDiv.style.right = "20px";
-    errorDiv.style.background = "#fff0f0";
-    errorDiv.style.color = "#b91c1c";
-    errorDiv.style.padding = "16px 24px";
-    errorDiv.style.border = "1px solid #fca5a5";
-    errorDiv.style.borderRadius = "12px";
-    errorDiv.style.zIndex = "2147483647";
-    errorDiv.style.fontFamily = "'Segoe UI', Tahoma, sans-serif";
-    errorDiv.textContent = "Chat unavailable: " + message;
-    document.body.appendChild(errorDiv);
-    if (loadingDiv && loadingDiv.parentNode)
-      loadingDiv.parentNode.removeChild(loadingDiv);
+    console.error("[ReplyBase Webchat] Chat unavailable: " + message);
   }
 
   (function initWidget() {
-    console.log("[ReplyBase Webchat] Starting widget initialization...");
+
     loadConfig()
       .then(function () {
         console.log("[ReplyBase Webchat] Config loaded:", {
@@ -796,8 +768,7 @@
             "Missing conversationId after session initialization",
           );
         }
-        if (loadingDiv && loadingDiv.parentNode)
-          loadingDiv.parentNode.removeChild(loadingDiv);
+
         renderWidget();
       })
       .catch(function (err) {
