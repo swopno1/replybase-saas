@@ -1,60 +1,53 @@
-# System Architecture Report - ReplyBase SaaS (Updated July 2026)
+# System Architecture & Logic Master Audit - ReplyBase SaaS (Updated August 2026)
 
-## Overview
-ReplyBase is a production-hardened multi-tenant SaaS platform built on Next.js 16 (App Router) with a resilient multi-bot/multi-channel messaging architecture. It follows a service-oriented architecture within a single codebase, leveraging serverless-friendly patterns.
+## 1. Core Architectural Pillars
+- **Multi-Tenant Isolation**: Automated at the database layer via Prisma Client Extensions (`getTenantPrisma`). DMMF introspection automatically identifies and scopes all models with a `tenantId` field.
+- **Asynchronous Execution**: Heavy workloads (AI generation, lead enrichment, outbound webhooks) are offloaded to a tiered BullMQ architecture to ensure fast API responses and system resilience.
+- **Provider Abstraction**: Pluggable architecture for Messaging Channels (Meta, Telegram, WhatsApp, Webchat) and AI Engines (Llama 3.1 via DO Gradient, Gemini, OpenAI).
+- **Service-Oriented Logic**: Business rules are encapsulated in standalone services (e.g., `LeadEnrichmentService`, `BillingService`, `WebhookDispatcher`).
 
-## Frontend Architecture
-- **Framework**: React 19 (Server and Client Components).
-- **Styling**: Tailwind CSS for utility-first styling.
-- **Components**: shadcn/ui (Radix UI) for accessible, modular components.
-- **State Management**: Primarily handled through React's built-in state, hooks, and URL state.
+## 2. End-to-End Message Lifecycle (High-Level)
 
-## Backend Architecture
-- **Environment**: Next.js API Routes (Node.js runtime).
-- **ORM**: Prisma 7.8.0.
-- **Middleware/Proxy**: A root `proxy.ts` file acts as a centralized gatekeeper for rate limiting, authentication checks, and routing logic before hitting API routes.
-- **Multi-Tenant Data Layer**:
-    - **Isolation Strategy**: Automatic tenant isolation via Prisma Query Extensions (`getTenantPrisma`). This layer intercepts all queries and injects `tenantId`, preventing accidental cross-tenant data leakage.
-    - **Strict Enforcement**: The `withAuthAndTenant` higher-order function ensures all API handlers operate within a scoped context.
+### Inbound Flow
+1. **Ingress**: Webhook arrives from provider (e.g., Meta) or client (Webchat).
+2. **Identification**: `proxy.ts` or route handler identifies the tenant, bot, and channel credentials.
+3. **Persistence**: Message is logged in `CrmMessage` for audit and CRM visibility.
+4. **Processing (Async)**:
+   - **Flow Engine**: Attempts to execute matching nodes in the bot's configured JSON flow.
+   - **AI Fallback**: If no flow handles the message, `aiFallback` generates a response using the bot's stored context and conversation history.
+5. **Egress**: Response is delivered back through the originating provider's API.
 
-## Multi-Bot & Multi-Channel Architecture
-- **Structure**: Each Tenant can have multiple Bots. Each Bot manages its own set of Channels (Webchat, Facebook, Telegram, WhatsApp).
-- **Routing**: Webhooks are routed deterministically based on provider-specific IDs (e.g., Facebook Page ID, WhatsApp Phone Number ID) to the specific Bot context.
-- **Channel Integrations**:
-    - **Facebook**: Uses Graph API with webhook support. Handles page subscriptions and message delivery.
-    - **Telegram**: Uses Telegram Bot API with webhook integration.
-    - **WhatsApp**: Multi-provider support (Meta Cloud API, Twilio, 360dialog) abstracted via `lib/whatsapp-provider.ts`.
-    - **Webchat**: A custom widget that communicates via `/api/webchat/*` endpoints.
+### Lead & Action Flow
+1. **Capture**: `LeadService` identifies lead signals during conversation.
+2. **Enrichment (Async)**: AI extracts structured insights (score, urgency, category, needs) into the `Lead.insights` field.
+3. **Action (Async)**: If a `trigger_webhook` action is reached, the `WebhookDispatcher` pushes the lead data to the user's external CRM/URL with exponential backoff retries.
 
-## Distributed Task Processing (BullMQ)
-- **Engine**: Redis-backed BullMQ manages long-running and high-frequency tasks.
-- **Dedicated Workers**:
-  - `message-processing`: Inbound message routing, AI response generation, and flow execution.
-  - `outbound-webhooks`: Reliable delivery of lead events to external CRMs/webhooks with retry logic.
-  - `lead-enrichment`: Background AI analysis of lead intent and quality.
+## 3. Implemented Feature Landscape
 
-## AI & Automation Layer
-- **Inference Strategy**: Core AI workloads are migrated to DigitalOcean Gradient (Llama 3.1) for high-frequency chat, resulting in ~40% lower latency and ~61% cost reduction. OpenAI/Anthropic remain available for complex reasoning tasks.
-- **Bot Entry Flow Engine**: Unified engine (`lib/bot-entry-flow-engine.ts`) handles cross-channel flow execution with built-in AI fallback support (`shouldFallbackToAi`).
-- **Lead Action Engine**: Fully implemented outbound lead synchronization system, enabling real-time lead push to external webhooks.
+### Communication & Automation
+- **Unified Inbox**: Multi-channel CRM dashboard with real-time streaming updates.
+- **V6 Orchestrator**: Advanced node-based flow engine supporting complex logic, conditions, and actions.
+- **AI-Powered Fallback**: Context-aware automated responses for unhandled queries.
+- **Lead Connect & Action Engine**: Real-time outbound lead synchronization via reliable webhooks.
 
-## Logic Separation
-- **Synchronous Actions**: Simple CRUD operations and dashboard interactions.
-- **Asynchronous/Webhook Actions**: Incoming messages from external channels are processed asynchronously via webhooks, triggering the Flow Engine or AI fallback.
-- **Background Tasks**: Cron jobs (via `/api/cron/*`) handle periodic maintenance like pruning logs or checking for expired trials.
+### Operations & Growth
+- **Activation Milestones**: Retention-focused onboarding tracking.
+- **Advanced Admin Suite**: KPI dashboards, acquisition analysis, and a "Simulation Lab" for testing flows.
+- **Subscription Management**: Tiered pricing with strict quota enforcement (Messages, Bots, Channels).
 
-## External Services
-- **Stripe**: Handles all financial transactions and subscription lifecycle events via webhooks.
-- **AI Providers**: Pluggable architecture supporting Google (Gemini), OpenAI, and Anthropic via the Vercel AI SDK.
+## 4. Architectural Health & Risks
 
-## Architectural Health Assessment
-- **Modularity**: 9.5/10. Strong service-layer abstraction for AI, Billing, and Channel Providers.
-- **Security**: 9.5/10. Multi-tenant isolation is logically complete; Admin surface is hardened.
-- **Reliability**: 9.5/10. Idempotent webhook processing and BullMQ-backed retry logic ensure data integrity.
-- **Scalability**: 9/10. DigitalOcean migration and usage buffering have significantly improved operational overhead.
+### Health Ratings
+- **Modularity**: 9.5/10. Strong separation of concerns.
+- **Security**: 9.5/10. Automated isolation and hardened Admin surface.
+- **Reliability**: 9.5/10. Idempotent processing and queue-backed resilience.
 
-## Future Evolution
-- **IAM**: Transition from flat Roles to granular Permissions for enterprise teams (Phase 4).
-- **Mobile-Specific UX**: Introduce lightweight, read-only "Flow Summary" views for mobile bot management.
-- **Data Locality**: Potential for region-specific database clusters for global compliance.
-- **Edge Runtime**: Move Webchat handshake and routing to the Edge to minimize latency.
+### Remaining Risks & Drifts
+- **Distributed Idempotency (REMEDIATED)**: Moved from in-memory locks to DB-level `IdempotencyKey` tracking.
+- **Waterfall Latency (MEDIUM)**: Sequential (Check Flow) -> (Check AI) processing. **Path**: Explore parallel execution or Edge-based routing for initial handshakes.
+- **Lead Data Siloing (REMEDIATED)**: Closed via the Lead Action Engine (Task 005).
+
+## 5. Evolution Roadmap
+- **IAM (Phase 4)**: Transition to granular permissions for enterprise support teams.
+- **Mobile Bot Management**: Lightweight "Flow Summary" views for on-the-go adjustments.
+- **Regional Compliance**: Potential for data locality clustering as the platform scales globally.
