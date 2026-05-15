@@ -122,6 +122,51 @@
   - Notes: Critical for high-scale operations.
   - Rollout Risk: LOW.
 
+- **Task 027**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Security/Engineering
+  - Severity: MEDIUM
+  - Issue: Legacy Manual Scoping in Flow API.
+  - Root Cause: `app/api/flows/route.ts` uses manual session lookups instead of the standardized `withAuthAndTenant` wrapper.
+  - Business Impact: Higher risk of future IDOR regressions if manual scoping logic is modified incorrectly.
+  - Objective: Refactor Flow API routes to use `withAuthAndTenant`.
+  - Detailed Instructions: 1. Update `GET` and `POST` in `app/api/flows/route.ts`. 2. Use the provided `db` client which is already tenant-scoped.
+  - Expected Deliverables: Hardened Flow API routes.
+  - Dependencies: `withAuthAndTenant` helper.
+  - Notes: Consistency improvement.
+  - Rollout Risk: LOW.
+
+- **Task 028**
+  - Priority: HIGH
+  - Status: PENDING
+  - Category: Security
+  - Severity: HIGH
+  - Issue: Missing CORS Domain Enforcement for Webchat.
+  - Root Cause: `app/api/webchat/*` endpoints allow wide dynamic CORS without strictly validating against the `allowedDomains` field in the `WebChatSite` model.
+  - Business Impact: Potential for unauthorized widget embedding on third-party sites.
+  - Objective: Enforce strict CORS whitelist based on tenant configuration.
+  - Detailed Instructions: 1. Update `lib/webchat-cors.ts`. 2. Query `WebChatSite` for the public key. 3. Verify `Origin` header against `allowedDomains`.
+  - Expected Deliverables: Hardened Webchat API security.
+  - Dependencies: None.
+  - Notes: Critical for production multi-tenancy.
+  - Rollout Risk: MEDIUM.
+
+- **Task 029**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Operations
+  - Severity: LOW
+  - Issue: Missing Webhook Replay Functionality.
+  - Root Cause: Failed outbound webhooks require manual DB intervention to retry.
+  - Business Impact: High operational overhead for support teams when client CRMs fail.
+  - Objective: Implement "Replay" capability for failed webhook logs.
+  - Detailed Instructions: 1. Add `POST /api/admin/webhook-logs/[id]/retry`. 2. Re-trigger the `WebhookDispatcher` for the specific log entry.
+  - Expected Deliverables: Admin "Retry" action for webhooks.
+  - Dependencies: `WebhookDispatcher`.
+  - Notes: Essential for support scalability.
+  - Rollout Risk: LOW.
+
 ## 2. Product & Feature Expansion
 
 - **Task 006**
