@@ -126,7 +126,7 @@ Output ONLY valid JSON, no markdown.`;
   try {
     const { text } = await generateText({ model, prompt, 
       // @ts-ignore
-      maxTokens: 500 });
+      maxTokens: 1000 });
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
     return {

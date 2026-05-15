@@ -56,8 +56,25 @@ export const POST = withAuthAndTenant(async ({ tenantId }, req, context, db) => 
       credentials: normalizedCredentials as any,
     });
 
-    const channel = await db.channel.create({
-      data: {
+    const channel = await db.channel.upsert({
+      where: {
+        type_channelId: {
+          type: "whatsapp",
+          channelId: String(channelId),
+        },
+      },
+      update: {
+        tenantId: tenantId,
+        botId,
+        name: name || "WhatsApp",
+        accessToken: encryptedToken,
+        config: {
+          provider,
+          ...credentials,
+        },
+        isActive: true,
+      },
+      create: {
         tenantId: tenantId,
         botId,
         type: "whatsapp",

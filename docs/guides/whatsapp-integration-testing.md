@@ -154,3 +154,39 @@ Temporary tokens expire. For a production-like test environment:
 - **Internal Testing**: Use Meta's **Test Number** and **Temporary Token** for quick validation.
 - **Client Onboarding**: Use **Twilio Sandbox** if the client doesn't have a Meta Business account yet.
 - **Production**: Use **Meta Cloud API** with a verified Business Account and a **Permanent System User Token** for the best performance and lowest cost.
+
+---
+
+## 8. Meta App Review Guidance (Tech Provider)
+
+If you are applying for a **Tech Provider** status or submitting your app for review to use `whatsapp_business_messaging` in production, follow these guidelines.
+
+### A. Minimum Required Use Case: "Customer Support"
+Meta requires a clear demonstration of why you need specific permissions. The most straightforward use case for ReplyBase is **Customer Support**.
+
+- **Use Case Name**: Omnichannel Customer Support & Automated Response.
+- **Description**: "ReplyBase allows businesses to centralize customer communications. When a customer sends a message to the business via WhatsApp, our platform receives the message via Webhook, processes it through our AI/Flow engine, and provides an automated response or allows a human agent to reply. This ensures timely and efficient customer service."
+
+### B. Permissions to Request
+1.  **`whatsapp_business_messaging`**: (CRITICAL) Required to send and receive messages.
+2.  **`whatsapp_business_management`**: (RECOMMENDED) Required to manage WABA settings and eventually support Embedded Signup.
+
+### C. Screencast Requirements (The "Proof")
+Meta reviewers MUST see the app in action. Your video should include:
+1.  **Dashboard Overview**: Show the ReplyBase login and dashboard.
+2.  **Connection Flow**: Navigate to **Integrations > WhatsApp**, show the configuration fields (Access Token, Phone Number ID).
+3.  **Inbound Message**: 
+    - Split screen or show a phone sending a WhatsApp message to the test/production number.
+    - Show the message appearing in the **ReplyBase Inbox**.
+4.  **Outbound Response**:
+    - Show the ReplyBase bot responding automatically OR an agent typing a reply.
+    - Show the message being received on the customer's phone.
+5.  **Interactive Elements (Optional but Good)**: Show a button or quick reply being sent and clicked.
+
+### D. App Settings Check
+- **App Category**: Business.
+- **App Type**: Business.
+- **Privacy Policy URL**: Must be a valid link to your privacy policy.
+- **Terms of Service URL**: Must be a valid link.
+- **Business Verification**: Your Meta Business Manager **MUST** be verified before you can go live.
+
