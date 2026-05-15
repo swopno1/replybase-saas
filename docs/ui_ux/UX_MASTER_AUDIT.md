@@ -35,6 +35,7 @@
 - **Interactive Dashboard Funnel (HIGH)**: Make status cards and milestones clickable to reduce distance to setup actions (Task UX-008).
 - **Mobile Flow Management (HIGH)**: Replace complex visual flow editor with a linearized "Flow Summary" list view for mobile (Task 012).
 - **Skeleton Expansion (MEDIUM)**: Add missing skeleton loaders to Conversation Detail and Settings views (Task UX-003).
+- **Specialized UI/UX Reports**: Deep-dive reports added for Accessibility, Brand Consistency, Conversion Psychology, Dashboard Experience, Design System, Mobile Experience, Motion, and General Audit.
 - **Onboarding Polish (MEDIUM)**: Add "Preparing your workspace" interstitial loading state between plan selection and dashboard (Task UX-007).
 - **Collaboration UX (LOW)**: Implement real-time presence indicators in the CRM to prevent dual-handling of conversations.
 

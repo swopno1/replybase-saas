@@ -6,6 +6,7 @@
 - **Type Safety**:
   - **Identified Risk**: ~752 instances of `any` type remain, particularly in webhook handlers and dashboard components.
   - **Progress**: Core services (`prisma-tenant`, `ai-fallback`, `billing-service`) are fully typed. Replacing `any` with Zod schemas in high-traffic routes is an ongoing priority.
+- **Route Hardening**: ~90% of API routes migrated to `withAuthAndTenant`. Legacy routes in `/api/flows` still use manual session-based scoping.
 - **Async Safety**: Critical ESLint warnings regarding synchronous `setState` in `useEffect` have been mitigated using `setTimeout` in major components.
 
 ## 2. Database Integrity & Multi-Tenancy
