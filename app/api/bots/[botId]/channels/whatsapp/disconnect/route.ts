@@ -33,6 +33,24 @@ export const POST = withAuthAndTenant(async ({ tenantId }, req, context, db) => 
 
     const currentConfig = (channel.config as Prisma.JsonObject | null) || {};
 
+    if (channel.accessToken) {
+      try {
+        const { decryptWhatsAppCredentialEnvelope } = await import("@/lib/whatsapp-channel-credentials");
+        const envelope = decryptWhatsAppCredentialEnvelope(channel.accessToken);
+        if (envelope.provider === "meta_cloud") {
+          const accessToken = (envelope.credentials as any).accessToken;
+          if (accessToken) {
+            // Attempt to revoke the token/permissions on Meta side
+            await fetch(`https://graph.facebook.com/v20.0/me/permissions?access_token=${accessToken}`, {
+              method: "DELETE",
+            });
+          }
+        }
+      } catch (revokeErr) {
+        console.warn("[WhatsApp Disconnect] Could not revoke Meta token:", revokeErr);
+      }
+    }
+
     await db.channel.update({
       where: { id: channel.id },
       data: {
