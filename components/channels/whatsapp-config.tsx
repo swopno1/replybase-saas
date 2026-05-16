@@ -106,8 +106,9 @@ export function WhatsAppConfig({ botId, channelLimitStatus }: { botId: string; c
 
   // Load Meta SDK for QuickStart
   useEffect(() => {
+    const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || "3851740095132954";
+    
     if (typeof window !== "undefined" && !document.getElementById("facebook-jssdk")) {
-      const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
       if (appId) {
         const script = document.createElement("script");
         script.id = "facebook-jssdk";
@@ -115,12 +116,14 @@ export function WhatsAppConfig({ botId, channelLimitStatus }: { botId: string; c
         script.async = true;
         script.defer = true;
         script.onload = () => {
-          (window as any).FB.init({
-            appId: appId,
-            cookie: true,
-            xfbml: true,
-            version: "v21.0",
-          });
+          if ((window as any).FB) {
+            (window as any).FB.init({
+              appId: appId,
+              cookie: true,
+              xfbml: true,
+              version: "v21.0",
+            });
+          }
         };
         document.body.appendChild(script);
       }
