@@ -25,8 +25,8 @@ ReplyBase provides a professional, high-density SaaS experience optimized for le
 
 ## 6. Accessibility & Inclusivity
 - **Standard**: Radix UI primitives provide a strong foundation for keyboard and screen reader support.
-- **Gap**: Some icon-only buttons lack explicit `aria-label` attributes.
-- **Recommendation**: Audit and apply labels to all Lucide-only triggers.
+- **Gap**: Identified missing `aria-label` attributes on icon-only buttons in the Conversation detail view and Admin KPI charts (Task UX-013).
+- **Recommendation**: Audit and apply descriptive labels to all Lucide-only triggers to ensure WCAG 2.1 compliance.
 
 ## 7. UX Maturity Score: 8.2/10
 The platform is technically elite. Transitioning from "Functional" to "Delightful" through interactivity and micro-interactions will elevate it to a premium-tier SaaS.

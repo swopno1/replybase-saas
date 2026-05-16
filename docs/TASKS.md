@@ -198,3 +198,33 @@
   - Dependencies: S3/Storage infrastructure.
   - Notes: Requires storage scaling plan.
   - Rollout Risk: MEDIUM.
+
+- **Task 030**
+  - Priority: HIGH
+  - Status: PENDING
+  - Category: Security
+  - Severity: HIGH
+  - Issue: Webchat CORS Whitelist Enforcement.
+  - Root Cause: Current webchat endpoints allow dynamic CORS without strictly validating against the tenant's `allowedDomains`.
+  - Business Impact: Prevents unauthorized widget embedding and protects tenant API usage.
+  - Objective: Enforce strict CORS validation using the `WebChatSite.allowedDomains` configuration.
+  - Detailed Instructions: 1. Update `lib/webchat-cors.ts` to query the database for the site's allowed domains. 2. Compare incoming `Origin` header. 3. Reject unauthorized origins with 403.
+  - Expected Deliverables: Hardened CORS logic for Webchat.
+  - Dependencies: None.
+  - Notes: Critical for production security.
+  - Rollout Risk: MEDIUM.
+
+- **Task 031**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Observability
+  - Severity: MEDIUM
+  - Issue: Admin Dashboard: Real-time Queue & AI Monitoring.
+  - Root Cause: Admins lack visibility into background worker health and AI latency.
+  - Business Impact: Faster incident detection and provider performance tracking.
+  - Objective: Create an observability dashboard in the Admin suite.
+  - Detailed Instructions: 1. Create `/api/admin/metrics` to expose BullMQ and AI stats. 2. Build a "System Health" tab in the Admin UI with Recharts.
+  - Expected Deliverables: Real-time health dashboard for admins.
+  - Dependencies: BullMQ.
+  - Notes: Essential for enterprise-grade operations.
+  - Rollout Risk: LOW.

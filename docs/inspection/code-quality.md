@@ -4,8 +4,8 @@
 - **TypeScript**: Strict mode enabled. Standardized on Prisma 7.8.0.
 - **Linting**: ESLint configured (Next.js defaults + custom rules).
 - **Type Safety**:
-  - **Identified Risk**: ~752 instances of `any` type remain, particularly in webhook handlers and dashboard components.
-  - **Progress**: Core services (`prisma-tenant`, `ai-fallback`, `billing-service`) are fully typed. Replacing `any` with Zod schemas in high-traffic routes is an ongoing priority.
+  - **Identified Risk**: 377 instances of `any` type remain within the critical `lib/` and `app/api/` directories (859 total in repo). These are concentrated in webhook handlers and dashboard components.
+  - **Progress**: Core services (`prisma-tenant`, `ai-fallback`, `billing-service`) are fully typed. Replacing `any` with Zod schemas in high-traffic routes (Task 022) is an ongoing priority.
 - **Route Hardening**: ~90% of API routes migrated to `withAuthAndTenant`. Legacy routes in `/api/flows` still use manual session-based scoping.
 - **Async Safety**: Critical ESLint warnings regarding synchronous `setState` in `useEffect` have been mitigated using `setTimeout` in major components.
 
@@ -33,7 +33,7 @@
 - **Identified Failures**: Current failures in `webchat-conversation-engine.test.ts` and `contacts-conversations-batch.test.ts` require investigation into Prisma mocking behavior.
 
 ## 5. Engineering Roadmap & Optimization
-- **Type Strike (HIGH)**: Replace remaining `any` instances in webhook handlers with structured Zod/Prisma types.
+- **Type Strike (HIGH - Task 022)**: Replace 377 instances of `any` in `lib/` and `app/api/` with structured Zod/Prisma types to improve runtime safety and developer ergonomics.
 - **Testing Maturity (MEDIUM)**: Implement a unified Prisma mocking strategy to increase coverage for database-interactive functions.
 - **Log Management (LOW)**: Implement automated log pruning for `WebhookLog` (older than 30 days) to prevent table bloat.
 - **N+1 Consolidation (MEDIUM)**: Refactor `BotList` to fetch channel statuses in a single batched query.

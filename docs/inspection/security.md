@@ -4,7 +4,7 @@
 - **Prisma Extension**: The `getTenantPrisma` extension is the primary defense. It uses DMMF introspection to automatically inject `tenantId` filters.
 - **API Surface Coverage**:
     - **Scoping**: ~90% of `app/api` routes correctly use `withAuthAndTenant` or manual tenant scoping.
-    - **Gaps**: Some legacy routes (e.g., `app/api/flows/route.ts`) perform manual scoping. While functional, they represent a higher maintenance risk than the automated extension pattern.
+    - **Gaps**: Legacy routes in `app/api/flows/route.ts` still utilize manual session-based scoping. While currently secure, these should be migrated to the `withAuthAndTenant` wrapper to ensure architectural consistency and eliminate the risk of future IDOR regressions during refactoring.
 - **Database Unique Constraints**: Gold-standard `@@unique([id, tenantId])` is consistently used on core models (`Lead`, `Flow`, `Bot`), preventing cross-tenant IDOR even if a query filter were missed.
 
 ## 2. Authentication & Session Integrity
@@ -33,6 +33,6 @@
 | **XSS** | Low | Monitoring | Periodic audit of `dangerouslySetInnerHTML` in charts. |
 
 ## 6. Recommended Hardening
-1. **Universal Scoping**: Migrate remaining manual scoping in `app/api/flows/` to `withAuthAndTenant`.
-2. **CORS Strictness**: Enforce `allowedDomains` whitelist for Webchat init/message endpoints.
+1. **Universal Scoping (HIGH)**: Refactor `app/api/flows/route.ts` to use the `withAuthAndTenant` helper, replacing manual `getServerSession` and `tenantId` lookups (Task 027).
+2. **CORS Whitelisting (HIGH)**: Implement strict `Origin` validation for Webchat endpoints against the `allowedDomains` field in the `WebChatSite` model (Task 030).
 3. **Automated Scanning**: Integrate ZAP or similar for automated OWASP Top 10 checks in CI.
