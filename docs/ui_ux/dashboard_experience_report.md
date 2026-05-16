@@ -13,5 +13,10 @@
 - **Onboarding Progress**: The progress tracker (X/Y completed) is a strong psychological driver for setup.
 
 ## 4. Improvements
-1. **Interactive Cards**: Wrap status cards in `Link` components (Task UX-008).
-2. **Contextual Help**: Add small Lucide `Info` icons to metric cards that reveal tooltips explaining the data.
+1. **Interactive Cards (Task UX-008)**: Transform static status cards into primary navigation shortcuts:
+   - **Automation Card**: Link to `/bots` (if ready) or `/integrations/webchat` (if pending).
+   - **Channels Card**: Link to `/settings?tab=channels`.
+   - **Lead Alerts Card**: Link to `/settings?tab=notifications`.
+   - **Activity Card**: Link to `/conversations`.
+2. **Interactive Milestones**: Ensure all rows in the `Activation Milestones` card are clickable, not just the button, to maximize setup momentum.
+3. **Contextual Help**: Add small Lucide `Info` icons to metric cards that reveal tooltips explaining the data.

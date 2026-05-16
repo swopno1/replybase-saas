@@ -9,7 +9,7 @@
 ### Database Performance
 - **Query Efficiency**: Scoped Prisma queries are efficient due to universal `tenantId` indexing.
 - **Dual-Layer Caching**: Implemented a dual-layer TTL cache (L1 in-memory Map, L2 Redis) for tenant limits and subscription status in `lib/subscription.ts`.
-- **N+1 Identification**: `BotList` and `ChannelConfig` still perform sequential channel status checks. **Path**: Consolidate into a single batched query per bot.
+- **N+1 Identification**: `BotList` (in `app/api/bots/route.ts`) performs an `include` for channels on a per-bot basis within a `findMany`. While Prisma's `include` is optimized, complex status checks often trigger subsequent sequential lookups in the UI or during data mapping. **Path**: Consolidate into a single batched query or use more efficient projection (Task 024).
 
 ### Data Operations
 - **Usage Buffering**: `UsageBuffer` system batches usage updates and flushes to the DB every 10 seconds or upon threshold, preventing write amplification.
