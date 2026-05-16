@@ -101,7 +101,100 @@ export function WhatsAppConfig({ botId, channelLimitStatus }: { botId: string; c
   const [dialogChannelId, setDialogChannelId] = useState("");
 
   const [connecting, setConnecting] = useState(false);
+  const [isQuickStarting, setIsQuickStarting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+
+  // Load Meta SDK for QuickStart
+  useEffect(() => {
+    if (typeof window !== "undefined" && !document.getElementById("facebook-jssdk")) {
+      const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
+      if (appId) {
+        const script = document.createElement("script");
+        script.id = "facebook-jssdk";
+        script.src = "https://connect.facebook.net/en_US/sdk.js";
+        script.async = true;
+        script.defer = true;
+        script.onload = () => {
+          (window as any).FB.init({
+            appId: appId,
+            cookie: true,
+            xfbml: true,
+            version: "v21.0",
+          });
+        };
+        document.body.appendChild(script);
+      }
+    }
+  }, []);
+
+  const handleQuickStart = async () => {
+    if (!(window as any).FB) {
+      toast.error("Meta SDK not loaded. Please check your connection or browser settings.");
+      return;
+    }
+
+    setIsQuickStarting(true);
+    try {
+      (window as any).FB.login(
+        (response: any) => {
+          if (response.authResponse) {
+            const accessToken = response.authResponse.accessToken;
+            setMetaAccessToken(accessToken);
+            toast.success("Meta account linked! Now fetching phone numbers...");
+            // Fetch available phone numbers
+            void fetchMetaPhoneNumbers(accessToken);
+          } else {
+            toast.error("Meta login cancelled or failed.");
+            setIsQuickStarting(false);
+          }
+        },
+        {
+          scope: "whatsapp_business_management,whatsapp_business_messaging,business_management",
+          extras: {
+            feature: "whatsapp_embedded_signup",
+            setup: {
+              // Add any specific setup configuration here if needed
+            },
+          },
+        }
+      );
+    } catch (error) {
+      toast.error("Failed to launch Meta login.");
+      setIsQuickStarting(false);
+    }
+  };
+
+  const fetchMetaPhoneNumbers = async (token: string) => {
+    try {
+      // First find the WABA (WhatsApp Business Account)
+      const wabaRes = await fetch(`https://graph.facebook.com/v21.0/me/whatsapp_business_accounts?access_token=${token}`);
+      const wabaData = await wabaRes.json();
+      
+      if (wabaData.data && wabaData.data.length > 0) {
+        const wabaId = wabaData.data[0].id;
+        setMetaBusinessId(wabaId);
+
+        // Now fetch phone numbers for this WABA
+        const phoneRes = await fetch(`https://graph.facebook.com/v21.0/${wabaId}/phone_numbers?access_token=${token}`);
+        const phoneData = await phoneRes.json();
+
+        if (phoneData.data && phoneData.data.length > 0) {
+          const firstPhone = phoneData.data[0];
+          setMetaPhoneNumberId(firstPhone.id);
+          setChannelName(firstPhone.display_phone_number || "");
+          toast.success(`Found WhatsApp number: ${firstPhone.display_phone_number}`);
+        } else {
+          toast.warning("Linked successfully, but no WhatsApp phone numbers found in this account.");
+        }
+      } else {
+        toast.warning("Linked successfully, but no WhatsApp Business Accounts found.");
+      }
+    } catch (error) {
+      toast.error("Connected to Meta, but failed to fetch WhatsApp details automatically.");
+    } finally {
+      setIsQuickStarting(false);
+    }
+  };
 
   // Flow assignment state
   const [flows, setFlows] = useState<FlowOption[]>([]);
@@ -443,7 +536,11 @@ export function WhatsAppConfig({ botId, channelLimitStatus }: { botId: string; c
             {!connected ? (
               <Button
                 onClick={handleConnect}
-                disabled={!canConnect || connecting || !(channelLimitStatus || status?.limitStatus)?.allowed}
+                disabled={
+                  !canConnect ||
+                  connecting ||
+                  !(channelLimitStatus || status?.limitStatus)?.allowed
+                }
               >
                 {connecting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -464,6 +561,25 @@ export function WhatsAppConfig({ botId, channelLimitStatus }: { botId: string; c
                   <Unplug className="mr-2 h-4 w-4" />
                 )}
                 Disconnect
+              </Button>
+            )}
+
+            {!connected && provider === "meta_cloud" && (
+              <Button
+                variant="outline"
+                onClick={handleQuickStart}
+                disabled={
+                  isQuickStarting ||
+                  connecting ||
+                  !(channelLimitStatus || status?.limitStatus)?.allowed
+                }
+              >
+                {isQuickStarting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                )}
+                QuickStart with Meta
               </Button>
             )}
           </div>
