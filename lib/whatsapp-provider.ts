@@ -159,6 +159,24 @@ export async function validateWhatsAppProviderConnection(input: {
       };
     }
 
+    // Attempt to verify permissions if possible to catch common configuration errors
+    try {
+      const permResponse = await fetch(`https://graph.facebook.com/v20.0/me/permissions?access_token=${meta.accessToken}`);
+      if (permResponse.ok) {
+        const permData = await permResponse.json() as { data: Array<{ permission: string, status: string }> };
+        const hasMessaging = permData.data.some(p => p.permission === 'whatsapp_business_messaging' && p.status === 'granted');
+        if (!hasMessaging) {
+          return {
+            valid: false,
+            error: "Token is missing 'whatsapp_business_messaging' permission. You can receive messages but cannot send replies. Please re-generate your token with this scope enabled.",
+          };
+        }
+      }
+    } catch (permError) {
+      // If permission check fails (e.g. due to restricted token), we skip and rely on the phone ID check
+      console.warn("[WhatsApp Validation] Permission check skipped:", permError);
+    }
+
     return {
       valid: true,
       normalized: {
