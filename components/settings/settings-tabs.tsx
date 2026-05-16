@@ -24,6 +24,7 @@ import {
   Check,
   CreditCard,
   Brain,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import BillingTabContent from "@/components/settings/billing-tab";
@@ -752,6 +753,14 @@ function SettingsTabsInner() {
                   <p className="text-xs text-muted-foreground">
                     These destinations receive instant notifications when a new
                     website lead is captured.
+                    <a 
+                      href="https://replybase.co.uk/docs/get-started/account-setup" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="mt-2 text-[10px] text-primary hover:underline flex items-center gap-1 font-bold"
+                    >
+                      Guide: Learn more about notifications <ExternalLink className="h-2 w-2" />
+                    </a>
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -829,7 +838,15 @@ function SettingsTabsInner() {
           <CardHeader>
             <CardTitle>Data &amp; Privacy</CardTitle>
             <CardDescription>
-              Manage your personal data and privacy settings
+              Manage your personal data and privacy settings.
+              <a 
+                href="https://replybase.co.uk/docs/security" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="mt-2 text-[10px] text-primary hover:underline flex items-center gap-1 font-bold"
+              >
+                Guide: Learn more about privacy <ExternalLink className="h-2 w-2" />
+              </a>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -893,6 +910,14 @@ function SettingsTabsInner() {
             <CardDescription>
               Configure your preferred AI engine for fallback messaging and bot
               responses.
+              <a 
+                href="https://replybase.co.uk/docs/platform/ai-workflows" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="mt-2 text-[10px] text-primary hover:underline flex items-center gap-1 font-bold"
+              >
+                Guide: Learn more about AI workflows <ExternalLink className="h-2 w-2" />
+              </a>
             </CardDescription>
           </CardHeader>
           <CardContent>

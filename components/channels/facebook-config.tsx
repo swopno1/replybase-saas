@@ -8,6 +8,7 @@ import {
   Unplug,
   RefreshCw,
   ShieldAlert,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -334,6 +335,14 @@ export function FacebookConfig({ botId, channelLimitStatus }: { botId: string; c
             <CardTitle className="text-base">Facebook Pages</CardTitle>
             <CardDescription>
               Manage which Facebook pages are connected to this bot.
+              <a 
+                href="https://replybase.co.uk/docs/channels/facebook" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="mt-2 text-[10px] text-primary hover:underline flex items-center gap-1 font-bold"
+              >
+                Guide: How to complete this step <ExternalLink className="h-2 w-2" />
+              </a>
             </CardDescription>
           </div>
           <div className="flex gap-2">

@@ -274,7 +274,7 @@ export default async function DashboardPage() {
       completedAt: firstConnectedChannelAt,
       actionLabel: "Connect a channel",
       actionHref: "/integrations/webchat",
-      docHref: "https://replybase.co.uk/docs/get-started#connecting-channels"
+      docHref: "https://replybase.co.uk/docs/get-started/choose-channel"
     },
     {
       id: "first-automated-reply",
@@ -285,7 +285,7 @@ export default async function DashboardPage() {
       completedAt: firstAutomatedReplyAt,
       actionLabel: "Run a reply test",
       actionHref: "/integrations/telegram",
-      docHref: "https://replybase.co.uk/docs/get-started#testing"
+      docHref: "https://replybase.co.uk/docs/get-started/live-test"
     },
     {
       id: "plan-selection",
@@ -297,7 +297,7 @@ export default async function DashboardPage() {
       completedAt: null,
       actionLabel: planActionLabel,
       actionHref: planActionHref,
-      docHref: "https://replybase.co.uk/docs/get-started#pricing"
+      docHref: "https://replybase.co.uk/docs/get-started/next-steps"
     },
     {
       id: "lead-notifications",
@@ -310,7 +310,7 @@ export default async function DashboardPage() {
         : null,
       actionLabel: "Configure destinations",
       actionHref: "/settings?tab=notifications",
-      docHref: "https://replybase.co.uk/docs/get-started#notifications"
+      docHref: "https://replybase.co.uk/docs/get-started/account-setup"
     },
   ];
 

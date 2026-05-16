@@ -406,6 +406,14 @@ export function WhatsAppConfig({ botId, channelLimitStatus }: { botId: string; c
           </CardTitle>
           <CardDescription>
             Configure Meta Cloud API, Twilio, or 360dialog credentials.
+            <a 
+              href="https://replybase.co.uk/docs/channels/whatsapp" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="mt-2 text-[10px] text-primary hover:underline flex items-center gap-1 font-bold"
+            >
+              Guide: How to complete this step <MessageCircle className="h-2 w-2" />
+            </a>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
