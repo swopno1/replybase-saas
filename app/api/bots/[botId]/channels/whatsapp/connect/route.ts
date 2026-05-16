@@ -82,6 +82,8 @@ export const POST = withAuthAndTenant(async ({ tenantId }, req, context, db) => 
             ...credentials,
           },
           isActive: true,
+          enabled: true,
+          killSwitch: false,
         },
       });
     } else {
@@ -97,6 +99,9 @@ export const POST = withAuthAndTenant(async ({ tenantId }, req, context, db) => 
             provider,
             ...credentials,
           },
+          isActive: true,
+          enabled: true,
+          killSwitch: false,
         },
       });
     }
