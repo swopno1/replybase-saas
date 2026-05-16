@@ -278,7 +278,10 @@ async function processMetaPayload(params: {
       }
 
       if (hasStatuses) {
-        await prisma.webhookLog.createMany({ data: statusesToLog });
+        await prisma.webhookLog.createMany({ 
+          data: statusesToLog,
+          skipDuplicates: true 
+        });
         const currentConfig = (channel.config || {}) as Prisma.JsonObject;
         await prisma.channel.update({
           where: { id: channel.id },
