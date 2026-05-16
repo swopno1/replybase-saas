@@ -398,12 +398,64 @@ export async function findActiveWebChatSite(input: {
   return toActiveWebChatSite(site);
 }
 
+export async function findExistingWebchatVisitorSession(params: {
+  siteId: string;
+  botId: string;
+  tenantId: string;
+  visitorId?: string;
+}) {
+  if (!params.visitorId) return null;
+
+  const contact = await prisma.contact.findFirst({
+    where: {
+      tenantId: params.tenantId,
+      identities: {
+        some: {
+          type: "webchat_visitor_id",
+          value: params.visitorId,
+        },
+      },
+    },
+  });
+
+  if (!contact) return null;
+
+  const conversation = await prisma.crmConversation.findFirst({
+    where: {
+      contactId: contact.id,
+      botId: params.botId,
+      channel: "web",
+    },
+  });
+
+  if (!conversation) return null;
+
+  const webChatSession = await prisma.webChatSession.findUnique({
+    where: {
+      siteId_visitorId: {
+        siteId: params.siteId,
+        visitorId: params.visitorId,
+      },
+    },
+  });
+
+  if (!webChatSession) return null;
+
+  return {
+    visitorId: params.visitorId,
+    contact,
+    conversation,
+    webChatSession,
+  };
+}
+
 export async function resolveWebchatVisitorSession(params: {
   siteId: string;
   botId: string;
   tenantId: string;
   channelId?: string;
   visitorId?: string;
+  conversationId?: string;
   contact?: InitContactInput;
   metadata?: Record<string, unknown>;
 }) {
@@ -412,17 +464,26 @@ export async function resolveWebchatVisitorSession(params: {
   let contact = await prisma.contact.findFirst({
     where: {
       tenantId: params.tenantId,
-      identities: {
-        some: {
-          type: "webchat_visitor_id",
-          value: visitorId,
+      OR: [
+        {
+          identities: {
+            some: {
+              type: "webchat_visitor_id",
+              value: visitorId,
+            },
+          },
         },
-      },
+        ...(params.contact?.email ? [{ email: params.contact.email }] : []),
+        ...(params.contact?.phone ? [{ phone: params.contact.phone }] : []),
+      ],
+    },
+    include: {
+      identities: true,
     },
   });
 
   if (!contact) {
-    contact = await prisma.contact.create({
+    contact = (await prisma.contact.create({
       data: {
         tenantId: params.tenantId,
         name: params.contact?.name,
@@ -435,7 +496,28 @@ export async function resolveWebchatVisitorSession(params: {
           },
         },
       },
-    });
+      include: {
+        identities: true,
+      },
+    })) as any;
+  } else {
+    // Ensure this visitorId is linked to the found contact if not already
+    const hasVisitorId = (contact as any).identities.some(
+      (id: any) => id.type === "webchat_visitor_id" && id.value === visitorId,
+    );
+    if (!hasVisitorId) {
+      await prisma.contactIdentity.create({
+        data: {
+          contactId: (contact as any).id,
+          type: "webchat_visitor_id",
+          value: visitorId,
+        },
+      });
+    }
+  }
+
+  if (!contact) {
+    throw new Error("Failed to resolve contact");
   }
 
   const updates: Record<string, string> = {};
@@ -454,7 +536,8 @@ export async function resolveWebchatVisitorSession(params: {
       contact = await prisma.contact.update({
         where: { id: contact.id },
         data: updates,
-      });
+        include: { identities: true },
+      }) as any;
     } catch {
       // Ignore uniqueness conflicts on optional contact fields in anonymous chat flows.
     }
@@ -462,7 +545,7 @@ export async function resolveWebchatVisitorSession(params: {
 
   let conversation = await prisma.crmConversation.findFirst({
     where: {
-      contactId: contact.id,
+      contactId: contact!.id,
       botId: params.botId,
       channel: "web",
     },
@@ -475,8 +558,9 @@ export async function resolveWebchatVisitorSession(params: {
 
     conversation = await prisma.crmConversation.create({
       data: {
+        ...(params.conversationId ? { id: params.conversationId } : {}),
         tenantId: params.tenantId,
-        contactId: contact.id,
+        contactId: contact!.id,
         botId: params.botId,
         channel: "web",
         metadata: {
@@ -530,8 +614,8 @@ export async function resolveWebchatVisitorSession(params: {
 
   return {
     visitorId,
-    contact,
-    conversation,
+    contact: contact!,
+    conversation: conversation!,
     webChatSession,
   };
 }

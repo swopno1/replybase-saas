@@ -78,6 +78,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (sessionToken.isShadow) {
+      return NextResponse.json(
+        { ok: true, shadow: true },
+        { headers: createWebchatCorsHeaders(request) },
+      );
+    }
+
     const site = sessionToken.siteId
       ? await prisma.webChatSite.findUnique({
           where: { id: sessionToken.siteId },

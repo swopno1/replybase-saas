@@ -515,6 +515,10 @@
           } else {
             // Standard JSON response
             return res.json().then(function (data) {
+              if (data && data.meta && data.meta.token) {
+                token = data.meta.token;
+                persistSession();
+              }
               var entries = normalizeResponseEntries(data);
               if (!entries.length) {
                 if (

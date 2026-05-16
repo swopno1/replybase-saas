@@ -3,6 +3,7 @@ import { normalizeWhatsAppE164 } from '@/lib/whatsapp-provider';
 import { encryptWhatsAppCredentialEnvelope } from "@/lib/whatsapp-channel-credentials";
 import { checkChannelLimit } from "@/lib/subscription";
 import { withAuthAndTenant } from "@/lib/route-helpers";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = 'force-dynamic';
 
@@ -56,37 +57,49 @@ export const POST = withAuthAndTenant(async ({ tenantId }, req, context, db) => 
       credentials: normalizedCredentials as any,
     });
 
-    const channel = await db.channel.upsert({
+    // Use global prisma for the unique check to handle cases where the channel 
+    // might have been previously associated with a different tenant.
+    const existingChannel = await prisma.channel.findUnique({
       where: {
         type_channelId: {
           type: "whatsapp",
           channelId: String(channelId),
         },
       },
-      update: {
-        tenantId: tenantId,
-        botId,
-        name: name || "WhatsApp",
-        accessToken: encryptedToken,
-        config: {
-          provider,
-          ...credentials,
-        },
-        isActive: true,
-      },
-      create: {
-        tenantId: tenantId,
-        botId,
-        type: "whatsapp",
-        name: name || "WhatsApp",
-        channelId: String(channelId),
-        accessToken: encryptedToken,
-        config: {
-          provider,
-          ...credentials,
-        },
-      },
     });
+
+    let channel;
+    if (existingChannel) {
+      channel = await prisma.channel.update({
+        where: { id: existingChannel.id },
+        data: {
+          tenantId: tenantId,
+          botId,
+          name: name || "WhatsApp",
+          accessToken: encryptedToken,
+          config: {
+            provider,
+            ...credentials,
+          },
+          isActive: true,
+        },
+      });
+    } else {
+      channel = await prisma.channel.create({
+        data: {
+          tenantId: tenantId,
+          botId,
+          type: "whatsapp",
+          name: name || "WhatsApp",
+          channelId: String(channelId),
+          accessToken: encryptedToken,
+          config: {
+            provider,
+            ...credentials,
+          },
+        },
+      });
+    }
 
     return NextResponse.json({ success: true, channelId: channel.id });
   } catch (error) {
