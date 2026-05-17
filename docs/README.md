@@ -9,6 +9,9 @@ Welcome to the centralized documentation ecosystem for ReplyBase. This directory
 - [**Code Quality & Engineering**](/docs/inspection/code-quality.md): Type safety, database integrity, testing coverage, and technical debt.
 - [**Performance & Infrastructure**](/docs/inspection/performance.md): Bottleneck analysis, caching strategies, and DevOps/Production readiness.
 
+### 🧩 Feature Guides & Automation
+- [**Flow Builder**](/docs/flow-builder.md): Deep dive into the visual automation engine, node types, and conditional logic.
+
 ### 🛡️ [/docs/audit](/docs/audit) - Governance & Reliability
 - [**Security Master Audit**](/docs/audit/security-master.md): Authentication, multi-tenant isolation, and risk remediation.
 - [**Reliability & Conversational Quality**](/docs/audit/reliability-master.md): Channel stability, AI humanization, and failure recovery.
