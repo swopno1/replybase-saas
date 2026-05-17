@@ -23,6 +23,7 @@ import {
   normalizeDurationMs,
   resolveReferencedFlow,
   resumeParentFlow,
+  sanitizeNameInput,
   setRuntimeState,
 } from "@/lib/flow-runtime-utils";
 
@@ -540,7 +541,8 @@ export async function executeBotEntryFlowFirst(params: {
         const variableName =
           content.variableName || `input_${currentNode.order}`;
         if (pendingMessage) {
-          mergedVariables[variableName] = pendingMessage;
+          const isNameVar = variableName === "contact_name" || variableName === "lead_name" || variableName === "name";
+          mergedVariables[variableName] = isNameVar ? sanitizeNameInput(pendingMessage) : pendingMessage;
           pendingMessage = "";
           await applyDelayWithOptionalTyping(content, responses);
           currentNode = getNextNode(

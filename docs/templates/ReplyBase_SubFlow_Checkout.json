@@ -1,0 +1,80 @@
+[
+  {
+    "order": 0,
+    "type": "condition",
+    "content": {
+      "variableName": "contact_email",
+      "conditions": [
+        { "operator": "contains", "value": "@", "nextNodeOrder": 2 }
+      ],
+      "nextNodeOrder": 1
+    }
+  },
+  {
+    "order": 1,
+    "type": "input",
+    "content": {
+      "text": "Great! Let's get your 14-day free trial started. What email address should we use to set up your dashboard?",
+      "variableName": "contact_email",
+      "inputType": "email",
+      "validationMessage": "That doesn't look like a valid email. Could you double-check your email address?"
+    }
+  },
+  {
+    "order": 2,
+    "type": "action",
+    "content": {
+      "action": "tag_user",
+      "tags": ["lead", "checkout_interest"]
+    }
+  },
+  {
+    "order": 3,
+    "type": "message",
+    "content": {
+      "text": "Excellent choice! 🚀 Setting up takes less than 2 minutes and is free for 14 days. No credit card required to test the features.\n\nWhich plan matches your business scale best?",
+      "buttons": [
+        { "type": "postback", "title": "👤 Starter Trial (£29/mo)", "payload": "starter" },
+        { "type": "postback", "title": "👥 Pro Trial (£99/mo) (Recommended)", "payload": "pro" },
+        { "type": "postback", "title": "🏢 Enterprise Custom", "payload": "enterprise" }
+      ],
+      "variableName": "checkout_plan_choice"
+    }
+  },
+  {
+    "order": 4,
+    "type": "condition",
+    "content": {
+      "variableName": "checkout_plan_choice",
+      "conditions": [
+        { "operator": "contains", "value": "starter", "nextNodeOrder": 6 },
+        { "operator": "contains", "value": "enterprise", "nextNodeOrder": 7 }
+      ],
+      "nextNodeOrder": 5
+    }
+  },
+  {
+    "order": 5,
+    "type": "action",
+    "content": {
+      "action": "checkout",
+      "text": "Outstanding! The Pro Plan recovered an average of 92% of after-hours leads for our partners by syncing Webchat, WhatsApp, and CRM. Tap here to start your 14-day Pro trial: {{stripe_url}}"
+    }
+  },
+  {
+    "order": 6,
+    "type": "action",
+    "content": {
+      "action": "checkout",
+      "text": "Perfect! The Starter Plan is ideal for solo founders launching basic automated webchat. Tap here to start your 14-day Starter trial: {{stripe_url}}"
+    }
+  },
+  {
+    "order": 7,
+    "type": "action",
+    "content": {
+      "action": "call_flow",
+      "targetFlowName": "ReplyBase_SubFlow_Booking"
+    }
+  }
+]

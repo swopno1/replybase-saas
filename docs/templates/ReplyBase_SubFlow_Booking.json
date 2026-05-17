@@ -1,0 +1,105 @@
+[
+  {
+    "order": 0,
+    "type": "message",
+    "content": {
+      "text": "I'd be glad to get a human expert on the line for you. They can run a custom audit on your website, suggest high-converting flow configurations, and build a tailored ROI plan."
+    }
+  },
+  {
+    "order": 1,
+    "type": "condition",
+    "content": {
+      "variableName": "contact_email",
+      "conditions": [
+        { "operator": "contains", "value": "@", "nextNodeOrder": 3 }
+      ],
+      "nextNodeOrder": 2
+    }
+  },
+  {
+    "order": 2,
+    "type": "input",
+    "content": {
+      "text": "What is the best business email to use for the calendar invitation?",
+      "variableName": "contact_email",
+      "inputType": "email",
+      "validationMessage": "That doesn't look like a valid email. Could you double-check your email address?"
+    }
+  },
+  {
+    "order": 3,
+    "type": "action",
+    "content": {
+      "action": "tag_user",
+      "tags": ["lead", "booking_interest"]
+    }
+  },
+  {
+    "order": 4,
+    "type": "action",
+    "content": {
+      "action": "booking",
+      "bookingService": "calendly",
+      "text": "Perfect! I've pre-notified our onboarding team. You can pick a convenient slot directly on our specialist's group calendar here: calendly.com/replybase-consulting\n\nWhile you prepare for the call, is there anything else I can assist you with?"
+    }
+  },
+  {
+    "order": 5,
+    "type": "message",
+    "content": {
+      "text": "To help make our call as valuable as possible, what would you like to explore next?",
+      "buttons": [
+        { "type": "postback", "title": "📊 See Pricing & ROI", "payload": "pricing" },
+        { "type": "postback", "title": "📱 Try Live Demo", "payload": "demo" },
+        { "type": "postback", "title": "🚀 Start 14-Day Trial", "payload": "checkout" }
+      ],
+      "variableName": "booking_post_choice"
+    }
+  },
+  {
+    "order": 6,
+    "type": "condition",
+    "content": {
+      "variableName": "booking_post_choice",
+      "conditions": [
+        { "operator": "contains", "value": "pricing", "nextNodeOrder": 7 },
+        { "operator": "contains", "value": "demo", "nextNodeOrder": 8 },
+        { "operator": "contains", "value": "checkout", "nextNodeOrder": 9 }
+      ],
+      "nextNodeOrder": 10
+    }
+  },
+  {
+    "order": 7,
+    "type": "action",
+    "content": {
+      "action": "call_flow",
+      "targetFlowName": "ReplyBase_SubFlow_Pricing"
+    }
+  },
+  {
+    "order": 8,
+    "type": "action",
+    "content": {
+      "action": "call_flow",
+      "targetFlowName": "ReplyBase_SubFlow_Demo"
+    }
+  },
+  {
+    "order": 9,
+    "type": "action",
+    "content": {
+      "action": "call_flow",
+      "targetFlowName": "ReplyBase_SubFlow_Checkout"
+    }
+  },
+  {
+    "order": 10,
+    "type": "action",
+    "content": {
+      "action": "end_flow",
+      "description": "Handover to AI Fallback Orchestrator"
+    }
+  }
+]

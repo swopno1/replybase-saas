@@ -1,0 +1,89 @@
+[
+  {
+    "order": 0,
+    "type": "condition",
+    "content": {
+      "variableName": "contact_email",
+      "conditions": [
+        { "operator": "contains", "value": "@", "nextNodeOrder": 2 }
+      ],
+      "nextNodeOrder": 1
+    }
+  },
+  {
+    "order": 1,
+    "type": "input",
+    "content": {
+      "text": "Before I share our tailored pricing breakdown, where should I email your custom ROI dashboard so you don't lose this session?",
+      "variableName": "contact_email",
+      "inputType": "email",
+      "validationMessage": "That doesn't look like a valid email. Could you double-check your email address?"
+    }
+  },
+  {
+    "order": 2,
+    "type": "action",
+    "content": {
+      "action": "tag_user",
+      "tags": ["lead", "pricing_interest"]
+    }
+  },
+  {
+    "order": 3,
+    "type": "message",
+    "content": {
+      "text": "ReplyBase is built as the ultimate tool for automated lead generation. We offer simple, transparent pricing designed to scale with your volume:\n\n👤 **Starter (£29/mo):** 1 live channel, up to 500 messages, and standard automation.\n👥 **Pro (£99/mo) (Most Popular):** All channels (Web, WhatsApp, FB, TG), CRM sync, and automated after-hours captures.\n🏢 **Enterprise (Custom):** Custom fine-tuned LLM setups, custom webhook integrations, and SLAs.\n\nSetting up takes 2 minutes and includes a 14-day free trial. What makes the most sense for your scale?",
+      "buttons": [
+        { "type": "postback", "title": "🚀 Start 14-Day Free Trial", "payload": "checkout" },
+        { "type": "postback", "title": "📱 Try Live Demo", "payload": "demo" },
+        { "type": "postback", "title": "📅 Book a Strategy Call", "payload": "booking" }
+      ],
+      "variableName": "pricing_next_step"
+    }
+  },
+  {
+    "order": 4,
+    "type": "condition",
+    "content": {
+      "variableName": "pricing_next_step",
+      "conditions": [
+        { "operator": "contains", "value": "checkout", "nextNodeOrder": 5 },
+        { "operator": "contains", "value": "demo", "nextNodeOrder": 6 },
+        { "operator": "contains", "value": "booking", "nextNodeOrder": 7 }
+      ],
+      "nextNodeOrder": 8
+    }
+  },
+  {
+    "order": 5,
+    "type": "action",
+    "content": {
+      "action": "call_flow",
+      "targetFlowName": "ReplyBase_SubFlow_Checkout"
+    }
+  },
+  {
+    "order": 6,
+    "type": "action",
+    "content": {
+      "action": "call_flow",
+      "targetFlowName": "ReplyBase_SubFlow_Demo"
+    }
+  },
+  {
+    "order": 7,
+    "type": "action",
+    "content": {
+      "action": "call_flow",
+      "targetFlowName": "ReplyBase_SubFlow_Booking"
+    }
+  },
+  {
+    "order": 8,
+    "type": "action",
+    "content": {
+      "action": "end_flow",
+      "description": "Handover to AI Fallback Orchestrator"
+    }
+  }
+]

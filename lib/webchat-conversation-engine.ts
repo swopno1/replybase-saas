@@ -12,6 +12,7 @@ import {
   normalizeDurationMs,
   resolveReferencedFlow,
   resumeParentFlow,
+  sanitizeNameInput,
   setRuntimeState,
 } from "@/lib/flow-runtime-utils";
 import { leadService } from "./services/lead-service";
@@ -668,7 +669,8 @@ export async function executeWebchatFlowFirst(params: {
         const variableName =
           content.variableName || `input_${currentNode.order}`;
         if (pendingMessage) {
-          variables[variableName] = pendingMessage;
+          const isNameVar = variableName === "contact_name" || variableName === "lead_name" || variableName === "name";
+          variables[variableName] = isNameVar ? sanitizeNameInput(pendingMessage) : pendingMessage;
           pendingMessage = "";
           await applyDelayWithOptionalTyping(content, responses);
           currentNode = getNextNode(

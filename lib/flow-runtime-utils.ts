@@ -92,6 +92,41 @@ export function interpolateText(
   });
 }
 
+export function sanitizeNameInput(text: string): string {
+  if (!text) return "";
+  let cleaned = text.trim();
+
+  // 1. Remove introductory conversational greetings/prefixes (case-insensitive)
+  const prefixes = [
+    /^(?:my\s+name\s+is|i\s+am|this\s+is|i'm)\s+/i,
+    /^(?:hey|hi|hello|yo)\s+(?:there|here)?\s*,\s*(?:i'm|i\s+am|this\s+is)\s+/i,
+    /^(?:hey|hi|hello|yo)\s+(?:there|here)?\s+(?:i'm|i\s+am|this\s+is)\s+/i,
+    /^(?:hey|hi|hello|yo)\s*,\s*(?:i'm|i\s+am)\s+/i,
+    /^(?:hey|hi|hello|yo)\s+(?:there|here)?\s+/i,
+    /^(?:hey|hi|hello|yo)\s*,\s*/i
+  ];
+
+  for (const pattern of prefixes) {
+    if (pattern.test(cleaned)) {
+      cleaned = cleaned.replace(pattern, "").trim();
+    }
+  }
+
+  // 2. Strip trailing punctuation
+  cleaned = cleaned.replace(/[.!,;?]+$/, "").trim();
+
+  // 3. Normalize capitalization (e.g., "alex vance" -> "Alex Vance")
+  if (cleaned.length > 0 && cleaned.length < 50) {
+    return cleaned
+      .split(/\s+/)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  }
+
+  return text.trim();
+}
+
+
 export function getNextNode(
   nodes: FlowWithOrderedNodes["nodes"],
   currentOrder: number,
