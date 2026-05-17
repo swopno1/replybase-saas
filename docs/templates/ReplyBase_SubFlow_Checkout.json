@@ -61,7 +61,7 @@
     "order": 5,
     "type": "message",
     "content": {
-      "text": "Outstanding! The Pro Plan recovered an average of 92% of after-hours leads for our partners by syncing Webchat, WhatsApp, and CRM. Tap here to start your 14-day Pro trial: **[Start Pro Trial](https://app.replybase.co.uk/auth/register?email={{lead_email}}&name={{lead_name}}&plan=pro)**",
+      "text": "Outstanding! The Pro Plan recovered an average of 92% of after-hours leads for our partners by syncing Webchat, WhatsApp, and CRM. Tap here to start your 14-day Pro trial: **[Start Pro Trial](https://app.replybase.co.uk/auth/register?email={{contact_email}}{{lead_email}}&name={{contact_name}}{{lead_name}}&plan=pro)**",
       "nextNodeOrder": 8,
       "typingEnabled": true,
       "delayMs": 1500
@@ -71,7 +71,7 @@
     "order": 6,
     "type": "message",
     "content": {
-      "text": "Perfect! The Starter Plan is ideal for solo founders launching basic automated webchat. Tap here to start your 14-day Starter trial: **[Start Starter Trial](https://app.replybase.co.uk/auth/register?email={{lead_email}}&name={{lead_name}}&plan=starter)**",
+      "text": "Perfect! The Starter Plan is ideal for solo founders launching B2B webchat. Tap here to start your 14-day Starter trial: **[Start Starter Trial](https://app.replybase.co.uk/auth/register?email={{contact_email}}{{lead_email}}&name={{contact_name}}{{lead_name}}&plan=starter)**",
       "nextNodeOrder": 8,
       "typingEnabled": true,
       "delayMs": 1500

@@ -116,6 +116,18 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState(() => searchParams.get("email") || "");
+
+  const registerUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    const emailParam = searchParams.get("email");
+    const planParam = searchParams.get("plan");
+    const sourceParam = searchParams.get("source");
+    if (emailParam) params.set("email", emailParam);
+    if (planParam) params.set("plan", planParam);
+    if (sourceParam) params.set("source", sourceParam);
+    const query = params.toString();
+    return query ? `/auth/register?${query}` : "/auth/register";
+  }, [searchParams]);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -314,7 +326,7 @@ export function LoginForm() {
 
           <FieldDescription className="text-center">
             Don&apos;t have an account?{" "}
-            <Link href="/auth/register">Sign up</Link>
+            <Link href={registerUrl}>Sign up</Link>
           </FieldDescription>
         </FieldGroup>
       </CardContent>
@@ -348,6 +360,20 @@ export function RegisterForm() {
     () => parseSignupSourceIntent(searchParams.get("source")),
     [searchParams],
   );
+
+  const loginUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    const emailParam = searchParams.get("email");
+    const nameParam = searchParams.get("name");
+    const planParam = searchParams.get("plan");
+    const sourceParam = searchParams.get("source");
+    if (emailParam) params.set("email", emailParam);
+    if (nameParam) params.set("name", nameParam);
+    if (planParam) params.set("plan", planParam);
+    if (sourceParam) params.set("source", sourceParam);
+    const query = params.toString();
+    return query ? `/auth/login?${query}` : "/auth/login";
+  }, [searchParams]);
 
   const signupPlanLabel = useMemo(() => {
     if (signupPlanIntent === "free") return "Free";
@@ -649,7 +675,7 @@ export function RegisterForm() {
           </Field> */}
 
           <FieldDescription className="text-center">
-            Already have an account? <Link href="/auth/login">Sign in</Link>
+            Already have an account? <Link href={loginUrl}>Sign in</Link>
           </FieldDescription>
         </FieldGroup>
       </CardContent>

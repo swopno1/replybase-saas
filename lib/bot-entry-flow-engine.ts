@@ -257,12 +257,23 @@ async function persistLeadCapture(params: {
   status?: string;
   channelId?: string;
 }) {
-  const name = getVariableString(params.variables, "lead_name", "name");
+  const name = getVariableString(
+    params.variables,
+    "lead_name",
+    "name",
+    "contact_name",
+    "customer_name",
+    "client_name",
+    "member_name",
+    "guest_name",
+  );
   const email = getVariableString(
     params.variables,
     "lead_email",
     "email",
     "contact_email",
+    "work_email",
+    "email_address",
   );
   const phone = getVariableString(
     params.variables,
@@ -270,6 +281,8 @@ async function persistLeadCapture(params: {
     "phone",
     "mobile",
     "contact_phone",
+    "phone_number",
+    "client_phone",
   );
   const company = getVariableString(
     params.variables,
