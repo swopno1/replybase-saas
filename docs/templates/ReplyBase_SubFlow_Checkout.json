@@ -59,20 +59,20 @@
   },
   {
     "order": 5,
-    "type": "action",
+    "type": "message",
     "content": {
-      "action": "checkout",
-      "text": "Outstanding! The Pro Plan recovered an average of 92% of after-hours leads for our partners by syncing Webchat, WhatsApp, and CRM. Tap here to start your 14-day Pro trial: **[Start Pro Trial]({{stripe_url}})**",
+      "text": "Outstanding! The Pro Plan recovered an average of 92% of after-hours leads for our partners by syncing Webchat, WhatsApp, and CRM. Tap here to start your 14-day Pro trial: **[Start Pro Trial](https://app.replybase.co.uk/auth/register?email={{lead_email}}&name={{lead_name}}&plan=pro)**",
+      "nextNodeOrder": 8,
       "typingEnabled": true,
       "delayMs": 1500
     }
   },
   {
     "order": 6,
-    "type": "action",
+    "type": "message",
     "content": {
-      "action": "checkout",
-      "text": "Perfect! The Starter Plan is ideal for solo founders launching basic automated webchat. Tap here to start your 14-day Starter trial: **[Start Starter Trial]({{stripe_url}})**",
+      "text": "Perfect! The Starter Plan is ideal for solo founders launching basic automated webchat. Tap here to start your 14-day Starter trial: **[Start Starter Trial](https://app.replybase.co.uk/auth/register?email={{lead_email}}&name={{lead_name}}&plan=starter)**",
+      "nextNodeOrder": 8,
       "typingEnabled": true,
       "delayMs": 1500
     }
@@ -83,6 +83,14 @@
     "content": {
       "action": "call_flow",
       "targetFlowName": "ReplyBase_SubFlow_Booking"
+    }
+  },
+  {
+    "order": 8,
+    "type": "action",
+    "content": {
+      "action": "end_flow",
+      "description": "Handover to AI Fallback"
     }
   }
 ]
