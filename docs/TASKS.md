@@ -211,8 +211,23 @@
   - Detailed Instructions: 1. Update `lib/webchat-cors.ts` to query the database for the site's allowed domains. 2. Compare incoming `Origin` header. 3. Reject unauthorized origins with 403.
   - Expected Deliverables: Hardened CORS logic for Webchat.
   - Dependencies: None.
-  - Notes: Critical for production security.
+  - Notes: Critical for production security. Transition from global env-based whitelist to per-site DB whitelist.
   - Rollout Risk: MEDIUM.
+
+- **Task 032**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Security/Multi-tenancy
+  - Severity: MEDIUM
+  - Issue: Standardize Scoped Repository Pattern.
+  - Root Cause: Ongoing mix of `prisma` and `db` (scoped) usage in complex services.
+  - Business Impact: Reduces risk of accidental cross-tenant data leaks in deep service logic.
+  - Objective: Enforce use of `getTenantPrisma` throughout all non-admin services.
+  - Detailed Instructions: 1. Audit `lib/services/`. 2. Ensure all service methods accept a scoped `PrismaClient` or `tenantId`.
+  - Expected Deliverables: Standardized service-layer tenancy.
+  - Dependencies: `getTenantPrisma`.
+  - Notes: Architectural hardening.
+  - Rollout Risk: LOW.
 
 - **Task 031**
   - Priority: MEDIUM

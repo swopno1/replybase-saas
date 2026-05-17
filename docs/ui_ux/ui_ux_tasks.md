@@ -4,7 +4,7 @@
 
 - **Task UX-008**
   - Priority: MEDIUM
-  - Status: PENDING
+  - Status: IN_PROGRESS
   - Category: Dashboard
   - Severity: MEDIUM
   - Issue: Static Dashboard Experience.

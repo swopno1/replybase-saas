@@ -5,7 +5,7 @@
 - **Linting**: ESLint configured (Next.js defaults + custom rules).
 - **Type Safety**:
   - **Identified Risk**: 377 instances of `any` type remain within the critical `lib/` and `app/api/` directories (859 total in repo). These are concentrated in webhook handlers and dashboard components.
-  - **Progress**: Core services (`prisma-tenant`, `ai-fallback`, `billing-service`) are fully typed. Replacing `any` with Zod schemas in high-traffic routes (Task 022) is an ongoing priority.
+  - **Progress**: Core services (`prisma-tenant`, `ai-fallback`, `billing-service`, `ai-service`) are fully typed. Replacing `any` with Zod schemas in high-traffic routes (Task 022) is an ongoing priority.
 - **Route Hardening**: ~90% of API routes migrated to `withAuthAndTenant`. Legacy routes in `/api/flows` still use manual session-based scoping.
 - **Async Safety**: Critical ESLint warnings regarding synchronous `setState` in `useEffect` have been mitigated using `setTimeout` in major components.
 

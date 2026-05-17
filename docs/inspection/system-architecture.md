@@ -2,8 +2,8 @@
 
 ## 1. Core Architectural Pillars
 - **Multi-Tenant Isolation**: Automated at the database layer via Prisma Client Extensions (`getTenantPrisma`). DMMF introspection automatically identifies and scopes all models with a `tenantId` field.
-- **Asynchronous Execution**: Heavy workloads (AI generation, lead enrichment, outbound webhooks) are offloaded to a tiered BullMQ architecture to ensure fast API responses and system resilience.
-- **Provider Abstraction**: Pluggable architecture for Messaging Channels (Meta, Telegram, WhatsApp, Webchat) and AI Engines (Llama 3.1 via DO Gradient, Gemini, OpenAI).
+- **Asynchronous Execution**: Heavy workloads are offloaded to a tiered BullMQ architecture (Inbound Message Worker -> Lead Enrichment -> Webhook Dispatcher) to ensure fast API responses and system resilience.
+- **Provider Abstraction**: Pluggable architecture for Messaging Channels (Meta, Telegram, WhatsApp, Webchat) and AI Engines (Llama 3.1 via DigitalOcean AI, Gemini, OpenAI, Anthropic).
 - **Service-Oriented Logic**: Business rules are encapsulated in standalone services (e.g., `LeadEnrichmentService`, `BillingService`, `WebhookDispatcher`).
 
 ## 2. End-to-End Message Lifecycle (High-Level)
@@ -25,10 +25,10 @@
 ## 3. Implemented Feature Landscape
 
 ### Communication & Automation
-- **Unified Inbox**: Multi-channel CRM dashboard with real-time streaming updates.
+- **Unified Inbox**: Multi-channel CRM dashboard with real-time streaming updates and streaming AI responses.
 - **V6 Orchestrator**: Advanced node-based flow engine supporting complex logic, conditions, and actions.
-- **AI-Powered Fallback**: Context-aware automated responses for unhandled queries.
-- **Lead Connect & Action Engine**: Real-time outbound lead synchronization via reliable webhooks.
+- **AI-Powered Fallback**: Context-aware automated responses for unhandled queries, migrated to DigitalOcean AI for ~61% OpEx savings and lower latency.
+- **Lead Connect & Action Engine**: Real-time outbound lead synchronization via reliable webhooks with exponential backoff.
 
 ### Operations & Growth
 - **Activation Milestones**: Retention-focused onboarding tracking.

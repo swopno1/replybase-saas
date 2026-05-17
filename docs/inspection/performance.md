@@ -9,7 +9,7 @@
 ### Database Performance
 - **Query Efficiency**: Scoped Prisma queries are efficient due to universal `tenantId` indexing.
 - **Dual-Layer Caching**: Implemented a dual-layer TTL cache (L1 in-memory Map, L2 Redis) for tenant limits and subscription status in `lib/subscription.ts`.
-- **N+1 Identification**: `BotList` (in `app/api/bots/route.ts`) performs an `include` for channels on a per-bot basis within a `findMany`. While Prisma's `include` is optimized, complex status checks often trigger subsequent sequential lookups in the UI or during data mapping. **Path**: Consolidate into a single batched query or use more efficient projection (Task 024).
+- **N+1 Identification**: `BotList` (in `app/api/bots/route.ts`) performs an `include` for channels on a per-bot basis within a `findMany`. While Prisma's `include` is optimized, complex status checks often trigger subsequent sequential lookups in the UI or during data mapping. **Path**: Consolidate into a single batched query (Task 024).
 
 ### Data Operations
 - **Usage Buffering**: `UsageBuffer` system batches usage updates and flushes to the DB every 10 seconds or upon threshold, preventing write amplification.
@@ -25,7 +25,7 @@
 ### Scalability
 - **Worker Scaling**: BullMQ workers are horizontally scalable as independent processes.
 - **Queue Resilience**: Tiered BullMQ architecture ensures spikes do not result in dropped webhooks.
-- **Cloud Transition**: Successfully migrated AI workloads to DigitalOcean Gradient, achieving ~40% latency reduction and ~61% OpEx savings.
+- **Cloud Transition**: Successfully migrated AI workloads to DigitalOcean AI, achieving ~40% latency reduction and ~61% OpEx savings.
 
 ## 3. DevOps & Production Readiness
 
