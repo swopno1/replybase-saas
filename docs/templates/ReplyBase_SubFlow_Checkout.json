@@ -62,7 +62,7 @@
     "type": "action",
     "content": {
       "action": "checkout",
-      "text": "Outstanding! The Pro Plan recovered an average of 92% of after-hours leads for our partners by syncing Webchat, WhatsApp, and CRM. Tap here to start your 14-day Pro trial: {{stripe_url}}",
+      "text": "Outstanding! The Pro Plan recovered an average of 92% of after-hours leads for our partners by syncing Webchat, WhatsApp, and CRM. Tap here to start your 14-day Pro trial: **[Start Pro Trial]({{stripe_url}})**",
       "typingEnabled": true,
       "delayMs": 1500
     }
@@ -72,7 +72,7 @@
     "type": "action",
     "content": {
       "action": "checkout",
-      "text": "Perfect! The Starter Plan is ideal for solo founders launching basic automated webchat. Tap here to start your 14-day Starter trial: {{stripe_url}}",
+      "text": "Perfect! The Starter Plan is ideal for solo founders launching basic automated webchat. Tap here to start your 14-day Starter trial: **[Start Starter Trial]({{stripe_url}})**",
       "typingEnabled": true,
       "delayMs": 1500
     }

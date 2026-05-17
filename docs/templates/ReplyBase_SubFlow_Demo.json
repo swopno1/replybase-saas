@@ -76,7 +76,8 @@
     "order": 6,
     "type": "message",
     "content": {
-      "text": "Awesome! Click this secure link to open WhatsApp and instantly sync your session:\n\n👉 https://wa.me/447700900077?text=SYNC_{{sync_hash}}",
+      "text": "Awesome! Click this secure link to open WhatsApp and instantly sync your session:\n\n👉 **[Switch to WhatsApp](https://wa.me/447700900077?text=SYNC_{{sync_hash}})**",
+      "nextNodeOrder": 10,
       "typingEnabled": true,
       "delayMs": 1500
     }
@@ -85,7 +86,8 @@
     "order": 7,
     "type": "message",
     "content": {
-      "text": "Awesome! Click this secure link to open Telegram and instantly sync your session:\n\n👉 https://t.me/ReplyBaseBot?start=SYNC_{{sync_hash}}",
+      "text": "Awesome! Click this secure link to open Telegram and instantly sync your session:\n\n👉 **[Switch to Telegram](https://t.me/ReplyBaseBot?start=SYNC_{{sync_hash}})**",
+      "nextNodeOrder": 10,
       "typingEnabled": true,
       "delayMs": 1500
     }

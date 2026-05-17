@@ -45,7 +45,7 @@
     "content": {
       "action": "booking",
       "bookingService": "calendly",
-      "text": "Perfect — your request has been sent to our team and someone will be in touch shortly.\n\nIn the meantime, you can book a convenient time here: calendly.com/replybase-consulting",
+      "text": "Perfect — your request has been sent to our team and someone will be in touch shortly.\n\nIn the meantime, you can book a convenient time here: **[Book Strategy Call](https://calendly.com/replybase-consulting)**",
       "typingEnabled": true,
       "delayMs": 1500
     }

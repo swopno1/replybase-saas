@@ -795,6 +795,38 @@ export async function executeWebchatFlowFirst(params: {
           }
         }
 
+        if (content.action === "checkout") {
+          const tenant = await prisma.tenant.findUnique({
+            where: { id: params.tenantId },
+            select: { trialUsed: true },
+          });
+          const customerEmail = (variables.contact_email || variables.lead_email || "") as string;
+          const stripeUrl = tenant?.trialUsed 
+            ? `https://buy.stripe.com/payment?client_reference_id=${params.tenantId}&customer_email=${customerEmail}`
+            : `https://buy.stripe.com/trial?client_reference_id=${params.tenantId}&customer_email=${customerEmail}`;
+
+          responses.push({
+            type: "text",
+            text: interpolateText(content.text || "I've pre-configured your secure checkout page. You can start in seconds here: {{stripe_url}}", { ...variables, stripe_url: stripeUrl }),
+          });
+        }
+
+        if (content.action === "booking") {
+          await prisma.activityLog.create({
+            data: {
+              tenantId: params.tenantId,
+              type: "BOOKING_REQUESTED",
+              title: "Demo Walkthrough Requested",
+              description: `User ${variables.contact_email || variables.lead_email || "N/A"} requested a demo for ${variables.business_type || "N/A"}`,
+              metadata: { variables: variables as any },
+            },
+          });
+          responses.push({
+            type: "text",
+            text: interpolateText(content.text || "I've forwarded your requirements to our specialist. They'll reach out to schedule your walkthrough shortly!", variables),
+          });
+        }
+
         if (content.action === "end_flow") {
           const resumed = await resumeParentFlow({
             tenantId: params.tenantId,
