@@ -43,8 +43,8 @@
       "buttons": [
         { "type": "postback", "title": "🟢 Switch to WhatsApp", "payload": "SYNC_{{sync_hash}}" },
         { "type": "postback", "title": "🔵 Switch to Telegram", "payload": "SYNC_TG_{{sync_hash}}" },
-        { "type": "postback", "title": "🚀 Start 14-Day Trial", "payload": "checkout" },
-        { "type": "postback", "title": "📊 See Pricing & ROI", "payload": "pricing" }
+        { "type": "postback", "title": "🚀 Start 14-Day Trial", "payload": "Start 14-Day Trial" },
+        { "type": "postback", "title": "📊 See Pricing & ROI", "payload": "See Pricing & ROI" }
       ],
       "variableName": "demo_next_step"
     }
@@ -55,8 +55,11 @@
     "content": {
       "variableName": "demo_next_step",
       "conditions": [
-        { "operator": "contains", "value": "checkout", "nextNodeOrder": 6 },
-        { "operator": "contains", "value": "pricing", "nextNodeOrder": 7 }
+        { "variableName": "demo_next_step", "operator": "contains", "value": "trial", "nextNodeOrder": 6 },
+        { "variableName": "demo_next_step", "operator": "contains", "value": "checkout", "nextNodeOrder": 6 },
+        { "variableName": "demo_next_step", "operator": "contains", "value": "start", "nextNodeOrder": 6 },
+        { "variableName": "demo_next_step", "operator": "contains", "value": "pricing", "nextNodeOrder": 7 },
+        { "variableName": "demo_next_step", "operator": "contains", "value": "roi", "nextNodeOrder": 7 }
       ],
       "nextNodeOrder": 8
     }

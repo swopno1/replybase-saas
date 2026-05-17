@@ -34,9 +34,9 @@
     "content": {
       "text": "Excellent choice! 🚀 Setting up takes less than 2 minutes and is free for 14 days. No credit card required to test the features.\n\nWhich plan matches your business scale best?",
       "buttons": [
-        { "type": "postback", "title": "👤 Starter Trial (£29/mo)", "payload": "starter" },
-        { "type": "postback", "title": "👥 Pro Trial (£99/mo) (Recommended)", "payload": "pro" },
-        { "type": "postback", "title": "🏢 Enterprise Custom", "payload": "enterprise" }
+        { "type": "postback", "title": "👤 Starter Trial (£29/mo)", "payload": "👤 Starter Trial (£29/mo)" },
+        { "type": "postback", "title": "👥 Pro Trial (£99/mo) (Recommended)", "payload": "👥 Pro Trial (£99/mo) (Recommended)" },
+        { "type": "postback", "title": "🏢 Enterprise Custom", "payload": "🏢 Enterprise Custom" }
       ],
       "variableName": "checkout_plan_choice"
     }
@@ -47,8 +47,8 @@
     "content": {
       "variableName": "checkout_plan_choice",
       "conditions": [
-        { "operator": "contains", "value": "starter", "nextNodeOrder": 6 },
-        { "operator": "contains", "value": "enterprise", "nextNodeOrder": 7 }
+        { "variableName": "checkout_plan_choice", "operator": "contains", "value": "starter", "nextNodeOrder": 6 },
+        { "variableName": "checkout_plan_choice", "operator": "contains", "value": "enterprise", "nextNodeOrder": 7 }
       ],
       "nextNodeOrder": 5
     }

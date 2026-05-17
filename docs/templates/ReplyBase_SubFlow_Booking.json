@@ -50,9 +50,9 @@
     "content": {
       "text": "To help make our call as valuable as possible, what would you like to explore next?",
       "buttons": [
-        { "type": "postback", "title": "📊 See Pricing & ROI", "payload": "pricing" },
-        { "type": "postback", "title": "📱 Try Live Demo", "payload": "demo" },
-        { "type": "postback", "title": "🚀 Start 14-Day Trial", "payload": "checkout" }
+        { "type": "postback", "title": "📊 See Pricing & ROI", "payload": "See Pricing & ROI" },
+        { "type": "postback", "title": "📱 Try Live Demo", "payload": "Try Live Demo" },
+        { "type": "postback", "title": "🚀 Start 14-Day Trial", "payload": "Start 14-Day Trial" }
       ],
       "variableName": "booking_post_choice"
     }
@@ -63,9 +63,12 @@
     "content": {
       "variableName": "booking_post_choice",
       "conditions": [
-        { "operator": "contains", "value": "pricing", "nextNodeOrder": 7 },
-        { "operator": "contains", "value": "demo", "nextNodeOrder": 8 },
-        { "operator": "contains", "value": "checkout", "nextNodeOrder": 9 }
+        { "variableName": "booking_post_choice", "operator": "contains", "value": "pricing", "nextNodeOrder": 7 },
+        { "variableName": "booking_post_choice", "operator": "contains", "value": "roi", "nextNodeOrder": 7 },
+        { "variableName": "booking_post_choice", "operator": "contains", "value": "demo", "nextNodeOrder": 8 },
+        { "variableName": "booking_post_choice", "operator": "contains", "value": "trial", "nextNodeOrder": 9 },
+        { "variableName": "booking_post_choice", "operator": "contains", "value": "start", "nextNodeOrder": 9 },
+        { "variableName": "booking_post_choice", "operator": "contains", "value": "checkout", "nextNodeOrder": 9 }
       ],
       "nextNodeOrder": 10
     }
