@@ -11,7 +11,7 @@ ReplyBase provides a professional, high-density SaaS experience optimized for le
 ## 3. Dashboard Experience
 - **The Good**: Unified view of status, quick actions, and activation progress.
 - **The Gap**: "Static Feel." Metric cards and milestone rows are non-clickable, forcing users to use the sidebar for navigation.
-- **Recommendation**: Wrap cards and milestones in `Link` components with `hover:bg-accent` states (Task UX-008).
+- **Recommendation**: Wrap cards and milestones in `Link` components with `hover:bg-accent` states (Task UX-008). Milestone actions are being transitioned to `MilestoneAction` for direct logic.
 
 ## 4. CRM & Conversation UX
 - **The Good**: Real-time streaming and "Bot Drafting" indicators reduce perceived latency.

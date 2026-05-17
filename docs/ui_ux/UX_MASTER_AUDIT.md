@@ -32,7 +32,7 @@
 - **AI Indicators**: "Bot is drafting response..." indicators in the conversation list to keep users informed of background processing.
 
 ## 6. Strategic UX Roadmap & Improvement Paths
-- **Interactive Dashboard Funnel (HIGH)**: Make status cards and milestones clickable to reduce distance to setup actions (Task UX-008).
+- **Interactive Dashboard Funnel (HIGH)**: Make status cards and milestones clickable to reduce distance to setup actions (Task UX-008). Milestones now include direct navigation logic via `MilestoneAction`.
 - **Mobile Flow Management (HIGH)**: Replace complex visual flow editor with a linearized "Flow Summary" list view for mobile (Task 012).
 - **Skeleton Expansion (MEDIUM)**: Add missing skeleton loaders to Conversation Detail and Settings views (Task UX-003).
 - **Specialized UI/UX Reports**: Deep-dive reports added for Accessibility, Brand Consistency, Conversion Psychology, Dashboard Experience, Design System, Mobile Experience, Motion, and General Audit.

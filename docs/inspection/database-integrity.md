@@ -22,7 +22,7 @@
 | Risk | Severity | Status | Mitigation |
 | :--- | :--- | :--- | :--- |
 | **Table Bloat** | Medium | Monitoring | `WebhookLog` pruning job (Task 025) is PENDING. |
-| **N+1 Queries** | Medium | Identified | Sequential channel checks in `BotList` (Task 024) require batching. |
+| **N+1 Queries** | Medium | Identified | Sequential channel checks in `BotList` (Task 024) require batching. Refactor `BotList` to consolidate channel status checks into a single query. |
 | **Stale Sessions** | Low | Controlled | Automated `prune-sessions` cron job active. |
 | **Orphaned Records** | Low | Controlled | Prisma `onDelete: Cascade` handles tenant/bot deletion. |
 
