@@ -3,7 +3,9 @@
     "order": 0,
     "type": "message",
     "content": {
-      "text": "I’d be happy to connect you with a member of our team who can walk you through how ReplyBase could fit your business and workflow."
+      "text": "I’d be happy to connect you with a member of our team who can walk you through how ReplyBase could fit your business and workflow.",
+      "typingEnabled": true,
+      "delayMs": 1500
     }
   },
   {
@@ -24,7 +26,9 @@
       "text": "What is the best business email to use for the calendar invitation?",
       "variableName": "lead_email",
       "inputType": "email",
-      "validationMessage": "That doesn't look like a valid email. Could you double-check your email address?"
+      "validationMessage": "That doesn't look like a valid email. Could you double-check your email address?",
+      "typingEnabled": true,
+      "delayMs": 1200
     }
   },
   {
@@ -41,7 +45,9 @@
     "content": {
       "action": "booking",
       "bookingService": "calendly",
-      "text": "Perfect — your request has been sent to our team and someone will be in touch shortly.\n\nIn the meantime, you can book a convenient time here: calendly.com/replybase-consulting"
+      "text": "Perfect — your request has been sent to our team and someone will be in touch shortly.\n\nIn the meantime, you can book a convenient time here: calendly.com/replybase-consulting",
+      "typingEnabled": true,
+      "delayMs": 1500
     }
   },
   {
@@ -54,7 +60,9 @@
         { "type": "postback", "title": "📱 Try Live Demo", "payload": "Try Live Demo" },
         { "type": "postback", "title": "🚀 Start 14-Day Trial", "payload": "Start 14-Day Trial" }
       ],
-      "variableName": "booking_post_choice"
+      "variableName": "booking_post_choice",
+      "typingEnabled": true,
+      "delayMs": 1200
     }
   },
   {

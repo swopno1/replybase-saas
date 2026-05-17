@@ -5,7 +5,9 @@
     "content": {
       "text": "👋 Welcome to ReplyBase!\n\nI help businesses automate customer conversations, capture more leads, and reply instantly across WhatsApp, webchat, and social messaging.\n\nTo tailor my suggestions for your business, what is your name?",
       "variableName": "lead_name",
-      "inputType": "text"
+      "inputType": "text",
+      "typingEnabled": true,
+      "delayMs": 1500
     }
   },
   {
@@ -26,7 +28,9 @@
       "text": "Nice to meet you, {{lead_name}}! 🚀 What's the best email address to send your personalised ROI breakdown and free trial setup?",
       "variableName": "lead_email",
       "inputType": "email",
-      "validationMessage": "That doesn't look like a valid email. Could you double-check your email address?"
+      "validationMessage": "That doesn't look like a valid email. Could you double-check your email address?",
+      "typingEnabled": true,
+      "delayMs": 1200
     }
   },
   {
@@ -38,7 +42,9 @@
         { "type": "postback", "title": "✅ Yes, looks good", "payload": "Yes, looks good" },
         { "type": "postback", "title": "✍️ No, edit email", "payload": "No, edit email" }
       ],
-      "variableName": "email_confirmation"
+      "variableName": "email_confirmation",
+      "typingEnabled": true,
+      "delayMs": 1000
     }
   },
   {
@@ -72,7 +78,9 @@
         { "type": "postback", "title": "📅 Book a Walkthrough", "payload": "Book a Walkthrough" },
         { "type": "postback", "title": "🚀 Start Free Trial", "payload": "Start Free Trial" }
       ],
-      "variableName": "user_intent"
+      "variableName": "user_intent",
+      "typingEnabled": true,
+      "delayMs": 1500
     }
   },
   {

@@ -3,7 +3,9 @@
     "order": 0,
     "type": "message",
     "content": {
-      "text": "The best way to see the convenience of ReplyBase is in action. We are chatting here on our website, but our system can sync this conversation directly to your phone instantly!"
+      "text": "The best way to see the convenience of ReplyBase is in action. We are chatting here on our website, but our system can sync this conversation directly to your phone instantly!",
+      "typingEnabled": true,
+      "delayMs": 1500
     }
   },
   {
@@ -24,7 +26,9 @@
       "text": "What’s the best email address to send your personalised ROI breakdown and free trial setup?",
       "variableName": "lead_email",
       "inputType": "email",
-      "validationMessage": "That doesn't look like a valid email. Could you double-check your email address?"
+      "validationMessage": "That doesn't look like a valid email. Could you double-check your email address?",
+      "typingEnabled": true,
+      "delayMs": 1200
     }
   },
   {
@@ -41,12 +45,14 @@
     "content": {
       "text": "Ready to experience omnichannel magic? Click below to switch this chat to your phone. I will remember everything we've talked about so far!\n\nOr if you prefer, we can review plans or start a trial directly.",
       "buttons": [
-        { "type": "postback", "title": "🟢 Switch to WhatsApp", "payload": "SYNC_{{sync_hash}}" },
-        { "type": "postback", "title": "🔵 Switch to Telegram", "payload": "SYNC_TG_{{sync_hash}}" },
+        { "type": "postback", "title": "🟢 Connect WhatsApp", "payload": "Connect WhatsApp" },
+        { "type": "postback", "title": "🔵 Connect Telegram", "payload": "Connect Telegram" },
         { "type": "postback", "title": "🚀 Start 14-Day Trial", "payload": "Start 14-Day Trial" },
         { "type": "postback", "title": "📊 See Pricing & ROI", "payload": "See Pricing & ROI" }
       ],
-      "variableName": "demo_next_step"
+      "variableName": "demo_next_step",
+      "typingEnabled": true,
+      "delayMs": 1500
     }
   },
   {
@@ -55,17 +61,37 @@
     "content": {
       "variableName": "demo_next_step",
       "conditions": [
-        { "variableName": "demo_next_step", "operator": "contains", "value": "trial", "nextNodeOrder": 6 },
-        { "variableName": "demo_next_step", "operator": "contains", "value": "checkout", "nextNodeOrder": 6 },
-        { "variableName": "demo_next_step", "operator": "contains", "value": "start", "nextNodeOrder": 6 },
-        { "variableName": "demo_next_step", "operator": "contains", "value": "pricing", "nextNodeOrder": 7 },
-        { "variableName": "demo_next_step", "operator": "contains", "value": "roi", "nextNodeOrder": 7 }
+        { "variableName": "demo_next_step", "operator": "contains", "value": "whatsapp", "nextNodeOrder": 6 },
+        { "variableName": "demo_next_step", "operator": "contains", "value": "telegram", "nextNodeOrder": 7 },
+        { "variableName": "demo_next_step", "operator": "contains", "value": "trial", "nextNodeOrder": 8 },
+        { "variableName": "demo_next_step", "operator": "contains", "value": "checkout", "nextNodeOrder": 8 },
+        { "variableName": "demo_next_step", "operator": "contains", "value": "start", "nextNodeOrder": 8 },
+        { "variableName": "demo_next_step", "operator": "contains", "value": "pricing", "nextNodeOrder": 9 },
+        { "variableName": "demo_next_step", "operator": "contains", "value": "roi", "nextNodeOrder": 9 }
       ],
-      "nextNodeOrder": 8
+      "nextNodeOrder": 10
     }
   },
   {
     "order": 6,
+    "type": "message",
+    "content": {
+      "text": "Awesome! Click this secure link to open WhatsApp and instantly sync your session:\n\n👉 https://wa.me/447700900077?text=SYNC_{{sync_hash}}",
+      "typingEnabled": true,
+      "delayMs": 1500
+    }
+  },
+  {
+    "order": 7,
+    "type": "message",
+    "content": {
+      "text": "Awesome! Click this secure link to open Telegram and instantly sync your session:\n\n👉 https://t.me/ReplyBaseBot?start=SYNC_{{sync_hash}}",
+      "typingEnabled": true,
+      "delayMs": 1500
+    }
+  },
+  {
+    "order": 8,
     "type": "action",
     "content": {
       "action": "call_flow",
@@ -73,7 +99,7 @@
     }
   },
   {
-    "order": 7,
+    "order": 9,
     "type": "action",
     "content": {
       "action": "call_flow",
@@ -81,7 +107,7 @@
     }
   },
   {
-    "order": 8,
+    "order": 10,
     "type": "action",
     "content": {
       "action": "end_flow",

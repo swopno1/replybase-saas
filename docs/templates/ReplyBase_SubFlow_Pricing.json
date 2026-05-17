@@ -17,7 +17,9 @@
       "text": "What’s the best email address to send your personalised ROI breakdown and free trial setup?",
       "variableName": "lead_email",
       "inputType": "email",
-      "validationMessage": "That doesn't look like a valid email. Could you double-check your email address?"
+      "validationMessage": "That doesn't look like a valid email. Could you double-check your email address?",
+      "typingEnabled": true,
+      "delayMs": 1200
     }
   },
   {
@@ -26,7 +28,9 @@
     "content": {
       "text": "To give you the most accurate pricing and ROI estimate, what type of business do you run?",
       "variableName": "business_type",
-      "inputType": "text"
+      "inputType": "text",
+      "typingEnabled": true,
+      "delayMs": 1200
     }
   },
   {
@@ -47,7 +51,9 @@
         { "type": "postback", "title": "📱 Try Live Demo", "payload": "Try Live Demo" },
         { "type": "postback", "title": "📅 Book a Strategy Call", "payload": "Book a Strategy Call" }
       ],
-      "variableName": "pricing_next_step"
+      "variableName": "pricing_next_step",
+      "typingEnabled": true,
+      "delayMs": 1500
     }
   },
   {

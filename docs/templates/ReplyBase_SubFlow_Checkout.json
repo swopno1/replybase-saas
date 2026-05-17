@@ -17,7 +17,9 @@
       "text": "What’s the best email address to send your personalised ROI breakdown and free trial setup?",
       "variableName": "lead_email",
       "inputType": "email",
-      "validationMessage": "That doesn't look like a valid email. Could you double-check your email address?"
+      "validationMessage": "That doesn't look like a valid email. Could you double-check your email address?",
+      "typingEnabled": true,
+      "delayMs": 1200
     }
   },
   {
@@ -38,7 +40,9 @@
         { "type": "postback", "title": "👥 Pro Trial (£99/mo) (Recommended)", "payload": "👥 Pro Trial (£99/mo) (Recommended)" },
         { "type": "postback", "title": "🏢 Enterprise Custom", "payload": "🏢 Enterprise Custom" }
       ],
-      "variableName": "checkout_plan_choice"
+      "variableName": "checkout_plan_choice",
+      "typingEnabled": true,
+      "delayMs": 1500
     }
   },
   {
@@ -58,7 +62,9 @@
     "type": "action",
     "content": {
       "action": "checkout",
-      "text": "Outstanding! The Pro Plan recovered an average of 92% of after-hours leads for our partners by syncing Webchat, WhatsApp, and CRM. Tap here to start your 14-day Pro trial: {{stripe_url}}"
+      "text": "Outstanding! The Pro Plan recovered an average of 92% of after-hours leads for our partners by syncing Webchat, WhatsApp, and CRM. Tap here to start your 14-day Pro trial: {{stripe_url}}",
+      "typingEnabled": true,
+      "delayMs": 1500
     }
   },
   {
@@ -66,7 +72,9 @@
     "type": "action",
     "content": {
       "action": "checkout",
-      "text": "Perfect! The Starter Plan is ideal for solo founders launching basic automated webchat. Tap here to start your 14-day Starter trial: {{stripe_url}}"
+      "text": "Perfect! The Starter Plan is ideal for solo founders launching basic automated webchat. Tap here to start your 14-day Starter trial: {{stripe_url}}",
+      "typingEnabled": true,
+      "delayMs": 1500
     }
   },
   {
