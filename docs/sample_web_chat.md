@@ -5,8 +5,10 @@ This document outlines realistic, end-to-end conversation journeys for website v
 These scenarios showcase:
 1. The **`sanitizeNameInput`** regex utility stripping greetings automatically.
 2. **Pre-defined buttons** guiding navigation seamlessly.
-3. **Skip-logic gates** checking for previously captured email addresses.
-4. **Inter-subflow routing** to completely eliminate conversational dead-ends.
+3. **Multi-conditional check gates** (supporting `lead_email` in memory and `contact_email` from DB) to prevent duplicate input prompts.
+4. **Database-compatible variable mapping** (`lead_name` and `lead_email`) ensuring successful lead persistence.
+5. **Dynamic greeting interpolation** (`{{lead_name}}{{contact_name}}`) working perfectly for both new and returning users.
+6. **Polished, human-centric copywriting** representing a supportive growth assistant rather than a robotic agent.
 
 ---
 
@@ -19,15 +21,17 @@ These scenarios showcase:
 ### Dialogue Transcript
 
 ```markdown
-🤖 Bot: 👋 Welcome to ReplyBase! I'm your digital growth consultant. I help businesses double their leads and automate after-hours support across WhatsApp, Telegram, and Webchat.
+🤖 Bot: 👋 Welcome to ReplyBase!
+      
+      I help businesses automate customer conversations, capture more leads, and reply instantly across WhatsApp, webchat, and social messaging.
       
       To tailor my suggestions for your business, what is your name?
 
 👤 Visitor: Hey there, I'm Sarah.
 
-🤖 Bot: (Action: Engine runs sanitizeNameInput("Hey there, I'm Sarah.") -> Stored as "Sarah")
+🤖 Bot: (Action: Engine runs sanitizeNameInput("Hey there, I'm Sarah.") -> Stored in session as variable `lead_name`: "Sarah")
 
-        Nice to meet you, Sarah! 🚀 Where should I email your custom ROI breakdown and after-hours automation mockup so you don't lose progress?
+        Nice to meet you, Sarah! 🚀 What's the best email address to send your personalised ROI breakdown and free trial setup?
 
 👤 Visitor: sarah.creative@
 
@@ -35,16 +39,18 @@ These scenarios showcase:
 
 👤 Visitor: Whoops, it's sarah.creative@gmail.com
 
-🤖 Bot: Great! Is sarah.creative@gmail.com the correct email for your account?
+🤖 Bot: (Action: Saves to variable `lead_email`: "sarah.creative@gmail.com")
+
+        Great! Is sarah.creative@gmail.com the correct email for your account?
         [✅ Yes, looks good] [✍️ No, edit email]
 
 👤 Visitor: (Clicks: ✅ Yes, looks good)
 
-🤖 Bot: (Action: Auto-tags user with ["lead", "channel_website", "manually_confirmed"])
+🤖 Bot: (Action: Runs tag_user action -> Triggers persistLeadCapture which maps lead_name and lead_email to Contact record in DB. Auto-tags user with ["lead", "channel_website", "manually_confirmed"])
         
         Thanks, Sarah! I've pre-configured your digital dashboard.
         
-        💡 Consultant suggestion: Over 74% of website visitors leave forever if they don't get an answer in 2 minutes. By connecting your website chat with a WhatsApp/Telegram channel, ReplyBase lets you continue the conversation on their phones automatically. It's the ultimate lead-generation convenience.
+        ReplyBase helps continue conversations through WhatsApp and webchat automatically — helping businesses capture more leads and respond faster 🚀
         
         What would you like to explore next?
         [📊 See Pricing & ROI] [📱 See Live Demo] [📅 Book a Walkthrough] [🚀 Start Free Trial]
@@ -52,7 +58,7 @@ These scenarios showcase:
 👤 Visitor: (Clicks: 🚀 Start Free Trial)
 
 🤖 Bot: (Action: Invokes Sub-Flow: ReplyBase_SubFlow_Checkout)
-        (Evaluation: Node 0 checks contact_email. "sarah.creative@gmail.com" contains "@" -> Skips to Order 2)
+        (Evaluation: Node 0 checks lead_email and contact_email. "sarah.creative@gmail.com" contains "@" -> Skips to Order 2)
         (Action: Node 2 tags user with ["checkout_interest"])
         
         Excellent choice! 🚀 Setting up takes less than 2 minutes and is free for 14 days. No credit card required to test the features.
@@ -79,15 +85,17 @@ These scenarios showcase:
 ### Dialogue Transcript
 
 ```markdown
-🤖 Bot: 👋 Welcome to ReplyBase! I'm your digital growth consultant. I help businesses double their leads and automate after-hours support across WhatsApp, Telegram, and Webchat.
+🤖 Bot: 👋 Welcome to ReplyBase!
+      
+      I help businesses automate customer conversations, capture more leads, and reply instantly across WhatsApp, webchat, and social messaging.
       
       To tailor my suggestions for your business, what is your name?
 
 👤 Visitor: Hello, my name is daniel vance
 
-🤖 Bot: (Action: Engine runs sanitizeNameInput("Hello, my name is daniel vance") -> Stored as "Daniel Vance")
+🤖 Bot: (Action: Engine runs sanitizeNameInput("Hello, my name is daniel vance") -> Stored in session as `lead_name`: "Daniel Vance")
 
-        Nice to meet you, Daniel Vance! 🚀 Where should I email your custom ROI breakdown and after-hours automation mockup so you don't lose progress?
+        Nice to meet you, Daniel Vance! 🚀 What's the best email address to send your personalised ROI breakdown and free trial setup?
 
 👤 Visitor: daniel.vance@vancetech.com
 
@@ -96,11 +104,11 @@ These scenarios showcase:
 
 👤 Visitor: (Clicks: ✅ Yes, looks good)
 
-🤖 Bot: (Action: Auto-tags user with ["lead", "channel_website", "manually_confirmed"])
+🤖 Bot: (Action: Runs tag_user action -> Triggers persistLeadCapture. Updates Contact in DB. Auto-tags user with ["lead", "channel_website", "manually_confirmed"])
         
         Thanks, Daniel Vance! I've pre-configured your digital dashboard.
         
-        💡 Consultant suggestion: Over 74% of website visitors leave forever if they don't get an answer in 2 minutes. By connecting your website chat with a WhatsApp/Telegram channel, ReplyBase lets you continue the conversation on their phones automatically.
+        ReplyBase helps continue conversations through WhatsApp and webchat automatically — helping businesses capture more leads and respond faster 🚀
         
         What would you like to explore next?
         [📊 See Pricing & ROI] [📱 See Live Demo] [📅 Book a Walkthrough] [🚀 Start Free Trial]
@@ -108,8 +116,14 @@ These scenarios showcase:
 👤 Visitor: (Clicks: 📊 See Pricing & ROI)
 
 🤖 Bot: (Action: Invokes Sub-Flow: ReplyBase_SubFlow_Pricing)
-        (Evaluation: Node 0 checks contact_email. Daniel's email is present -> Skips to Order 2)
-        (Action: Node 2 tags user with ["pricing_interest"])
+        (Evaluation: Node 0 checks lead_email and contact_email. Daniel's email is present -> Skips to Order 2)
+        
+        (Action: Node 2 asks business type query)
+        To give you the most accurate pricing and ROI estimate, what type of business do you run?
+
+👤 Visitor: We run a growing SaaS agency.
+
+🤖 Bot: (Action: Saves to variable `business_type`. Runs tag_user. updates DB. Auto-tags with ["lead", "pricing_interest"])
         
         ReplyBase is built as the ultimate tool for automated lead generation. We offer simple, transparent pricing designed to scale with your volume:
         
@@ -126,7 +140,7 @@ These scenarios showcase:
         
         The best way to see the convenience of ReplyBase is in action. We are chatting here on our website, but our system can sync this conversation directly to your phone instantly!
         
-        (Evaluation: Node 1 checks contact_email. Daniel's email is present -> Skips to Order 3)
+        (Evaluation: Node 1 checks lead_email and contact_email. Daniel's email is present -> Skips to Order 3)
         (Action: Node 3 tags user with ["demo_interest"])
         
         Ready to experience omnichannel magic? Click below to switch this chat to your phone. I will remember everything we've talked about so far!
@@ -153,15 +167,17 @@ These scenarios showcase:
 ### Dialogue Transcript
 
 ```markdown
-🤖 Bot: 👋 Welcome to ReplyBase! I'm your digital growth consultant. I help businesses double their leads and automate after-hours support across WhatsApp, Telegram, and Webchat.
+🤖 Bot: 👋 Welcome to ReplyBase!
+      
+      I help businesses automate customer conversations, capture more leads, and reply instantly across WhatsApp, webchat, and social messaging.
       
       To tailor my suggestions for your business, what is your name?
 
 👤 Visitor: I'm Marcus from Enterprise Logistics.
 
-🤖 Bot: (Action: Engine runs sanitizeNameInput("I'm Marcus from Enterprise Logistics.") -> Stored as "Marcus From Enterprise Logistics")
+🤖 Bot: (Action: Engine runs sanitizeNameInput("I'm Marcus from Enterprise Logistics.") -> Stored as `lead_name`: "Marcus From Enterprise Logistics")
 
-        Nice to meet you, Marcus From Enterprise Logistics! 🚀 Where should I email your custom ROI breakdown and after-hours automation mockup so you don't lose progress?
+        Nice to meet you, Marcus From Enterprise Logistics! 🚀 What's the best email address to send your personalised ROI breakdown and free trial setup?
 
 👤 Visitor: marcus@enterpriselogistics.com
 
@@ -170,11 +186,11 @@ These scenarios showcase:
 
 👤 Visitor: (Clicks: ✅ Yes, looks good)
 
-🤖 Bot: (Action: Auto-tags user with ["lead", "channel_website", "manually_confirmed"])
+🤖 Bot: (Action: Runs tag_user action -> Triggers persistLeadCapture. Updates Contact in DB. Auto-tags user with ["lead", "channel_website", "manually_confirmed"])
         
         Thanks, Marcus From Enterprise Logistics! I've pre-configured your digital dashboard.
         
-        💡 Consultant suggestion: Over 74% of website visitors leave forever if they don't get an answer in 2 minutes. By connecting your website chat with a WhatsApp/Telegram channel, ReplyBase lets you continue the conversation on their phones automatically.
+        ReplyBase helps continue conversations through WhatsApp and webchat automatically — helping businesses capture more leads and respond faster 🚀
         
         What would you like to explore next?
         [📊 See Pricing & ROI] [📱 See Live Demo] [📅 Book a Walkthrough] [🚀 Start Free Trial]
@@ -183,13 +199,15 @@ These scenarios showcase:
 
 🤖 Bot: (Action: Invokes Sub-Flow: ReplyBase_SubFlow_Booking)
         
-        I'd be glad to get a human expert on the line for you. They can run a custom audit on your website, suggest high-converting flow configurations, and build a tailored ROI plan.
+        I’d be happy to connect you with a member of our team who can walk you through how ReplyBase could fit your business and workflow.
         
-        (Evaluation: Node 1 checks contact_email. Marcus's email is present -> Skips to Order 3)
+        (Evaluation: Node 1 checks lead_email and contact_email. Marcus's email is present -> Skips to Order 3)
         (Action: Node 3 tags user with ["booking_interest"])
         
-        (Action: Node 4 executes booking action. Renders the specialized Calendly link)
-        Perfect! I've pre-notified our onboarding team. You can pick a convenient slot directly on our specialist's group calendar here: calendly.com/replybase-consulting
+        (Action: Node 4 executes booking action)
+        Perfect — your request has been sent to our team and someone will be in touch shortly.
+        
+        In the meantime, you can book a convenient time here: calendly.com/replybase-consulting
         
         While you prepare for the call, is there anything else I can assist you with?
         
@@ -199,10 +217,14 @@ These scenarios showcase:
 👤 Visitor: (Clicks: 📊 See Pricing & ROI)
 
 🤖 Bot: (Action: Invokes Sub-Flow: ReplyBase_SubFlow_Pricing)
-        (Evaluation: Node 0 checks contact_email. Marcus's email is present -> Skips to Order 2)
-        (Action: Node 2 tags user with ["pricing_interest"])
+        (Evaluation: Node 0 checks lead_email and contact_email. Marcus's email is present -> Skips to Order 2)
         
-        ReplyBase is built as the ultimate tool for automated lead generation. We offer simple, transparent pricing designed to scale with your volume:
+        (Action: Node 2 asks business type)
+        To give you the most accurate pricing and ROI estimate, what type of business do you run?
+
+👤 Visitor: Enterprise distribution and 3PL warehousing.
+
+🤖 Bot: (Action: Updates DB with business type. Tags user. Outputs plan comparison...)
         
-        ...
+        ReplyBase is built as the ultimate tool for automated lead generation...
 ```

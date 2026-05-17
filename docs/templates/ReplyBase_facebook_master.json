@@ -3,8 +3,8 @@
     "order": 0,
     "type": "input",
     "content": {
-      "text": "👋 Hello! Welcome to the ReplyBase Facebook Assistant. I help businesses capture leads and handle messages 24/7 without missing a single contact.\n\nTo tailor my answers, what is your name?",
-      "variableName": "contact_name",
+      "text": "👋 Welcome to ReplyBase!\n\nSince you’re messaging us through Facebook, we’ve already connected your Messenger profile automatically.\n\nI’m here to help you explore how ReplyBase can automate customer conversations and capture more leads.\n\nTo tailor my answers, what is your name?",
+      "variableName": "lead_name",
       "inputType": "text"
     }
   },
@@ -23,8 +23,8 @@
     "order": 2,
     "type": "input",
     "content": {
-      "text": "Nice to meet you, {{contact_name}}! To link your Facebook chat history with your client dashboard and receive a custom pricing and ROI breakdown, what is your best email?",
-      "variableName": "contact_email",
+      "text": "Nice to meet you, {{lead_name}}!\n\nWhat’s the best email address to send your personalised ROI breakdown and free 14-day trial setup?",
+      "variableName": "lead_email",
       "inputType": "email",
       "validationMessage": "That doesn't look like a valid email. Could you double-check your email address?"
     }
@@ -33,7 +33,7 @@
     "order": 3,
     "type": "message",
     "content": {
-      "text": "Great! Can you confirm if {{contact_email}} is correct?",
+      "text": "Great! Can you confirm if {{lead_email}} is correct?",
       "buttons": [
         { "type": "postback", "title": "✅ Yes, that's correct", "payload": "CONFIRM_EMAIL_OK" },
         { "type": "postback", "title": "✍️ No, edit email", "payload": "CONFIRM_EMAIL_CHANGE" }
@@ -64,7 +64,7 @@
     "order": 6,
     "type": "message",
     "content": {
-      "text": "Perfect, you're all set! 🚀 Your Facebook profile is securely linked.\n\n💡 Consultant suggestion: Facebook Messenger is a goldmine for customer acquisition, but over 62% of social media users expect a response within 10 minutes. ReplyBase automatically captures leads from comments and messages instantly, keeping your pipeline full and syncs everything with your CRM.\n\nWhat would you like to explore first?",
+      "text": "Perfect, you're all set! 🚀 Your Facebook profile is securely linked.\n\n💡 Businesses often lose leads simply by replying too slowly on Facebook Messenger.\n\nReplyBase helps automate replies, capture enquiries instantly, and sync conversations directly into your CRM 🚀\n\nWhat would you like to explore first?",
       "buttons": [
         { "type": "postback", "title": "📊 See Pricing & ROI", "payload": "INTENT_PRICING" },
         { "type": "postback", "title": "📱 See Live Demo", "payload": "INTENT_DEMO" },

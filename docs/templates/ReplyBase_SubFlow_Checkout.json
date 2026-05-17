@@ -3,9 +3,9 @@
     "order": 0,
     "type": "condition",
     "content": {
-      "variableName": "contact_email",
       "conditions": [
-        { "operator": "contains", "value": "@", "nextNodeOrder": 2 }
+        { "variableName": "contact_email", "operator": "contains", "value": "@", "nextNodeOrder": 2 },
+        { "variableName": "lead_email", "operator": "contains", "value": "@", "nextNodeOrder": 2 }
       ],
       "nextNodeOrder": 1
     }
@@ -14,8 +14,8 @@
     "order": 1,
     "type": "input",
     "content": {
-      "text": "Great! Let's get your 14-day free trial started. What email address should we use to set up your dashboard?",
-      "variableName": "contact_email",
+      "text": "What’s the best email address to send your personalised ROI breakdown and free trial setup?",
+      "variableName": "lead_email",
       "inputType": "email",
       "validationMessage": "That doesn't look like a valid email. Could you double-check your email address?"
     }

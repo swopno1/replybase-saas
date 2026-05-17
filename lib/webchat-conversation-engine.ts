@@ -669,8 +669,22 @@ export async function executeWebchatFlowFirst(params: {
         const variableName =
           content.variableName || `input_${currentNode.order}`;
         if (pendingMessage) {
+          if (content.inputType === "email") {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(pendingMessage.trim())) {
+              const validationPrompt = content.validationMessage || "Please enter a valid email address.";
+              responses.push({
+                type: "text",
+                text: validationPrompt,
+              });
+              pendingMessage = "";
+              safetyCounter = 99;
+              break;
+            }
+          }
+
           const isNameVar = variableName === "contact_name" || variableName === "lead_name" || variableName === "name";
-          variables[variableName] = isNameVar ? sanitizeNameInput(pendingMessage) : pendingMessage;
+          variables[variableName] = isNameVar ? sanitizeNameInput(pendingMessage) : pendingMessage.trim();
           pendingMessage = "";
           await applyDelayWithOptionalTyping(content, responses);
           currentNode = getNextNode(

@@ -3,16 +3,16 @@
     "order": 0,
     "type": "message",
     "content": {
-      "text": "I'd be glad to get a human expert on the line for you. They can run a custom audit on your website, suggest high-converting flow configurations, and build a tailored ROI plan."
+      "text": "I’d be happy to connect you with a member of our team who can walk you through how ReplyBase could fit your business and workflow."
     }
   },
   {
     "order": 1,
     "type": "condition",
     "content": {
-      "variableName": "contact_email",
       "conditions": [
-        { "operator": "contains", "value": "@", "nextNodeOrder": 3 }
+        { "variableName": "contact_email", "operator": "contains", "value": "@", "nextNodeOrder": 3 },
+        { "variableName": "lead_email", "operator": "contains", "value": "@", "nextNodeOrder": 3 }
       ],
       "nextNodeOrder": 2
     }
@@ -22,7 +22,7 @@
     "type": "input",
     "content": {
       "text": "What is the best business email to use for the calendar invitation?",
-      "variableName": "contact_email",
+      "variableName": "lead_email",
       "inputType": "email",
       "validationMessage": "That doesn't look like a valid email. Could you double-check your email address?"
     }
@@ -41,7 +41,7 @@
     "content": {
       "action": "booking",
       "bookingService": "calendly",
-      "text": "Perfect! I've pre-notified our onboarding team. You can pick a convenient slot directly on our specialist's group calendar here: calendly.com/replybase-consulting\n\nWhile you prepare for the call, is there anything else I can assist you with?"
+      "text": "Perfect — your request has been sent to our team and someone will be in touch shortly.\n\nIn the meantime, you can book a convenient time here: calendly.com/replybase-consulting"
     }
   },
   {

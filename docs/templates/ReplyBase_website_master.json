@@ -3,8 +3,8 @@
     "order": 0,
     "type": "input",
     "content": {
-      "text": "👋 Welcome to ReplyBase! I'm your digital growth consultant. I help businesses double their leads and automate after-hours support across WhatsApp, Telegram, and Webchat.\n\nTo tailor my suggestions for your business, what is your name?",
-      "variableName": "contact_name",
+      "text": "👋 Welcome to ReplyBase!\n\nI help businesses automate customer conversations, capture more leads, and reply instantly across WhatsApp, webchat, and social messaging.\n\nTo tailor my suggestions for your business, what is your name?",
+      "variableName": "lead_name",
       "inputType": "text"
     }
   },
@@ -14,7 +14,7 @@
     "content": {
       "variableName": "contact_email",
       "conditions": [
-        { "operator": "contains", "value": "@", "nextNodeOrder": 5 }
+        { "variableName": "contact_email", "operator": "contains", "value": "@", "nextNodeOrder": 5 }
       ],
       "nextNodeOrder": 2
     }
@@ -23,8 +23,8 @@
     "order": 2,
     "type": "input",
     "content": {
-      "text": "Nice to meet you, {{contact_name}}! 🚀 Where should I email your custom ROI breakdown and after-hours automation mockup so you don't lose progress?",
-      "variableName": "contact_email",
+      "text": "Nice to meet you, {{lead_name}}! 🚀 What's the best email address to send your personalised ROI breakdown and free trial setup?",
+      "variableName": "lead_email",
       "inputType": "email",
       "validationMessage": "That doesn't look like a valid email. Could you double-check your email address?"
     }
@@ -33,10 +33,10 @@
     "order": 3,
     "type": "message",
     "content": {
-      "text": "Great! Is {{contact_email}} the correct email for your account?",
+      "text": "Great! Is {{lead_email}} the correct email for your account?",
       "buttons": [
-        { "type": "postback", "title": "✅ Yes, looks good", "payload": "CONFIRM_EMAIL_OK" },
-        { "type": "postback", "title": "✍️ No, edit email", "payload": "CONFIRM_EMAIL_CHANGE" }
+        { "type": "postback", "title": "✅ Yes, looks good", "payload": "Yes, looks good" },
+        { "type": "postback", "title": "✍️ No, edit email", "payload": "No, edit email" }
       ],
       "variableName": "email_confirmation"
     }
@@ -47,7 +47,8 @@
     "content": {
       "variableName": "email_confirmation",
       "conditions": [
-        { "operator": "contains", "value": "change", "nextNodeOrder": 2 }
+        { "variableName": "email_confirmation", "operator": "contains", "value": "no", "nextNodeOrder": 2 },
+        { "variableName": "email_confirmation", "operator": "contains", "value": "edit", "nextNodeOrder": 2 }
       ],
       "nextNodeOrder": 5
     }
@@ -64,12 +65,12 @@
     "order": 6,
     "type": "message",
     "content": {
-      "text": "Thanks, {{contact_name}}! I've pre-configured your digital dashboard.\n\n💡 Consultant suggestion: Over 74% of website visitors leave forever if they don't get an answer in 2 minutes. By connecting your website chat with a WhatsApp/Telegram channel, ReplyBase lets you continue the conversation on their phones automatically. It's the ultimate lead-generation convenience.\n\nWhat would you like to explore next?",
+      "text": "Thanks, {{lead_name}}{{contact_name}}! I've pre-configured your digital dashboard.\n\nReplyBase helps continue conversations through WhatsApp and webchat automatically — helping businesses capture more leads and respond faster 🚀\n\nWhat would you like to explore next?",
       "buttons": [
-        { "type": "postback", "title": "📊 See Pricing & ROI", "payload": "INTENT_PRICING" },
-        { "type": "postback", "title": "📱 See Live Demo", "payload": "INTENT_DEMO" },
-        { "type": "postback", "title": "📅 Book a Walkthrough", "payload": "INTENT_BOOKING" },
-        { "type": "postback", "title": "🚀 Start Free Trial", "payload": "INTENT_CHECKOUT" }
+        { "type": "postback", "title": "📊 See Pricing & ROI", "payload": "See Pricing & ROI" },
+        { "type": "postback", "title": "📱 See Live Demo", "payload": "See Live Demo" },
+        { "type": "postback", "title": "📅 Book a Walkthrough", "payload": "Book a Walkthrough" },
+        { "type": "postback", "title": "🚀 Start Free Trial", "payload": "Start Free Trial" }
       ],
       "variableName": "user_intent"
     }
@@ -80,19 +81,18 @@
     "content": {
       "variableName": "last_user_message_normalized",
       "conditions": [
-        { "operator": "contains", "value": "intent_pricing", "nextNodeOrder": 8 },
-        { "operator": "contains", "value": "price", "nextNodeOrder": 8 },
-        { "operator": "contains", "value": "cost", "nextNodeOrder": 8 },
-        { "operator": "contains", "value": "roi", "nextNodeOrder": 8 },
-        { "operator": "contains", "value": "intent_demo", "nextNodeOrder": 9 },
-        { "operator": "contains", "value": "demo", "nextNodeOrder": 9 },
-        { "operator": "contains", "value": "work", "nextNodeOrder": 9 },
-        { "operator": "contains", "value": "intent_booking", "nextNodeOrder": 10 },
-        { "operator": "contains", "value": "book", "nextNodeOrder": 10 },
-        { "operator": "contains", "value": "call", "nextNodeOrder": 10 },
-        { "operator": "contains", "value": "intent_checkout", "nextNodeOrder": 12 },
-        { "operator": "contains", "value": "trial", "nextNodeOrder": 12 },
-        { "operator": "contains", "value": "start", "nextNodeOrder": 12 }
+        { "variableName": "last_user_message_normalized", "operator": "contains", "value": "pricing", "nextNodeOrder": 8 },
+        { "variableName": "last_user_message_normalized", "operator": "contains", "value": "price", "nextNodeOrder": 8 },
+        { "variableName": "last_user_message_normalized", "operator": "contains", "value": "cost", "nextNodeOrder": 8 },
+        { "variableName": "last_user_message_normalized", "operator": "contains", "value": "roi", "nextNodeOrder": 8 },
+        { "variableName": "last_user_message_normalized", "operator": "contains", "value": "demo", "nextNodeOrder": 9 },
+        { "variableName": "last_user_message_normalized", "operator": "contains", "value": "work", "nextNodeOrder": 9 },
+        { "variableName": "last_user_message_normalized", "operator": "contains", "value": "book", "nextNodeOrder": 10 },
+        { "variableName": "last_user_message_normalized", "operator": "contains", "value": "call", "nextNodeOrder": 10 },
+        { "variableName": "last_user_message_normalized", "operator": "contains", "value": "walkthrough", "nextNodeOrder": 10 },
+        { "variableName": "last_user_message_normalized", "operator": "contains", "value": "trial", "nextNodeOrder": 12 },
+        { "variableName": "last_user_message_normalized", "operator": "contains", "value": "start", "nextNodeOrder": 12 },
+        { "variableName": "last_user_message_normalized", "operator": "contains", "value": "checkout", "nextNodeOrder": 12 }
       ],
       "nextNodeOrder": 11
     }

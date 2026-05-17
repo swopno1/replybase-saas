@@ -3,8 +3,8 @@
     "order": 0,
     "type": "input",
     "content": {
-      "text": "👋 Welcome to the ReplyBase Telegram Consultant Bot! I'm here to show you how easily you can automate customer queries and capture leads using our tools.\n\nTo get started, what should I call you?",
-      "variableName": "contact_name",
+      "text": "👋 Welcome to ReplyBase!\n\nI help businesses automate customer conversations, capture more leads, and reply instantly across WhatsApp, Telegram, and social messaging.\n\nTo get started, what should I call you?",
+      "variableName": "lead_name",
       "inputType": "text"
     }
   },
@@ -23,8 +23,8 @@
     "order": 2,
     "type": "input",
     "content": {
-      "text": "Awesome to connect, {{contact_name}}! To link your Telegram session with your web admin portal and secure your ROI plan, what is your email address?",
-      "variableName": "contact_email",
+      "text": "Awesome to connect, {{lead_name}}!\n\nWhat’s the best email address to send your personalised ROI breakdown and free trial setup?",
+      "variableName": "lead_email",
       "inputType": "email",
       "validationMessage": "That doesn't look like a valid email. Could you double-check your email address?"
     }
@@ -33,7 +33,7 @@
     "order": 3,
     "type": "message",
     "content": {
-      "text": "Perfect! Can you confirm if {{contact_email}} is correct?",
+      "text": "Perfect! Can you confirm if {{lead_email}} is correct?",
       "buttons": [
         { "type": "postback", "title": "✅ Yes, confirm email", "payload": "CONFIRM_EMAIL_OK" },
         { "type": "postback", "title": "✍️ No, edit email", "payload": "CONFIRM_EMAIL_CHANGE" }
@@ -64,7 +64,7 @@
     "order": 6,
     "type": "message",
     "content": {
-      "text": "Excellent! Your Telegram channel session is now securely connected to your ReplyBase CRM. ✈️\n\n💡 Consultant suggestion: Telegram is incredibly fast and popular, but manual support can bottle-neck growth. With ReplyBase, you can automate repetitive support queries, qualify high-value leads, and hand them off to your team instantly. It's the ultimate B2B/B2C lead capture convenience.\n\nWhat would you like to explore first?",
+      "text": "Excellent! Your Telegram channel session is now securely connected to your ReplyBase CRM. ✈️\n\nReplyBase helps automate FAQs, capture leads instantly, and route important Telegram conversations directly to your team 🚀\n\nWhat would you like to explore first?",
       "buttons": [
         { "type": "postback", "title": "📊 See Pricing & ROI", "payload": "INTENT_PRICING" },
         { "type": "postback", "title": "📱 See Live Demo", "payload": "INTENT_DEMO" },
