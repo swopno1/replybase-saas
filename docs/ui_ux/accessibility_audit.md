@@ -6,7 +6,7 @@
 
 ## 2. Compliance Gaps
 - **Contrast**: Generally good, though some "Muted" text in the activity log may fall below WCAG AA standards (4.5:1).
-- **Labels**: Several icon-only buttons (e.g., in the Conversation detail) lack `aria-label` or `title` attributes.
+- **Labels**: Several icon-only buttons (e.g., in the Conversation detail and ReplyComposer) lack `aria-label` or `title` attributes.
 - **Images**: Logo and avatars need consistent `alt` text enforcement.
 
 ## 3. Remediation Plan

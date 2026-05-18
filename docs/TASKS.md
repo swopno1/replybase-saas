@@ -243,3 +243,18 @@
   - Dependencies: BullMQ.
   - Notes: Essential for enterprise-grade operations.
   - Rollout Risk: LOW.
+
+- **Task 033**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Performance
+  - Severity: LOW
+  - Issue: CRM Real-time Polling Latency.
+  - Root Cause: `ConversationPage` uses 5-second interval polling for message updates.
+  - Business Impact: Sub-optimal "live" feel; increased server load on high-concurrency CRM usage.
+  - Objective: Transition CRM to WebSockets or SSE for real-time updates.
+  - Detailed Instructions: 1. Implement a WebSocket/SSE server (e.g., using Socket.io or native SSE). 2. Update `ConversationPage` to subscribe to conversation-specific events.
+  - Expected Deliverables: Real-time "Instant" CRM updates.
+  - Dependencies: WebSocket infrastructure.
+  - Notes: Part of the "Delightful UX" initiative.
+  - Rollout Risk: MEDIUM.
