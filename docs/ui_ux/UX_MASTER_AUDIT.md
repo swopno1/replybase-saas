@@ -43,3 +43,4 @@
 - **Standards**: Target WCAG 2.1 AA compliance.
 - **Keyboard Navigation**: Radix UI primitives provide robust support.
 - **Aria Labels**: Mandatory on all non-text interactive elements (icon buttons).
+- **Polling vs WebSockets**: `ConversationPage` uses 5s interval polling. While functional, it leads to a "steppy" feel compared to real-time WebSockets.

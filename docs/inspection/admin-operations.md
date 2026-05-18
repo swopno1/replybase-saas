@@ -9,6 +9,7 @@
 - **Impersonation**: Hardened impersonation mode allows admins to "View as Tenant" for support tickets.
 - **Webhook Logs**: Centralized view of all inbound/outbound webhook traffic for debugging.
 - **Audit Trail**: Mutations are logged in `AdminActivity`.
+- **Usage Monitoring**: Implemented real-time usage tracking and plan enforcement (lib/subscription.ts). Redis caching for these limits is active to reduce DB load.
 
 ## 3. Administrative Security
 - **Access Control**: Strict `isPlatformAdmin` check on all `/api/admin` routes.
@@ -16,7 +17,7 @@
 - **Command Safety**: Test runner refactored to use `execFile` to prevent shell injection.
 
 ## 4. Operational Gaps
-- **Read-Only Audit**: Missing trail for "Read" access to sensitive tenant PII (Task 021).
+- **Read-Only Audit**: Missing trail for "Read" access to sensitive tenant PII (Task 021). Superadmins can view sensitive data without leaving a record.
 - **Queue Observability**: No real-time view of BullMQ job success/failure rates from the Admin UI (Task 026).
 - **Self-Healing**: Lack of "Retry" buttons in the Webhook Log for failed outbound hooks.
 
