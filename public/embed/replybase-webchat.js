@@ -105,6 +105,33 @@
 
   // Only render the widget after config and session are ready
   function renderWidget() {
+    function escapeHtml(str) {
+      if (typeof str !== "string") return "";
+      return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function formatChatMessage(text) {
+      if (typeof text !== "string") return "";
+      var escaped = escapeHtml(text);
+
+      // 1. Parse markdown links: [Title](Url)
+      escaped = escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, function (match, linkText, url) {
+        return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: underline; font-weight: 600;">' + linkText + '</a>';
+      });
+
+      // 2. Parse bold text: **text**
+      escaped = escaped.replace(/\*\*([^*]+)\*\*/g, function (match, boldText) {
+        return '<strong>' + boldText + '</strong>';
+      });
+
+      return escaped;
+    }
+
     var botTypingIndicator = null;
     var root = document.createElement("div");
     root.id = "replybase-webchat-root";
@@ -301,7 +328,11 @@
     addMessage = function (kind, text, quickReplies) {
       var bubble = document.createElement("div");
       bubble.className = "rb-message " + kind;
-      bubble.textContent = text;
+      if (kind === "bot" || kind === "agent") {
+        bubble.innerHTML = formatChatMessage(text);
+      } else {
+        bubble.textContent = text;
+      }
       messages.appendChild(bubble);
 
       if (Array.isArray(quickReplies) && quickReplies.length > 0) {
@@ -503,7 +534,7 @@
                     try {
                       var textPart = JSON.parse(val);
                       fullText += textPart;
-                      bubble.textContent = fullText;
+                      bubble.innerHTML = formatChatMessage(fullText);
                       messages.scrollTop = messages.scrollHeight;
                     } catch (e) {}
                   }
