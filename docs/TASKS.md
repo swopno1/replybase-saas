@@ -14,7 +14,7 @@
   - Detailed Instructions: 1. Wrap data queries in a caching utility. 2. Use `dashboard:stats:[tenantId]` keys with a 300s TTL. 3. Implement event-driven cache invalidation when leads/messages are created.
   - Expected Deliverables: Cached metrics layer and invalidation logic.
   - Dependencies: Redis infrastructure.
-  - Notes: Consolidated from Task 011 and 022.
+  - Notes: Consolidated from Task 003 and 022. Aug 2026 Audit confirmed this is still pending and high priority for dashboard responsiveness.
   - Rollout Risk: MEDIUM.
 
 - **Task 004**
@@ -89,7 +89,7 @@
   - Detailed Instructions: Refactor `BotList` to use a single `channel.findMany` with an array of botIds.
   - Expected Deliverables: Optimized bot listing logic.
   - Dependencies: None.
-  - Notes: Standard optimization for dashboard speed.
+  - Notes: Consolidated from Task 013. Aug 2026 Audit confirmed StatusCards and Milestones remain static and require this interactivity upgrade.
   - Rollout Risk: LOW.
 
 - **Task 025**

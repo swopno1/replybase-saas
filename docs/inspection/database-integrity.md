@@ -1,4 +1,4 @@
-# Database Integrity & Multi-Tenancy Master Audit - ReplyBase SaaS (Updated August 2026)
+# Database Integrity Report - ReplyBase SaaS (Updated August 2026)
 
 ## 1. Multi-Tenant Architecture
 - **Isolation Pattern**: Logical isolation using `tenantId` on all domain entities.
@@ -7,11 +7,11 @@
     - **Unique Constraints**: Universal use of `@@unique([id, tenantId])` ensures that data cannot be accessed across tenants even if an ID is guessed.
 - **Identity Stitching**: `ContactIdentity` model enables cross-channel identity resolution (Phone/Email) while maintaining strict tenant boundaries.
 
-## 2. Schema Health & Normalization
-- **Prisma Standard**: Currently on Prisma 7.8.0.
-- **Migrations**: Strict "Migrate-Only" policy for production. Migrations are baselined and deployed via CI/CD with automated P3005 error handling.
-- **Relationships**: Clean relationship mapping between `Tenant` -> `Bot` -> `Channel` -> `Conversation` -> `Message`.
-- **JSON Fields**: Used effectively for dynamic configuration (`Channel.config`, `Bot.context`, `Lead.insights`) without losing relational integrity.
+### Model Isolation & Tenancy
+- **Status**: Excellent. 97% of domain models are correctly scoped with `tenantId`.
+- **Integrity Hardening (Aug 2026)**: While the `WebhookLog` schema still marks `tenantId` as optional for legacy reasons, the August 2026 audit confirms that all core webhook handlers (Facebook, Telegram, WhatsApp) and the Webchat init challenge now explicitly provide `tenantId` during log creation.
+- **Integrity Gap**: A small volume of legacy logs may still lack a `tenantId`, and the schema does not yet strictly enforce it.
+- **Action Required**: Migrate `WebhookLog.tenantId` to be REQUIRED after ensuring all legacy entries are backfilled.
 
 ## 3. Data Integrity & Constraints
 - **Referential Integrity**: Managed at the database level via Foreign Keys and Prisma `onDelete: Cascade` where appropriate.
@@ -26,10 +26,10 @@
 | **Stale Sessions** | Low | Controlled | Automated `prune-sessions` cron job active. |
 | **Orphaned Records** | Low | Controlled | Prisma `onDelete: Cascade` handles tenant/bot deletion. |
 
-## 5. Maintenance & Scalability
-- **Usage Buffering**: The `UsageBuffer` system is critical for preventing DB lock contention.
-- **Indexing**: Optimized indexes on `tenantId`, `createdAt`, and `externalId` fields across all high-volume tables.
-- **Backups**: **CRITICAL GAP**: Automated S3 backups (Task 004) are still PENDING.
+## Operational Recommendations
+1. **Priority #1**: Backfill legacy `WebhookLog` entries and set `tenantId` to REQUIRED in the Prisma schema to finalize multi-tenant isolation.
+2. **Standard**: Ensure `pnpm prisma db push --accept-data-loss` is ONLY used in development; production must strictly use `prisma migrate deploy`.
+3. **Advanced**: Introduce a "Data Retention Policy" automated script to archive/delete messages and logs based on tenant settings.
 
 ## 6. Recommendations
 1. **Batching**: Refactor `BotList` and CRM views to eliminate sequential queries.

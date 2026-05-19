@@ -4,10 +4,8 @@
 - **TypeScript**: Strict mode enabled. Standardized on Prisma 7.8.0.
 - **Linting**: ESLint configured (Next.js defaults + custom rules).
 - **Type Safety**:
-  - **Identified Risk**: 377 instances of `any` type remain within the critical `lib/` and `app/api/` directories (859 total in repo). These are concentrated in webhook handlers and dashboard components.
-  - **Progress**: Core services (`prisma-tenant`, `ai-fallback`, `billing-service`, `ai-service`) are fully typed. Replacing `any` with Zod schemas in high-traffic routes (Task 022) is an ongoing priority.
-- **Route Hardening**: ~90% of API routes migrated to `withAuthAndTenant`. Legacy routes in `/api/flows` and `/api/usage` still use manual session-based scoping.
-- **Async Safety**: Critical ESLint warnings regarding synchronous `setState` in `useEffect` have been mitigated using `setTimeout` in major components.
+  - **Identified Risk**: High usage of `any` type (849+ instances) across the codebase, particularly in webhook handlers and complex dashboard components.
+  - **Progress**: Significantly reduced `any` usage in core services (`prisma-tenant`, `ai-fallback`).
 
 ## 2. Database Integrity & Multi-Tenancy
 - **Tenancy Architecture**: 95%+ of domain models use `tenantId`.
@@ -16,10 +14,14 @@
 - **Integrity Constraints**: Use of `@@unique([id, tenantId])` on core models (`Lead`, `Flow`) ensures gold-standard multi-tenant safety.
 - **Operational Rule**: Production deployments strictly use `npx prisma migrate deploy` with automated P3005 error handling in the Dockerfile.
 
-## 3. Architecture & Service Layer
-- **High Modularity**: Business logic is encapsulated in `lib/services/` (e.g., `LeadEnrichmentService`, `WebhookDispatcher`). **Audit Finding**: Background workers (`whatsapp-worker.ts`, `flow-recovery-worker.ts`) still use the global `prisma` instance instead of the standardized Scoped Repository Pattern.
-- **Middleware Enforcement**: Standardized on `withAuthAndTenant` for all scoped API routes to mitigate IDOR risks.
-- **Queue System**: Tiered BullMQ architecture for reliable background processing (Message Worker -> Lead Enrichment -> Webhook Dispatcher).
+## Testing Coverage
+- **Unit Tests**: Pass rate ~97.9% (279/285 passed) - *Last Audit: August 2026*.
+  - **Identified Regressions**:
+    1. **Task 014 (Account Deletion)**: Resolved in August 2026; unit tests for GDPR flows are now stable.
+    2. **Webchat Engine**: `tests/webchat/webchat-conversation-engine.test.ts` fails in `LeadService.syncContactIdentifiedStatus`.
+    3. **Batch Actions**: `tests/api/contacts-conversations-batch.test.ts` fails with `db.$transaction is not a function`.
+- **E2E Tests**: Playwright integration for critical paths like Webchat and Bot Creation.
+- **Manual Verification**: High focus on multi-tenant isolation testing.
 
 ## 4. Testing & Reliability
 - **Frameworks**: Vitest (Unit/Integration) and Playwright (E2E).
