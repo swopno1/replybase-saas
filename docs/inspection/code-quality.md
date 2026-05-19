@@ -6,7 +6,7 @@
 - **Type Safety**:
   - **Identified Risk**: 377 instances of `any` type remain within the critical `lib/` and `app/api/` directories (859 total in repo). These are concentrated in webhook handlers and dashboard components.
   - **Progress**: Core services (`prisma-tenant`, `ai-fallback`, `billing-service`, `ai-service`) are fully typed. Replacing `any` with Zod schemas in high-traffic routes (Task 022) is an ongoing priority.
-- **Route Hardening**: ~90% of API routes migrated to `withAuthAndTenant`. Legacy routes in `/api/flows` still use manual session-based scoping.
+- **Route Hardening**: ~90% of API routes migrated to `withAuthAndTenant`. Legacy routes in `/api/flows` and `/api/usage` still use manual session-based scoping.
 - **Async Safety**: Critical ESLint warnings regarding synchronous `setState` in `useEffect` have been mitigated using `setTimeout` in major components.
 
 ## 2. Database Integrity & Multi-Tenancy
@@ -17,7 +17,7 @@
 - **Operational Rule**: Production deployments strictly use `npx prisma migrate deploy` with automated P3005 error handling in the Dockerfile.
 
 ## 3. Architecture & Service Layer
-- **High Modularity**: Business logic is encapsulated in `lib/services/` (e.g., `LeadEnrichmentService`, `WebhookDispatcher`).
+- **High Modularity**: Business logic is encapsulated in `lib/services/` (e.g., `LeadEnrichmentService`, `WebhookDispatcher`). **Audit Finding**: Background workers (`whatsapp-worker.ts`, `flow-recovery-worker.ts`) still use the global `prisma` instance instead of the standardized Scoped Repository Pattern.
 - **Middleware Enforcement**: Standardized on `withAuthAndTenant` for all scoped API routes to mitigate IDOR risks.
 - **Queue System**: Tiered BullMQ architecture for reliable background processing (Message Worker -> Lead Enrichment -> Webhook Dispatcher).
 
