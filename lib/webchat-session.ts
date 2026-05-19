@@ -9,6 +9,7 @@ export type WebchatSessionPayload = {
   tenantId: string;
   conversationId: string;
   visitorId: string;
+  isShadow?: boolean;
   exp: number;
 };
 
@@ -35,6 +36,7 @@ export function createWebchatSessionToken(params: {
   tenantId: string;
   conversationId: string;
   visitorId: string;
+  isShadow?: boolean;
   ttlSeconds?: number;
 }): string {
   const ttlSeconds = params.ttlSeconds || DEFAULT_TTL_SECONDS;
@@ -45,6 +47,7 @@ export function createWebchatSessionToken(params: {
     tenantId: params.tenantId,
     conversationId: params.conversationId,
     visitorId: params.visitorId,
+    isShadow: params.isShadow,
     exp: Math.floor(Date.now() / 1000) + ttlSeconds,
   };
 

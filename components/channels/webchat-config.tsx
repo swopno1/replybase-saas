@@ -13,6 +13,7 @@ import {
   Send,
   MessageSquare,
   Bot,
+  ExternalLink,
 } from "lucide-react";
 import {
   ChannelFlowAssignmentCard,
@@ -347,6 +348,14 @@ export function WebchatConfig({
             </CardTitle>
             <CardDescription>
               Customize how your webchat widget looks and behaves on your site.
+              <a 
+                href="https://replybase.co.uk/docs/channels/webchat" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="mt-2 text-[10px] text-primary hover:underline flex items-center gap-1 font-bold"
+              >
+                Guide: How to complete this step <ExternalLink className="h-2 w-2" />
+              </a>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5 pt-6">

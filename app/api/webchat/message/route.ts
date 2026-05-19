@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { ModelMessage } from "ai";
 import { prisma } from "@/lib/prisma";
 import { createWebchatCorsHeaders, getWebchatOriginRejectionReason, isWebchatOriginAllowed } from "@/lib/webchat-cors";
-import { findActiveWebChannel } from "@/lib/webchat";
-import { verifyWebchatSessionToken } from "@/lib/webchat-session";
+import { findActiveWebChannel, resolveWebchatVisitorSession } from "@/lib/webchat";
+import { verifyWebchatSessionToken, createWebchatSessionToken } from "@/lib/webchat-session";
 import { leadService } from "@/lib/services/lead-service";
 import logger from "@/lib/logger";
 
@@ -20,8 +20,32 @@ export async function POST(request: NextRequest) {
     logger.info({ body }, "[Webchat Message] Incoming request");
     let session;
     try { session = verifyWebchatSessionToken(token); } catch (err) { logger.error({ error: err }, "[Webchat Message] Invalid token"); return NextResponse.json({ error: "Invalid session" }, { status: 401, headers: createWebchatCorsHeaders(request) }); }
-    const { tenantId } = session;
+    let { tenantId, isShadow } = session;
     if (!conversationId || !botId || !message || !planName) { logger.error({ conversationId, botId, message, planName }, "[Webchat Message] Missing required fields"); return NextResponse.json({ error: "Missing required fields" }, { status: 400, headers: createWebchatCorsHeaders(request) }); }
+
+    if (isShadow) {
+      logger.info({ conversationId, visitorId: session.visitorId }, "[Webchat Message] Promoting shadow session to DB");
+      const resolved = await resolveWebchatVisitorSession({
+        siteId: session.siteId || "",
+        botId,
+        tenantId,
+        channelId: session.channelId,
+        visitorId: session.visitorId,
+        conversationId: session.conversationId,
+        metadata: body.metadata,
+      });
+      tenantId = resolved.contact.tenantId;
+
+      // Create INIT event on promotion
+      await prisma.webChatEvent.create({
+        data: {
+          siteId: session.siteId || "",
+          sessionId: resolved.webChatSession.id,
+          type: "INIT",
+          payload: { promoted: true, ...body.metadata },
+        },
+      });
+    }
     try { await prisma.idempotencyKey.create({ data: { key: lockKey, expiresAt: new Date(Date.now() + 1000 * 60 * 5) } }); }
     catch (e: unknown) { if (typeof e === "object" && e !== null && "code" in e && (e as any).code === "P2002") { const existing = await prisma.idempotencyKey.findUnique({ where: { key: lockKey } }); if (existing && existing.expiresAt > new Date()) { logger.warn({ conversationId }, "[Webchat Message] Concurrent duplicate blocked"); return NextResponse.json({ status: "duplicate_ignored" }, { status: 200, headers: createWebchatCorsHeaders(request) }); } else { await prisma.idempotencyKey.update({ where: { key: lockKey }, data: { createdAt: new Date(), expiresAt: new Date(Date.now() + 1000 * 60 * 5) } }); } } else throw e; }
     await prisma.crmMessage.create({ data: { tenantId, conversationId, direction: "inbound", content: message.trim(), source: "human" } });
@@ -50,12 +74,24 @@ export async function POST(request: NextRequest) {
         await prisma.crmMessage.createMany({ data: outMessages.map((outMsg) => ({ tenantId, conversationId, direction: "outbound", content: outMsg, source: "flow" })) });
         logger.info({ responses: flowResult.responses }, "[Webchat Message] Responding from flow");
       }
+      // Update token to be non-shadow for subsequent messages
+      const newToken = createWebchatSessionToken({
+        siteId: session.siteId,
+        channelId: session.channelId,
+        botId: session.botId,
+        tenantId: tenantId,
+        conversationId: session.conversationId,
+        visitorId: session.visitorId,
+        isShadow: false,
+      });
+
       return NextResponse.json({ 
         responses: flowResult.responses, 
         meta: { 
           mode: "flow", 
           flowId: flowResult.flowId,
-          syncHash: flowResult.syncHash
+          syncHash: flowResult.syncHash,
+          token: newToken
         } 
       }, { headers: createWebchatCorsHeaders(request) });
     }
@@ -88,7 +124,21 @@ export async function POST(request: NextRequest) {
       const aiText = aiStream && typeof aiStream === "object" && "text" in aiStream ? (await (aiStream as any).text) as string : String(aiStream ?? "");
       if (aiText.trim()) {
         await prisma.crmMessage.create({ data: { tenantId, conversationId, direction: "outbound", content: aiText.trim(), source: "ai" } });
-        return NextResponse.json({ responses: [{ type: "text", text: aiText.trim() }], meta: { mode: "ai_fallback" } }, { headers: createWebchatCorsHeaders(request) });
+        
+        const metadata: any = { mode: "ai_fallback" };
+        if (isShadow) {
+          metadata.token = createWebchatSessionToken({
+            siteId: session.siteId,
+            channelId: session.channelId,
+            botId: session.botId,
+            tenantId: tenantId,
+            conversationId: session.conversationId,
+            visitorId: session.visitorId,
+            isShadow: false,
+          });
+        }
+
+        return NextResponse.json({ responses: [{ type: "text", text: aiText.trim() }], meta: metadata }, { headers: createWebchatCorsHeaders(request) });
       }
     } catch (aiError) {
       const isQuotaError = String(aiError).includes("RESOURCE_EXHAUSTED") || String(aiError).includes("429");
@@ -96,7 +146,21 @@ export async function POST(request: NextRequest) {
       const aiText = isQuotaError ? "I'm experiencing high demand right now." : isTimeout ? "I'm taking a bit longer than usual." : customFallbackMessage;
       logger.error({ error: aiError, isQuotaError, isTimeout }, "[Webchat Message] AI error, using fallback");
       await prisma.crmMessage.create({ data: { tenantId, conversationId, direction: "outbound", content: aiText.trim(), source: "manual_fallback" } });
-      return NextResponse.json({ responses: [{ type: "text", text: aiText.trim() }], meta: { mode: "manual_fallback" } }, { headers: createWebchatCorsHeaders(request) });
+      
+      const metadata: any = { mode: "manual_fallback" };
+      if (isShadow) {
+        metadata.token = createWebchatSessionToken({
+          siteId: session.siteId,
+          channelId: session.channelId,
+          botId: session.botId,
+          tenantId: tenantId,
+          conversationId: session.conversationId,
+          visitorId: session.visitorId,
+          isShadow: false,
+        });
+      }
+
+      return NextResponse.json({ responses: [{ type: "text", text: aiText.trim() }], meta: metadata }, { headers: createWebchatCorsHeaders(request) });
     }
     logger.error({ conversationId, botId }, "[Webchat Message] All fallbacks failed");
     return NextResponse.json({ responses: [{ type: "text", text: customFallbackMessage }], meta: { mode: "safe_fallback" } }, { headers: createWebchatCorsHeaders(request) });

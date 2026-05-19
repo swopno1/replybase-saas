@@ -1,27 +1,30 @@
-# UX & Product Experience Report
+# UX & Product Experience Inspection Report - ReplyBase SaaS (Updated August 2026)
 
-## Onboarding Experience
-- **Funnel**: Effective AI-assisted onboarding flow that captures business intent and pre-configures a bot.
-- **Milestones**: "Activation Milestones" provide a clear path to value for new users.
-- **Friction**: Plan selection is currently gated behind onboarding momentum, which is a strong SaaS conversion pattern.
+## 1. Product Strategy & Positioning
+- **Core Value**: ReplyBase is positioned as an "AI-First Lead Capture Engine" for SMBs and Agencies.
+- **Time to Value (TTV)**: Target < 5 minutes for first channel connection.
+- **Retention Driver**: "Activation Milestones" system on the dashboard provides a clear success path.
 
-## Dashboard Usability
-- **Hierarchy**: Good visual hierarchy with quick actions and status overview.
-- **Responsiveness**: Mobile-first design for the dashboard ensures usability on the go.
-- **Empty States**: Generic "No results" messages in tables could be improved with actionable CTAs (e.g., "Create your first lead").
+## 2. User Journey Analysis
+- **Onboarding**: Hardened 4-step flow (Intent -> Channel -> Test -> Notify). Plan selection is deferred to maximize setup momentum.
+- **Dashboard**: High-density info architecture. Primary CTAs are centered on completing setup.
+- **CRM/Conversations**: Real-time streaming and "Bot Drafting" indicators provide a premium, responsive feel. Use of interval polling (5s) in `ConversationPage` ensures data freshness but could be optimized with WebSockets for a more "live" feel.
+- **Bots/Flows**: Node-based editor is powerful but complex. Linearized templates help reduce cognitive load for new users.
 
-## Converation Flow UX
-- **Real-time**: Streaming AI responses reduce wait times.
-- **Handoff**: Clear visual indicator when a bot is paused for human intervention.
-- **Consistency**: Unified inbox feel across Webchat, FB, and Telegram.
+## 3. Friction Point Audit
+- **Static Dashboard**: Status cards and milestones are not yet clickable (Task UX-008). This increases the "distance to action".
+- **Mobile Flows**: The visual flow editor is unusable on mobile viewports (Task 012).
+- **Generic Feedback**: Lack of "Setup Success" celebrations (Task UX-010).
 
-## Strategic Product Gaps
-1. **Interactive Dashboard (IMPLEMENTATION PATH)**:
-   - **Status Cards**: Make "Connected Channels" clickable (links to `/integrations/telegram`) and "Lead Alerts" (links to `/settings?tab=notifications`).
-   - **Activation Milestones**: Wrap milestone cards in `Link` components to guide users directly to the setup action.
-   - **UX Standard**: Use `cursor-pointer` and hover transitions (e.g., `hover:bg-accent`) to signal interactivity on dashboard cards.
-2. **Mobile Management (IMPLEMENTATION PATH)**:
-   - **Flow Editor**: Replace the complex card-based editor with a linearized "Flow Summary" view on viewports < 768px.
-   - **UX**: Use a read-only list for node overview with "Edit Content" modals for simple text adjustments.
-3. **Advanced Analytics**: Deeper insights into AI vs Human resolution rates.
-4. **Collaborative Tools**: Internal notes are good, but real-time presence indicators (who is viewing a chat) would prevent dual-handling.
+## 4. Feature Discovery & Growth
+- **Proactive Prompts**: Trial-end billing prompts are implemented but could be more personalized.
+- **AEO/SEO**: Landing pages are optimized for semantic search and AI discovery.
+- **Upsell Path**: Clear differentiation between Starter/Pro/Business tiers based on volume and AI features.
+
+## 5. UX Performance Score: 8.0/10
+The foundation is strong and highly professional. Transitioning the dashboard from "Informational" to "Interactive" and solving the mobile flow bottleneck are the highest-leverage improvements.
+
+## 6. Strategic Recommendations
+1. **Interactive Funnel**: Implement Task UX-008 to make every dashboard element actionable. Milestone interactivity should allow direct, intelligent navigation based on tenant state.
+2. **Mobile Flow Summary**: Implement Task 012/UX-011 to enable on-the-go bot adjustments.
+3. **Dopamine Loops**: Add confetti and success animations for milestone completion to increase "Setup Momentum".

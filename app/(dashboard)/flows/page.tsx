@@ -63,6 +63,7 @@ import {
   Home,
   Dog,
   Heart,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -390,7 +391,15 @@ export default function FlowsPage() {
             <CardHeader>
               <CardTitle>My Flows</CardTitle>
               <CardDescription>
-                Manage your custom conversational flows
+                Manage your custom conversational flows.
+                <a 
+                  href="https://replybase.co.uk/docs/platform/ai-workflows" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="mt-2 text-[10px] text-primary hover:underline flex items-center gap-1 font-bold"
+                >
+                  Guide: Learn more about flows <ExternalLink className="h-2 w-2" />
+                </a>
               </CardDescription>
             </CardHeader>
             <CardContent className="min-w-0">

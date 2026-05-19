@@ -109,7 +109,7 @@ export const APP_CONFIG = {
   // --- Analytics ---
   analytics: {
     plausible: {
-      src: process.env.NEXT_PUBLIC_PLAUSIBLE_SCRIPT_SRC || "https://analytics.replybase.co.uk/js/script.js",
+      src: process.env.NEXT_PUBLIC_PLAUSIBLE_SCRIPT_SRC || "https://engine.replybase.co.uk/js/script.js",
       domain: process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN || "app.replybase.co.uk",
     },
     posthog: {

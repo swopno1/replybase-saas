@@ -3,6 +3,7 @@ import { normalizeWhatsAppE164 } from '@/lib/whatsapp-provider';
 import { encryptWhatsAppCredentialEnvelope } from "@/lib/whatsapp-channel-credentials";
 import { checkChannelLimit } from "@/lib/subscription";
 import { withAuthAndTenant } from "@/lib/route-helpers";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = 'force-dynamic';
 
@@ -56,20 +57,54 @@ export const POST = withAuthAndTenant(async ({ tenantId }, req, context, db) => 
       credentials: normalizedCredentials as any,
     });
 
-    const channel = await db.channel.create({
-      data: {
-        tenantId: tenantId,
-        botId,
-        type: "whatsapp",
-        name: name || "WhatsApp",
-        channelId: String(channelId),
-        accessToken: encryptedToken,
-        config: {
-          provider,
-          ...credentials,
+    // Use global prisma for the unique check to handle cases where the channel 
+    // might have been previously associated with a different tenant.
+    const existingChannel = await prisma.channel.findUnique({
+      where: {
+        type_channelId: {
+          type: "whatsapp",
+          channelId: String(channelId),
         },
       },
     });
+
+    let channel;
+    if (existingChannel) {
+      channel = await prisma.channel.update({
+        where: { id: existingChannel.id },
+        data: {
+          tenantId: tenantId,
+          botId,
+          name: name || "WhatsApp",
+          accessToken: encryptedToken,
+          config: {
+            provider,
+            ...credentials,
+          },
+          isActive: true,
+          enabled: true,
+          killSwitch: false,
+        },
+      });
+    } else {
+      channel = await prisma.channel.create({
+        data: {
+          tenantId: tenantId,
+          botId,
+          type: "whatsapp",
+          name: name || "WhatsApp",
+          channelId: String(channelId),
+          accessToken: encryptedToken,
+          config: {
+            provider,
+            ...credentials,
+          },
+          isActive: true,
+          enabled: true,
+          killSwitch: false,
+        },
+      });
+    }
 
     return NextResponse.json({ success: true, channelId: channel.id });
   } catch (error) {

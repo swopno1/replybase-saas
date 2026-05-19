@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -8,6 +9,7 @@ import {
   findActiveWebChannel,
   getOrCreateWebChatSite,
   isOriginAllowedForSite,
+  findExistingWebchatVisitorSession,
   resolveWebchatVisitorSession,
 } from "@/lib/webchat";
 import {
@@ -302,21 +304,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const session = await resolveWebchatVisitorSession({
+    const session = await findExistingWebchatVisitorSession({
       siteId: site.id,
       botId: site.bot.id,
       tenantId: site.bot.tenantId,
-      channelId: site.channelId || channel?.id,
       visitorId: parsed.data.visitorId,
-      contact: sanitizeWebchatContactForRetention(
-        parsed.data.visitorContext || parsed.data.contact,
-      ),
-      metadata: sanitizeWebchatMetadataForRetention({
-        ...(parsed.data.metadata || {}),
-        origin: inputOrigin || requestOrigin,
-        referer: requestReferer,
-      }),
     });
+
+    const isShadow = !session;
+    const visitorId =
+      session?.visitorId || parsed.data.visitorId || randomUUID();
+    const conversationId = session?.conversation.id || randomUUID();
+    const webChatSessionId = session?.webChatSession.id || null;
 
     const resolvedChannelId = site.channelId || channel?.id;
     if (!resolvedChannelId) {
@@ -326,45 +325,51 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await prisma.webChatEvent.create({
-      data: {
-        siteId: site.id,
-        sessionId: session.webChatSession.id,
-        type: "INIT",
-        payload: {
-          hasContact: Boolean(
-            parsed.data.contact || parsed.data.visitorContext,
-          ),
+    if (!isShadow && session) {
+      await prisma.webChatEvent.create({
+        data: {
+          siteId: site.id,
+          sessionId: session.webChatSession.id,
+          type: "INIT",
+          payload: {
+            hasContact: Boolean(
+              parsed.data.contact || parsed.data.visitorContext,
+            ),
+          },
         },
-      },
-    });
+      });
+    }
 
     const token = createWebchatSessionToken({
       siteId: site.id,
       channelId: resolvedChannelId,
       botId: site.bot.id,
       tenantId: site.bot.tenantId,
-      conversationId: session.conversation.id,
-      visitorId: session.visitorId,
+      conversationId: conversationId,
+      visitorId: visitorId,
+      isShadow: isShadow,
     });
 
     recordWebchatMetric("webchat.session.init", {
       siteId: site.id,
       botId: site.bot.id,
       hasContact: Boolean(parsed.data.contact || parsed.data.visitorContext),
+      isShadow,
     });
+
     return NextResponse.json(
       {
         token,
-        visitorId: session.visitorId,
-        conversationId: session.conversation.id,
-        webChatSessionId: session.webChatSession.id,
-        channelId: site.channelId || channel?.id || null,
+        visitorId: visitorId,
+        conversationId: conversationId,
+        webChatSessionId: webChatSessionId,
+        channelId: resolvedChannelId,
         botId: site.bot.id,
         siteId: site.id,
         publicKey: site.publicKey,
         config: (site.themeConfig as Prisma.JsonObject | null) || {},
         expiresIn: 60 * 60 * 24,
+        isShadow,
       },
       { headers: createWebchatCorsHeaders(request) },
     );

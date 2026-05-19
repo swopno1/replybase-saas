@@ -12,6 +12,7 @@ import {
   normalizeDurationMs,
   resolveReferencedFlow,
   resumeParentFlow,
+  sanitizeNameInput,
   setRuntimeState,
 } from "@/lib/flow-runtime-utils";
 import { leadService } from "./services/lead-service";
@@ -253,13 +254,32 @@ async function persistLeadCapture(params: {
   tags?: string[];
   status?: string;
 }) {
-  const name = getVariableString(params.variables, "lead_name", "name");
-  const email = getVariableString(params.variables, "lead_email", "email");
+  const name = getVariableString(
+    params.variables,
+    "lead_name",
+    "name",
+    "contact_name",
+    "customer_name",
+    "client_name",
+    "member_name",
+    "guest_name",
+  );
+  const email = getVariableString(
+    params.variables,
+    "lead_email",
+    "email",
+    "contact_email",
+    "work_email",
+    "email_address",
+  );
   const phone = getVariableString(
     params.variables,
     "lead_phone",
     "phone",
     "mobile",
+    "contact_phone",
+    "phone_number",
+    "client_phone",
   );
   const company = getVariableString(
     params.variables,
@@ -668,7 +688,22 @@ export async function executeWebchatFlowFirst(params: {
         const variableName =
           content.variableName || `input_${currentNode.order}`;
         if (pendingMessage) {
-          variables[variableName] = pendingMessage;
+          if (content.inputType === "email") {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(pendingMessage.trim())) {
+              const validationPrompt = content.validationMessage || "Please enter a valid email address.";
+              responses.push({
+                type: "text",
+                text: validationPrompt,
+              });
+              pendingMessage = "";
+              safetyCounter = 99;
+              break;
+            }
+          }
+
+          const isNameVar = variableName === "contact_name" || variableName === "lead_name" || variableName === "name";
+          variables[variableName] = isNameVar ? sanitizeNameInput(pendingMessage) : pendingMessage.trim();
           pendingMessage = "";
           await applyDelayWithOptionalTyping(content, responses);
           currentNode = getNextNode(
@@ -777,6 +812,38 @@ export async function executeWebchatFlowFirst(params: {
             currentNode = referencedFlow.nodes[0] || null;
             break;
           }
+        }
+
+        if (content.action === "checkout") {
+          const tenant = await prisma.tenant.findUnique({
+            where: { id: params.tenantId },
+            select: { trialUsed: true },
+          });
+          const customerEmail = (variables.contact_email || variables.lead_email || "") as string;
+          const stripeUrl = tenant?.trialUsed 
+            ? `https://buy.stripe.com/payment?client_reference_id=${params.tenantId}&customer_email=${customerEmail}`
+            : `https://buy.stripe.com/trial?client_reference_id=${params.tenantId}&customer_email=${customerEmail}`;
+
+          responses.push({
+            type: "text",
+            text: interpolateText(content.text || "I've pre-configured your secure checkout page. You can start in seconds here: {{stripe_url}}", { ...variables, stripe_url: stripeUrl }),
+          });
+        }
+
+        if (content.action === "booking") {
+          await prisma.activityLog.create({
+            data: {
+              tenantId: params.tenantId,
+              type: "BOOKING_REQUESTED",
+              title: "Demo Walkthrough Requested",
+              description: `User ${variables.contact_email || variables.lead_email || "N/A"} requested a demo for ${variables.business_type || "N/A"}`,
+              metadata: { variables: variables as any },
+            },
+          });
+          responses.push({
+            type: "text",
+            text: interpolateText(content.text || "I've forwarded your requirements to our specialist. They'll reach out to schedule your walkthrough shortly!", variables),
+          });
         }
 
         if (content.action === "end_flow") {

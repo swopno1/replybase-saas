@@ -23,6 +23,7 @@ import {
   normalizeDurationMs,
   resolveReferencedFlow,
   resumeParentFlow,
+  sanitizeNameInput,
   setRuntimeState,
 } from "@/lib/flow-runtime-utils";
 
@@ -256,12 +257,23 @@ async function persistLeadCapture(params: {
   status?: string;
   channelId?: string;
 }) {
-  const name = getVariableString(params.variables, "lead_name", "name");
+  const name = getVariableString(
+    params.variables,
+    "lead_name",
+    "name",
+    "contact_name",
+    "customer_name",
+    "client_name",
+    "member_name",
+    "guest_name",
+  );
   const email = getVariableString(
     params.variables,
     "lead_email",
     "email",
     "contact_email",
+    "work_email",
+    "email_address",
   );
   const phone = getVariableString(
     params.variables,
@@ -269,6 +281,8 @@ async function persistLeadCapture(params: {
     "phone",
     "mobile",
     "contact_phone",
+    "phone_number",
+    "client_phone",
   );
   const company = getVariableString(
     params.variables,
@@ -540,7 +554,22 @@ export async function executeBotEntryFlowFirst(params: {
         const variableName =
           content.variableName || `input_${currentNode.order}`;
         if (pendingMessage) {
-          mergedVariables[variableName] = pendingMessage;
+          if (content.inputType === "email") {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(pendingMessage.trim())) {
+              const validationPrompt = content.validationMessage || "Please enter a valid email address.";
+              responses.push({
+                type: "text",
+                text: validationPrompt,
+              });
+              pendingMessage = "";
+              safetyCounter = 99;
+              break;
+            }
+          }
+
+          const isNameVar = variableName === "contact_name" || variableName === "lead_name" || variableName === "name";
+          mergedVariables[variableName] = isNameVar ? sanitizeNameInput(pendingMessage) : pendingMessage.trim();
           pendingMessage = "";
           await applyDelayWithOptionalTyping(content, responses);
           currentNode = getNextNode(

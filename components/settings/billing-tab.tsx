@@ -27,6 +27,7 @@ import {
   Loader2,
   X,
   Calendar,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
@@ -421,7 +422,17 @@ export default function BillingTabContent() {
                 <div className="flex items-center gap-3">
                   <div>
                     <CardTitle className="text-xl">Plan Usage</CardTitle>
-                    <CardDescription>Usage for the current billing cycle</CardDescription>
+                    <CardDescription>
+                      Usage for the current billing cycle.
+                      <a 
+                        href="https://replybase.co.uk/docs/get-started/next-steps" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="mt-2 text-[10px] text-primary hover:underline flex items-center gap-1 font-bold"
+                      >
+                        Guide: Learn more about plans <ExternalLink className="h-2 w-2" />
+                      </a>
+                    </CardDescription>
                   </div>
                   <Button
                     variant="ghost"
@@ -606,6 +617,14 @@ export default function BillingTabContent() {
           <h4 className="font-bold flex items-center gap-2">
             <HelpCircle className="h-4 w-4 text-primary" />
             Common Questions
+            <a 
+              href="https://replybase.co.uk/docs/faq" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="ml-auto text-[10px] text-primary hover:underline flex items-center gap-1 font-bold"
+            >
+              Full FAQ <ExternalLink className="h-2 w-2" />
+            </a>
           </h4>
           <div className="space-y-4 pt-2">
             <div className="group">

@@ -1,187 +1,305 @@
 # ReplyBase Master Task List - Operational Intelligence Hub
 
-## 1. Core Stability & DevOps
+## 1. Core Stability, Performance & Security
 
-- [ ] **Task 001**
+- **Task 001**
   - Priority: HIGH
   - Status: PENDING
   - Category: Performance/Database
   - Severity: HIGH
   - Issue: Dashboard Metrics Latency.
-  - Root Cause: Real-time aggregation of dashboard stats (Lead counts, Conversation volume) are computed on the fly from the DB.
+  - Root Cause: Real-time aggregation of dashboard stats (Lead counts, Conversion volume) are computed on the fly from the DB.
   - Business Impact: Significant improvement in dashboard load times and reduction in DB CPU usage during peak hours.
   - Objective: Implement Redis-based caching for all dashboard metric components.
-  - Detailed Instructions: 1. Wrap `app/(dashboard)/page.tsx` data queries in a caching utility. 2. Use `dashboard:stats:[tenantId]` keys with a 5-minute TTL. 3. Implement event-driven cache invalidation.
+  - Detailed Instructions: 1. Wrap data queries in a caching utility. 2. Use `dashboard:stats:[tenantId]` keys with a 300s TTL. 3. Implement event-driven cache invalidation when leads/messages are created.
   - Expected Deliverables: Cached metrics layer and invalidation logic.
   - Dependencies: Redis infrastructure.
   - Notes: Consolidated from Task 003 and 022. Aug 2026 Audit confirmed this is still pending and high priority for dashboard responsiveness.
   - Rollout Risk: MEDIUM.
 
-- [ ] **Task 004**
+- **Task 004**
   - Priority: HIGH
   - Status: PENDING
-  - Category: DevOps
+  - Category: Infrastructure
   - Severity: CRITICAL
   - Issue: Automated DB & Redis Backups.
   - Root Cause: Lack of automated disaster recovery orchestration.
   - Business Impact: Risk of permanent data loss in case of infrastructure failure.
   - Objective: Set up automated S3/GCS backups for PostgreSQL and Redis persistence.
-  - Detailed Instructions: 1. Configure pg_dump cron job. 2. Configure Redis RDB/AOF snapshots. 3. Upload to secure cloud storage.
+  - Detailed Instructions: 1. Configure pg_dump cron job. 2. Configure Redis RDB/AOF snapshots. 3. Upload to secure cloud storage with 30-day retention.
   - Expected Deliverables: Backup automation scripts and verification.
   - Dependencies: Cloud storage credentials.
   - Notes: Essential for production stability.
   - Rollout Risk: LOW.
 
+- **Task 021**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Security
+  - Severity: MEDIUM
+  - Issue: Missing Admin Read-Only Audit Logging.
+  - Root Cause: Superadmins can view sensitive tenant PII and conversations without leaving an audit trail.
+  - Business Impact: Compliance gap for enterprise clients; potential for internal data misuse.
+  - Objective: Implement granular logging for read-access to sensitive entities.
+  - Detailed Instructions: 1. Update middleware or route helpers to log "READ" actions in `AdminActivity`. 2. Capture adminId, tenantId, and entityId.
+  - Expected Deliverables: Audit logging for sensitive GET routes.
+  - Dependencies: AdminActivity model.
+  - Notes: Part of Enterprise Readiness initiative.
+  - Rollout Risk: LOW.
+
+- **Task 022**
+  - Priority: HIGH
+  - Status: PENDING
+  - Category: Engineering
+  - Severity: MEDIUM
+  - Issue: Excessive "any" type usage (752 instances).
+  - Root Cause: Rapid prototyping and ad-hoc webhook handling.
+  - Business Impact: High maintenance cost, risk of runtime crashes in complex data paths.
+  - Objective: Perform a "Type Strike" to replace generic types with Zod/Prisma types.
+  - Detailed Instructions: 1. Focus on webhook handlers first. 2. Create Zod schemas for incoming payloads. 3. Replace component-level `any` with generated Prisma types.
+  - Expected Deliverables: 0 "any" types in lib/ and app/api/ routes.
+  - Dependencies: None.
+  - Notes: Critical for long-term codebase health.
+  - Rollout Risk: LOW.
+
+- **Task 023**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Reliability
+  - Severity: MEDIUM
+  - Issue: Low unit test coverage for DB-interactive logic.
+  - Root Cause: Complex Prisma mocking requirements.
+  - Business Impact: Difficulty in refactoring core logic without risking regressions.
+  - Objective: Implement a unified Prisma mocking strategy and increase coverage.
+  - Detailed Instructions: 1. Set up `vitest-mock-extended` for Prisma. 2. Write unit tests for `flow-runtime-utils.ts` and `LeadService`.
+  - Expected Deliverables: Robust test suite for DB-interactive services.
+  - Dependencies: Vitest.
+  - Notes: See Testing Coverage Audit.
+  - Rollout Risk: LOW.
+
+- **Task 024**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Performance
+  - Severity: LOW
+  - Issue: N+1 Database queries in Bot List.
+  - Root Cause: Sequential channel status checks for every bot in the list.
+  - Business Impact: Linear performance degradation as users add more bots/channels.
+  - Objective: Consolidate channel status checks into a single batched query.
+  - Detailed Instructions: Refactor `BotList` to use a single `channel.findMany` with an array of botIds.
+  - Expected Deliverables: Optimized bot listing logic.
+  - Dependencies: None.
+  - Notes: Consolidated from Task 013. Aug 2026 Audit confirmed StatusCards and Milestones remain static and require this interactivity upgrade.
+  - Rollout Risk: LOW.
+
+- **Task 025**
+  - Priority: LOW
+  - Status: PENDING
+  - Category: Operations
+  - Severity: LOW
+  - Issue: Potential `WebhookLog` table bloat.
+  - Root Cause: High-volume logging without an automated pruning policy.
+  - Business Impact: Increased storage costs and slower query performance over time.
+  - Objective: Implement automated log pruning for entries older than 30 days.
+  - Detailed Instructions: Create a cron job that runs `prisma.webhookLog.deleteMany` for stale records.
+  - Expected Deliverables: Automated cleanup script.
+  - Dependencies: None.
+  - Notes: Maintenance task.
+  - Rollout Risk: LOW.
+
+- **Task 026**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Observability
+  - Severity: MEDIUM
+  - Issue: Lack of real-time queue and AI performance monitoring.
+  - Root Cause: Absence of structured monitoring for background workers.
+  - Business Impact: Delayed detection of provider failures (Meta/AI) affecting user bots.
+  - Objective: Implement real-time observability for BullMQ and AI latencies.
+  - Detailed Instructions: 1. Expose metrics via a protected `/api/admin/metrics` endpoint. 2. Track BullMQ "failed" jobs and AI turn latencies.
+  - Expected Deliverables: Admin-facing metrics dashboard or API.
+  - Dependencies: BullMQ, Prometheus/Grafana (Optional).
+  - Notes: Critical for high-scale operations.
+  - Rollout Risk: LOW.
+
+- **Task 027**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Security/Engineering
+  - Severity: MEDIUM
+  - Issue: Legacy Manual Scoping in Flow API.
+  - Root Cause: `app/api/flows/route.ts` uses manual session lookups instead of the standardized `withAuthAndTenant` wrapper.
+  - Business Impact: Higher risk of future IDOR regressions if manual scoping logic is modified incorrectly.
+  - Objective: Refactor Flow API routes to use `withAuthAndTenant`.
+  - Detailed Instructions: 1. Update `GET` and `POST` in `app/api/flows/route.ts`. 2. Use the provided `db` client which is already tenant-scoped.
+  - Expected Deliverables: Hardened Flow API routes.
+  - Dependencies: `withAuthAndTenant` helper.
+  - Notes: Consistency improvement.
+  - Rollout Risk: LOW.
+
+- **Task 028**
+  - Priority: HIGH
+  - Status: PENDING
+  - Category: Security
+  - Severity: HIGH
+  - Issue: Missing CORS Domain Enforcement for Webchat.
+  - Root Cause: `app/api/webchat/*` endpoints allow wide dynamic CORS without strictly validating against the `allowedDomains` field in the `WebChatSite` model.
+  - Business Impact: Potential for unauthorized widget embedding on third-party sites.
+  - Objective: Enforce strict CORS whitelist based on tenant configuration.
+  - Detailed Instructions: 1. Update `lib/webchat-cors.ts`. 2. Query `WebChatSite` for the public key. 3. Verify `Origin` header against `allowedDomains`.
+  - Expected Deliverables: Hardened Webchat API security.
+  - Dependencies: None.
+  - Notes: Critical for production multi-tenancy.
+  - Rollout Risk: MEDIUM.
+
+- **Task 029**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Operations
+  - Severity: LOW
+  - Issue: Missing Webhook Replay Functionality.
+  - Root Cause: Failed outbound webhooks require manual DB intervention to retry.
+  - Business Impact: High operational overhead for support teams when client CRMs fail.
+  - Objective: Implement "Replay" capability for failed webhook logs.
+  - Detailed Instructions: 1. Add `POST /api/admin/webhook-logs/[id]/retry`. 2. Re-trigger the `WebhookDispatcher` for the specific log entry.
+  - Expected Deliverables: Admin "Retry" action for webhooks.
+  - Dependencies: `WebhookDispatcher`.
+  - Notes: Essential for support scalability.
+  - Rollout Risk: LOW.
+
+- **Task 030**
+  - Priority: HIGH
+  - Status: PENDING
+  - Category: Security
+  - Severity: HIGH
+  - Issue: Webchat CORS Whitelist Enforcement.
+  - Root Cause: Current webchat endpoints allow dynamic CORS without strictly validating against the tenant's `allowedDomains`.
+  - Business Impact: Prevents unauthorized widget embedding and protects tenant API usage.
+  - Objective: Enforce strict CORS validation using the `WebChatSite.allowedDomains` configuration.
+  - Detailed Instructions: 1. Update `lib/webchat-cors.ts` to query the database for the site's allowed domains. 2. Compare incoming `Origin` header. 3. Reject unauthorized origins with 403.
+  - Expected Deliverables: Hardened CORS logic for Webchat.
+  - Dependencies: None.
+  - Notes: Critical for production security. Transition from global env-based whitelist to per-site DB whitelist.
+  - Rollout Risk: MEDIUM.
+
+- **Task 031**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Observability
+  - Severity: MEDIUM
+  - Issue: Admin Dashboard: Real-time Queue & AI Monitoring.
+  - Root Cause: Admins lack visibility into background worker health and AI latency.
+  - Business Impact: Faster incident detection and provider performance tracking.
+  - Objective: Create an observability dashboard in the Admin suite.
+  - Detailed Instructions: 1. Create `/api/admin/metrics` to expose BullMQ and AI stats. 2. Build a "System Health" tab in the Admin UI with Recharts.
+  - Expected Deliverables: Real-time health dashboard for admins.
+  - Dependencies: BullMQ.
+  - Notes: Essential for enterprise-grade operations.
+  - Rollout Risk: LOW.
+
+- **Task 032**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Security/Multi-tenancy
+  - Severity: MEDIUM
+  - Issue: Standardize Scoped Repository Pattern in Background Workers.
+  - Root Cause: Ongoing use of global `prisma` instance and manual query filtering in `whatsapp-worker.ts` and `flow-recovery-worker.ts`.
+  - Business Impact: Reduces risk of accidental cross-tenant data leaks in background processing logic.
+  - Objective: Refactor background workers to use the `getTenantPrisma` extension.
+  - Detailed Instructions: 1. Audit `lib/services/whatsapp-worker.ts` and `flow-recovery-worker.ts`. 2. Replace global `prisma` calls with a scoped `db` client initialized via `getTenantPrisma(tenantId)`. 3. Remove redundant manual `tenantId` filters where the extension handles them.
+  - Expected Deliverables: Hardened, tenant-scoped background workers.
+  - Dependencies: `getTenantPrisma`.
+  - Notes: Architectural hardening and consistency with API route patterns.
+  - Rollout Risk: LOW.
+
+- **Task 033**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Performance
+  - Severity: LOW
+  - Issue: CRM Real-time Polling Latency.
+  - Root Cause: `ConversationPage` uses 5-second interval polling for message updates.
+  - Business Impact: Sub-optimal "live" feel; increased server load on high-concurrency CRM usage.
+  - Objective: Transition CRM to WebSockets or SSE for real-time updates.
+  - Detailed Instructions: 1. Implement a WebSocket/SSE server (e.g., using Socket.io or native SSE). 2. Update `ConversationPage` to subscribe to conversation-specific events.
+  - Expected Deliverables: Real-time "Instant" CRM updates.
+  - Dependencies: WebSocket infrastructure.
+  - Notes: Part of the "Delightful UX" initiative.
+  - Rollout Risk: MEDIUM.
+
+- **Task 034**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Security/Multi-tenancy
+  - Severity: MEDIUM
+  - Issue: Legacy Manual Scoping in Usage API.
+  - Root Cause: `app/api/usage/route.ts` uses manual session lookups and `prisma.user.findUnique` instead of the standardized `withAuthAndTenant` wrapper.
+  - Business Impact: Higher risk of future IDOR regressions and architectural inconsistency.
+  - Objective: Refactor Usage API route to use `withAuthAndTenant`.
+  - Detailed Instructions: 1. Update `GET` in `app/api/usage/route.ts`. 2. Use the provided `db` client which is already tenant-scoped.
+  - Expected Deliverables: Hardened and standardized Usage API route.
+  - Dependencies: `withAuthAndTenant` helper.
+  - Notes: Consistency improvement.
+  - Rollout Risk: LOW.
+
+- **Task 035**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: UI/UX
+  - Severity: LOW
+  - Issue: Missing aria-labels on Interactive Elements.
+  - Root Cause: Icon-only buttons in `ConversationPage` and `ReplyComposer` lack descriptive `aria-label` attributes.
+  - Business Impact: Poor accessibility for screen-reader users; non-compliance with WCAG 2.1 standards.
+  - Objective: Audit and apply descriptive labels to all icon-only triggers.
+  - Detailed Instructions: 1. Audit `components/conversation/`. 2. Add `aria-label` to Lucide-based buttons.
+  - Expected Deliverables: Accessibility-compliant CRM components.
+  - Dependencies: None.
+  - Notes: Part of UI/UX Accessibility Audit.
+  - Rollout Risk: LOW.
+
 ## 2. Product & Feature Expansion
 
-- [ ] **Task 006**
+- **Task 006**
   - Priority: LOW
   - Status: PENDING
   - Category: Features
   - Severity: LOW
   - Issue: Advanced "AI Analytics" dashboard.
-  - Root Cause: Lack of high-level insights for Pro/Business tier users.
-  - Business Impact: Provides high-value insights for premium users.
-  - Objective: Create a dashboard for AI-extracted metrics (intent, sentiment, lead score).
-  - Detailed Instructions: 1. Aggregate lead insights. 2. Build visual analytics charts.
-  - Expected Deliverables: New Analytics page.
+  - Root Cause: Lack of high-level insights for premium users.
+  - Business Impact: Upsell opportunity for Pro/Business tiers.
+  - Objective: Create a dashboard for AI-extracted insights (Intent, Sentiment, Lead Score).
+  - Detailed Instructions: 1. Aggregate `Lead.insights`. 2. Build visual analytics charts using Recharts.
+  - Expected Deliverables: New Analytics page for premium users.
   - Dependencies: Lead enrichment data.
   - Notes: Part of Phase 4 roadmap.
   - Rollout Risk: LOW.
 
-- [ ] **Task 017**
+- **Task 017**
   - Priority: LOW
   - Status: PENDING
   - Category: Features
   - Severity: MEDIUM
   - Issue: Advanced WhatsApp Media Support.
-  - Root Cause: Current integration only supports textual recognition of media.
-  - Business Impact: Enables full rich-media conversations in the CRM dashboard.
+  - Root Cause: Current integration is text-centric.
+  - Business Impact: Enables rich-media CRM experiences.
   - Objective: Implement binary media persistence and outbound media support.
-  - Detailed Instructions: 1. Add metadata to CrmMessage. 2. Implement media download service. 3. Extend provider logic for outbound media.
+  - Detailed Instructions: 1. Implement media download/upload service. 2. Extend WhatsApp provider for outbound images/docs.
   - Expected Deliverables: Full media support across WhatsApp and CRM.
   - Dependencies: S3/Storage infrastructure.
   - Notes: Requires storage scaling plan.
   - Rollout Risk: MEDIUM.
 
-## 3. UI/UX & Interaction Polish
-
-- [ ] **Task 012**
-  - Priority: MEDIUM
+- **Task UX-008**
+  - Priority: HIGH
   - Status: PENDING
-  - Category: UX
+  - Category: UI/UX
   - Severity: MEDIUM
-  - Issue: Mobile Flow Editor Friction.
-  - Root Cause: Complex visual editor is difficult on small screens.
-  - Business Impact: Prevents mobile bot adjustments.
-  - Objective: Implement a read-only "Flow Summary" list view for mobile.
-  - Detailed Instructions: 1. Detect mobile agent. 2. Replace visual editor with list of nodes.
-  - Expected Deliverables: Mobile-optimized flow summary component.
-  - Dependencies: None.
-  - Notes: See docs/proposals_mobile-flow-summary/STRATEGIC_OVERVIEW.md.
-  - Rollout Risk: LOW.
-
-- [ ] **Task UX-008**
-  - Priority: MEDIUM
-  - Status: PENDING
-  - Category: Dashboard
-  - Severity: MEDIUM
-  - Issue: Interaction: Interactive Dashboard Funnel.
-  - Root Cause: Dashboard cards and milestones are currently static.
-  - Business Impact: Improves navigation and guides users to next setup action.
-  - Objective: Make dashboard cards clickable to navigate to relevant settings.
-  - Detailed Instructions: 1. Update status-cards.tsx with Links. 2. Wrap Milestone items in Links.
-  - Expected Deliverables: Interactive dashboard layout.
-  - Dependencies: None.
-  - Notes: Consolidated from Task 013. Aug 2026 Audit confirmed StatusCards and Milestones remain static and require this interactivity upgrade.
-  - Rollout Risk: LOW.
-
-- [ ] **UX-001**
-  - Priority: LOW
-  - Status: PENDING
-  - Category: Layout
-  - Severity: LOW
-  - Issue: Generic "No results" empty states.
-  - Root Cause: Default table implementation lacks actionable guidance for empty datasets.
-  - Business Impact: Users may feel stuck or confused in fresh accounts.
-  - Objective: Replace generic "No results" with actionable empty states in all tables.
-  - Detailed Instructions: Create a reusable `EmptyState` component with an icon, title, description, and primary CTA button.
-  - Expected Deliverables: Reusable component and implementation in Contacts, Conversations, and Bots tables.
-  - Dependencies: None.
-  - Notes: Standardize across all modules.
-  - Rollout Risk: LOW.
-
-- [ ] **UX-002**
-  - Priority: LOW
-  - Status: PENDING
-  - Category: Polish
-  - Severity: LOW
-  - Issue: Inconsistent icon stroke weights.
-  - Root Cause: Ad-hoc icon usage without strict design system enforcement.
-  - Business Impact: Degraded premium feel and visual noise.
-  - Objective: Standardize icon stroke width (Lucide default) across the platform.
-  - Detailed Instructions: Audit all Lucide icon imports and ensure no custom `strokeWidth` overrides exist unless intentionally varied.
-  - Expected Deliverables: Consistent visual iconography.
-  - Dependencies: None.
-  - Notes: Improves platform-wide coherence.
-  - Rollout Risk: LOW.
-
-- [ ] **UX-003**
-  - Priority: MEDIUM
-  - Status: PENDING
-  - Category: Performance
-  - Severity: MEDIUM
-  - Issue: Missing skeleton loaders in Detail views.
-  - Root Cause: Asynchronous data fetching causes jarring layout shifts.
-  - Business Impact: Perceived slowness and poor user experience during loading.
-  - Objective: Implement skeleton loading states for Conversation Detail and Settings views.
-  - Detailed Instructions: Create skeleton primitives matching the layout of the detail views and show them while `isLoading` is true.
-  - Expected Deliverables: Skeleton components for core detail views.
-  - Dependencies: None.
-  - Notes: High impact on perceived performance.
-  - Rollout Risk: LOW.
-
-- [ ] **UX-007**
-  - Priority: MEDIUM
-  - Status: PENDING
-  - Category: Onboarding
-  - Severity: MEDIUM
-  - Issue: Onboarding: Interstitial Loading State.
-  - Root Cause: Direct redirect from plan selection to dashboard feels jarring.
-  - Business Impact: Increases perceived professionalism and allows time for workspace provisioning.
-  - Objective: Add a "Preparing your workspace" interstitial.
-  - Detailed Instructions: Create a new page with a progress bar and helpful tips while backend finalizes setup.
-  - Expected Deliverables: Interstitial component and updated navigation logic.
-  - Dependencies: None.
-  - Notes: Use Framer Motion for smooth transitions.
-  - Rollout Risk: LOW.
-
-- [ ] **UX-009**
-  - Priority: MEDIUM
-  - Status: PENDING
-  - Category: CRM
-  - Severity: LOW
-  - Issue: Feedback: Implementation of "AI Thinking" indicators.
-  - Root Cause: Users are unaware when AI fallback is generating a response.
-  - Business Impact: Reduces user frustration during AI generation periods.
-  - Objective: Show "Bot is drafting response..." indicator in the conversation list.
-  - Detailed Instructions: Update the conversation list to check for active background jobs related to a conversation ID.
-  - Expected Deliverables: Real-time "Thinking" indicator in the dashboard.
-  - Dependencies: WebSocket or polling mechanism.
-  - Notes: See Task 018 for engine context.
-  - Rollout Risk: LOW.
-
-- [ ] **UX-010**
-  - Priority: LOW
-  - Status: PENDING
-  - Category: Onboarding
-  - Severity: LOW
-  - Issue: Polish: Success/Celebration states.
-  - Root Cause: Completing setup steps feels clinical.
-  - Business Impact: Increases user "Setup Momentum" and emotional connection.
-  - Objective: Add celebratory micro-interactions when milestones are achieved.
-  - Detailed Instructions: Use `canvas-confetti` or Framer Motion effects when a milestone status changes to completed.
-  - Expected Deliverables: Celebration effects on Dashboard.
-  - Dependencies: None.
-  - Notes: See app/(dashboard)/page.tsx for milestone logic.
+  - Issue: Non-Interactive Dashboard Status Cards.
+  - Root Cause: Status cards in `components/dashboard/status-cards.tsx` are static and do not link to their respective management pages.
+  - Business Impact: Poor user experience; "Dead end" dashboard; increased navigation friction.
+  - Objective: Transform status cards into primary navigation shortcuts.
+  - Detailed Instructions: 1. Wrap `Card` elements in `Link` components. 2. Map Automation to `/bots`, Channels to `/settings?tab=channels`, Lead Alerts to `/settings?tab=notifications`, and Last Activity to `/conversations`. 3. Add hover states (`hover:bg-accent`) and cursor-pointer.
+  - Expected Deliverables: Interactive "Command Center" dashboard.
+  - Dependencies: Shadcn UI, Next.js Link.
+  - Notes: Part of "Interactive Command Center" proposal.
   - Rollout Risk: LOW.

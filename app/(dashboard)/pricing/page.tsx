@@ -140,6 +140,18 @@ function PricingContent() {
     fetchCurrentSub();
   }, []);
 
+  // Fast-track deep-linked checkout!
+  useEffect(() => {
+    const checkoutParam = searchParams.get("checkout");
+    const planParam = searchParams.get("plan");
+    if (checkoutParam === "true" && planParam) {
+      const plan = PLANS.find((p) => p.name === planParam);
+      if (plan && plan.name !== "free") {
+        setSelectedPlan(plan);
+      }
+    }
+  }, [searchParams]);
+
   const handleSubscribeClick = (planName: string) => {
     const plan = PLANS.find((p) => p.name === planName);
     if (!plan) return;

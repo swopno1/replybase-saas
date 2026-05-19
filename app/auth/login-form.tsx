@@ -113,13 +113,26 @@ const FeedbackBanner = ({ feedback }: { feedback: AuthFeedback }) => {
 };
 
 export function LoginForm() {
-  const [email, setEmail] = useState("");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [email, setEmail] = useState(() => searchParams.get("email") || "");
+
+  const registerUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    const emailParam = searchParams.get("email");
+    const planParam = searchParams.get("plan");
+    const sourceParam = searchParams.get("source");
+    if (emailParam) params.set("email", emailParam);
+    if (planParam) params.set("plan", planParam);
+    if (sourceParam) params.set("source", sourceParam);
+    const query = params.toString();
+    return query ? `/auth/register?${query}` : "/auth/register";
+  }, [searchParams]);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [feedback, setFeedback] = useState<AuthFeedback | null>(null);
   const { status } = useSession();
-  const router = useRouter();
 
   const sessionFeedback = useMemo(() => {
     if (status === "loading") {
@@ -178,7 +191,12 @@ export function LoginForm() {
         title: "Signed in",
         message: "Authentication complete. Redirecting to your dashboard...",
       });
-      router.push("/");
+      const planParam = searchParams.get("plan");
+      if (planParam) {
+        router.push(`/pricing?plan=${planParam}&checkout=true`);
+      } else {
+        router.push("/");
+      }
       router.refresh();
     } catch {
       setFeedback({
@@ -194,12 +212,16 @@ export function LoginForm() {
 
   const handleGoogleLogin = () => {
     setIsLoading(true);
-    signIn("google", { callbackUrl: "/" });
+    const planParam = searchParams.get("plan");
+    const callbackUrl = planParam ? `/pricing?plan=${planParam}&checkout=true` : "/";
+    signIn("google", { callbackUrl });
   };
 
   const handleFacebookLogin = () => {
     setIsLoading(true);
-    signIn("facebook", { callbackUrl: "/" });
+    const planParam = searchParams.get("plan");
+    const callbackUrl = planParam ? `/pricing?plan=${planParam}&checkout=true` : "/";
+    signIn("facebook", { callbackUrl });
   };
 
   return (
@@ -304,7 +326,7 @@ export function LoginForm() {
 
           <FieldDescription className="text-center">
             Don&apos;t have an account?{" "}
-            <Link href="/auth/register">Sign up</Link>
+            <Link href={registerUrl}>Sign up</Link>
           </FieldDescription>
         </FieldGroup>
       </CardContent>
@@ -313,15 +335,22 @@ export function LoginForm() {
 }
 
 export function RegisterForm() {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [firstName, setFirstName] = useState(() => {
+    const nameParam = searchParams?.get("name") || "";
+    return nameParam.split(" ")[0] || "";
+  });
+  const [lastName, setLastName] = useState(() => {
+    const nameParam = searchParams?.get("name") || "";
+    const parts = nameParam.split(" ");
+    return parts.slice(1).join(" ") || "";
+  });
+  const [email, setEmail] = useState(() => searchParams?.get("email") || "");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [feedback, setFeedback] = useState<AuthFeedback | null>(null);
-  const router = useRouter();
-  const searchParams = useSearchParams();
 
   const signupPlanIntent = useMemo(
     () => parseSignupPlanIntent(searchParams.get("plan")),
@@ -331,6 +360,20 @@ export function RegisterForm() {
     () => parseSignupSourceIntent(searchParams.get("source")),
     [searchParams],
   );
+
+  const loginUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    const emailParam = searchParams.get("email");
+    const nameParam = searchParams.get("name");
+    const planParam = searchParams.get("plan");
+    const sourceParam = searchParams.get("source");
+    if (emailParam) params.set("email", emailParam);
+    if (nameParam) params.set("name", nameParam);
+    if (planParam) params.set("plan", planParam);
+    if (sourceParam) params.set("source", sourceParam);
+    const query = params.toString();
+    return query ? `/auth/login?${query}` : "/auth/login";
+  }, [searchParams]);
 
   const signupPlanLabel = useMemo(() => {
     if (signupPlanIntent === "free") return "Free";
@@ -453,7 +496,11 @@ export function RegisterForm() {
         },
       });
 
-      router.push("/");
+      if (signupPlanIntent) {
+        router.push(`/pricing?plan=${signupPlanIntent}&checkout=true`);
+      } else {
+        router.push("/");
+      }
       router.refresh();
     } catch {
       setFeedback({
@@ -477,7 +524,8 @@ export function RegisterForm() {
     });
 
     setIsLoading(true);
-    signIn("google", { callbackUrl: "/" });
+    const callbackUrl = signupPlanIntent ? `/pricing?plan=${signupPlanIntent}&checkout=true` : "/";
+    signIn("google", { callbackUrl });
   };
 
   const handleFacebookLogin = () => {
@@ -490,7 +538,8 @@ export function RegisterForm() {
     });
 
     setIsLoading(true);
-    signIn("facebook", { callbackUrl: "/" });
+    const callbackUrl = signupPlanIntent ? `/pricing?plan=${signupPlanIntent}&checkout=true` : "/";
+    signIn("facebook", { callbackUrl });
   };
 
   return (
@@ -626,7 +675,7 @@ export function RegisterForm() {
           </Field> */}
 
           <FieldDescription className="text-center">
-            Already have an account? <Link href="/auth/login">Sign in</Link>
+            Already have an account? <Link href={loginUrl}>Sign in</Link>
           </FieldDescription>
         </FieldGroup>
       </CardContent>

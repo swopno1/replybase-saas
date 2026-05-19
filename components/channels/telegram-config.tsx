@@ -8,6 +8,7 @@ import {
   Unplug,
   RefreshCw,
   Send,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -336,6 +337,14 @@ export function TelegramConfig({ botId, channelLimitStatus }: { botId: string; c
           </CardTitle>
           <CardDescription>
             Enter your Telegram Bot Token from @BotFather.
+            <a 
+              href="https://replybase.co.uk/docs/channels/telegram" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="mt-2 text-[10px] text-primary hover:underline flex items-center gap-1 font-bold"
+            >
+              Guide: How to complete this step <ExternalLink className="h-2 w-2" />
+            </a>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
