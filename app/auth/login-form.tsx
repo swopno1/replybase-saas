@@ -46,6 +46,40 @@ function parseSignupSourceIntent(value?: string | null): string | null {
   const normalized = value.trim().toLowerCase();
   return /^[a-z0-9_-]{2,48}$/.test(normalized) ? normalized : null;
 }
+function sanitizePrefilledEmail(email?: string | null): string {
+  if (!email) return "";
+  const cleaned = email.trim();
+  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+  const matches = cleaned.match(emailRegex);
+  if (matches && matches.length > 0) {
+    return matches[0];
+  }
+  return cleaned;
+}
+function sanitizePrefilledName(name?: string | null): { firstName: string; lastName: string } {
+  if (!name) return { firstName: "", lastName: "" };
+  let cleaned = name.trim();
+
+  // If the name is duplicated like "AmirAmir" or "Amir HossainAmir Hossain",
+  // we can detect if the string consists of two identical parts concatenated.
+  const halfLen = Math.floor(cleaned.length / 2);
+  if (cleaned.length > 0 && cleaned.substring(0, halfLen) === cleaned.substring(halfLen)) {
+    cleaned = cleaned.substring(0, halfLen).trim();
+  }
+
+  // Also split into first and last name
+  const parts = cleaned.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) {
+    return { firstName: "", lastName: "" };
+  } else if (parts.length === 1) {
+    return { firstName: parts[0], lastName: "" };
+  } else {
+    return {
+      firstName: parts[0],
+      lastName: parts.slice(1).join(" "),
+    };
+  }
+}
 function mapNextAuthError(
   error?: string | null,
   context?: "register",
@@ -115,11 +149,11 @@ const FeedbackBanner = ({ feedback }: { feedback: AuthFeedback }) => {
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState(() => searchParams.get("email") || "");
+  const [email, setEmail] = useState(() => sanitizePrefilledEmail(searchParams.get("email")));
 
   const registerUrl = useMemo(() => {
     const params = new URLSearchParams();
-    const emailParam = searchParams.get("email");
+    const emailParam = sanitizePrefilledEmail(searchParams.get("email"));
     const planParam = searchParams.get("plan");
     const sourceParam = searchParams.get("source");
     if (emailParam) params.set("email", emailParam);
@@ -337,16 +371,13 @@ export function LoginForm() {
 export function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [firstName, setFirstName] = useState(() => {
-    const nameParam = searchParams?.get("name") || "";
-    return nameParam.split(" ")[0] || "";
-  });
-  const [lastName, setLastName] = useState(() => {
-    const nameParam = searchParams?.get("name") || "";
-    const parts = nameParam.split(" ");
-    return parts.slice(1).join(" ") || "";
-  });
-  const [email, setEmail] = useState(() => searchParams?.get("email") || "");
+  const parsedName = useMemo(() => {
+    return sanitizePrefilledName(searchParams?.get("name"));
+  }, [searchParams]);
+
+  const [firstName, setFirstName] = useState(() => parsedName.firstName);
+  const [lastName, setLastName] = useState(() => parsedName.lastName);
+  const [email, setEmail] = useState(() => sanitizePrefilledEmail(searchParams?.get("email")));
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -363,12 +394,15 @@ export function RegisterForm() {
 
   const loginUrl = useMemo(() => {
     const params = new URLSearchParams();
-    const emailParam = searchParams.get("email");
+    const emailParam = sanitizePrefilledEmail(searchParams.get("email"));
     const nameParam = searchParams.get("name");
     const planParam = searchParams.get("plan");
     const sourceParam = searchParams.get("source");
+    const parsed = sanitizePrefilledName(nameParam);
+    const sanitizedName = parsed.firstName + (parsed.lastName ? " " + parsed.lastName : "");
+
     if (emailParam) params.set("email", emailParam);
-    if (nameParam) params.set("name", nameParam);
+    if (sanitizedName) params.set("name", sanitizedName);
     if (planParam) params.set("plan", planParam);
     if (sourceParam) params.set("source", sourceParam);
     const query = params.toString();

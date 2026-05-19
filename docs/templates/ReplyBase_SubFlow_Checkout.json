@@ -37,7 +37,7 @@
       "text": "Excellent choice! 🚀 Setting up takes less than 2 minutes and is free for 14 days. No credit card required to test the features.\n\nWhich plan matches your business scale best?",
       "buttons": [
         { "type": "postback", "title": "👤 Starter Trial (£29/mo)", "payload": "👤 Starter Trial (£29/mo)" },
-        { "type": "postback", "title": "👥 Pro Trial (£99/mo) (Recommended)", "payload": "👥 Pro Trial (£99/mo) (Recommended)" },
+        { "type": "postback", "title": "👥 Pro Trial (£89/mo) (Recommended)", "payload": "👥 Pro Trial (£89/mo) (Recommended)" },
         { "type": "postback", "title": "🏢 Enterprise Custom", "payload": "🏢 Enterprise Custom" }
       ],
       "variableName": "checkout_plan_choice",

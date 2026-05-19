@@ -45,7 +45,7 @@
     "order": 4,
     "type": "message",
     "content": {
-      "text": "ReplyBase is built as the ultimate tool for automated lead generation. We offer simple, transparent pricing designed to scale with your volume:\n\n👤 **Starter (£29/mo):** 1 live channel, up to 500 messages, and standard automation.\n👥 **Pro (£99/mo) (Most Popular):** All channels (Web, WhatsApp, FB, TG), CRM sync, and automated after-hours captures.\n🏢 **Enterprise (Custom):** Custom fine-tuned LLM setups, custom webhook integrations, and SLAs.\n\nSetting up takes 2 minutes and includes a 14-day free trial. What makes the most sense for your scale?",
+      "text": "ReplyBase is built as the ultimate tool for automated B2B lead generation.\n\nWe offer simple, transparent pricing designed to scale with your volume:\n\n👤 **Starter (£29/mo):** 1 live channel, up to 500 messages, and standard automation.\n\n👥 **Pro (£89/mo) (Most Popular):** All channels (Web, WhatsApp, FB, TG), CRM sync, and automated after-hours captures.\n\n🏢 **Enterprise (Custom):** Custom fine-tuned LLM setups, custom webhook integrations, and SLAs.\n\nSetting up takes 2 minutes and includes a 14-day free trial. What makes the most sense for your scale?",
       "buttons": [
         { "type": "postback", "title": "🚀 Start 14-Day Free Trial", "payload": "Start 14-Day Free Trial" },
         { "type": "postback", "title": "📱 Try Live Demo", "payload": "Try Live Demo" },

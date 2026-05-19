@@ -47,7 +47,7 @@
   {
     "type": "message",
     "content": {
-      "text": "💳 Our plans start from £29/mo for Starter, £99/mo for Pro, and custom pricing for Enterprise clients.",
+      "text": "💳 Our plans start from £29/mo for Starter, £89/mo for Pro, and custom pricing for Enterprise clients.",
       "delayMs": 500,
       "typingEnabled": true
     }

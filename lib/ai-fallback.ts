@@ -33,7 +33,7 @@ export async function aiFallback({
   // --- MODULE 2, LAYER 1: DETERMINISTIC / REGEX (Cost: $0.00) ---
   const lowerMsg = lastUserMessage?.toLowerCase() || "";
   if (lowerMsg.includes("pricing") || lowerMsg.includes("how much") || lowerMsg.includes("cost")) {
-    return "I'd be happy to show you our plans! We offer Starter (£29/mo), Pro (£99/mo), and Business tiers. Based on your volume, I can recommend the best one. Would you like to see a personalized ROI breakdown?";
+    return "I'd be happy to show you our plans! We offer Starter (£29/mo), Pro (£89/mo), and Business tiers. Based on your volume, I can recommend the best one. Would you like to see a personalized ROI breakdown?";
   }
   if (lowerMsg.includes("human") || lowerMsg.includes("agent") || lowerMsg.includes("specialist")) {
     return "I understand. I'm loopng in one of our automation specialists to assist you further. In the meantime, feel free to ask me anything about our features!";
