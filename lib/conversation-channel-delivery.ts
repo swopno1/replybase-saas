@@ -6,6 +6,7 @@ import {
   sendWhatsAppText,
 } from "@/lib/whatsapp-provider";
 import { sendTextMessage as sendFacebookTextMessage } from "@/lib/facebook-sender";
+import { formatTextForNonMarkdownChannels } from "@/lib/flow-runtime-utils";
 
 export type ConversationDeliveryResult =
   | {
@@ -152,7 +153,7 @@ export async function deliverConversationMessage(params: {
     provider: credentialEnvelope.provider,
     credentials: credentialEnvelope.credentials,
     to: recipient,
-    text: params.content,
+    text: formatTextForNonMarkdownChannels(params.content, { boldToken: "*" }),
   });
 
   if (!sendResult.success) {
@@ -222,7 +223,7 @@ async function deliverFacebookMessage(params: {
   const result = await sendFacebookTextMessage(
     facebookPage.accessToken,
     psidIdentity.value,
-    params.content,
+    formatTextForNonMarkdownChannels(params.content),
   );
 
   if (!result.success) {

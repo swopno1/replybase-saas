@@ -142,15 +142,40 @@ export async function getTelegramWebhookInfo(
   return data.result;
 }
 
+function formatTelegramText(text: string): string {
+  if (!text) return "";
+
+  // Escape raw HTML entities to prevent Telegram API parsing failures
+  let escaped = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  // 1. Convert markdown links: [Title](Url) -> <a href="Url">Title</a>
+  escaped = escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, (_, title, url) => {
+    return `<a href="${url}">${title}</a>`;
+  });
+
+  // 2. Convert bold markers: **bold** -> <b>bold</b>
+  escaped = escaped.replace(/\*\*([^*]+)\*\*/g, (_, boldText) => {
+    return `<b>${boldText}</b>`;
+  });
+
+  return escaped;
+}
+
 export async function sendTelegramTextMessage(
   token: string,
   chatId: string,
   text: string,
 ): Promise<TelegramSendMessageResult> {
+  const formattedText = formatTelegramText(text);
+
   const attemptSend = async () =>
     callTelegram<{ message_id: number }>(token, "sendMessage", {
       chat_id: chatId,
-      text,
+      text: formattedText,
+      parse_mode: "HTML",
     });
 
   let data: TelegramApiResponse<{ message_id: number }> | null = null;

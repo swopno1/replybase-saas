@@ -92,6 +92,31 @@ export function interpolateText(
   });
 }
 
+/**
+ * Formats markdown links and bold styling for non-markdown channels (like WhatsApp and Facebook Messenger).
+ * - Conversions:
+ *   - `[Title](Url)` -> `Title: Url`
+ *   - `**bold**` -> `*bold*` (for WhatsApp if specified) or simply `bold` (for general clean text)
+ */
+export function formatTextForNonMarkdownChannels(
+  text: string,
+  options: { boldToken: string } = { boldToken: "" },
+): string {
+  if (!text) return "";
+
+  // 1. Convert markdown links: [Title](Url) -> Title: Url
+  let cleaned = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, (_, title, url) => {
+    return `${title}: ${url}`;
+  });
+
+  // 2. Convert bold markers: **bold** -> specified bold token (e.g. * for WhatsApp, empty string for FB)
+  cleaned = cleaned.replace(/\*\*([^*]+)\*\*/g, (_, boldText) => {
+    return options.boldToken ? `${options.boldToken}${boldText}${options.boldToken}` : boldText;
+  });
+
+  return cleaned;
+}
+
 export function sanitizeNameInput(text: string): string {
   if (!text) return "";
   let cleaned = text.trim();
