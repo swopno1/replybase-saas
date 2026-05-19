@@ -4,9 +4,9 @@
 ReplyBase has achieved "Production Hardening" following the successful migration to DigitalOcean AI and the resolution of critical security risks in the Admin suite. The focus of the current cycle (August 2026) has shifted to **Enterprise Observability**, **Advanced Conversational Reliability**, and **Dashboard Interactivity**.
 
 ## Key Inspection Findings (Today)
-- **Security**: Admin Test Runner is hardened (`execFile`). Multi-tenant isolation for integrations is complete. Identified a need for granular "Read-access" audit logging for Superadmins (Task 021).
-- **Performance**: Lead Action Engine is live; BullMQ handles outbound lead sync with high reliability. Redis caching for dashboard metrics remains a high-priority efficiency gain (Task 011).
-- **UX**: Conversational V6 Orchestration is stable. Focus is now on "Interactive Dashboard UX" (Task UX-008) and "Mobile Flow Management" (Task 012).
+- **Security**: Admin Test Runner is hardened (`execFile`). Multi-tenant isolation for integrations is complete. Identified a need for granular "Read-access" audit logging (Task 021) and standardizing background workers to the Scoped Repository Pattern (Task 032).
+- **Performance**: Lead Action Engine is live; BullMQ handles outbound lead sync with high reliability. Redis caching for dashboard metrics (Task 011) and Real-time CRM updates (Task 033) are high-priority targets.
+- **UX**: Conversational V6 Orchestration is stable. Focus is now on "Interactive Dashboard UX" (Task UX-008), "Mobile Flow Management" (Task 012), and "Real-time CRM Continuity".
 - **Architecture**: DigitalOcean AI migration is complete, providing ~61% OpEx savings and significantly lower latency. DigitalOcean AI is now the default provider for all core tasks.
 
 ## Immediate Priorities

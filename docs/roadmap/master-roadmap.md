@@ -6,12 +6,14 @@
 - [x] DigitalOcean AI Migration (Llama 3.1)
 - [x] Lead Action Engine (Outbound Webhooks)
 - [ ] Redis Metrics Caching (High Priority - Task 001)
+- [ ] Real-time CRM (SSE/WebSockets) (Task 033)
 - [ ] Automated DB & Redis Backups (Task 004)
 
 ## Phase 4: Growth & Enterprise (Active)
 - [x] Admin Conversation Simulation Lab
 - [x] V6 Master Orchestrator Sync
 - [x] Documentation Overhaul & Intelligence Consolidation (August 2026)
+- [ ] Interactive Dashboard "Command Center" (Task UX-008)
 - [ ] IAM Roles & Permissions (In Design)
 - [ ] Granular Admin Audit Logging (Task 021)
 - [ ] SEO Action Plan Execution

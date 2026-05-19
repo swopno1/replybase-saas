@@ -15,8 +15,8 @@ ReplyBase provides a professional, high-density SaaS experience optimized for le
 
 ## 4. CRM & Conversation UX
 - **The Good**: Real-time streaming and "Bot Drafting" indicators reduce perceived latency.
-- **The Gap**: Missing skeleton loaders in detail views leads to jarring layout shifts on slow connections.
-- **Recommendation**: Implement layout-matched skeletons for Conversation and Settings views (Task UX-003).
+- **The Gap**: Missing skeleton loaders in detail views leads to jarring layout shifts on slow connections. Additionally, the 5-second polling interval in the CRM creates a "choppy" real-time experience.
+- **Recommendation**: Implement layout-matched skeletons for Conversation and Settings views (Task UX-003). Transition CRM message updates to SSE/WebSockets for "Instant" updates (Task 033).
 
 ## 5. Mobile Experience
 - **The Good**: Sidebar and main dashboard scale perfectly.

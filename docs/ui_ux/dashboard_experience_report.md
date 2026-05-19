@@ -19,4 +19,5 @@
    - **Lead Alerts Card**: Link to `/settings?tab=notifications`.
    - **Activity Card**: Link to `/conversations`.
 2. **Interactive Milestones**: Ensure all rows in the `Activation Milestones` card are clickable, not just the button, to maximize setup momentum.
-3. **Contextual Help**: Add small Lucide `Info` icons to metric cards that reveal tooltips explaining the data.
+3. **Real-Time Continuity**: Conversations within the CRM currently feel "steppy" due to 5s polling. Transitioning to SSE/WebSockets is essential for a premium feel (Task 033).
+4. **Contextual Help**: Add small Lucide `Info` icons to metric cards that reveal tooltips explaining the data.

@@ -167,6 +167,96 @@
   - Notes: Essential for support scalability.
   - Rollout Risk: LOW.
 
+- **Task 030**
+  - Priority: HIGH
+  - Status: PENDING
+  - Category: Security
+  - Severity: HIGH
+  - Issue: Webchat CORS Whitelist Enforcement.
+  - Root Cause: Current webchat endpoints allow dynamic CORS without strictly validating against the tenant's `allowedDomains`.
+  - Business Impact: Prevents unauthorized widget embedding and protects tenant API usage.
+  - Objective: Enforce strict CORS validation using the `WebChatSite.allowedDomains` configuration.
+  - Detailed Instructions: 1. Update `lib/webchat-cors.ts` to query the database for the site's allowed domains. 2. Compare incoming `Origin` header. 3. Reject unauthorized origins with 403.
+  - Expected Deliverables: Hardened CORS logic for Webchat.
+  - Dependencies: None.
+  - Notes: Critical for production security. Transition from global env-based whitelist to per-site DB whitelist.
+  - Rollout Risk: MEDIUM.
+
+- **Task 031**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Observability
+  - Severity: MEDIUM
+  - Issue: Admin Dashboard: Real-time Queue & AI Monitoring.
+  - Root Cause: Admins lack visibility into background worker health and AI latency.
+  - Business Impact: Faster incident detection and provider performance tracking.
+  - Objective: Create an observability dashboard in the Admin suite.
+  - Detailed Instructions: 1. Create `/api/admin/metrics` to expose BullMQ and AI stats. 2. Build a "System Health" tab in the Admin UI with Recharts.
+  - Expected Deliverables: Real-time health dashboard for admins.
+  - Dependencies: BullMQ.
+  - Notes: Essential for enterprise-grade operations.
+  - Rollout Risk: LOW.
+
+- **Task 032**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Security/Multi-tenancy
+  - Severity: MEDIUM
+  - Issue: Standardize Scoped Repository Pattern in Background Workers.
+  - Root Cause: Ongoing use of global `prisma` instance and manual query filtering in `whatsapp-worker.ts` and `flow-recovery-worker.ts`.
+  - Business Impact: Reduces risk of accidental cross-tenant data leaks in background processing logic.
+  - Objective: Refactor background workers to use the `getTenantPrisma` extension.
+  - Detailed Instructions: 1. Audit `lib/services/whatsapp-worker.ts` and `flow-recovery-worker.ts`. 2. Replace global `prisma` calls with a scoped `db` client initialized via `getTenantPrisma(tenantId)`. 3. Remove redundant manual `tenantId` filters where the extension handles them.
+  - Expected Deliverables: Hardened, tenant-scoped background workers.
+  - Dependencies: `getTenantPrisma`.
+  - Notes: Architectural hardening and consistency with API route patterns.
+  - Rollout Risk: LOW.
+
+- **Task 033**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Performance
+  - Severity: LOW
+  - Issue: CRM Real-time Polling Latency.
+  - Root Cause: `ConversationPage` uses 5-second interval polling for message updates.
+  - Business Impact: Sub-optimal "live" feel; increased server load on high-concurrency CRM usage.
+  - Objective: Transition CRM to WebSockets or SSE for real-time updates.
+  - Detailed Instructions: 1. Implement a WebSocket/SSE server (e.g., using Socket.io or native SSE). 2. Update `ConversationPage` to subscribe to conversation-specific events.
+  - Expected Deliverables: Real-time "Instant" CRM updates.
+  - Dependencies: WebSocket infrastructure.
+  - Notes: Part of the "Delightful UX" initiative.
+  - Rollout Risk: MEDIUM.
+
+- **Task 034**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Security/Multi-tenancy
+  - Severity: MEDIUM
+  - Issue: Legacy Manual Scoping in Usage API.
+  - Root Cause: `app/api/usage/route.ts` uses manual session lookups and `prisma.user.findUnique` instead of the standardized `withAuthAndTenant` wrapper.
+  - Business Impact: Higher risk of future IDOR regressions and architectural inconsistency.
+  - Objective: Refactor Usage API route to use `withAuthAndTenant`.
+  - Detailed Instructions: 1. Update `GET` in `app/api/usage/route.ts`. 2. Use the provided `db` client which is already tenant-scoped.
+  - Expected Deliverables: Hardened and standardized Usage API route.
+  - Dependencies: `withAuthAndTenant` helper.
+  - Notes: Consistency improvement.
+  - Rollout Risk: LOW.
+
+- **Task 035**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: UI/UX
+  - Severity: LOW
+  - Issue: Missing aria-labels on Interactive Elements.
+  - Root Cause: Icon-only buttons in `ConversationPage` and `ReplyComposer` lack descriptive `aria-label` attributes.
+  - Business Impact: Poor accessibility for screen-reader users; non-compliance with WCAG 2.1 standards.
+  - Objective: Audit and apply descriptive labels to all icon-only triggers.
+  - Detailed Instructions: 1. Audit `components/conversation/`. 2. Add `aria-label` to Lucide-based buttons.
+  - Expected Deliverables: Accessibility-compliant CRM components.
+  - Dependencies: None.
+  - Notes: Part of UI/UX Accessibility Audit.
+  - Rollout Risk: LOW.
+
 ## 2. Product & Feature Expansion
 
 - **Task 006**
@@ -199,62 +289,17 @@
   - Notes: Requires storage scaling plan.
   - Rollout Risk: MEDIUM.
 
-- **Task 030**
+- **Task UX-008**
   - Priority: HIGH
   - Status: PENDING
-  - Category: Security
-  - Severity: HIGH
-  - Issue: Webchat CORS Whitelist Enforcement.
-  - Root Cause: Current webchat endpoints allow dynamic CORS without strictly validating against the tenant's `allowedDomains`.
-  - Business Impact: Prevents unauthorized widget embedding and protects tenant API usage.
-  - Objective: Enforce strict CORS validation using the `WebChatSite.allowedDomains` configuration.
-  - Detailed Instructions: 1. Update `lib/webchat-cors.ts` to query the database for the site's allowed domains. 2. Compare incoming `Origin` header. 3. Reject unauthorized origins with 403.
-  - Expected Deliverables: Hardened CORS logic for Webchat.
-  - Dependencies: None.
-  - Notes: Critical for production security. Transition from global env-based whitelist to per-site DB whitelist.
-  - Rollout Risk: MEDIUM.
-
-- **Task 032**
-  - Priority: MEDIUM
-  - Status: PENDING
-  - Category: Security/Multi-tenancy
+  - Category: UI/UX
   - Severity: MEDIUM
-  - Issue: Standardize Scoped Repository Pattern.
-  - Root Cause: Ongoing mix of `prisma` and `db` (scoped) usage in complex services.
-  - Business Impact: Reduces risk of accidental cross-tenant data leaks in deep service logic.
-  - Objective: Enforce use of `getTenantPrisma` throughout all non-admin services.
-  - Detailed Instructions: 1. Audit `lib/services/`. 2. Ensure all service methods accept a scoped `PrismaClient` or `tenantId`.
-  - Expected Deliverables: Standardized service-layer tenancy.
-  - Dependencies: `getTenantPrisma`.
-  - Notes: Architectural hardening.
+  - Issue: Non-Interactive Dashboard Status Cards.
+  - Root Cause: Status cards in `components/dashboard/status-cards.tsx` are static and do not link to their respective management pages.
+  - Business Impact: Poor user experience; "Dead end" dashboard; increased navigation friction.
+  - Objective: Transform status cards into primary navigation shortcuts.
+  - Detailed Instructions: 1. Wrap `Card` elements in `Link` components. 2. Map Automation to `/bots`, Channels to `/settings?tab=channels`, Lead Alerts to `/settings?tab=notifications`, and Last Activity to `/conversations`. 3. Add hover states (`hover:bg-accent`) and cursor-pointer.
+  - Expected Deliverables: Interactive "Command Center" dashboard.
+  - Dependencies: Shadcn UI, Next.js Link.
+  - Notes: Part of "Interactive Command Center" proposal.
   - Rollout Risk: LOW.
-
-- **Task 031**
-  - Priority: MEDIUM
-  - Status: PENDING
-  - Category: Observability
-  - Severity: MEDIUM
-  - Issue: Admin Dashboard: Real-time Queue & AI Monitoring.
-  - Root Cause: Admins lack visibility into background worker health and AI latency.
-  - Business Impact: Faster incident detection and provider performance tracking.
-  - Objective: Create an observability dashboard in the Admin suite.
-  - Detailed Instructions: 1. Create `/api/admin/metrics` to expose BullMQ and AI stats. 2. Build a "System Health" tab in the Admin UI with Recharts.
-  - Expected Deliverables: Real-time health dashboard for admins.
-  - Dependencies: BullMQ.
-  - Notes: Essential for enterprise-grade operations.
-  - Rollout Risk: LOW.
-
-- **Task 033**
-  - Priority: MEDIUM
-  - Status: PENDING
-  - Category: Performance
-  - Severity: LOW
-  - Issue: CRM Real-time Polling Latency.
-  - Root Cause: `ConversationPage` uses 5-second interval polling for message updates.
-  - Business Impact: Sub-optimal "live" feel; increased server load on high-concurrency CRM usage.
-  - Objective: Transition CRM to WebSockets or SSE for real-time updates.
-  - Detailed Instructions: 1. Implement a WebSocket/SSE server (e.g., using Socket.io or native SSE). 2. Update `ConversationPage` to subscribe to conversation-specific events.
-  - Expected Deliverables: Real-time "Instant" CRM updates.
-  - Dependencies: WebSocket infrastructure.
-  - Notes: Part of the "Delightful UX" initiative.
-  - Rollout Risk: MEDIUM.
