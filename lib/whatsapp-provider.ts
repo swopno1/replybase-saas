@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { WHATSAPP_GRAPH_API_VERSION } from "@/lib/meta-config";
+import { formatTextForNonMarkdownChannels } from "@/lib/flow-runtime-utils";
 
 export type WhatsAppProvider = "meta_cloud" | "twilio" | "360dialog";
 
@@ -245,6 +246,7 @@ export async function sendWhatsAppText(
   input: WhatsAppSendTextInput,
 ): Promise<WhatsAppSendResult> {
   const creds = normalizeCredentials(input.provider, input.credentials);
+  const formattedText = formatTextForNonMarkdownChannels(input.text, { boldToken: "*" });
 
   if (input.provider === "meta_cloud") {
     const meta = creds as MetaCloudCredentials;
@@ -259,7 +261,7 @@ export async function sendWhatsAppText(
       body.interactive = {
         type: "button",
         body: {
-          text: input.text,
+          text: formattedText,
         },
         action: {
           buttons: input.buttons.slice(0, 3).map((btn, index) => ({
@@ -274,7 +276,7 @@ export async function sendWhatsAppText(
     } else {
       body.type = "text";
       body.text = {
-        body: input.text,
+        body: formattedText,
       };
     }
 
@@ -317,7 +319,7 @@ export async function sendWhatsAppText(
     const body = new URLSearchParams({
       To: `whatsapp:${normalizeWhatsAppE164(input.to)}`,
       From: `whatsapp:${normalizeWhatsAppE164(twilio.fromNumber)}`,
-      Body: input.text,
+      Body: formattedText,
     });
 
     const response = await fetch(
@@ -363,7 +365,7 @@ export async function sendWhatsAppText(
       to: normalizeWhatsAppAddress(input.to),
       type: "text",
       text: {
-        body: input.text,
+        body: formattedText,
       },
     }),
   });

@@ -4,6 +4,7 @@
  */
 
 import { getFacebookGraphUrl } from "@/lib/server/facebook-utils";
+import { formatTextForNonMarkdownChannels } from "@/lib/flow-runtime-utils";
 
 interface SendMessageResult {
   success: boolean;
@@ -52,12 +53,13 @@ export async function sendTextMessage(
   quickReplies?: Array<{ content_type: string; title: string; payload: string; image_url?: string }>,
 ): Promise<SendMessageResult> {
   try {
+    const formattedText = formatTextForNonMarkdownChannels(text);
     const url = getFacebookGraphUrl("me/messages", pageAccessToken);
 
     const messagePayload: {
       text: string;
       quick_replies?: Array<{ content_type: string; title: string; payload: string; image_url?: string }>;
-    } = { text };
+    } = { text: formattedText };
 
     if (quickReplies && quickReplies.length > 0) {
       messagePayload.quick_replies = quickReplies.slice(0, 13); // Facebook allows up to 13 quick replies
