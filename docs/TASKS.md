@@ -52,14 +52,14 @@
   - Status: PENDING
   - Category: Engineering
   - Severity: MEDIUM
-  - Issue: Excessive "any" type usage (752 instances).
-  - Root Cause: Rapid prototyping and ad-hoc webhook handling.
-  - Business Impact: High maintenance cost, risk of runtime crashes in complex data paths.
+  - Issue: Excessive "any" type usage (878 instances).
+  - Root Cause: Rapid prototyping and legacy webhook/flow handling.
+  - Business Impact: High maintenance cost, risk of runtime crashes in complex data paths (Flow Engine, AI Fallback).
   - Objective: Perform a "Type Strike" to replace generic types with Zod/Prisma types.
-  - Detailed Instructions: 1. Focus on webhook handlers first. 2. Create Zod schemas for incoming payloads. 3. Replace component-level `any` with generated Prisma types.
+  - Detailed Instructions: 1. Audit high-density files: `lib/bot-entry-flow-engine.ts`, `lib/flow-templates.ts`, `app/api/users/account/route.ts`. 2. Create Zod schemas for incoming payloads. 3. Replace component-level `any` with generated Prisma types.
   - Expected Deliverables: 0 "any" types in lib/ and app/api/ routes.
   - Dependencies: None.
-  - Notes: Critical for long-term codebase health.
+  - Notes: Critical for long-term codebase health. August 2026 Audit confirmed 878 total instances.
   - Rollout Risk: LOW.
 
 - **Task 023**
@@ -206,10 +206,10 @@
   - Root Cause: Ongoing use of global `prisma` instance and manual query filtering in `whatsapp-worker.ts` and `flow-recovery-worker.ts`.
   - Business Impact: Reduces risk of accidental cross-tenant data leaks in background processing logic.
   - Objective: Refactor background workers to use the `getTenantPrisma` extension.
-  - Detailed Instructions: 1. Audit `lib/services/whatsapp-worker.ts` and `flow-recovery-worker.ts`. 2. Replace global `prisma` calls with a scoped `db` client initialized via `getTenantPrisma(tenantId)`. 3. Remove redundant manual `tenantId` filters where the extension handles them.
+  - Detailed Instructions: 1. Audit `lib/services/whatsapp-worker.ts` (confirmed global prisma use) and `lib/services/flow-recovery-worker.ts` (confirmed global prisma use). 2. Replace global `prisma` calls with a scoped `db` client initialized via `getTenantPrisma(tenantId)`. 3. Remove redundant manual `tenantId` filters where the extension handles them.
   - Expected Deliverables: Hardened, tenant-scoped background workers.
   - Dependencies: `getTenantPrisma`.
-  - Notes: Architectural hardening and consistency with API route patterns.
+  - Notes: Architectural hardening and consistency with API route patterns. Confirmed manual scoping still present in August 2026 audit.
   - Rollout Risk: LOW.
 
 - **Task 033**
@@ -248,13 +248,13 @@
   - Category: UI/UX
   - Severity: LOW
   - Issue: Missing aria-labels on Interactive Elements.
-  - Root Cause: Icon-only buttons in `ConversationPage` and `ReplyComposer` lack descriptive `aria-label` attributes.
+  - Root Cause: Icon-only buttons in `ConversationsList` (MoreHorizontal) and other CRM components lack descriptive `aria-label` attributes.
   - Business Impact: Poor accessibility for screen-reader users; non-compliance with WCAG 2.1 standards.
   - Objective: Audit and apply descriptive labels to all icon-only triggers.
-  - Detailed Instructions: 1. Audit `components/conversation/`. 2. Add `aria-label` to Lucide-based buttons.
+  - Detailed Instructions: 1. Audit `components/conversation/` (confirmed `ConversationsList` has icon-only buttons without aria-label). 2. Add `aria-label` to Lucide-based buttons.
   - Expected Deliverables: Accessibility-compliant CRM components.
   - Dependencies: None.
-  - Notes: Part of UI/UX Accessibility Audit.
+  - Notes: Part of UI/UX Accessibility Audit. August 2026 Audit confirmed missing labels in multiple CRM components.
   - Rollout Risk: LOW.
 
 ## 2. Product & Feature Expansion

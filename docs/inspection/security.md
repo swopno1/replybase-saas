@@ -3,10 +3,10 @@
 ## 1. Multi-Tenant Isolation Analysis
 - **Prisma Extension**: The `getTenantPrisma` extension is the primary defense. It uses DMMF introspection to automatically inject `tenantId` filters.
 - **API Surface Coverage**:
-    - **Scoping**: ~90% of `app/api` routes correctly use `withAuthAndTenant` or manual tenant scoping.
+    - **Scoping**: ~90% of `app/api` routes correctly use `withAuthAndTenant` or manual tenant scoping. Refactored `app/api/bots/route.ts` to `withAuthAndTenant` pattern.
 - **Gaps**:
     - **API Surface**: Legacy routes in `app/api/flows/route.ts`, `app/api/usage/route.ts`, and `app/api/billing/*` still utilize manual session-based scoping. While currently secure, these should be migrated to the `withAuthAndTenant` wrapper to ensure architectural consistency and eliminate the risk of future IDOR regressions during refactoring.
-    - **Background Workers**: Core workers like `whatsapp-worker.ts` and `flow-recovery-worker.ts` rely on the global `prisma` instance and manual query filtering. This increases the risk of developer error in complex cross-service calls.
+    - **Background Workers**: Core workers like `whatsapp-worker.ts` and `flow-recovery-worker.ts` confirmed to rely on the global `prisma` instance and manual query filtering as of August 2026. This increases the risk of developer error in complex cross-service calls.
 - **Database Unique Constraints**: Gold-standard `@@unique([id, tenantId])` is consistently used on core models (`Lead`, `Flow`, `Bot`), preventing cross-tenant IDOR even if a query filter were missed. `WebhookLog` also now correctly incorporates `tenantId` in all creation paths.
 
 ## 2. Authentication & Session Integrity

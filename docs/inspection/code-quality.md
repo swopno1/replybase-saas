@@ -4,8 +4,8 @@
 - **TypeScript**: Strict mode enabled. Standardized on Prisma 7.8.0.
 - **Linting**: ESLint configured (Next.js defaults + custom rules).
 - **Type Safety**:
-  - **Identified Risk**: High usage of `any` type (849+ instances) across the codebase, particularly in webhook handlers and complex dashboard components.
-  - **Progress**: Significantly reduced `any` usage in core services (`prisma-tenant`, `ai-fallback`).
+  - **Identified Risk**: High usage of `any` type (878 instances) across the codebase, particularly in webhook handlers, flow engines (`lib/bot-entry-flow-engine.ts`), and complex dashboard components.
+  - **Progress**: Significantly reduced `any` usage in core services (`prisma-tenant`, `ai-fallback`). August 2026 audit confirmed 878 instances.
 
 ## 2. Database Integrity & Multi-Tenancy
 - **Tenancy Architecture**: 95%+ of domain models use `tenantId`.

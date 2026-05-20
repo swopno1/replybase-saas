@@ -148,12 +148,12 @@
   - Status: PENDING
   - Category: Accessibility
   - Severity: LOW
-  - Issue: Conversation Detail Accessibility Hardening.
-  - Root Cause: Icon-only buttons lack `aria-label` or descriptive text.
+  - Issue: CRM Accessibility Hardening.
+  - Root Cause: Icon-only buttons lack `aria-label` or descriptive text in `ConversationsList` and Detail views.
   - Business Impact: Non-compliant with WCAG 2.1; prevents screen reader users from effectively using the CRM.
   - Objective: Add descriptive ARIA labels to all icon-only triggers.
-  - Detailed Instructions: 1. Audit `app/(dashboard)/conversations/[id]/page.tsx` for Lucide icons used as buttons. 2. Add `aria-label` or `sr-only` text to each.
+  - Detailed Instructions: 1. Audit `components/conversation/` (e.g., `ConversationsList` MoreHorizontal trigger). 2. Add `aria-label` or `sr-only` text to each trigger.
   - Expected Deliverables: Accessible CRM interface.
   - Dependencies: None.
-  - Notes: Improves inclusive design.
+  - Notes: Improves inclusive design. Confirmed missing labels in August 2026 Audit.
   - Rollout Risk: LOW.
