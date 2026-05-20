@@ -86,9 +86,23 @@ export function interpolateText(
   text: string,
   variables: Record<string, unknown>,
 ): string {
-  return text.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, key) => {
-    const value = variables[key];
-    return value === undefined || value === null ? "" : String(value);
+  return text.replace(/\{\{\s*([^}]+)\s*\}\}/g, (_, expression) => {
+    const [keysPart, ...filters] = expression.split('|').map((s: string) => s.trim());
+    const keys = keysPart.split('||').map((s: string) => s.trim());
+    
+    let value: unknown = "";
+    for (const key of keys) {
+      if (variables[key] !== undefined && variables[key] !== null && variables[key] !== "") {
+        value = variables[key];
+        break;
+      }
+    }
+    
+    let strValue = String(value);
+    if (filters.includes('urlencode')) {
+      strValue = encodeURIComponent(strValue);
+    }
+    return strValue;
   });
 }
 
