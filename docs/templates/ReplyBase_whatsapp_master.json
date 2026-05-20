@@ -3,7 +3,7 @@
     "order": 0,
     "type": "input",
     "content": {
-      "text": "👋 Welcome to ReplyBase!\n\nSince we’re already chatting on WhatsApp, your number is securely connected automatically 🟢\n\nI help businesses automate customer conversations without losing the human touch.\n\nTo get started, what’s your name?",
+      "text": "\ud83d\udc4b Welcome to ReplyBase!\n\nSince we\u2019re already chatting on WhatsApp, your number is securely connected automatically \ud83d\udfe2\n\nI help businesses automate customer conversations without losing the human touch.\n\nTo get started, what\u2019s your name?",
       "variableName": "lead_name",
       "inputType": "text",
       "typingEnabled": true,
@@ -16,7 +16,12 @@
     "content": {
       "variableName": "contact_email",
       "conditions": [
-        { "variableName": "contact_email", "operator": "contains", "value": "@", "nextNodeOrder": 5 }
+        {
+          "variableName": "contact_email",
+          "operator": "contains",
+          "value": "@",
+          "nextNodeOrder": 3
+        }
       ],
       "nextNodeOrder": 2
     }
@@ -25,7 +30,7 @@
     "order": 2,
     "type": "input",
     "content": {
-      "text": "Great to meet you, {{lead_name}}!\n\nWhat’s the best email address to set up your ReplyBase dashboard and send over your personalised pricing & ROI breakdown?",
+      "text": "Great to meet you, {{lead_name}}!\n\nWhat\u2019s the best email address to set up your ReplyBase dashboard and send over your personalised pricing & ROI breakdown?",
       "variableName": "lead_email",
       "inputType": "email",
       "validationMessage": "That doesn't look like a valid email. Could you double-check your email address?",
@@ -35,48 +40,42 @@
   },
   {
     "order": 3,
-    "type": "message",
+    "type": "action",
     "content": {
-      "text": "Perfect! Is {{lead_email}} the correct email to sync your workspace?",
-      "buttons": [
-        { "type": "postback", "title": "✅ Yes, confirm email", "payload": "Yes, confirm email" },
-        { "type": "postback", "title": "✍️ No, edit email", "payload": "No, edit email" }
-      ],
-      "variableName": "email_confirmation",
-      "typingEnabled": true,
-      "delayMs": 1000
+      "action": "tag_user",
+      "tags": [
+        "lead",
+        "channel_whatsapp",
+        "whatsapp_synced"
+      ]
     }
   },
   {
     "order": 4,
-    "type": "condition",
-    "content": {
-      "variableName": "email_confirmation",
-      "conditions": [
-        { "variableName": "email_confirmation", "operator": "contains", "value": "no", "nextNodeOrder": 2 },
-        { "variableName": "email_confirmation", "operator": "contains", "value": "edit", "nextNodeOrder": 2 }
-      ],
-      "nextNodeOrder": 5
-    }
-  },
-  {
-    "order": 5,
-    "type": "action",
-    "content": {
-      "action": "tag_user",
-      "tags": ["lead", "channel_whatsapp", "whatsapp_synced"]
-    }
-  },
-  {
-    "order": 6,
     "type": "message",
     "content": {
-      "text": "Awesome, {{lead_name}}{{contact_name}}! Your workspace is synced and ready.\n\n💡 WhatsApp messages have some of the highest open rates of any communication channel.\n\nReplyBase helps businesses automate FAQs, capture leads instantly, and route important conversations directly to their team 🚀\n\nWhat is your main goal today?",
+      "text": "Awesome, {{lead_name}}{{contact_name}}! Your workspace is synced and ready.\n\n\ud83d\udca1 WhatsApp messages have some of the highest open rates of any communication channel.\n\nReplyBase helps businesses automate FAQs, capture leads instantly, and route important conversations directly to their team \ud83d\ude80\n\nWhat is your main goal today?",
       "buttons": [
-        { "type": "postback", "title": "📊 See Pricing & ROI", "payload": "See Pricing & ROI" },
-        { "type": "postback", "title": "📱 See Live Demo", "payload": "See Live Demo" },
-        { "type": "postback", "title": "📅 Book a Walkthrough", "payload": "Book a Walkthrough" },
-        { "type": "postback", "title": "🚀 Start Free Trial", "payload": "Start Free Trial" }
+        {
+          "type": "postback",
+          "title": "\ud83d\udcca See Pricing & ROI",
+          "payload": "See Pricing & ROI"
+        },
+        {
+          "type": "postback",
+          "title": "\ud83d\udcf1 See Live Demo",
+          "payload": "See Live Demo"
+        },
+        {
+          "type": "postback",
+          "title": "\ud83d\udcc5 Book a Walkthrough",
+          "payload": "Book a Walkthrough"
+        },
+        {
+          "type": "postback",
+          "title": "\ud83d\ude80 Start Free Trial",
+          "payload": "Start Free Trial"
+        }
       ],
       "variableName": "user_intent",
       "typingEnabled": true,
@@ -84,29 +83,89 @@
     }
   },
   {
-    "order": 7,
+    "order": 5,
     "type": "condition",
     "content": {
       "variableName": "last_user_message_normalized",
       "conditions": [
-        { "variableName": "last_user_message_normalized", "operator": "contains", "value": "pricing", "nextNodeOrder": 8 },
-        { "variableName": "last_user_message_normalized", "operator": "contains", "value": "price", "nextNodeOrder": 8 },
-        { "variableName": "last_user_message_normalized", "operator": "contains", "value": "cost", "nextNodeOrder": 8 },
-        { "variableName": "last_user_message_normalized", "operator": "contains", "value": "roi", "nextNodeOrder": 8 },
-        { "variableName": "last_user_message_normalized", "operator": "contains", "value": "demo", "nextNodeOrder": 9 },
-        { "variableName": "last_user_message_normalized", "operator": "contains", "value": "work", "nextNodeOrder": 9 },
-        { "variableName": "last_user_message_normalized", "operator": "contains", "value": "book", "nextNodeOrder": 10 },
-        { "variableName": "last_user_message_normalized", "operator": "contains", "value": "call", "nextNodeOrder": 10 },
-        { "variableName": "last_user_message_normalized", "operator": "contains", "value": "walkthrough", "nextNodeOrder": 10 },
-        { "variableName": "last_user_message_normalized", "operator": "contains", "value": "trial", "nextNodeOrder": 12 },
-        { "variableName": "last_user_message_normalized", "operator": "contains", "value": "start", "nextNodeOrder": 12 },
-        { "variableName": "last_user_message_normalized", "operator": "contains", "value": "checkout", "nextNodeOrder": 12 }
+        {
+          "variableName": "last_user_message_normalized",
+          "operator": "contains",
+          "value": "pricing",
+          "nextNodeOrder": 6
+        },
+        {
+          "variableName": "last_user_message_normalized",
+          "operator": "contains",
+          "value": "price",
+          "nextNodeOrder": 6
+        },
+        {
+          "variableName": "last_user_message_normalized",
+          "operator": "contains",
+          "value": "cost",
+          "nextNodeOrder": 6
+        },
+        {
+          "variableName": "last_user_message_normalized",
+          "operator": "contains",
+          "value": "roi",
+          "nextNodeOrder": 6
+        },
+        {
+          "variableName": "last_user_message_normalized",
+          "operator": "contains",
+          "value": "demo",
+          "nextNodeOrder": 7
+        },
+        {
+          "variableName": "last_user_message_normalized",
+          "operator": "contains",
+          "value": "work",
+          "nextNodeOrder": 7
+        },
+        {
+          "variableName": "last_user_message_normalized",
+          "operator": "contains",
+          "value": "book",
+          "nextNodeOrder": 8
+        },
+        {
+          "variableName": "last_user_message_normalized",
+          "operator": "contains",
+          "value": "call",
+          "nextNodeOrder": 8
+        },
+        {
+          "variableName": "last_user_message_normalized",
+          "operator": "contains",
+          "value": "walkthrough",
+          "nextNodeOrder": 8
+        },
+        {
+          "variableName": "last_user_message_normalized",
+          "operator": "contains",
+          "value": "trial",
+          "nextNodeOrder": 10
+        },
+        {
+          "variableName": "last_user_message_normalized",
+          "operator": "contains",
+          "value": "start",
+          "nextNodeOrder": 10
+        },
+        {
+          "variableName": "last_user_message_normalized",
+          "operator": "contains",
+          "value": "checkout",
+          "nextNodeOrder": 10
+        }
       ],
-      "nextNodeOrder": 11
+      "nextNodeOrder": 9
     }
   },
   {
-    "order": 8,
+    "order": 6,
     "type": "action",
     "content": {
       "action": "call_flow",
@@ -114,7 +173,7 @@
     }
   },
   {
-    "order": 9,
+    "order": 7,
     "type": "action",
     "content": {
       "action": "call_flow",
@@ -122,7 +181,7 @@
     }
   },
   {
-    "order": 10,
+    "order": 8,
     "type": "action",
     "content": {
       "action": "call_flow",
@@ -130,7 +189,7 @@
     }
   },
   {
-    "order": 11,
+    "order": 9,
     "type": "action",
     "content": {
       "action": "end_flow",
@@ -138,7 +197,7 @@
     }
   },
   {
-    "order": 12,
+    "order": 10,
     "type": "action",
     "content": {
       "action": "call_flow",
