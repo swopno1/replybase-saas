@@ -65,23 +65,18 @@ export default async function DashboardPage() {
   }
 
   const [
-    telegramChannelsCount,
-    webchatSitesCount,
+    connectedChannelsCount,
     lastMessage,
-    firstTelegramChannel,
-    firstWebchatChannel,
+    firstConnectedChannel,
     signupIntentLog,
     activeSubscription,
   ] = await Promise.all([
     prisma.channel.count({
       where: {
-        type: "telegram",
-        accessToken: { not: null },
+        enabled: true,
+        isActive: true,
         bot: { tenantId: user.tenantId },
       },
-    }),
-    prisma.webChatSite.count({
-      where: { tenantId: user.tenantId },
     }),
     prisma.crmMessage.findFirst({
       where: {
@@ -100,15 +95,10 @@ export default async function DashboardPage() {
     }),
     prisma.channel.findFirst({
       where: {
-        type: "telegram",
-        accessToken: { not: null },
+        enabled: true,
+        isActive: true,
         bot: { tenantId: user.tenantId },
       },
-      orderBy: { createdAt: "asc" },
-      select: { createdAt: true },
-    }),
-    prisma.webChatSite.findFirst({
-      where: { tenantId: user.tenantId },
       orderBy: { createdAt: "asc" },
       select: { createdAt: true },
     }),
@@ -141,17 +131,10 @@ export default async function DashboardPage() {
       },
     }),
   ]);
-
-  const connectedChannelsCount = telegramChannelsCount + webchatSitesCount;
   const isAutomationReady = connectedChannelsCount > 0;
   const lastMessageTimestamp = lastMessage?.createdAt || null;
 
-  const firstConnectedChannelAt = [
-    firstTelegramChannel?.createdAt,
-    firstWebchatChannel?.createdAt,
-  ]
-    .filter((value): value is Date => Boolean(value))
-    .sort((a, b) => a.getTime() - b.getTime())[0];
+  const firstConnectedChannelAt = firstConnectedChannel?.createdAt || null;
 
   const firstAutomatedReply = await prisma.crmMessage.findFirst({
     where: {

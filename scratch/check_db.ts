@@ -1,33 +1,45 @@
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "../lib/prisma";
 
 async function main() {
-  const users = await prisma.user.findMany({
-    where: {
-      email: {
-        in: ["test.vivescriptsolutions@gmail.com", "amirhossain.limon@gmail.com"]
-      }
+  const tenantId = "cmox3h0uw000013nwaubo2wm8";
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    include: {
+      channels: {
+        include: {
+          bot: true
+        }
+      },
+      webChatSites: true,
     },
-    select: {
-      email: true,
-      tenantId: true
-    }
   });
 
-  console.log("Users Found:", JSON.stringify(users, null, 2));
-
-  for (const user of users) {
-    const channels = await prisma.channel.findMany({
-      where: {
-        tenantId: user.tenantId,
-        type: "whatsapp"
-      }
-    });
-    console.log(`Channels for ${user.email} (${user.tenantId}):`, JSON.stringify(channels, null, 2));
+  if (!tenant) {
+    console.log("Tenant not found");
+    return;
   }
+
+  console.log(`Tenant: ${tenant.name} (${tenant.id})`);
+  console.log(`Channels Count: ${tenant.channels.length}`);
+  tenant.channels.forEach((c) => {
+    console.log(`Channel ID: ${c.id}`);
+    console.log(`  Type: ${c.type}`);
+    console.log(`  Name: ${c.name}`);
+    console.log(`  AccessToken: ${c.accessToken ? 'Present (non-null)' : 'null'}`);
+    console.log(`  PageId: ${c.pageId}`);
+    console.log(`  ChannelId: ${c.channelId}`);
+    console.log(`  Enabled: ${c.enabled}`);
+    console.log(`  IsActive: ${c.isActive}`);
+    console.log(`  BotId: ${c.botId}`);
+    console.log(`  Bot Name: ${c.bot?.name}`);
+  });
 }
 
 main()
-  .catch(console.error)
-  .finally(() => prisma.$disconnect());
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
