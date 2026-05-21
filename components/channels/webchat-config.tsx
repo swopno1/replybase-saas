@@ -500,6 +500,7 @@ export function WebchatConfig({
                         style={{ backgroundColor: previewDraft.trim() ? themeColor : '#cbd5e1' }}
                         onClick={handlePreviewSend}
                         disabled={!previewDraft.trim()}
+                        aria-label="Send message"
                       >
                         <Send className="h-4 w-4 ml-0.5" />
                       </button>
@@ -598,6 +599,7 @@ export function WebchatConfig({
                         toast.success("Snippet copied!");
                       }
                     }}
+                    aria-label="Copy to clipboard"
                   >
                     <Copy className="h-4 w-4" />
                   </Button>

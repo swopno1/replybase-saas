@@ -216,7 +216,7 @@ export function ChatInterface({
             disabled={loading || isAutoPlaying}
             className="flex-1 rounded-lg h-9 border-border bg-background focus-visible:ring-violet-500 text-sm"
           />
-          <Button type="submit" size="icon" className="h-9 w-9 bg-violet-600 hover:bg-violet-700 text-white shadow-sm" disabled={loading || !input.trim() || isAutoPlaying}>
+          <Button type="submit" size="icon" className="h-9 w-9 bg-violet-600 hover:bg-violet-700 text-white shadow-sm" disabled={loading || !input.trim() || isAutoPlaying} aria-label="Send message">
             <Send className="h-4 w-4" />
           </Button>
         </form>

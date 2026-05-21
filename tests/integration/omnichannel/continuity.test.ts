@@ -34,6 +34,12 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
+// Mock getTenantPrisma to return the same mocked prisma instance so assertions still work
+vi.mock("@/lib/prisma-tenant", async () => {
+  const { prisma } = await import("@/lib/prisma");
+  return { getTenantPrisma: () => prisma };
+});
+
 vi.mock("@/lib/queue", () => ({
   messageQueue: {
     add: vi.fn(),

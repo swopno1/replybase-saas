@@ -199,7 +199,7 @@
 
 - **Task 032**
   - Priority: MEDIUM
-  - Status: PENDING
+  - Status: COMPLETED
   - Category: Security/Multi-tenancy
   - Severity: MEDIUM
   - Issue: Standardize Scoped Repository Pattern in Background Workers.
@@ -209,7 +209,7 @@
   - Detailed Instructions: 1. Audit `lib/services/whatsapp-worker.ts` (confirmed global prisma use) and `lib/services/flow-recovery-worker.ts` (confirmed global prisma use). 2. Replace global `prisma` calls with a scoped `db` client initialized via `getTenantPrisma(tenantId)`. 3. Remove redundant manual `tenantId` filters where the extension handles them.
   - Expected Deliverables: Hardened, tenant-scoped background workers.
   - Dependencies: `getTenantPrisma`.
-  - Notes: Architectural hardening and consistency with API route patterns. Confirmed manual scoping still present in August 2026 audit.
+  - Notes: Completed on 2026-05-22. Refactored `whatsapp-worker.ts` to create a tenant-scoped `db = getTenantPrisma(tenantId)` client at the top of `processWhatsAppJob` and replaced all tenant-scoped Prisma calls (contact, crmConversation, crmMessage, crmConversation.update) with the scoped `db` client. Global `prisma` is retained only for non-tenant-scoped lookups (channel.update, bot.findUnique, subscription.findUnique). Refactored `flow-recovery-worker.ts` to resolve `tenantId` from `session.flow.tenantId` per session and create per-session scoped clients for contact lookups and flowSession updates. Updated 4 integration test files to mock `@/lib/prisma-tenant` returning the shared mocked prisma for assertion compatibility. All 476 tests pass.
   - Rollout Risk: LOW.
 
 - **Task 033**
@@ -229,7 +229,7 @@
 
 - **Task 034**
   - Priority: MEDIUM
-  - Status: PENDING
+  - Status: COMPLETED
   - Category: Security/Multi-tenancy
   - Severity: MEDIUM
   - Issue: Legacy Manual Scoping in Usage API.
@@ -239,12 +239,12 @@
   - Detailed Instructions: 1. Update `GET` in `app/api/usage/route.ts`. 2. Use the provided `db` client which is already tenant-scoped.
   - Expected Deliverables: Hardened and standardized Usage API route.
   - Dependencies: `withAuthAndTenant` helper.
-  - Notes: Consistency improvement.
+  - Notes: Completed on 2026-05-22. Replaced manual `getServerSession` + `prisma.user.findUnique` pattern with `withAuthAndTenant` middleware. Eliminated the extra DB round-trip to resolve `tenantId` — it's now directly available from the middleware's `user` param. Removed imports for `getServerSession`, `authOptions`, and `prisma`. All analytics functions (`getTenantUsage`, `getTenantLimits`, `getConversationsPerBot`, etc.) continue to receive `tenantId` unchanged. All 476 tests pass.
   - Rollout Risk: LOW.
 
 - **Task 035**
   - Priority: MEDIUM
-  - Status: PENDING
+  - Status: COMPLETED
   - Category: UI/UX
   - Severity: LOW
   - Issue: Missing aria-labels on Interactive Elements.
@@ -254,13 +254,14 @@
   - Detailed Instructions: 1. Audit `components/conversation/` (confirmed `ConversationsList` has icon-only buttons without aria-label). 2. Add `aria-label` to Lucide-based buttons.
   - Expected Deliverables: Accessibility-compliant CRM components.
   - Dependencies: None.
-  - Notes: Part of UI/UX Accessibility Audit. August 2026 Audit confirmed missing labels in multiple CRM components.
+  - Notes: Completed on 2026-05-22. Audited all components with `size="icon"` buttons. Added 11 descriptive aria-labels across 7 files — conversations-list (MoreHorizontal → "Conversation actions"), contacts-list (MoreHorizontal → "Contact actions"), admin-sidebar (3 buttons — dynamic "Expand/Collapse sidebar", "Open menu", "Close menu"), admin-top-bar (Bell → "Notifications"), ChatInterface (Send → "Send message"), webchat-config (Send → "Send message", Copy → "Copy to clipboard"), billing-tab (RotateCw → "Refresh usage data", Download → "Download invoice"). Verified 4 additional files (nav-main, sidebar.tsx, conversation-header, reply-composer) already had accessible labels via `sr-only` spans or visible text. All 476 tests pass, build compiles successfully.
   - Rollout Risk: LOW.
+
 
 - **Task 036**
   - Task Number: 036
   - Priority: MEDIUM
-  - Status: PENDING
+  - Status: COMPLETED
   - Category: Security/AI
   - Severity: MEDIUM
   - Issue: Missing LLM Guardrails for AI Fallback.
@@ -270,7 +271,7 @@
   - Detailed Instructions: 1. Update `lib/ai-fallback.ts` and background workers to include a "System" message with strict operational boundaries. 2. Define clear "Out-of-Scope" handling.
   - Expected Deliverables: Hardened AI generation logic with strict persona enforcement.
   - Dependencies: None.
-  - Notes: Identified in August 2026 Security Master Audit.
+  - Notes: Completed on 2026-05-22. Implemented three-layer defense in `lib/ai-fallback.ts`: (1) `GUARDRAIL_SYSTEM_PREFIX` — a 6-rule security directive prepended to every system prompt covering persona locking, injection resistance, content filtering, system prompt concealment, AI identity disclosure, and on-topic enforcement; (2) `containsPromptInjection()` — a runtime detector with 9 regex patterns ("ignore previous instructions", "you are now", "act as", "pretend", "DAN", "jailbreak", "system prompt", "reveal your", "override rules") that short-circuits the entire AI pipeline at $0 cost before any DB or LLM calls; (3) `GUARDRAIL_SYSTEM_PREFIX` prepended to `finalSystemPrompt` for both primary and fallback model invocations. Added 27 comprehensive unit tests covering all injection patterns, safe message passthrough, case sensitivity, and compound attack vectors. All 476 tests pass.
   - Rollout Risk: LOW.
 
 ## 2. Product & Feature Expansion

@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { getTenantPrisma } from "@/lib/prisma-tenant";
+
 import { ModelMessage } from "ai";
 import { executeBotEntryFlowFirst } from "@/lib/bot-entry-flow-engine";
 import { recordMilestoneEvent } from "@/lib/milestone-events";
@@ -26,6 +28,10 @@ export async function processWhatsAppJob(payload: any) {
   const targetBotId = botId || channel.botId;
   const tenantId = channel.bot.tenantId;
 
+  // Tenant-scoped Prisma client — automatically injects tenantId on all queries
+  const db = getTenantPrisma(tenantId);
+
+
   // --- IDENTITY STITCHING HANDSHAKE ---
   if (inboundText?.startsWith("SYNC_")) {
     const sessionHash = inboundText.replace("SYNC_", "").trim();
@@ -34,27 +40,26 @@ export async function processWhatsAppJob(payload: any) {
       const normalizedWaId = normalizeWhatsAppAddress(waId);
       const normalizedPhone = rawPhone ? normalizeWhatsAppE164(rawPhone) : null;
       
-      let contact = await prisma.contact.findFirst({
+      let contact = await db.contact.findFirst({
         where: {
-          tenantId,
           identities: { some: { type: "whatsapp_wa_id", value: normalizedWaId } },
         },
       });
 
       if (!contact) {
-        contact = await prisma.contact.create({
-          data: {
-            tenantId,
-            name: profileName || null,
-            phone: normalizedPhone,
-            identities: {
-              create: [
-                { type: "whatsapp_wa_id", value: normalizedWaId },
-                ...(normalizedPhone ? [{ type: "whatsapp_phone_e164", value: normalizedPhone }] : []),
-              ],
+        contact = await db.contact.create({
+            data: {
+              tenantId,
+              name: profileName || null,
+              phone: normalizedPhone,
+              identities: {
+                create: [
+                  { type: "whatsapp_wa_id", value: normalizedWaId },
+                  ...(normalizedPhone ? [{ type: "whatsapp_phone_e164", value: normalizedPhone }] : []),
+                ],
+              },
             },
-          },
-        });
+          });
       }
 
       const stitchResult = await stitchContactIdentities({
@@ -87,15 +92,14 @@ export async function processWhatsAppJob(payload: any) {
   const normalizedWaId = normalizeWhatsAppAddress(waId);
   const normalizedPhone = rawPhone ? normalizeWhatsAppE164(rawPhone) : null;
 
-  let contact = await prisma.contact.findFirst({
+  let contact = await db.contact.findFirst({
     where: {
-      tenantId: tenantId,
       identities: { some: { type: "whatsapp_wa_id", value: normalizedWaId } },
     },
   });
 
   if (!contact) {
-    contact = await prisma.contact.create({
+    contact = await db.contact.create({
       data: {
         tenantId: tenantId,
         name: profileName || null,
@@ -113,12 +117,12 @@ export async function processWhatsAppJob(payload: any) {
   // Auto-tag and promote to lead if identified
   await leadService.syncContactIdentifiedStatus(tenantId, contact.id);
 
-  let conversation = await prisma.crmConversation.findFirst({
+  let conversation = await db.crmConversation.findFirst({
     where: { contactId: contact.id, botId: targetBotId, channel: "whatsapp" },
   });
 
   if (!conversation) {
-    conversation = await prisma.crmConversation.create({
+    conversation = await db.crmConversation.create({
       data: {
         tenantId: tenantId,
         contactId: contact.id,
@@ -128,7 +132,7 @@ export async function processWhatsAppJob(payload: any) {
     });
   }
 
-  await prisma.crmMessage.create({
+  await db.crmMessage.create({
     data: {
       tenantId: tenantId,
       conversationId: conversation.id,
@@ -148,7 +152,7 @@ export async function processWhatsAppJob(payload: any) {
       ? (conversation.metadata as Prisma.JsonObject)
       : {};
 
-  await prisma.crmConversation.update({
+  await db.crmConversation.update({
     where: { id: conversation.id },
     data: {
       metadata: {
@@ -219,7 +223,7 @@ export async function processWhatsAppJob(payload: any) {
             })),
           });
           if (sendResult.success) {
-            await prisma.crmMessage.create({
+            await db.crmMessage.create({
               data: {
                 tenantId: tenantId,
                 conversationId: conversation.id,
@@ -255,7 +259,7 @@ export async function processWhatsAppJob(payload: any) {
     if (!msgLimit.allowed) return;
 
     const { aiFallback } = await import("@/lib/ai-fallback");
-    const lastMessages = await prisma.crmMessage.findMany({
+    const lastMessages = await db.crmMessage.findMany({
       where: { conversationId: conversation.id },
       orderBy: { createdAt: "desc" },
       take: 10,
@@ -292,7 +296,7 @@ export async function processWhatsAppJob(payload: any) {
     });
 
       if (sendResult.success) {
-        await prisma.crmMessage.create({
+        await db.crmMessage.create({
           data: {
             tenantId: tenantId,
             conversationId: conversation.id,

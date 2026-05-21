@@ -71,6 +71,7 @@ export function AdminSidebar({
           size="icon"
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="ml-auto"
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </Button>
@@ -117,7 +118,7 @@ export function AdminMobileNav() {
         <Link href="/" className="font-bold">
           Replybase Admin
         </Link>
-        <Button variant="ghost" size="icon" onClick={() => setIsOpen(true)}>
+        <Button variant="ghost" size="icon" onClick={() => setIsOpen(true)} aria-label="Open menu">
           <Menu size={24} />
         </Button>
       </div>
@@ -141,7 +142,7 @@ export function AdminMobileNav() {
           <Link href="/" className="font-bold text-xl">
             Replybase Admin
           </Link>
-          <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
+          <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} aria-label="Close menu">
             <X size={24} />
           </Button>
         </div>

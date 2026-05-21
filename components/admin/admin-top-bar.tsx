@@ -31,7 +31,7 @@ export function AdminTopBar() {
       </div>
 
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" className="text-gray-500">
+        <Button variant="ghost" size="icon" className="text-gray-500" aria-label="Notifications">
           <Bell size={20} />
         </Button>
         <NavUser user={user} />

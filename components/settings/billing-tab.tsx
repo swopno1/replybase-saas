@@ -440,6 +440,7 @@ export default function BillingTabContent() {
                     className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors"
                     onClick={handleRefresh}
                     disabled={isRefreshing}
+                    aria-label="Refresh usage data"
                   >
                     <RotateCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
                   </Button>
@@ -595,6 +596,7 @@ export default function BillingTabContent() {
                       onClick={() => handleDownloadInvoice(invoice)}
                       disabled={!invoice.downloadUrl}
                       className="h-9 w-9 rounded-full"
+                      aria-label="Download invoice"
                     >
                       <Download className="h-4 w-4" />
                     </Button>
