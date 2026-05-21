@@ -98,10 +98,14 @@ describe("WhatsApp Webhook Tenant Isolation", () => {
     expect(messageQueue.add).toHaveBeenCalledWith(
       "whatsapp-message",
       expect.objectContaining({
-        waId: "447700900000",
-        inboundText: "Hello from Tenant 1",
-        channel: expect.objectContaining({
-          botId: botId,
+        type: "whatsapp",
+        botId: botId,
+        payload: expect.objectContaining({
+          waId: "447700900000",
+          inboundText: "Hello from Tenant 1",
+          channel: expect.objectContaining({
+            botId: botId,
+          }),
         }),
       }),
       expect.anything()
@@ -234,9 +238,13 @@ describe("WhatsApp Webhook Tenant Isolation", () => {
     expect(messageQueue.add).toHaveBeenCalledWith(
       "whatsapp-message",
       expect.objectContaining({
-        inboundText: "[Image] Cool photo",
-        channel: expect.objectContaining({
-          id: "chan_media",
+        type: "whatsapp",
+        botId: "bot_media",
+        payload: expect.objectContaining({
+          inboundText: "[Image] Cool photo",
+          channel: expect.objectContaining({
+            id: "chan_media",
+          }),
         }),
       }),
       expect.anything()

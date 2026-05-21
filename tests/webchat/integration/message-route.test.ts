@@ -41,6 +41,7 @@ vi.mock("@/lib/prisma", () => ({
 
 vi.mock("@/lib/webchat-session", () => ({
   verifyWebchatSessionToken: vi.fn(),
+  createWebchatSessionToken: vi.fn().mockReturnValue("mocked-token"),
 }));
 
 vi.mock("@/lib/webchat", () => ({

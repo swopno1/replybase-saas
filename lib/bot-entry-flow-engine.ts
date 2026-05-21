@@ -59,7 +59,105 @@ async function resolveFlow(params: {
   scopeKey: string;
   channelId?: string;
   entryFlow?: string | null;
+  variables?: Record<string, unknown>;
 }) {
+  if (params.isSimulation) {
+    const isNewSession = !params.variables || Object.keys(params.variables).length === 0;
+
+    // If the flow completed in a previous turn (last_node_id is set to null), transition to AI fallback
+    if (!isNewSession && params.variables && params.variables.last_node_id === null) {
+      return null;
+    }
+
+    let targetFlowId = params.entryFlow;
+    if (params.channelId) {
+      const channelAssignment = await prisma.flowChannelAssignment.findFirst({
+        where: { channelId: params.channelId, isActive: true },
+        select: { flowId: true },
+      });
+      if (channelAssignment) targetFlowId = channelAssignment.flowId;
+    }
+
+    // Skip Default Welcome resolution in simulation if the bot is explicitly configured without a flow
+    if (!targetFlowId) {
+      return null;
+    }
+
+    const configuredFlow = await prisma.flow.findFirst({
+      where: {
+        tenantId: params.tenantId,
+        isActive: true,
+        OR: [
+          ...(targetFlowId ? [{ id: targetFlowId }] : []),
+          ...(targetFlowId ? [{ name: targetFlowId }] : []),
+          { isGlobal: true, name: "Default Welcome" }
+        ],
+      },
+      include: {
+        nodes: {
+          orderBy: { order: "asc" },
+        },
+      },
+    });
+
+    if (!configuredFlow) {
+      return null;
+    }
+
+    let flow = configuredFlow;
+    let currentNodeId = flow.nodes[0]?.id || null;
+
+    if (!isNewSession && params.variables) {
+      const runtime = getRuntimeState(params.variables, configuredFlow.id);
+      currentNodeId = (params.variables.last_node_id as string) || flow.nodes[0]?.id || null;
+      if (runtime.activeFlowId && runtime.activeFlowId !== configuredFlow.id) {
+        const activeFlow = await loadAccessibleFlow({
+          tenantId: params.tenantId,
+          flowId: runtime.activeFlowId,
+        });
+        if (activeFlow) {
+          flow = activeFlow as any;
+          if (!params.variables.last_node_id) {
+            currentNodeId = activeFlow.nodes[0]?.id || null;
+          }
+        }
+      }
+    }
+
+    const contact = await prisma.contact.findUnique({
+      where: { id: params.contactId },
+      select: { 
+        name: true,
+        leads: {
+          orderBy: { updatedAt: "desc" },
+          take: 1,
+          select: { businessType: true }
+        }
+      },
+    });
+    const businessType = contact?.leads[0]?.businessType || "";
+
+    const mockSession = {
+      id: "sim-session-id",
+      userId: params.contactId,
+      pageId: params.scopeKey,
+      flowId: configuredFlow.id,
+      currentNodeId,
+      variables: isNewSession ? {
+        __runtime: createInitialRuntimeState(configuredFlow.id),
+        contact_name: contact?.name || "",
+        business_type: businessType,
+        sync_hash: "sim-session-id",
+      } : params.variables,
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      completedAt: null,
+    };
+
+    return { flow, session: mockSession, isNewSession };
+  }
+
   // --- MODULE 1: SUBSCRIPTION STATE ROUTER ---
   const subscription = await prisma.subscription.findUnique({
     where: { tenantId: params.tenantId },
@@ -829,6 +927,10 @@ export async function executeBotEntryFlowFirst(params: {
   runtime.activeFlowId = completed ? runtime.rootFlowId : activeFlow.id;
   setRuntimeState(mergedVariables, runtime);
 
+  if (params.isSimulation) {
+    mergedVariables.last_node_id = completed ? null : currentNode?.id || null;
+  }
+
   if (!params.isSimulation) await prisma.flowSession.update({
     where: { id: session.id },
     data: {
@@ -854,5 +956,6 @@ export async function executeBotEntryFlowFirst(params: {
     shouldFallbackToAi,
     fallbackMessage: activeFlow.fallbackMessage || null,
     executionTrace: params.isSimulation ? executionTrace : undefined,
+    variables: params.isSimulation ? mergedVariables : undefined,
   };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChatInterface } from "./ChatInterface";
 import { ExecutionTimeline } from "./ExecutionTimeline";
 import { InspectorPanel } from "./InspectorPanel";
@@ -21,6 +21,7 @@ export function SimulationLab({ subscriberId }: SimulationLabProps) {
   const [variables, setVariables] = useState<Record<string, unknown>>({});
   const [loading, setLoading] = useState(false);
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(false);
 
   const handleSendMessage = async (text: string) => {
     setLoading(true);
@@ -34,6 +35,8 @@ export function SimulationLab({ subscriberId }: SimulationLabProps) {
           message: text,
           variables: variables,
           contactId: "sim-user-" + subscriberId,
+          history: [...messages, { role: "user", text }],
+          scenarioId: selectedScenarioId,
         }),
       });
 
@@ -43,7 +46,15 @@ export function SimulationLab({ subscriberId }: SimulationLabProps) {
         if (result.responses) {
           result.responses.forEach((resp: any) => {
             if (resp.text) {
-              setMessages(prev => [...prev, { role: "bot", text: resp.text, timestamp: new Date() }]);
+              setMessages(prev => [
+                ...prev,
+                {
+                  role: "bot",
+                  text: resp.text,
+                  quickReplies: resp.quickReplies,
+                  timestamp: new Date()
+                }
+              ]);
             }
           });
         }
@@ -56,11 +67,48 @@ export function SimulationLab({ subscriberId }: SimulationLabProps) {
         setVariables(prev => ({ ...prev, ...(result.variables || {}) }));
       } else {
         toast.error(result.error || "Simulation failed");
+        setIsAutoPlaying(false);
       }
     } catch (error) {
       toast.error("Failed to connect to simulation engine");
+      setIsAutoPlaying(false);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGenerateClientMessage = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/admin/subscribers/${subscriberId}/simulate/client`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          history: messages,
+          scenarioId: selectedScenarioId,
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success && result.message) {
+        return result.message;
+      } else {
+        toast.error(result.error || "Failed to generate client response");
+        setIsAutoPlaying(false);
+      }
+    } catch (error) {
+      toast.error("Failed to connect to simulation client engine");
+      setIsAutoPlaying(false);
+    } finally {
+      setLoading(false);
+    }
+    return null;
+  };
+
+  const handleClientAiTurn = async () => {
+    const text = await handleGenerateClientMessage();
+    if (text) {
+      await handleSendMessage(text);
     }
   };
 
@@ -69,6 +117,7 @@ export function SimulationLab({ subscriberId }: SimulationLabProps) {
     setTrace([]);
     setVariables({});
     setSelectedScenarioId(null);
+    setIsAutoPlaying(false);
     toast.success("Simulation session reset");
   };
 
@@ -103,6 +152,29 @@ export function SimulationLab({ subscriberId }: SimulationLabProps) {
     a.download = `simulation-report-${subscriberId}.${extension}`;
     a.click();
   };
+
+  // Autoplay loop using React effect
+  useEffect(() => {
+    if (!isAutoPlaying || loading) return;
+
+    if (messages.length === 0) {
+      const timer = setTimeout(() => {
+        handleClientAiTurn();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage && lastMessage.role === "bot") {
+      const timer = setTimeout(() => {
+        handleClientAiTurn();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [messages, isAutoPlaying, loading]);
+
+  const activeScenario = SIMULATION_SCENARIOS.find(s => s.id === selectedScenarioId);
+  const scenarioSteps = activeScenario?.steps || [];
 
   return (
     <div className="space-y-6">
@@ -141,6 +213,10 @@ export function SimulationLab({ subscriberId }: SimulationLabProps) {
             loading={loading}
             onSendMessage={handleSendMessage}
             onReset={handleReset}
+            onClientAiReply={handleClientAiTurn}
+            isAutoPlaying={isAutoPlaying}
+            onToggleAutoPlay={() => setIsAutoPlaying(prev => !prev)}
+            scenarioSteps={scenarioSteps}
           />
         </div>
         <div className="lg:col-span-1">

@@ -11,6 +11,7 @@ export interface AiFallbackOptions {
   messages: ModelMessage[];
   planName: string;
   charLimit?: number;
+  isSimulation?: boolean;
 }
 
 /**
@@ -27,6 +28,7 @@ export async function aiFallback({
   messages,
   planName,
   charLimit = 1000,
+  isSimulation = false,
 }: AiFallbackOptions) {
   const lastUserMessage = messages[messages.length - 1]?.content as string;
 
@@ -72,7 +74,7 @@ export async function aiFallback({
   });
 
   // --- MODULE 3.1: CONFIDENCE-BASED EXTRACTION ---
-  if (intentData.confidence > 0.85) {
+  if (intentData.confidence > 0.85 && !isSimulation) {
     // Silent auto-save to CRM (Lead model has businessType, Contact does not)
     if (intentData.extractedEntities.businessType) {
       await prisma.lead.updateMany({
@@ -105,36 +107,38 @@ export async function aiFallback({
   const historyDepth =
     plan.includes("pro") || plan.includes("business") ? 12 : 6;
 
-  const currentConv = await prisma.crmConversation.findUnique({
-    where: { id: conversationId },
-    select: { contactId: true },
-  });
-
   let historyBlock = "";
-  if (currentConv?.contactId) {
-    const allMessages = await prisma.crmMessage.findMany({
-      where: {
-        conversation: {
-          contactId: currentConv.contactId,
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      take: historyDepth,
-      include: {
-        conversation: {
-          select: { channel: true },
-        },
-      },
+  if (!isSimulation) {
+    const currentConv = await prisma.crmConversation.findUnique({
+      where: { id: conversationId },
+      select: { contactId: true },
     });
 
-    if (allMessages.length > 0) {
-      historyBlock = `\n\nRecent Cross-Channel History:\n${allMessages
-        .reverse()
-        .map(
-          (m) =>
-            `[${m.conversation.channel.toUpperCase()}] [${m.source}] ${m.content}`,
-        )
-        .join("\n")}`;
+    if (currentConv?.contactId) {
+      const allMessages = await prisma.crmMessage.findMany({
+        where: {
+          conversation: {
+            contactId: currentConv.contactId,
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: historyDepth,
+        include: {
+          conversation: {
+            select: { channel: true },
+          },
+        },
+      });
+
+      if (allMessages.length > 0) {
+        historyBlock = `\n\nRecent Cross-Channel History:\n${allMessages
+          .reverse()
+          .map(
+            (m) =>
+              `[${m.conversation.channel.toUpperCase()}] [${m.source}] ${m.content}`,
+          )
+          .join("\n")}`;
+      }
     }
   }
 
@@ -157,7 +161,9 @@ export async function aiFallback({
       output: Output.text(),
       abortSignal: controller.signal,
       onFinish: async () => {
-        await incrementTenantUsage(bot.tenantId, "message", 1, botId);
+        if (!isSimulation) {
+          await incrementTenantUsage(bot.tenantId, "message", 1, botId);
+        }
       },
       // @ts-ignore
       maxTokens: 800, // Balanced limit for helpful but concise chat
@@ -184,7 +190,9 @@ export async function aiFallback({
         output: Output.text(),
         abortSignal: controller.signal,
         onFinish: async () => {
-          await incrementTenantUsage(bot.tenantId, "message", 1, botId);
+          if (!isSimulation) {
+            await incrementTenantUsage(bot.tenantId, "message", 1, botId);
+          }
         },
         // @ts-ignore
         maxTokens: 800,

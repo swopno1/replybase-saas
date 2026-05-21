@@ -150,15 +150,18 @@ describe("WhatsApp Production E2E Cycle Simulation", () => {
       "whatsapp-message",
       expect.objectContaining({
         type: "whatsapp",
-        messageId: "wamid.123",
-        inboundText: "Hello ReplyBase",
+        botId: "b1",
+        payload: expect.objectContaining({
+          messageId: "wamid.123",
+          inboundText: "Hello ReplyBase",
+        }),
       }),
       expect.objectContaining({ jobId: "whatsapp-wamid.123" })
     );
 
     // 4. SIMULATE WORKER EXECUTION
     const jobPayload = vi.mocked(messageQueue.add).mock.calls[0][1];
-    await processWhatsAppJob(jobPayload);
+    await processWhatsAppJob({ ...jobPayload.payload, botId: jobPayload.botId });
 
     // 5. VERIFY DB PERSISTENCE (INBOUND)
     expect(prisma.crmMessage.create).toHaveBeenCalledWith(

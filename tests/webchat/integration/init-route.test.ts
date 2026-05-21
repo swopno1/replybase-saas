@@ -24,6 +24,7 @@ vi.mock("@/lib/webchat", () => ({
   getOrCreateWebChatSite: vi.fn(),
   isOriginAllowedForSite: vi.fn().mockReturnValue(true),
   resolveWebchatVisitorSession: vi.fn(),
+  findExistingWebchatVisitorSession: vi.fn(),
 }));
 
 vi.mock("@/lib/webchat-session", () => ({
@@ -64,6 +65,7 @@ import {
   isOriginAllowedForSite,
   resolveWebchatVisitorSession,
   findActiveWebChannel,
+  findExistingWebchatVisitorSession,
 } from "@/lib/webchat";
 import { consumeWebchatInitChallenge } from "@/lib/webchat-init-challenge";
 import { getWebchatRolloutDecision } from "@/lib/webchat-rollout";
@@ -116,6 +118,9 @@ describe("POST /api/webchat/init — integration", () => {
   beforeEach(() => {
     vi.mocked(findActiveWebChatSite).mockResolvedValue(mockSite as never);
     vi.mocked(resolveWebchatVisitorSession).mockResolvedValue(
+      mockSession as never,
+    );
+    vi.mocked(findExistingWebchatVisitorSession).mockResolvedValue(
       mockSession as never,
     );
     vi.mocked(isOriginAllowedForSite).mockReturnValue(true);

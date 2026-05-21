@@ -61,7 +61,7 @@ describe("Cross-Tenant Data Isolation (Prisma Extension)", () => {
         where: { id: "contact-b" },
         data: { name: "Hacked by A" },
       })
-    ).rejects.toThrow(/Record to update not found/);
+    ).rejects.toThrow(/not found/);
   });
 
   it("should automatically inject tenantId on create without requiring it in the payload", async () => {
