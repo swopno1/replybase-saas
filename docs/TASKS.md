@@ -34,7 +34,7 @@
 
 - **Task 021**
   - Priority: MEDIUM
-  - Status: PENDING
+  - Status: COMPLETED
   - Category: Security
   - Severity: MEDIUM
   - Issue: Missing Admin Read-Only Audit Logging.
@@ -44,7 +44,7 @@
   - Detailed Instructions: 1. Update middleware or route helpers to log "READ" actions in `AdminActivity`. 2. Capture adminId, tenantId, and entityId.
   - Expected Deliverables: Audit logging for sensitive GET routes.
   - Dependencies: AdminActivity model.
-  - Notes: Part of Enterprise Readiness initiative.
+  - Notes: Completed on 2026-05-21. Implemented read audit logging across admin API routes (tenants, users, subscribers list/details, and webhook logs). Read operations are recorded in the `AdminActivity` table with detailed metadata (search parameters, page, limit, entity IDs) and client details (IP address and User Agent). This resolves a major compliance gap for enterprise customers and provides visibility into internal support team access.
   - Rollout Risk: LOW.
 
 - **Task 022**

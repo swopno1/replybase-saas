@@ -20,6 +20,18 @@ export async function GET(
     }
 
     const { id } = await params;
+
+    await logAdminActivity({
+      adminId: session.user.id,
+      action: "SUBSCRIBER_READ",
+      entityType: "SUBSCRIBER",
+      entityId: id,
+      description: `Admin read subscriber details for: ${id}`,
+      metadata: { id },
+      ipAddress: req.headers.get("x-forwarded-for") || undefined,
+      userAgent: req.headers.get("user-agent") || undefined,
+    });
+
     let subscription: any = null;
 
     if (id.startsWith("no-sub-")) {

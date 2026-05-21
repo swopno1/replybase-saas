@@ -1,12 +1,10 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logAdminActivity } from "@/lib/admin-audit";
 
 export const dynamic = 'force-dynamic';
-
-
-
 
 type WebhookLogDelegate = {
   findMany?: (args: {
@@ -21,7 +19,7 @@ const prismaWithWebhookLogs = prisma as typeof prisma & {
 };
 
 // GET: Fetch recent webhook logs
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     const { isPlatformAdmin } = await import("@/lib/admin");
@@ -29,6 +27,16 @@ export async function GET() {
     if (!isPlatformAdmin(session)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+
+    await logAdminActivity({
+      adminId: session.user.id,
+      action: "WEBHOOK_LOGS_READ",
+      entityType: "WEBHOOK_LOG",
+      description: "Admin viewed recent webhook logs",
+      metadata: { limit: 50 },
+      ipAddress: request.headers.get("x-forwarded-for") || undefined,
+      userAgent: request.headers.get("user-agent") || undefined,
+    });
 
     // Get last 50 webhook logs, ordered by most recent
 

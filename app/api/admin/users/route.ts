@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { isPlatformAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { logAdminActivity } from "@/lib/admin-audit";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,16 @@ export async function GET(request: NextRequest) {
   const page = parseInt(searchParams.get("page") || "1");
   const limit = parseInt(searchParams.get("limit") || "10");
   const skip = (page - 1) * limit;
+
+  await logAdminActivity({
+    adminId: session.user.id,
+    action: "USERS_INDEX_READ",
+    entityType: "USER",
+    description: `Admin listed users with search: "${search}", role: "${role}", page: ${page}, limit: ${limit}`,
+    metadata: { search, role, page, limit },
+    ipAddress: request.headers.get("x-forwarded-for") || undefined,
+    userAgent: request.headers.get("user-agent") || undefined,
+  });
 
   const where: Prisma.UserWhereInput = {
     AND: [

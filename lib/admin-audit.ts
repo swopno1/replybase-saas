@@ -8,7 +8,12 @@ export type AdminAction =
   | "PLAN_MODIFIED"
   | "TENANT_DELETED"
   | "SYSTEM_CONFIG_CHANGED"
-  | "DATA_DELETION_PROCESSED";
+  | "DATA_DELETION_PROCESSED"
+  | "TENANT_READ"
+  | "USERS_INDEX_READ"
+  | "SUBSCRIBER_READ"
+  | "SUBSCRIBERS_INDEX_READ"
+  | "WEBHOOK_LOGS_READ";
 
 interface LogParams {
   adminId: string;

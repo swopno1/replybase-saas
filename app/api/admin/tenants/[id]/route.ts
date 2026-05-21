@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { isPlatformAdmin } from "@/lib/admin";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logAdminActivity } from "@/lib/admin-audit";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,17 @@ export async function GET(
     }
 
     const { id: tenantId } = await params;
+
+    await logAdminActivity({
+      adminId: session.user.id,
+      action: "TENANT_READ",
+      entityType: "TENANT",
+      entityId: tenantId,
+      description: `Admin read tenant details for tenant ID: ${tenantId}`,
+      metadata: { tenantId },
+      ipAddress: req.headers.get("x-forwarded-for") || undefined,
+      userAgent: req.headers.get("user-agent") || undefined,
+    });
 
     const tenant = await prisma.tenant.findUnique({
       where: { id: tenantId },
