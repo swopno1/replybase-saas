@@ -552,7 +552,7 @@ function PricingContent() {
             <Button variant="ghost" onClick={() => setSelectedPlan(null)} className="flex-1">
               Go Back
             </Button>
-            <Button onClick={handleConfirmCheckout} className="flex-1 shadow-lg shadow-primary/20 gap-2">
+            <Button onClick={() => handleConfirmCheckout()} className="flex-1 shadow-lg shadow-primary/20 gap-2">
               {currentSubscription && currentSubscription.stripeId && !currentSubscription.stripeId.startsWith("free_")
                 ? "Confirm Change"
                 : "Start Free Trial"}
