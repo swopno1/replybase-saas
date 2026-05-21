@@ -52,14 +52,14 @@
   - Status: PENDING
   - Category: Engineering
   - Severity: MEDIUM
-  - Issue: Excessive "any" type usage (878 instances).
+  - Issue: Excessive "any" type usage (882 instances).
   - Root Cause: Rapid prototyping and legacy webhook/flow handling.
   - Business Impact: High maintenance cost, risk of runtime crashes in complex data paths (Flow Engine, AI Fallback).
   - Objective: Perform a "Type Strike" to replace generic types with Zod/Prisma types.
   - Detailed Instructions: 1. Audit high-density files: `lib/bot-entry-flow-engine.ts`, `lib/flow-templates.ts`, `app/api/users/account/route.ts`. 2. Create Zod schemas for incoming payloads. 3. Replace component-level `any` with generated Prisma types.
   - Expected Deliverables: 0 "any" types in lib/ and app/api/ routes.
   - Dependencies: None.
-  - Notes: Critical for long-term codebase health. August 2026 Audit confirmed 878 total instances.
+  - Notes: Critical for long-term codebase health. August 2026 Audit confirmed 882 total instances (386 in lib/ and app/api/).
   - Rollout Risk: LOW.
 
 - **Task 023**
@@ -221,7 +221,7 @@
   - Root Cause: `ConversationPage` uses 5-second interval polling for message updates.
   - Business Impact: Sub-optimal "live" feel; increased server load on high-concurrency CRM usage.
   - Objective: Transition CRM to WebSockets or SSE for real-time updates.
-  - Detailed Instructions: 1. Implement a WebSocket/SSE server (e.g., using Socket.io or native SSE). 2. Update `ConversationPage` to subscribe to conversation-specific events.
+  - Detailed Instructions: 1. Implement a WebSocket/SSE server (e.g., using Socket.io or native SSE). 2. Update `ConversationPage` to subscribe to conversation-specific events. Verified `refreshConversation` is called via `window.setInterval` every 5000ms.
   - Expected Deliverables: Real-time "Instant" CRM updates.
   - Dependencies: WebSocket infrastructure.
   - Notes: Part of the "Delightful UX" initiative.
@@ -255,6 +255,22 @@
   - Expected Deliverables: Accessibility-compliant CRM components.
   - Dependencies: None.
   - Notes: Part of UI/UX Accessibility Audit. August 2026 Audit confirmed missing labels in multiple CRM components.
+  - Rollout Risk: LOW.
+
+- **Task 036**
+  - Task Number: 036
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Security/AI
+  - Severity: MEDIUM
+  - Issue: Missing LLM Guardrails for AI Fallback.
+  - Root Cause: AI fallback logic in background workers and webchat API lacks explicit system prompts to prevent prompt injection or off-topic hallucinations.
+  - Business Impact: Potential for brand damage or system misuse if AI is manipulated by malicious end-users.
+  - Objective: Implement standardized LLM guardrail prompts across all AI generation paths.
+  - Detailed Instructions: 1. Update `lib/ai-fallback.ts` and background workers to include a "System" message with strict operational boundaries. 2. Define clear "Out-of-Scope" handling.
+  - Expected Deliverables: Hardened AI generation logic with strict persona enforcement.
+  - Dependencies: None.
+  - Notes: Identified in August 2026 Security Master Audit.
   - Rollout Risk: LOW.
 
 ## 2. Product & Feature Expansion

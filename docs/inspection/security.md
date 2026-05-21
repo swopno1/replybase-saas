@@ -5,7 +5,7 @@
 - **API Surface Coverage**:
     - **Scoping**: ~90% of `app/api` routes correctly use `withAuthAndTenant` or manual tenant scoping. Refactored `app/api/bots/route.ts` to `withAuthAndTenant` pattern.
 - **Gaps**:
-    - **API Surface**: Legacy routes in `app/api/flows/route.ts`, `app/api/usage/route.ts`, and `app/api/billing/*` still utilize manual session-based scoping. While currently secure, these should be migrated to the `withAuthAndTenant` wrapper to ensure architectural consistency and eliminate the risk of future IDOR regressions during refactoring.
+    - **API Surface**: Legacy routes in `app/api/flows/route.ts`, `app/api/usage/route.ts`, and `app/api/billing/subscription/route.ts` still utilize manual session-based scoping. While currently secure, these should be migrated to the `withAuthAndTenant` wrapper to ensure architectural consistency and eliminate the risk of future IDOR regressions during refactoring.
     - **Background Workers**: Core workers like `whatsapp-worker.ts` and `flow-recovery-worker.ts` confirmed to rely on the global `prisma` instance and manual query filtering as of August 2026. This increases the risk of developer error in complex cross-service calls.
 - **Database Unique Constraints**: Gold-standard `@@unique([id, tenantId])` is consistently used on core models (`Lead`, `Flow`, `Bot`), preventing cross-tenant IDOR even if a query filter were missed. `WebhookLog` also now correctly incorporates `tenantId` in all creation paths.
 
@@ -36,5 +36,5 @@
 
 ## 6. Recommended Hardening
 1. **Universal Scoping (HIGH)**: Refactor legacy routes (Flows, Usage, Billing) to use the `withAuthAndTenant` helper, replacing manual `getServerSession` and `tenantId` lookups (Task 027). Standardize workers to use the Scoped Repository Pattern (Task 032).
-2. **CORS Whitelisting (HIGH)**: Implement strict `Origin` validation for Webchat endpoints against the `allowedDomains` field in the `WebChatSite` model (Task 030). Current `lib/webchat-cors.ts` uses environment-based global whitelists; it must transition to per-site DB-based validation to ensure tenant-specific domain enforcement.
+2. **CORS Whitelisting (HIGH)**: Implement strict `Origin` validation for Webchat endpoints against the `allowedDomains` field in the `WebChatSite` model (Task 030). Current `lib/webchat-cors.ts` uses environment-based global whitelists; it must transition to per-site DB-based validation to ensure tenant-specific domain enforcement. Verified that `WebChatSite` schema supports `allowedDomains` as Json.
 3. **Automated Scanning**: Integrate ZAP or similar for automated OWASP Top 10 checks in CI.

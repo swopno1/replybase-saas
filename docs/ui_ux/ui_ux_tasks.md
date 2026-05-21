@@ -122,7 +122,7 @@
   - Root Cause: Complex canvas-based UI doesn't scale to small viewports.
   - Business Impact: Blocks users from making quick bot adjustments on-the-go.
   - Objective: Implement a read-only "Flow Summary" list view for mobile.
-  - Detailed Instructions: 1. Detect mobile agent. 2. Replace visual editor with a linearized list of nodes. 3. Allow text-only edits via modals.
+  - Detailed Instructions: 1. Detect mobile agent. 2. Replace visual editor with a linearized list of nodes. 3. Allow text-only edits via modals. Verified visual editor is currently the only logic editing interface.
   - Expected Deliverables: Mobile-optimized flow summary view.
   - Dependencies: None.
   - Notes: Also tracked as Task 012 in master list.

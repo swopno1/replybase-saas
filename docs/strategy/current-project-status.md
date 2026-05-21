@@ -11,8 +11,9 @@ ReplyBase is in a "Stable Polish" phase as of August 2026. Following the migrati
 
 ## Immediate Priorities
 1. **Interactive UX**: Execute Task UX-008 to make dashboard cards and milestones clickable.
-2. **Observability**: Implement Granular Admin Audit Logging to track PII access by internal team members.
+2. **Observability**: Implement Granular Admin Audit Logging to track PII access by internal team members (Task 021).
 3. **Performance**: Implement Redis Metrics Caching (Task 011).
+4. **Security**: Implement LLM Guardrails for AI Fallback paths (Task 036).
 
 ## Roadmap Status
 - **Phase 3 (Operations & Scale)**: 98% Complete. Metrics caching is the final pre-scaling milestone.
