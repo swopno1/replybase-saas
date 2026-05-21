@@ -1,10 +1,10 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
 import {
   CheckCircle2,
   AlertCircle,
-  Activity,
   Clock,
   Bell,
   Radio,
@@ -38,85 +38,96 @@ export function StatusCards({
   connectedLeadDestinationsCount,
   lastMessageTimestamp,
 }: StatusCardsProps) {
+  const cardClassName = "h-full cursor-pointer hover:bg-accent/40 hover:border-primary/20 transition-all duration-200";
+
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       {/* AI Status */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Automation</CardTitle>
-          {isAutomationReady ? (
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
-          ) : (
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
-          )}
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
-            {isAutomationReady ? "Ready" : "Pending"}
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {isAutomationReady
-              ? "Lead capture channels are connected"
-              : "Connect Webchat or Telegram to start receiving leads"}
-          </p>
-        </CardContent>
-      </Card>
+      <Link href="/bots" className="block h-full">
+        <Card className={cardClassName}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Automation</CardTitle>
+            {isAutomationReady ? (
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+            ) : (
+              <AlertCircle className="h-4 w-4 text-muted-foreground" />
+            )}
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {isAutomationReady ? "Ready" : "Pending"}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {isAutomationReady
+                ? "Lead capture channels are connected"
+                : "Connect Webchat or Telegram to start receiving leads"}
+            </p>
+          </CardContent>
+        </Card>
+      </Link>
 
       {/* Connected Channels */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">
-            Connected Channels
-          </CardTitle>
-          <Radio className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{connectedChannelsCount}</div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {connectedChannelsCount === 0
-              ? "No channels connected"
-              : `${connectedChannelsCount} channel${connectedChannelsCount !== 1 ? "s" : ""} live`}
-          </p>
-        </CardContent>
-      </Card>
+      <Link href="/settings?tab=channels" className="block h-full">
+        <Card className={cardClassName}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Connected Channels
+            </CardTitle>
+            <Radio className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{connectedChannelsCount}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {connectedChannelsCount === 0
+                ? "No channels connected"
+                : `${connectedChannelsCount} channel${connectedChannelsCount !== 1 ? "s" : ""} live`}
+            </p>
+          </CardContent>
+        </Card>
+      </Link>
 
       {/* Engine Status removed: AI/engine is deprecated */}
 
       {/* Lead Destinations */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Lead Alerts</CardTitle>
-          <Bell className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
-            {connectedLeadDestinationsCount}
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {connectedLeadDestinationsCount === 0
-              ? "No email or Telegram alerts configured"
-              : `${connectedLeadDestinationsCount} destination${connectedLeadDestinationsCount !== 1 ? "s" : ""} configured`}
-          </p>
-        </CardContent>
-      </Card>
+      <Link href="/settings?tab=notifications" className="block h-full">
+        <Card className={cardClassName}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Lead Alerts</CardTitle>
+            <Bell className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {connectedLeadDestinationsCount}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {connectedLeadDestinationsCount === 0
+                ? "No email or Telegram alerts configured"
+                : `${connectedLeadDestinationsCount} destination${connectedLeadDestinationsCount !== 1 ? "s" : ""} configured`}
+            </p>
+          </CardContent>
+        </Card>
+      </Link>
 
       {/* Last Activity */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Last Activity</CardTitle>
-          <Clock className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
-            {lastMessageTimestamp ? formatTimeAgo(lastMessageTimestamp) : "—"}
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {lastMessageTimestamp
-              ? "Most recent lead activity"
-              : "No conversations yet"}
-          </p>
-        </CardContent>
-      </Card>
+      <Link href="/conversations" className="block h-full">
+        <Card className={cardClassName}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Last Activity</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {lastMessageTimestamp ? formatTimeAgo(lastMessageTimestamp) : "—"}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {lastMessageTimestamp
+                ? "Most recent lead activity"
+                : "No conversations yet"}
+            </p>
+          </CardContent>
+        </Card>
+      </Link>
     </div>
   );
 }
+

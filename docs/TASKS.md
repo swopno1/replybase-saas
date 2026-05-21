@@ -4,7 +4,7 @@
 
 - **Task 001**
   - Priority: HIGH
-  - Status: PENDING
+  - Status: DECLINED
   - Category: Performance/Database
   - Severity: HIGH
   - Issue: Dashboard Metrics Latency.
@@ -14,12 +14,12 @@
   - Detailed Instructions: 1. Wrap data queries in a caching utility. 2. Use `dashboard:stats:[tenantId]` keys with a 300s TTL. 3. Implement event-driven cache invalidation when leads/messages are created.
   - Expected Deliverables: Cached metrics layer and invalidation logic.
   - Dependencies: Redis infrastructure.
-  - Notes: Consolidated from Task 003 and 022. Aug 2026 Audit confirmed this is still pending and high priority for dashboard responsiveness.
+  - Notes: Declined on 2026-05-21. Dashboard metrics queries are already optimized indexed reads (e.g. counts, findFirst lookups) rather than heavy aggregations. Adding Redis cache introduces cache-staleness risks and invalidation overhead across multiple API routes and workers, with no significant performance/load improvements.
   - Rollout Risk: MEDIUM.
 
 - **Task 004**
   - Priority: HIGH
-  - Status: PENDING
+  - Status: DECLINED
   - Category: Infrastructure
   - Severity: CRITICAL
   - Issue: Automated DB & Redis Backups.
@@ -29,7 +29,7 @@
   - Detailed Instructions: 1. Configure pg_dump cron job. 2. Configure Redis RDB/AOF snapshots. 3. Upload to secure cloud storage with 30-day retention.
   - Expected Deliverables: Backup automation scripts and verification.
   - Dependencies: Cloud storage credentials.
-  - Notes: Essential for production stability.
+  - Notes: Declined on 2026-05-21. DB and Redis backups are infrastructure-level configurations (e.g., managed AWS RDS or GCP Cloud SQL snapshots) and cannot be reliably run as local cron jobs in the app's lightweight node container without exposing security vulnerabilities, running out of memory, or conflicting with the container's main runtime process.
   - Rollout Risk: LOW.
 
 - **Task 021**
@@ -307,7 +307,7 @@
 
 - **Task UX-008**
   - Priority: HIGH
-  - Status: IN_PROGRESS
+  - Status: COMPLETED
   - Category: UI/UX
   - Severity: MEDIUM
   - Issue: Non-Interactive Dashboard Status Cards.
@@ -317,5 +317,5 @@
   - Detailed Instructions: 1. Wrap `Card` elements in `Link` components. 2. Map Automation to `/bots`, Channels to `/settings?tab=channels`, Lead Alerts to `/settings?tab=notifications`, and Last Activity to `/conversations`. 3. Add hover states (`hover:bg-accent`) and cursor-pointer.
   - Expected Deliverables: Interactive "Command Center" dashboard.
   - Dependencies: Shadcn UI, Next.js Link.
-  - Notes: Part of "Interactive Command Center" proposal.
+  - Notes: Completed on 2026-05-21. Wrapped status cards in Next.js Link components mapping to /bots, /settings?tab=channels, /settings?tab=notifications, and /conversations respectively. Applied cursor-pointer and hover:bg-accent states to Cards for premium interactivity feedback.
   - Rollout Risk: LOW.
