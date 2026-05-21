@@ -62,6 +62,7 @@ interface DataTableProps<TData, TValue> {
   totalCount?: number;
   onSelectAllMatching?: (isSelected: boolean) => void;
   isAllMatchingSelected?: boolean;
+  actionButtons?: React.ReactNode;
 }
 
 export function DataTable<TData, TValue>({
@@ -79,6 +80,7 @@ export function DataTable<TData, TValue>({
   totalCount,
   onSelectAllMatching,
   isAllMatchingSelected = false,
+  actionButtons,
 }: DataTableProps<TData, TValue>) {
   const [focusedIndex, setFocusedIndex] = React.useState<number>(-1);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(
@@ -155,12 +157,47 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex-1 text-sm text-muted-foreground">
-          {table.getFilteredSelectedRowModel()?.rows?.length ?? 0} of{" "}
-          {table.getFilteredRowModel()?.rows?.length ?? 0} row(s) selected.
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex-1 text-sm text-muted-foreground flex items-center gap-2 flex-wrap min-h-[36px]">
+          <span>
+            {table.getFilteredSelectedRowModel()?.rows?.length ?? 0} of{" "}
+            {table.getFilteredRowModel()?.rows?.length ?? 0} row(s) selected.
+          </span>
+          {Object.keys(rowSelection).length > 0 && totalCount && onSelectAllMatching && (
+            <span className="text-xs text-muted-foreground bg-muted/60 px-2.5 py-0.5 rounded-full border flex items-center gap-1.5 animate-in fade-in duration-200">
+              {isAllMatchingSelected ? (
+                <>
+                  All {totalCount} records selected.
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 text-xs font-semibold text-destructive hover:text-destructive/80"
+                    onClick={() => {
+                       if (onRowSelectionChange) onRowSelectionChange({});
+                       onSelectAllMatching(false);
+                    }}
+                  >
+                    Clear selection
+                  </Button>
+                </>
+              ) : (
+                <>
+                  {Object.keys(rowSelection).length} selected on page.
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 text-xs font-semibold text-blue-600 hover:text-blue-800"
+                    onClick={() => onSelectAllMatching(true)}
+                  >
+                    Select all {totalCount}
+                  </Button>
+                </>
+              )}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
+          {actionButtons}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="ml-auto">
@@ -198,38 +235,6 @@ export function DataTable<TData, TValue>({
           </DropdownMenu>
         </div>
       </div>
-      {Object.keys(rowSelection).length > 0 && totalCount && onSelectAllMatching && (
-        <div className="bg-muted/50 border rounded-md p-2 text-center text-sm mb-4">
-          {isAllMatchingSelected ? (
-            <span>
-              All {totalCount} records are selected.{" "}
-              <Button
-                variant="link"
-                size="sm"
-                className="h-auto p-0"
-                onClick={() => {
-                   if (onRowSelectionChange) onRowSelectionChange({});
-                   onSelectAllMatching(false);
-                }}
-              >
-                Clear selection
-              </Button>
-            </span>
-          ) : (
-            <span>
-              {Object.keys(rowSelection).length} records on this page are selected.{" "}
-              <Button
-                variant="link"
-                size="sm"
-                className="h-auto p-0"
-                onClick={() => onSelectAllMatching(true)}
-              >
-                Select all {totalCount} records
-              </Button>
-            </span>
-          )}
-        </div>
-      )}
       <div className="rounded-md border relative overflow-hidden">
         {isLoading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50">

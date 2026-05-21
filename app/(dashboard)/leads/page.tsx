@@ -534,33 +534,6 @@ export default function LeadsPage() {
             Review website enquiries captured through your chat widget and lead forms
           </p>
         </div>
-        {selectedIds.length > 0 && (
-          <div className="flex gap-2 animate-in fade-in slide-in-from-top-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                  Update Status ({currentSelectionCount})
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                {["new", "contacted", "qualified", "converted", "lost"].map((s) => (
-                  <DropdownMenuItem key={s} onClick={() => handleUpdateStatus(selectedIds, s, isAllMatchingSelected)}>
-                    Mark as {s.charAt(0).toUpperCase() + s.slice(1)}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button variant="outline" size="sm" onClick={() => handleExportClick(isAllMatchingSelected ? undefined : selectedIds)} disabled={isExporting || !canExport}>
-              <Download className="mr-2 h-4 w-4" />
-              Export {isAllMatchingSelected ? "All" : "Selected"} ({currentSelectionCount})
-            </Button>
-            <Button variant="destructive" size="sm" onClick={() => handleDeleteLeads(selectedIds, isAllMatchingSelected)}>
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete ({currentSelectionCount})
-            </Button>
-          </div>
-        )}
       </div>
 
       <Card>
@@ -597,6 +570,35 @@ export default function LeadsPage() {
             totalCount={totalCount}
             onSelectAllMatching={setIsAllMatchingSelected}
             isAllMatchingSelected={isAllMatchingSelected}
+            actionButtons={
+              selectedIds.length > 0 ? (
+                <div className="flex gap-2 animate-in fade-in slide-in-from-top-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        Update Status ({currentSelectionCount})
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      {["new", "contacted", "qualified", "converted", "lost"].map((s) => (
+                        <DropdownMenuItem key={s} onClick={() => handleUpdateStatus(selectedIds, s, isAllMatchingSelected)}>
+                          Mark as {s.charAt(0).toUpperCase() + s.slice(1)}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Button variant="outline" size="sm" onClick={() => handleExportClick(isAllMatchingSelected ? undefined : selectedIds)} disabled={isExporting || !canExport}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export {isAllMatchingSelected ? "All" : "Selected"} ({currentSelectionCount})
+                  </Button>
+                  <Button variant="destructive" size="sm" onClick={() => handleDeleteLeads(selectedIds, isAllMatchingSelected)}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete ({currentSelectionCount})
+                  </Button>
+                </div>
+              ) : undefined
+            }
           />
         </CardContent>
       </Card>

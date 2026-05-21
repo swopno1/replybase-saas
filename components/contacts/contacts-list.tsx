@@ -97,7 +97,15 @@ export function ContactsList() {
   }, [pagination]);
 
   useEffect(() => {
-    fetchContacts();
+    let active = true;
+    Promise.resolve().then(() => {
+      if (active) {
+        fetchContacts();
+      }
+    });
+    return () => {
+      active = false;
+    };
   }, [fetchContacts]);
 
   const handleDeleteContacts = async (ids: string[], allMatching = false) => {
@@ -247,14 +255,6 @@ export function ContactsList() {
 
   return (
     <div className="space-y-4">
-      {selectedIds.length > 0 && (
-        <div className="flex justify-end gap-2">
-          <Button variant="destructive" size="sm" onClick={() => handleDeleteContacts(selectedIds, isAllMatchingSelected)}>
-            <Trash2 className="mr-2 h-4 w-4" />
-            Delete ({currentSelectionCount})
-          </Button>
-        </div>
-      )}
       <DataTable
         columns={columns}
         data={contacts}
@@ -268,6 +268,18 @@ export function ContactsList() {
         totalCount={totalCount}
         onSelectAllMatching={setIsAllMatchingSelected}
         isAllMatchingSelected={isAllMatchingSelected}
+        actionButtons={
+          selectedIds.length > 0 ? (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => handleDeleteContacts(selectedIds, isAllMatchingSelected)}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete ({currentSelectionCount})
+            </Button>
+          ) : undefined
+        }
       />
     </div>
   );
