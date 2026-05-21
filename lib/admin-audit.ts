@@ -14,6 +14,7 @@ export type AdminAction =
   | "SUBSCRIBER_READ"
   | "SUBSCRIBERS_INDEX_READ"
   | "WEBHOOK_LOGS_READ"
+  | "WEBHOOK_LOG_REPLAYED"
   | "METRICS_READ";
 
 interface LogParams {

@@ -1,4 +1,6 @@
 import { NextRequest } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { verifyWebchatSessionToken } from "@/lib/webchat-session";
 
 const DEFAULT_ALLOWED_HEADERS = "Content-Type, Authorization";
 const DEFAULT_ALLOWED_METHODS = "GET, POST, OPTIONS";
@@ -77,7 +79,39 @@ function parseAllowedOrigins(): string[] {
   );
 }
 
-function checkWebchatOrigin(request: NextRequest): WebchatOriginCheckResult {
+function isOriginAllowedForWebChatSite(
+  allowedDomains: unknown,
+  origin?: string | null,
+  referer?: string | null,
+): boolean {
+  if (!allowedDomains || !Array.isArray(allowedDomains)) {
+    return true;
+  }
+
+  const allowlist = allowedDomains
+    .filter((entry): entry is string => typeof entry === "string")
+    .map((val) => normalizeOrigin(val))
+    .filter(Boolean);
+
+  if (allowlist.length === 0) {
+    return true;
+  }
+
+  const normalizedOrigin = origin ? normalizeOrigin(origin) : "";
+  const normalizedRefererOrigin = referer ? normalizeOrigin(referer) : "";
+
+  if (normalizedOrigin && allowlist.includes(normalizedOrigin)) {
+    return true;
+  }
+
+  if (normalizedRefererOrigin && allowlist.includes(normalizedRefererOrigin)) {
+    return true;
+  }
+
+  return false;
+}
+
+async function checkWebchatOrigin(request: NextRequest): Promise<WebchatOriginCheckResult> {
   const allowedOrigins = parseAllowedOrigins();
   const requestOrigin = normalizeOrigin(request.headers.get("origin"));
   const requestRefererOrigin = normalizeOrigin(request.headers.get("referer"));
@@ -103,56 +137,163 @@ function checkWebchatOrigin(request: NextRequest): WebchatOriginCheckResult {
     };
   }
 
+  // Same-origin bypass (important for dashboard test widget & local debug)
   if (
     requestTargetOrigin &&
     ((requestOrigin && requestOrigin === requestTargetOrigin) ||
       (requestRefererOrigin && requestRefererOrigin === requestTargetOrigin))
   ) {
+    const resolvedOrigin = requestOrigin || requestRefererOrigin || requestTargetOrigin;
+    (request as any)._resolvedWebchatCorsOrigin = resolvedOrigin;
     return { allowed: true };
   }
 
-  if (allowedOrigins.includes("*")) {
-    if (isProductionEnvironment() && !allowWildcardInProduction()) {
+  // Global WEBCHAT_ALLOWED_ORIGINS configuration (if set by admins)
+  const hasGlobalConfig = process.env.WEBCHAT_ALLOWED_ORIGINS !== undefined;
+  if (hasGlobalConfig) {
+    if (allowedOrigins.includes("*")) {
+      if (isProductionEnvironment() && !allowWildcardInProduction()) {
+        return {
+          allowed: false,
+          reason:
+            "Wildcard origin is blocked in production. Configure WEBCHAT_ALLOWED_ORIGINS explicitly.",
+        };
+      }
+    } else {
+      let allowedGlobally = false;
+      if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
+        allowedGlobally = true;
+      }
+      if (requestRefererOrigin && allowedOrigins.includes(requestRefererOrigin)) {
+        allowedGlobally = true;
+      }
+      if (!allowedGlobally) {
+        return {
+          allowed: false,
+          reason: "Origin not in WEBCHAT_ALLOWED_ORIGINS",
+        };
+      }
+    }
+  }
+
+  // Retrieve site context parameters
+  let searchParams: URLSearchParams | null = null;
+  if (request.nextUrl) {
+    searchParams = request.nextUrl.searchParams;
+  } else if (request.url) {
+    try {
+      searchParams = new URL(request.url).searchParams;
+    } catch {
+      // Ignore
+    }
+  }
+
+  let publicKey = searchParams?.get("publicKey") || undefined;
+  let siteId = searchParams?.get("siteId") || undefined;
+  let token = searchParams?.get("token") || undefined;
+  let botId = searchParams?.get("botId") || undefined;
+  let channelId = searchParams?.get("channelId") || undefined;
+
+  if (request.method === "POST" || request.method === "PUT") {
+    try {
+      const cloned = request.clone();
+      const body = await cloned.json();
+      if (body) {
+        if (typeof body.publicKey === "string") publicKey = body.publicKey;
+        if (typeof body.token === "string") token = body.token;
+        if (typeof body.botId === "string") botId = body.botId;
+        if (typeof body.channelId === "string") channelId = body.channelId;
+        if (typeof body.siteId === "string") siteId = body.siteId;
+      }
+    } catch {
+      // Ignore body parsing failures
+    }
+  }
+
+  let site: { allowedDomains: any } | null = null;
+
+  if (siteId) {
+    site = await prisma.webChatSite.findFirst({
+      where: { id: siteId, isActive: true },
+      select: { allowedDomains: true },
+    });
+  } else if (publicKey) {
+    site = await prisma.webChatSite.findFirst({
+      where: { publicKey, isActive: true },
+      select: { allowedDomains: true },
+    });
+  } else if (token) {
+    try {
+      const session = verifyWebchatSessionToken(token);
+      if (session.siteId) {
+        site = await prisma.webChatSite.findFirst({
+          where: { id: session.siteId, isActive: true },
+          select: { allowedDomains: true },
+        });
+      } else if (session.channelId || session.botId) {
+        site = await prisma.webChatSite.findFirst({
+          where: {
+            channelId: session.channelId || undefined,
+            botId: session.botId || undefined,
+            isActive: true,
+          },
+          select: { allowedDomains: true },
+        });
+      }
+    } catch {
+      // Ignore token verification errors (actual route handlers will validate tokens)
+    }
+  } else if (botId || channelId) {
+    site = await prisma.webChatSite.findFirst({
+      where: {
+        channelId: channelId || undefined,
+        botId: botId || undefined,
+        isActive: true,
+      },
+      select: { allowedDomains: true },
+    });
+  }
+
+  if (site) {
+    const originAllowed = isOriginAllowedForWebChatSite(
+      site.allowedDomains,
+      requestOrigin,
+      requestRefererOrigin,
+    );
+    if (!originAllowed) {
       return {
         allowed: false,
-        reason:
-          "Wildcard origin is blocked in production. Configure WEBCHAT_ALLOWED_ORIGINS explicitly.",
+        reason: "Origin not allowed by site configuration",
       };
     }
-
-    return { allowed: true };
   }
 
-  if (!allowedOrigins.length) {
-    return { allowed: true };
+  let resolvedOrigin = requestOrigin || requestRefererOrigin || requestTargetOrigin || "";
+  if (allowedOrigins.includes("*") && (!isProductionEnvironment() || allowWildcardInProduction())) {
+    resolvedOrigin = "*";
   }
+  (request as any)._resolvedWebchatCorsOrigin = resolvedOrigin;
 
-  if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
-    return { allowed: true };
-  }
-
-  if (requestRefererOrigin && allowedOrigins.includes(requestRefererOrigin)) {
-    return { allowed: true };
-  }
-
-  return {
-    allowed: false,
-    reason: "Origin not in WEBCHAT_ALLOWED_ORIGINS",
-  };
+  return { allowed: true };
 }
 
-export function isWebchatOriginAllowed(request: NextRequest): boolean {
-  return checkWebchatOrigin(request).allowed;
+export async function isWebchatOriginAllowed(request: NextRequest): Promise<boolean> {
+  const result = await checkWebchatOrigin(request);
+  return result.allowed;
 }
 
-export function getWebchatOriginRejectionReason(
+export async function getWebchatOriginRejectionReason(
   request: NextRequest,
-): string | null {
-  const result = checkWebchatOrigin(request);
+): Promise<string | null> {
+  const result = await checkWebchatOrigin(request);
   return result.allowed ? null : result.reason || "Origin not allowed";
 }
 
 export function getWebchatCorsOrigin(request: NextRequest): string {
+  if ((request as any)._resolvedWebchatCorsOrigin !== undefined) {
+    return (request as any)._resolvedWebchatCorsOrigin;
+  }
+
   const allowedOrigins = parseAllowedOrigins();
   if (allowedOrigins.includes("*")) {
     if (isProductionEnvironment() && !allowWildcardInProduction()) {

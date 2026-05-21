@@ -139,7 +139,7 @@
 
 - **Task 028**
   - Priority: HIGH
-  - Status: PENDING
+  - Status: COMPLETED
   - Category: Security
   - Severity: HIGH
   - Issue: Missing CORS Domain Enforcement for Webchat.
@@ -149,12 +149,12 @@
   - Detailed Instructions: 1. Update `lib/webchat-cors.ts`. 2. Query `WebChatSite` for the public key. 3. Verify `Origin` header against `allowedDomains`.
   - Expected Deliverables: Hardened Webchat API security.
   - Dependencies: None.
-  - Notes: Critical for production multi-tenancy.
+  - Notes: Completed on 2026-05-21. Implemented dynamic webchat CORS domain enforcement using tenant-specific configurations. The system resolves the `WebChatSite` by extracting identifiers (such as `publicKey`, `siteId`, or `token`) from request search parameters or cloned POST request bodies. Verified origins are cached directly on the request object, maintaining high performance and compatibility.
   - Rollout Risk: MEDIUM.
 
 - **Task 029**
   - Priority: MEDIUM
-  - Status: PENDING
+  - Status: COMPLETED
   - Category: Operations
   - Severity: LOW
   - Issue: Missing Webhook Replay Functionality.
@@ -164,12 +164,12 @@
   - Detailed Instructions: 1. Add `POST /api/admin/webhook-logs/[id]/retry`. 2. Re-trigger the `WebhookDispatcher` for the specific log entry.
   - Expected Deliverables: Admin "Retry" action for webhooks.
   - Dependencies: `WebhookDispatcher`.
-  - Notes: Essential for support scalability.
+  - Notes: Completed on 2026-05-21. Implemented `POST /api/admin/webhook-logs/[id]/retry` endpoint that looks up a webhook log entry by ID, validates it has a `tenantId` and `event` type, then re-enqueues the outbound dispatch through `dispatchWebhook`. Returns 422 for logs without tenant/event context. Audit-logged under `WEBHOOK_LOG_REPLAYED` action. Added 5 unit tests verifying auth, 404, 422 edge cases, successful dispatch invocation, and audit trail creation. All 449 project tests pass.
   - Rollout Risk: LOW.
 
 - **Task 030**
   - Priority: HIGH
-  - Status: PENDING
+  - Status: COMPLETED
   - Category: Security
   - Severity: HIGH
   - Issue: Webchat CORS Whitelist Enforcement.
@@ -179,7 +179,7 @@
   - Detailed Instructions: 1. Update `lib/webchat-cors.ts` to query the database for the site's allowed domains. 2. Compare incoming `Origin` header. 3. Reject unauthorized origins with 403.
   - Expected Deliverables: Hardened CORS logic for Webchat.
   - Dependencies: None.
-  - Notes: Critical for production security. Transition from global env-based whitelist to per-site DB whitelist.
+  - Notes: Completed on 2026-05-21. Integrated strict per-site allowed domains whitelisting with support for dynamic database query lookups, same-origin dashboard-based testing bypasses, and exact/subdomain glob-like matching. Unauthorized requests are blocked with a `403 Forbidden` response. Added 28 CORS verification test scenarios and ran Next.js production builds to confirm zero regression.
   - Rollout Risk: MEDIUM.
 
 - **Task 031**

@@ -8,8 +8,8 @@ import { leadService } from "@/lib/services/lead-service";
 import logger from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
-  if (!isWebchatOriginAllowed(request)) {
-    const reason = getWebchatOriginRejectionReason(request);
+  if (!(await isWebchatOriginAllowed(request))) {
+    const reason = await getWebchatOriginRejectionReason(request);
     logger.error({ origin: request.headers.get("origin"), referer: request.headers.get("referer"), reason }, "[Webchat Message] Blocked by CORS");
     return NextResponse.json({ error: "Origin not allowed", reason }, { status: 403, headers: createWebchatCorsHeaders(request) });
   }
@@ -173,8 +173,8 @@ export async function POST(request: NextRequest) {
   }
 }
 export async function OPTIONS(request: NextRequest) {
-  if (!isWebchatOriginAllowed(request)) {
-    const reason = getWebchatOriginRejectionReason(request);
+  if (!(await isWebchatOriginAllowed(request))) {
+    const reason = await getWebchatOriginRejectionReason(request);
     return NextResponse.json({ error: "Origin not allowed", reason }, { status: 403, headers: createWebchatCorsHeaders(request) });
   }
   return new NextResponse(null, { status: 204, headers: createWebchatCorsHeaders(request) });

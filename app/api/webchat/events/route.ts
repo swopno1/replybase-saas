@@ -36,8 +36,8 @@ const eventSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    if (!isWebchatOriginAllowed(request)) {
-      const reason = getWebchatOriginRejectionReason(request);
+    if (!(await isWebchatOriginAllowed(request))) {
+      const reason = await getWebchatOriginRejectionReason(request);
       return NextResponse.json(
         { error: "Origin not allowed", reason },
         { status: 403, headers: createWebchatCorsHeaders(request) },
@@ -262,8 +262,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function OPTIONS(request: NextRequest) {
-  if (!isWebchatOriginAllowed(request)) {
-    const reason = getWebchatOriginRejectionReason(request);
+  if (!(await isWebchatOriginAllowed(request))) {
+    const reason = await getWebchatOriginRejectionReason(request);
     return NextResponse.json(
       { error: "Origin not allowed", reason },
       {
