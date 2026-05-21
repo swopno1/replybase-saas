@@ -1,4 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { prismaMock } from '../mocks/prisma';
+
+vi.mock('@/lib/prisma', () => ({
+  prisma: prismaMock,
+}));
+
 import {
   interpolateText,
   normalizeDurationMs,
@@ -8,7 +14,10 @@ import {
   getNodeByOrder,
   getRuntimeState,
   setRuntimeState,
-  createInitialRuntimeState
+  createInitialRuntimeState,
+  loadAccessibleFlow,
+  resolveReferencedFlow,
+  resumeParentFlow,
 } from '@/lib/flow-runtime-utils';
 
 describe('flow-runtime-utils', () => {
@@ -367,6 +376,152 @@ describe('flow-runtime-utils', () => {
         rootFlowId: fallbackFlowId,
         activeFlowId: 'active',
         callStack: [],
+      });
+    });
+  });
+
+  describe('database interactive utilities', () => {
+    describe('loadAccessibleFlow', () => {
+      it('should query prisma.flow.findFirst with correct parameters', async () => {
+        const mockFlow = { id: 'flow-123', tenantId: 'tenant-123', name: 'Flow Name', nodes: [] };
+        prismaMock.flow.findFirst.mockResolvedValue(mockFlow as any);
+
+        const result = await loadAccessibleFlow({ tenantId: 'tenant-123', flowId: 'flow-123' });
+
+        expect(result).toEqual(mockFlow);
+        expect(prismaMock.flow.findFirst).toHaveBeenCalledWith({
+          where: {
+            id: 'flow-123',
+            OR: [{ tenantId: 'tenant-123' }, { isGlobal: true }],
+          },
+          include: {
+            nodes: {
+              orderBy: { order: 'asc' },
+            },
+          },
+        });
+      });
+    });
+
+    describe('resolveReferencedFlow', () => {
+      it('should look up by targetFlowId if provided', async () => {
+        const mockFlow = { id: 'flow-id', tenantId: 'tenant-123', nodes: [] };
+        prismaMock.flow.findFirst.mockResolvedValue(mockFlow as any);
+
+        const result = await resolveReferencedFlow({
+          tenantId: 'tenant-123',
+          targetFlowId: 'flow-id',
+        });
+
+        expect(result).toEqual(mockFlow);
+        expect(prismaMock.flow.findFirst).toHaveBeenCalledWith({
+          where: {
+            OR: [{ tenantId: 'tenant-123' }, { isGlobal: true }],
+            id: 'flow-id',
+          },
+          include: {
+            nodes: {
+              orderBy: { order: 'asc' },
+            },
+          },
+        });
+      });
+
+      it('should look up by targetFlowName if targetFlowId is not provided', async () => {
+        const mockFlow = { id: 'flow-id', tenantId: 'tenant-123', name: 'flow-name', nodes: [] };
+        prismaMock.flow.findFirst.mockResolvedValue(mockFlow as any);
+
+        const result = await resolveReferencedFlow({
+          tenantId: 'tenant-123',
+          targetFlowName: 'flow-name',
+        });
+
+        expect(result).toEqual(mockFlow);
+        expect(prismaMock.flow.findFirst).toHaveBeenCalledWith({
+          where: {
+            OR: [{ tenantId: 'tenant-123' }, { isGlobal: true }],
+            name: 'flow-name',
+          },
+          include: {
+            nodes: {
+              orderBy: { order: 'asc' },
+            },
+          },
+        });
+      });
+
+      it('should return null if neither targetFlowId nor targetFlowName is provided', async () => {
+        const result = await resolveReferencedFlow({ tenantId: 'tenant-123' });
+        expect(result).toBeNull();
+        expect(prismaMock.flow.findFirst).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('resumeParentFlow', () => {
+      it('should return null if callStack is empty', async () => {
+        const runtime = {
+          rootFlowId: 'root',
+          activeFlowId: 'active',
+          callStack: [],
+        };
+
+        const result = await resumeParentFlow({ tenantId: 'tenant-123', runtime });
+        expect(result).toBeNull();
+      });
+
+      it('should pop parent frame, fetch parent flow, update activeFlowId, and return flow and next node', async () => {
+        const parentNode = { id: 'node-2', order: 2 };
+        const parentFlow = {
+          id: 'parent-flow-id',
+          nodes: [
+            { id: 'node-1', order: 1 },
+            parentNode,
+          ],
+        };
+        prismaMock.flow.findFirst.mockResolvedValue(parentFlow as any);
+
+        const runtime = {
+          rootFlowId: 'root',
+          activeFlowId: 'active',
+          callStack: [
+            { flowId: 'parent-flow-id', nextNodeOrder: 2 },
+          ],
+        };
+
+        const result = await resumeParentFlow({ tenantId: 'tenant-123', runtime });
+
+        expect(result).toEqual({
+          flow: parentFlow,
+          node: parentNode,
+        });
+        expect(runtime.activeFlowId).toBe('parent-flow-id');
+        expect(runtime.callStack).toHaveLength(0);
+        expect(prismaMock.flow.findFirst).toHaveBeenCalledWith({
+          where: {
+            id: 'parent-flow-id',
+            OR: [{ tenantId: 'tenant-123' }, { isGlobal: true }],
+          },
+          include: {
+            nodes: {
+              orderBy: { order: 'asc' },
+            },
+          },
+        });
+      });
+
+      it('should return null if parent flow is not found in database', async () => {
+        prismaMock.flow.findFirst.mockResolvedValue(null);
+
+        const runtime = {
+          rootFlowId: 'root',
+          activeFlowId: 'active',
+          callStack: [
+            { flowId: 'parent-flow-id', nextNodeOrder: 2 },
+          ],
+        };
+
+        const result = await resumeParentFlow({ tenantId: 'tenant-123', runtime });
+        expect(result).toBeNull();
       });
     });
   });

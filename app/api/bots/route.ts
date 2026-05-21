@@ -19,24 +19,49 @@ export const GET = withAuthAndTenant(async ({ tenantId }, _req, _context, db) =>
       db.bot.findMany({
         where: { tenantId: tenantId },
         orderBy: { createdAt: "desc" },
-        include: {
-          channels: {
-            select: { id: true, type: true, name: true, enabled: true, isActive: true },
-            orderBy: { createdAt: "asc" },
-          },
-        },
       }),
       checkBotLimit(tenantId),
     ]);
 
-    const mappedBots = bots.map((bot) => ({
-      id: bot.id,
-      name: bot.name,
-      status: bot.enabled,
-      createdAt: bot.createdAt,
-      primaryChannel: bot.channels[0]?.type || "web",
-      channels: bot.channels,
-    }));
+    const botIds = bots.map((bot) => bot.id);
+    const channels = botIds.length > 0
+      ? await db.channel.findMany({
+          where: {
+            botId: { in: botIds },
+          },
+          select: {
+            id: true,
+            botId: true,
+            type: true,
+            name: true,
+            enabled: true,
+            isActive: true,
+          },
+          orderBy: { createdAt: "asc" },
+        })
+      : [];
+
+    const channelsByBotId = channels.reduce((acc, channel) => {
+      if (channel.botId) {
+        if (!acc[channel.botId]) {
+          acc[channel.botId] = [];
+        }
+        acc[channel.botId].push(channel);
+      }
+      return acc;
+    }, {} as Record<string, Array<{ id: string; type: string; name: string; enabled: boolean; isActive: boolean; botId: string }>>);
+
+    const mappedBots = bots.map((bot) => {
+      const botChannels = channelsByBotId[bot.id] || [];
+      return {
+        id: bot.id,
+        name: bot.name,
+        status: bot.enabled,
+        createdAt: bot.createdAt,
+        primaryChannel: botChannels[0]?.type || "web",
+        channels: botChannels.map(({ botId, ...channelData }) => channelData),
+      };
+    });
 
     return NextResponse.json({
       bots: mappedBots,

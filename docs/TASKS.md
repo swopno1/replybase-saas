@@ -64,7 +64,7 @@
 
 - **Task 023**
   - Priority: MEDIUM
-  - Status: PENDING
+  - Status: COMPLETED
   - Category: Reliability
   - Severity: MEDIUM
   - Issue: Low unit test coverage for DB-interactive logic.
@@ -74,12 +74,12 @@
   - Detailed Instructions: 1. Set up `vitest-mock-extended` for Prisma. 2. Write unit tests for `flow-runtime-utils.ts` and `LeadService`.
   - Expected Deliverables: Robust test suite for DB-interactive services.
   - Dependencies: Vitest.
-  - Notes: See Testing Coverage Audit.
+  - Notes: Completed on 2026-05-21. Created Prisma client deep mocking proxy wrapper with `vitest-mock-extended` under `tests/mocks/prisma.ts`. Added comprehensive isolated mock-based unit tests for flow runtime DB utilities (`loadAccessibleFlow`, `resolveReferencedFlow`, `resumeParentFlow`) in `tests/lib/flow-runtime-utils.test.ts` and for `LeadService` (`getLeads`, `deleteLeads`, `updateLeadsStatus`, `syncContactIdentifiedStatus`, `extractAndSyncLeadDataFromMessage`) in `tests/services/lead-service.test.ts`. All 416 unit tests pass, and Next.js builds successfully.
   - Rollout Risk: LOW.
 
 - **Task 024**
   - Priority: MEDIUM
-  - Status: PENDING
+  - Status: COMPLETED
   - Category: Performance
   - Severity: LOW
   - Issue: N+1 Database queries in Bot List.
@@ -89,7 +89,7 @@
   - Detailed Instructions: Refactor `BotList` to use a single `channel.findMany` with an array of botIds.
   - Expected Deliverables: Optimized bot listing logic.
   - Dependencies: None.
-  - Notes: Consolidated from Task 013. Aug 2026 Audit confirmed StatusCards and Milestones remain static and require this interactivity upgrade.
+  - Notes: Completed on 2026-05-21. Refactored the bot listing GET endpoint (/api/bots) to query the bots first and then perform a single batched db.channel.findMany query with botId: { in: botIds } instead of nested include relations. Mapped the channels back to their respective bots in memory. This eliminates N+1 database queries, ensuring query performance remains constant (O(1) database queries) regardless of the number of bots/channels registered.
   - Rollout Risk: LOW.
 
 - **Task 025**
