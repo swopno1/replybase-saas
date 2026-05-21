@@ -12,6 +12,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
+    "test:all": "npm run test && npm run test:e2e",
     "perf:lighthouse": "npx lighthouse \"$NEXT_PUBLIC_APP_URL\" --only-categories=performance,seo --output=html --output-path=./test-results/lighthouse.html",
     "perf:webpagetest": "echo \"Open https://www.webpagetest.org/?url=$NEXT_PUBLIC_APP_URL and run Mobile + Desktop tests\"",
     "seed:stripe": "tsx scripts/seed-stripe.ts",
