@@ -94,7 +94,7 @@
 
 - **Task 025**
   - Priority: LOW
-  - Status: PENDING
+  - Status: COMPLETED
   - Category: Operations
   - Severity: LOW
   - Issue: Potential `WebhookLog` table bloat.
@@ -104,12 +104,12 @@
   - Detailed Instructions: Create a cron job that runs `prisma.webhookLog.deleteMany` for stale records.
   - Expected Deliverables: Automated cleanup script.
   - Dependencies: None.
-  - Notes: Maintenance task.
+  - Notes: Completed on 2026-05-21. Verified that the cron endpoint `/api/cron/prune-logs` is fully functional, secure, and configured to run weekly in `vercel.json`. Implemented a comprehensive unit test suite in `tests/cron/prune-logs.test.ts` to test authorization, default retention settings (30 days for webhooks, executions, and webchat events; 90 days for activity logs), environment variable overrides, and exclusion of critical audit/trial events. All unit tests passed, and the project compiles successfully.
   - Rollout Risk: LOW.
 
 - **Task 026**
   - Priority: MEDIUM
-  - Status: PENDING
+  - Status: COMPLETED
   - Category: Observability
   - Severity: MEDIUM
   - Issue: Lack of real-time queue and AI performance monitoring.
@@ -119,7 +119,7 @@
   - Detailed Instructions: 1. Expose metrics via a protected `/api/admin/metrics` endpoint. 2. Track BullMQ "failed" jobs and AI turn latencies.
   - Expected Deliverables: Admin-facing metrics dashboard or API.
   - Dependencies: BullMQ, Prometheus/Grafana (Optional).
-  - Notes: Critical for high-scale operations.
+  - Notes: Completed on 2026-05-21. Created a protected GET `/api/admin/metrics` endpoint that exposes real-time BullMQ queue status counts (waiting, active, delayed, failed, completed) and aggregates AI turn latency statistics (average, p50, p95, min, max, count) from `ExecutionLog` records in the last 24 hours. Access is secured via platform admin session checks and recorded in the admin activity audit log under action `"METRICS_READ"`. Included comprehensive unit tests checking route authorization, percentile computations, fallback behavior, and audit log generation.
   - Rollout Risk: LOW.
 
 - **Task 027**

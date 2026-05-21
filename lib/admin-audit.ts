@@ -13,7 +13,8 @@ export type AdminAction =
   | "USERS_INDEX_READ"
   | "SUBSCRIBER_READ"
   | "SUBSCRIBERS_INDEX_READ"
-  | "WEBHOOK_LOGS_READ";
+  | "WEBHOOK_LOGS_READ"
+  | "METRICS_READ";
 
 interface LogParams {
   adminId: string;
