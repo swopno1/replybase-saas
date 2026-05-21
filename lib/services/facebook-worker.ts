@@ -218,7 +218,7 @@ export async function processFacebookJob(payload: { senderPsid: string, pageId: 
     if (typeof aiStream === "string") {
       aiText = aiStream;
     } else if (aiStream && typeof aiStream === "object" && "text" in aiStream) {
-      aiText = await (aiStream as { text: Promise<string> }).text;
+      aiText = await (aiStream as any).text;
     }
 
     if (aiText.trim()) {

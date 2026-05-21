@@ -176,6 +176,7 @@ RULES:
 5. The chatbot's primary goal is: ${data.chatbotGoals.conversionGoal}
 6. The preferred CTA is: ${data.chatbotGoals.preferredCta}
 7. When the flow ends, set expectation that a human will follow up.
+8. DO NOT change, remove, or modify ANY variable placeholders like {{lead_name}} or {{contact_name || lead_name}}. Keep them exactly as they are.
 
 BUSINESS CONTEXT:
 - Company: ${data.business.company}
@@ -267,7 +268,7 @@ export function appendLeadGenerationNodes(
     {
       type: "input",
       content: {
-        text: "Nice to meet you, {{lead_name}}! What's your best email address? 📧",
+        text: "Nice to meet you, {{contact_name || lead_name}}! What's your best email address? 📧",
         variableName: "lead_email",
         inputType: "email",
         delayMs: 500,
@@ -311,7 +312,7 @@ export function appendLeadGenerationNodes(
     {
       type: "message",
       content: {
-        text: `Thanks, {{lead_name}}! ${ctaMsg}\n\n${escalationMsg}`,
+        text: `Thanks, {{contact_name || lead_name}}! ${ctaMsg}\n\n${escalationMsg}`,
         delayMs: 800,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -325,7 +326,21 @@ export function appendLeadGenerationNodes(
     },
   ];
 
-  return [...nodes, ...leadNodes];
+  const rewiredNodes = nodes.map(n => {
+    if (n.type === "action" && (n.content as any).action === "end_flow") {
+      return {
+        ...n,
+        content: {
+          action: "tag_user",
+          tags: ["entering-lead-gen"],
+          nextNodeOrder: lastOrder + 1,
+        }
+      };
+    }
+    return n;
+  });
+
+  return [...rewiredNodes, ...leadNodes];
 }
 
 // ─── AI Fallback System Prompt Builder ──────────────────────────────────────

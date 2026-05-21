@@ -47,6 +47,5 @@ export default withSentryConfig(nextConfig, {
   widenClientFileUpload: true,
   reactComponentAnnotation: { enabled: true },
   tunnelRoute: "/monitoring",
-  hideSourceMaps: true,
   disableLogger: true,
 });

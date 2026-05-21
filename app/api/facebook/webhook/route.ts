@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import logger from "@/lib/logger";
 import { messageQueue } from "@/lib/queue";
@@ -126,7 +127,7 @@ async function handleMessagingEvent(event: FacebookMessagingEvent) {
             source: "facebook",
             event: eventKey,
             tenantId: pageRecord.tenantId,
-            data: { ...event, botId: pageRecord.botId },
+            data: { ...event, botId: pageRecord.botId } as unknown as Prisma.InputJsonValue,
           },
         });
       } catch (err) {
