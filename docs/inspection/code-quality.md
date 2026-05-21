@@ -4,8 +4,8 @@
 - **TypeScript**: Strict mode enabled. Standardized on Prisma 7.8.0.
 - **Linting**: ESLint configured (Next.js defaults + custom rules).
 - **Type Safety**:
-  - **Identified Risk**: High usage of `any` type (878 instances) across the codebase, particularly in webhook handlers, flow engines (`lib/bot-entry-flow-engine.ts`), and complex dashboard components.
-  - **Progress**: Significantly reduced `any` usage in core services (`prisma-tenant`, `ai-fallback`). August 2026 audit confirmed 878 instances.
+  - **Identified Risk**: High usage of `any` type (882 instances) across the codebase, particularly in webhook handlers, flow engines (`lib/bot-entry-flow-engine.ts`), and complex dashboard components.
+  - **Progress**: Significantly reduced `any` usage in core services (`prisma-tenant`, `ai-fallback`). August 2026 audit confirmed 882 instances (up from 878).
 
 ## 2. Database Integrity & Multi-Tenancy
 - **Tenancy Architecture**: 95%+ of domain models use `tenantId`.
@@ -15,7 +15,7 @@
 - **Operational Rule**: Production deployments strictly use `npx prisma migrate deploy` with automated P3005 error handling in the Dockerfile.
 
 ## Testing Coverage
-- **Unit Tests**: Pass rate ~97.9% (279/285 passed) - *Last Audit: August 2026*.
+- **Unit Tests**: Pass rate ~97.9% (279/285 passed) - *Last Audit: August 2026*. Confirmed failures in `webchat-conversation-engine.test.ts` due to `LeadService` mock mismatch.
   - **Identified Regressions**:
     1. **Task 014 (Account Deletion)**: Resolved in August 2026; unit tests for GDPR flows are now stable.
     2. **Webchat Engine**: `tests/webchat/webchat-conversation-engine.test.ts` fails in `LeadService.syncContactIdentifiedStatus`.
@@ -35,7 +35,7 @@
 - **Identified Failures**: Current failures in `webchat-conversation-engine.test.ts` and `contacts-conversations-batch.test.ts` require investigation into Prisma mocking behavior.
 
 ## 5. Engineering Roadmap & Optimization
-- **Type Strike (HIGH - Task 022)**: Replace 377 instances of `any` in `lib/` and `app/api/` with structured Zod/Prisma types to improve runtime safety and developer ergonomics.
+- **Type Strike (HIGH - Task 022)**: Replace 386 instances of `any` in `lib/` and `app/api/` with structured Zod/Prisma types to improve runtime safety and developer ergonomics.
 - **Testing Maturity (MEDIUM)**: Implement a unified Prisma mocking strategy to increase coverage for database-interactive functions.
 - **Log Management (LOW)**: Implement automated log pruning for `WebhookLog` (older than 30 days) to prevent table bloat.
 - **N+1 Consolidation (MEDIUM)**: Refactor `BotList` to fetch channel statuses in a single batched query.

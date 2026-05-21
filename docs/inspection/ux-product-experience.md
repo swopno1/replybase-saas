@@ -8,8 +8,8 @@
 ## 2. User Journey Analysis
 - **Onboarding**: Hardened 4-step flow (Intent -> Channel -> Test -> Notify). Plan selection is deferred to maximize setup momentum.
 - **Dashboard**: High-density info architecture. Primary CTAs are centered on completing setup.
-- **CRM/Conversations**: Real-time streaming and "Bot Drafting" indicators provide a premium, responsive feel. Use of interval polling (5s) in `ConversationPage` and 3s in Admin 'Webhook Logs' ensures data freshness but results in a "steppy" UX; optimization with WebSockets is recommended (Task 033).
-- **Bots/Flows**: Node-based editor is powerful but complex. Linearized templates help reduce cognitive load for new users.
+- **CRM/Conversations**: Real-time streaming and "Bot Drafting" indicators provide a premium, responsive feel. Use of interval polling (5s) in `ConversationPage` and 3s in Admin 'Webhook Logs' ensures data freshness but results in a "steppy" UX. **Inspection**: Verified `ConversationPage` refresh logic is tied to a 5-second interval. Optimization with WebSockets is recommended (Task 033).
+- **Bots/Flows**: Node-based editor is powerful but complex. Linearized templates help reduce cognitive load for new users. **Inspection**: Visual Editor is currently the only way to edit complex logic; mobile fallback (Task 012) is critical.
 
 ## 3. Friction Point Audit
 - **Static Dashboard**: Status cards and milestones are not yet clickable (Task UX-008). This increases the "distance to action".

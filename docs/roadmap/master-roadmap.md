@@ -16,6 +16,7 @@
 - [ ] Interactive Dashboard "Command Center" (Task UX-008)
 - [ ] IAM Roles & Permissions (In Design)
 - [ ] Granular Admin Audit Logging (Task 021)
+- [ ] LLM Guardrails for AI Fallback (Task 036)
 - [ ] SEO Action Plan Execution
 - [ ] Mobile-First "Flow Summary" Management (Task 012/UX-011)
 
