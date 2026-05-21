@@ -29,7 +29,7 @@ export const messageQueue = isBuild
     });
 
 export interface MessageJobData {
-  type: "whatsapp" | "facebook" | "telegram" | "lead_enrichment";
+  type: "whatsapp" | "facebook" | "telegram" | "lead_enrichment" | "stripe";
   botId: string;
   payload: any;
 }
@@ -66,6 +66,9 @@ export const setupWorker = () => {
             ...payload.leadData,
             insights: insights || null,
           });
+        } else if (type === "stripe") {
+          const { processStripeJob } = await import("@/lib/services/stripe-worker");
+          await processStripeJob(payload);
         }
       } catch (error) {
         logger.error({ jobId: job.id, error }, "[Worker] Job failed");

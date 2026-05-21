@@ -8,6 +8,9 @@ const pool =
   (globalThis as unknown as { pool?: Pool }).pool ??
   new Pool({
     connectionString: env.DATABASE_URL,
+    max: env.NODE_ENV === "production" ? 50 : 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
   });
 
 // Create Prisma adapter

@@ -152,6 +152,17 @@ export async function proxy(req: NextRequest) {
       return NextResponse.redirect(billingUrl);
     }
 
+    // RBAC: Check admin routes
+    if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
+      if (!token.isAdmin && token.role !== "SUPERADMIN") {
+        if (pathname.startsWith("/api/")) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        } else {
+          return NextResponse.redirect(new URL("/", req.url));
+        }
+      }
+    }
+
     return NextResponse.next();
   }
 

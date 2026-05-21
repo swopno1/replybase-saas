@@ -70,7 +70,7 @@ export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Hi there! 👋 I'm your ReplyBase assistant. I noticed you landed on our page—super excited to have you here! 🚀",
+        text: "Hi there! 👋 I'm your [Your Company Name] assistant. I noticed you landed on our page—super excited to have you here! 🚀",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1000,
@@ -80,18 +80,18 @@ export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "A quick question before we dive in: Are you here to explore how AI chatbots can transform your support, or are you curious about how ReplyBase specifically works for your team?",
+        text: "A quick question before we dive in: Are you here to explore how AI chatbots can transform your support, or are you curious about how [Your Company Name] specifically works for your team?",
         variableName: "user_intent_raw",
         inputType: "text",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1200,
         quick_replies: [
-          { "title": "💰 Pricing", "payload": "price" },
-          { "title": "✨ Features", "payload": "feature" },
-          { "title": "🏢 Business", "payload": "business" },
-          { "title": "❓ Something else", "payload": "other" }
-        ]
+          { title: "💰 Pricing", payload: "price" },
+          { title: "✨ Features", payload: "feature" },
+          { title: "🏢 Business", payload: "business" },
+          { title: "❓ Something else", payload: "other" },
+        ],
       },
       order: 1,
     },
@@ -143,11 +143,11 @@ export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Smart question. 💰 ReplyBase pricing is based on conversation volume, not seats, which usually saves teams 30-50%. Before I give you the numbers, what's your rough monthly conversation volume?",
+        text: "Smart question. 💰 [Your Company Name] pricing is based on [Your Pricing Metric], not seats, which usually saves teams 30-50%. Before I give you the numbers, what's your rough monthly volume?",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1200,
-        nextNodeOrder: 10,
+        nextNodeOrder: 7,
       },
       order: 3,
     },
@@ -158,7 +158,7 @@ export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1200,
-        nextNodeOrder: 10,
+        nextNodeOrder: 7,
       },
       order: 4,
     },
@@ -169,7 +169,7 @@ export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1200,
-        nextNodeOrder: 10,
+        nextNodeOrder: 7,
       },
       order: 5,
     },
@@ -180,14 +180,14 @@ export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1200,
-        nextNodeOrder: 10,
+        nextNodeOrder: 7,
       },
       order: 6,
     },
     {
       type: "action",
       content: { action: "end_flow" },
-      order: 10,
+      order: 7,
     },
   ],
 };
@@ -220,16 +220,16 @@ export const LEAD_GENERATION_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 1000,
         quick_replies: [
-          { "title": "👤 Personal", "payload": "personal" },
-          { "title": "👥 Team / Business", "payload": "team" }
-        ]
+          { title: "👤 Personal", payload: "personal" },
+          { title: "👥 Team / Business", payload: "team" },
+        ],
       },
       order: 1,
     },
     {
       type: "message",
       content: {
-        text: "That makes total sense. [Acknowledge context]. SaaS and E-commerce teams usually find that ReplyBase cuts repetitive support time by 70%.",
+        text: "That makes total sense. [Acknowledge context]. SaaS and E-commerce teams usually find that [Your Product/Service] cuts repetitive support time by 70%.",
         delayMs: 400,
         typingEnabled: true,
         typingDurationMs: 800,
@@ -251,7 +251,7 @@ export const LEAD_GENERATION_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Nice to meet you, {{lead_name}}! What's the best work email to send an ROI breakdown to? 📧",
+        text: "Nice to meet you, {{contact_name || lead_name}}! What's the best work email to send an ROI breakdown to? 📧",
         variableName: "lead_email",
         inputType: "email",
         delayMs: 400,
@@ -275,7 +275,7 @@ export const LEAD_GENERATION_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Got it! That volume is a sweet spot for automation. 🎯 I've passed your details to our senior strategists, and they'll reach out to {{lead_email}} within 1 business day with a tailored plan.",
+        text: "Got it! That volume is a sweet spot for automation. 🎯 I've passed your details to our senior strategists, and they'll reach out to {{contact_email || lead_email}} within 1 business day with a tailored plan.",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -351,7 +351,7 @@ export const LEAD_CAPTURE_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Thanks, {{contact_name}}! 🙏 We're on it. Check your inbox at {{contact_email}} in the next few minutes. Anything else I can help with while you wait?",
+        text: "Thanks, {{contact_name || lead_name}}! 🙏 We're on it. Check your inbox at {{contact_email || lead_email}} in the next few minutes. Anything else I can help with while you wait?",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
@@ -385,7 +385,7 @@ export const OMNICHANNEL_DEMO_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "The best way to understand ReplyBase is to see it work. 🚀 We are chatting here on the website, but our system can sync this conversation to your phone instantly.",
+        text: "The best way to understand [Your Product/Service] is to see it work. 🚀 We are chatting here on the website, but our system can sync this conversation to your phone instantly.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -400,17 +400,24 @@ export const OMNICHANNEL_DEMO_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 1000,
         quick_replies: [
-          { "title": "🟢 Switch to WhatsApp", "payload": "wa.me/{{wa_number}}?text=SYNC_{{session_hash}}" },
-          { "title": "🔵 Switch to Telegram", "payload": "t.me/{{tg_bot}}?start=SYNC_{{session_hash}}" },
-          { "title": "💬 Stay here", "payload": "STAY_HERE" }
-        ]
+          {
+            title: "🟢 Switch to WhatsApp",
+            payload:
+              "wa.me/{{wa_number}}?text=SYNC_{{session_hash | urlencode}}",
+          },
+          {
+            title: "🔵 Switch to Telegram",
+            payload: "t.me/{{tg_bot}}?start=SYNC_{{session_hash | urlencode}}",
+          },
+          { title: "💬 Stay here", payload: "STAY_HERE" },
+        ],
       },
       order: 1,
     },
     {
       type: "action",
       content: { action: "end_flow" },
-      order: 10,
+      order: 2,
     },
   ],
 };
@@ -426,7 +433,7 @@ export const BOOKING_ESCALATION_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "I'd be happy to get a human expert on the line for you. 👨‍💻 They can give you a deep-dive walkthrough of how ReplyBase fits into your specific workflow.",
+        text: "I'd be happy to get a human expert on the line for you. 👨‍💻 They can give you a deep-dive walkthrough of how [Your Product/Service] fits into your specific workflow.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -450,18 +457,17 @@ export const BOOKING_ESCALATION_TEMPLATE: FlowTemplateDefinition = {
       content: {
         action: "booking",
         text: "Perfect! I've sent your request to our team. In the meantime, you can pick a time that works for you here: {{booking_link}}",
-        bookingService: "calendly"
+        bookingService: "calendly",
       },
       order: 2,
     },
     {
       type: "action",
       content: { action: "end_flow" },
-      order: 10,
+      order: 3,
     },
   ],
 };
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PROFESSIONAL / B2B TEMPLATES
@@ -495,10 +501,10 @@ export const REAL_ESTATE_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 1000,
         quick_replies: [
-          { "title": "🏘️ Buy a Property", "payload": "buy" },
-          { "title": "📈 Sell my Home", "payload": "sell" },
-          { "title": "🔑 Arrange Viewing", "payload": "viewing" }
-        ]
+          { title: "🏘️ Buy a Property", payload: "buy" },
+          { title: "📈 Sell my Home", payload: "sell" },
+          { title: "🔑 Arrange Viewing", payload: "viewing" },
+        ],
       },
       order: 1,
     },
@@ -555,7 +561,7 @@ export const REAL_ESTATE_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1100,
-        nextNodeOrder: 11,
+        nextNodeOrder: 10,
       },
       order: 4,
     },
@@ -579,7 +585,7 @@ export const REAL_ESTATE_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1100,
-        nextNodeOrder: 11,
+        nextNodeOrder: 10,
       },
       order: 6,
     },
@@ -603,7 +609,7 @@ export const REAL_ESTATE_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
-        nextNodeOrder: 11,
+        nextNodeOrder: 10,
       },
       order: 8,
     },
@@ -615,7 +621,7 @@ export const REAL_ESTATE_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1200,
-        nextNodeOrder: 15,
+        nextNodeOrder: 12,
       },
       order: 9,
     },
@@ -624,9 +630,13 @@ export const REAL_ESTATE_TEMPLATE: FlowTemplateDefinition = {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["real-estate-lead", "intent-qualified", "agent-handoff-requested"],
+        tags: [
+          "real-estate-lead",
+          "intent-qualified",
+          "agent-handoff-requested",
+        ],
       },
-      order: 11,
+      order: 10,
     },
     {
       type: "action",
@@ -634,12 +644,12 @@ export const REAL_ESTATE_TEMPLATE: FlowTemplateDefinition = {
         action: "update_status",
         status: "qualified",
       },
-      order: 12,
+      order: 11,
     },
     {
       type: "action",
       content: { action: "end_flow" },
-      order: 15,
+      order: 12,
     },
   ],
 };
@@ -684,10 +694,10 @@ export const SERVICES_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 900,
         quick_replies: [
-          { "title": "🚨 Urgent (ASAP)", "payload": "urgent" },
-          { "title": "📅 Planning (1-3 months)", "payload": "planning" },
-          { "title": "💡 Just Researching", "payload": "research" }
-        ]
+          { title: "🚨 Urgent (ASAP)", payload: "urgent" },
+          { title: "📅 Planning (1-3 months)", payload: "planning" },
+          { title: "💡 Just Researching", payload: "research" },
+        ],
       },
       order: 2,
     },
@@ -778,10 +788,10 @@ export const AGENCIES_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 1000,
         quick_replies: [
-          { "title": "📈 Lead Generation", "payload": "lead_gen" },
-          { "title": "✨ Brand Refresh", "payload": "branding" },
-          { "title": "🌐 Digital Transformation", "payload": "transformation" }
-        ]
+          { title: "📈 Lead Generation", payload: "lead_gen" },
+          { title: "✨ Brand Refresh", payload: "branding" },
+          { title: "🌐 Digital Transformation", payload: "transformation" },
+        ],
       },
       order: 1,
     },
@@ -795,10 +805,10 @@ export const AGENCIES_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 900,
         quick_replies: [
-          { "title": "💳 Under £10k", "payload": "<10k" },
-          { "title": "🏢 £10k-£50k", "payload": "10k-50k" },
-          { "title": "🚀 £50k+", "payload": ">50k" }
-        ]
+          { title: "💳 Under £10k", payload: "<10k" },
+          { title: "🏢 £10k-£50k", payload: "10k-50k" },
+          { title: "🚀 £50k+", payload: ">50k" },
+        ],
       },
       order: 2,
     },
@@ -829,7 +839,7 @@ export const AGENCIES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Fantastic! 🎯 One of our senior strategists will review your brief and follow up at {{contact_email}} within 1 business day. Ready to see some of our previous success stories while you wait?",
+        text: "Fantastic! 🎯 One of our senior strategists will review your brief and follow up at {{contact_email || lead_email}} within 1 business day. Ready to see some of our previous success stories while you wait?",
         delayMs: 600,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -888,10 +898,10 @@ export const BOOKING_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 900,
         quick_replies: [
-          { "title": "📅 Consultation", "payload": "consultation" },
-          { "title": "🛠️ Service / Repair", "payload": "service" },
-          { "title": "❓ Other Info", "payload": "other" }
-        ]
+          { title: "📅 Consultation", payload: "consultation" },
+          { title: "🛠️ Service / Repair", payload: "service" },
+          { title: "❓ Other Info", payload: "other" },
+        ],
       },
       order: 1,
     },
@@ -994,10 +1004,10 @@ export const ECOMMERCE_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 900,
         quick_replies: [
-          { "title": "📦 Track Order", "payload": "track" },
-          { "title": "🛍️ Browse Shop", "payload": "browse" },
-          { "title": "🎁 Get Discount", "payload": "discount" }
-        ]
+          { title: "📦 Track Order", payload: "track" },
+          { title: "🛍️ Browse Shop", payload: "browse" },
+          { title: "🎁 Get Discount", payload: "discount" },
+        ],
       },
       order: 1,
     },
@@ -1033,10 +1043,10 @@ export const ECOMMERCE_TEMPLATE: FlowTemplateDefinition = {
             variableName: "ecommerce_intent",
             operator: "contains",
             value: "discount",
-            nextNodeOrder: 6,
+            nextNodeOrder: 5,
           },
         ],
-        nextNodeOrder: 7,
+        nextNodeOrder: 6,
       },
       order: 2,
     },
@@ -1048,7 +1058,7 @@ export const ECOMMERCE_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
-        nextNodeOrder: 10,
+        nextNodeOrder: 8,
       },
       order: 3,
     },
@@ -1060,7 +1070,7 @@ export const ECOMMERCE_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1200,
-        nextNodeOrder: 9,
+        nextNodeOrder: 7,
       },
       order: 4,
     },
@@ -1072,9 +1082,9 @@ export const ECOMMERCE_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
-        nextNodeOrder: 10,
+        nextNodeOrder: 8,
       },
-      order: 6,
+      order: 5,
     },
     // Default Path
     {
@@ -1084,9 +1094,9 @@ export const ECOMMERCE_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
-        nextNodeOrder: 15,
+        nextNodeOrder: 9,
       },
-      order: 7,
+      order: 6,
     },
     // Actionable Node
     {
@@ -1095,17 +1105,17 @@ export const ECOMMERCE_TEMPLATE: FlowTemplateDefinition = {
         action: "checkout",
         checkoutUrl: "[STORE_URL]/checkout",
       },
+      order: 7,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
+      order: 8,
+    },
+    {
+      type: "action",
+      content: { action: "end_flow" },
       order: 9,
-    },
-    {
-      type: "action",
-      content: { action: "end_flow" },
-      order: 10,
-    },
-    {
-      type: "action",
-      content: { action: "end_flow" },
-      order: 15,
     },
   ],
 };
@@ -1138,10 +1148,10 @@ export const SAAS_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 900,
         quick_replies: [
-          { "title": "👤 1-10", "payload": "1-10" },
-          { "title": "👥 11-50", "payload": "11-50" },
-          { "title": "🏢 50+", "payload": "50+" }
-        ]
+          { title: "👤 1-10", payload: "1-10" },
+          { title: "👥 11-50", payload: "11-50" },
+          { title: "🏢 50+", payload: "50+" },
+        ],
       },
       order: 1,
     },
@@ -1177,9 +1187,9 @@ export const SAAS_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 900,
         quick_replies: [
-          { "title": "📅 Book Demo", "payload": "yes" },
-          { "title": "💡 Not now, show features", "payload": "no" }
-        ]
+          { title: "📅 Book Demo", payload: "yes" },
+          { title: "💡 Not now, show features", payload: "no" },
+        ],
       },
       order: 4,
     },
@@ -1261,9 +1271,9 @@ export const BOUTIQUE_GYM_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 800,
         quick_replies: [
-          { "title": "🏋️ Join the Gym", "payload": "join" },
-          { "title": "🔥 Try a Class", "payload": "class" },
-          { "title": "👀 Book a Tour", "payload": "tour" },
+          { title: "🏋️ Join the Gym", payload: "join" },
+          { title: "🔥 Try a Class", payload: "class" },
+          { title: "👀 Book a Tour", payload: "tour" },
         ],
       },
       order: 1,
@@ -1272,10 +1282,30 @@ export const BOUTIQUE_GYM_TEMPLATE: FlowTemplateDefinition = {
       type: "condition",
       content: {
         conditions: [
-          { variableName: "gym_interest", operator: "contains", value: "join", nextNodeOrder: 3 },
-          { variableName: "gym_interest", operator: "contains", value: "member", nextNodeOrder: 3 },
-          { variableName: "gym_interest", operator: "contains", value: "class", nextNodeOrder: 4 },
-          { variableName: "gym_interest", operator: "contains", value: "tour", nextNodeOrder: 5 },
+          {
+            variableName: "gym_interest",
+            operator: "contains",
+            value: "join",
+            nextNodeOrder: 3,
+          },
+          {
+            variableName: "gym_interest",
+            operator: "contains",
+            value: "member",
+            nextNodeOrder: 3,
+          },
+          {
+            variableName: "gym_interest",
+            operator: "contains",
+            value: "class",
+            nextNodeOrder: 4,
+          },
+          {
+            variableName: "gym_interest",
+            operator: "contains",
+            value: "tour",
+            nextNodeOrder: 5,
+          },
         ],
         nextNodeOrder: 6,
       },
@@ -1416,11 +1446,11 @@ export const PERSONAL_TRAINING_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 1000,
         quick_replies: [
-          { "title": "💪 Strength", "payload": "strength" },
-          { "title": "🔥 Fat Loss", "payload": "fat_loss" },
-          { "title": "🏅 Performance", "payload": "performance" },
-          { "title": "🧘 Longevity", "payload": "longevity" }
-        ]
+          { title: "💪 Strength", payload: "strength" },
+          { title: "🔥 Fat Loss", payload: "fat_loss" },
+          { title: "🏅 Performance", payload: "performance" },
+          { title: "🧘 Longevity", payload: "longevity" },
+        ],
       },
       order: 1,
     },
@@ -1546,10 +1576,10 @@ export const CROSSFIT_GYM_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 900,
         quick_replies: [
-          { "title": "💪 Faced the Board", "payload": "experienced" },
-          { "title": "🆕 First Time", "payload": "newbie" },
-          { "title": "❓ Just Curious", "payload": "curious" }
-        ]
+          { title: "💪 Faced the Board", payload: "experienced" },
+          { title: "🆕 First Time", payload: "newbie" },
+          { title: "❓ Just Curious", payload: "curious" },
+        ],
       },
       order: 1,
     },
@@ -1563,10 +1593,10 @@ export const CROSSFIT_GYM_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 800,
         quick_replies: [
-          { "title": "💪 RAW Strength", "payload": "strength" },
-          { "title": "🏃 Unbreakable Endurance", "payload": "endurance" },
-          { "title": "🏅 Competition", "payload": "competition" }
-        ]
+          { title: "💪 RAW Strength", payload: "strength" },
+          { title: "🏃 Unbreakable Endurance", payload: "endurance" },
+          { title: "🏅 Competition", payload: "competition" },
+        ],
       },
       order: 2,
     },
@@ -1680,10 +1710,10 @@ export const BOOT_CAMP_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 800,
         quick_replies: [
-          { "title": "🆕 Just Starting", "payload": "beginner" },
-          { "title": "🏃 Regular Mover", "payload": "intermediate" },
-          { "title": "🏅 Advanced Athlete", "payload": "advanced" }
-        ]
+          { title: "🆕 Just Starting", payload: "beginner" },
+          { title: "🏃 Regular Mover", payload: "intermediate" },
+          { title: "🏅 Advanced Athlete", payload: "advanced" },
+        ],
       },
       order: 2,
     },
@@ -1773,10 +1803,10 @@ export const YOGA_STUDIO_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 1000,
         quick_replies: [
-          { "title": "🧘 Restorative Yin", "payload": "yin" },
-          { "title": "🔥 Energetic Vinyasa", "payload": "vinyasa" },
-          { "title": "❓ Not Sure", "payload": "unsure" }
-        ]
+          { title: "🧘 Restorative Yin", payload: "yin" },
+          { title: "🔥 Energetic Vinyasa", payload: "vinyasa" },
+          { title: "❓ Not Sure", payload: "unsure" },
+        ],
       },
       order: 1,
     },
@@ -1894,9 +1924,9 @@ export const HAIR_SALON_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 800,
         quick_replies: [
-          { "title": "✂️ Cut & Style", "payload": "cut" },
-          { "title": "🎨 Color / Highlights", "payload": "color" },
-          { "title": "✨ Treatment", "payload": "treatment" },
+          { title: "✂️ Cut & Style", payload: "cut" },
+          { title: "🎨 Color / Highlights", payload: "color" },
+          { title: "✨ Treatment", payload: "treatment" },
         ],
       },
       order: 1,
@@ -1905,11 +1935,36 @@ export const HAIR_SALON_TEMPLATE: FlowTemplateDefinition = {
       type: "condition",
       content: {
         conditions: [
-          { variableName: "style_service_type", operator: "contains", value: "cut", nextNodeOrder: 3 },
-          { variableName: "style_service_type", operator: "contains", value: "style", nextNodeOrder: 3 },
-          { variableName: "style_service_type", operator: "contains", value: "color", nextNodeOrder: 4 },
-          { variableName: "style_service_type", operator: "contains", value: "highlight", nextNodeOrder: 4 },
-          { variableName: "style_service_type", operator: "contains", value: "treatment", nextNodeOrder: 5 },
+          {
+            variableName: "style_service_type",
+            operator: "contains",
+            value: "cut",
+            nextNodeOrder: 3,
+          },
+          {
+            variableName: "style_service_type",
+            operator: "contains",
+            value: "style",
+            nextNodeOrder: 3,
+          },
+          {
+            variableName: "style_service_type",
+            operator: "contains",
+            value: "color",
+            nextNodeOrder: 4,
+          },
+          {
+            variableName: "style_service_type",
+            operator: "contains",
+            value: "highlight",
+            nextNodeOrder: 4,
+          },
+          {
+            variableName: "style_service_type",
+            operator: "contains",
+            value: "treatment",
+            nextNodeOrder: 5,
+          },
         ],
         nextNodeOrder: 6,
       },
@@ -2050,10 +2105,10 @@ export const BARBERSHOP_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 800,
         quick_replies: [
-          { "title": "✂️ Haircut / Fade", "payload": "cut" },
-          { "title": "🧔 Beard Sculpt", "payload": "beard" },
-          { "title": "🔥 Full Service", "payload": "full" }
-        ]
+          { title: "✂️ Haircut / Fade", payload: "cut" },
+          { title: "🧔 Beard Sculpt", payload: "beard" },
+          { title: "🔥 Full Service", payload: "full" },
+        ],
       },
       order: 1,
     },
@@ -2119,7 +2174,11 @@ export const BARBERSHOP_TEMPLATE: FlowTemplateDefinition = {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["barbershop-booking", "appointment-enquiry", "service-intent-high"],
+        tags: [
+          "barbershop-booking",
+          "appointment-enquiry",
+          "service-intent-high",
+        ],
       },
       order: 7,
     },
@@ -2167,10 +2226,10 @@ export const DAY_SPA_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 1000,
         quick_replies: [
-          { "title": "💆 Restorative Massage", "payload": "massage" },
-          { "title": "✨ Skincare Facial", "payload": "facial" },
-          { "title": "🛁 Full Ritual", "payload": "ritual" }
-        ]
+          { title: "💆 Restorative Massage", payload: "massage" },
+          { title: "✨ Skincare Facial", payload: "facial" },
+          { title: "🛁 Full Ritual", payload: "ritual" },
+        ],
       },
       order: 1,
     },
@@ -2184,10 +2243,10 @@ export const DAY_SPA_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 900,
         quick_replies: [
-          { "title": "👤 For Me", "payload": "self" },
-          { "title": "👥 Group Ritual", "payload": "group" },
-          { "title": "🎁 Special Gift", "payload": "gift" }
-        ]
+          { title: "👤 For Me", payload: "self" },
+          { title: "👥 Group Ritual", payload: "group" },
+          { title: "🎁 Special Gift", payload: "gift" },
+        ],
       },
       order: 2,
     },
@@ -2301,10 +2360,10 @@ export const NAIL_SALON_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 900,
         quick_replies: [
-          { "title": "💅 Gel Mani", "payload": "mani" },
-          { "title": "✨ Acrylics", "payload": "acrylics" },
-          { "title": "🎨 Custom Art", "payload": "art" }
-        ]
+          { title: "💅 Gel Mani", payload: "mani" },
+          { title: "✨ Acrylics", payload: "acrylics" },
+          { title: "🎨 Custom Art", payload: "art" },
+        ],
       },
       order: 1,
     },
@@ -2358,7 +2417,11 @@ export const NAIL_SALON_TEMPLATE: FlowTemplateDefinition = {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["nail-booking", "beauty-appointment-high-intent", "art-qualified"],
+        tags: [
+          "nail-booking",
+          "beauty-appointment-high-intent",
+          "art-qualified",
+        ],
       },
       order: 6,
     },
@@ -2410,10 +2473,10 @@ export const CLEANING_SERVICES_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 800,
         quick_replies: [
-          { "title": "🏡 Residential", "payload": "residential" },
-          { "title": "🏢 Commercial", "payload": "commercial" },
-          { "title": "🔑 End of Tenancy", "payload": "tenancy" }
-        ]
+          { title: "🏡 Residential", payload: "residential" },
+          { title: "🏢 Commercial", payload: "commercial" },
+          { title: "🔑 End of Tenancy", payload: "tenancy" },
+        ],
       },
       order: 1,
     },
@@ -2427,10 +2490,10 @@ export const CLEANING_SERVICES_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 1000,
         quick_replies: [
-          { "title": "🧹 Regular Maintenance", "payload": "regular" },
-          { "title": "🧼 Deep / Spring Clean", "payload": "deep" },
-          { "title": "🧴 Specialized Service", "payload": "special" }
-        ]
+          { title: "🧹 Regular Maintenance", payload: "regular" },
+          { title: "🧼 Deep / Spring Clean", payload: "deep" },
+          { title: "🧴 Specialized Service", payload: "special" },
+        ],
       },
       order: 2,
     },
@@ -2556,10 +2619,10 @@ export const LANDSCAPING_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 1000,
         quick_replies: [
-          { "title": "🌳 Design & Build", "payload": "design_build" },
-          { "title": "🌿 Maintenance", "payload": "maintenance" },
-          { "title": "🚧 Hardscaping", "payload": "hardscaping" }
-        ]
+          { title: "🌳 Design & Build", payload: "design_build" },
+          { title: "🌿 Maintenance", payload: "maintenance" },
+          { title: "🚧 Hardscaping", payload: "hardscaping" },
+        ],
       },
       order: 1,
     },
@@ -2638,7 +2701,11 @@ export const LANDSCAPING_TEMPLATE: FlowTemplateDefinition = {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["landscaping-lead", "assessment-requested", "outdoor-intent-high"],
+        tags: [
+          "landscaping-lead",
+          "assessment-requested",
+          "outdoor-intent-high",
+        ],
       },
       order: 8,
     },
@@ -2698,10 +2765,10 @@ export const HANDYMAN_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 900,
         quick_replies: [
-          { "title": "🚨 Emergency Repair", "payload": "emergency" },
-          { "title": "📅 Scheduled Visit", "payload": "scheduled" },
-          { "title": "💡 Get a Quote", "payload": "quote" }
-        ]
+          { title: "🚨 Emergency Repair", payload: "emergency" },
+          { title: "📅 Scheduled Visit", payload: "scheduled" },
+          { title: "💡 Get a Quote", payload: "quote" },
+        ],
       },
       order: 2,
     },
@@ -2807,10 +2874,10 @@ export const PET_CARE_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 1000,
         quick_replies: [
-          { "title": "🐾 Walking / Daycare", "payload": "walking" },
-          { "title": "✂️ Grooming", "payload": "grooming" },
-          { "title": "🏠 Boarding", "payload": "boarding" }
-        ]
+          { title: "🐾 Walking / Daycare", payload: "walking" },
+          { title: "✂️ Grooming", payload: "grooming" },
+          { title: "🏠 Boarding", payload: "boarding" },
+        ],
       },
       order: 1,
     },
@@ -2924,10 +2991,10 @@ export const CARE_SERVICES_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 1100,
         quick_replies: [
-          { "title": "👶 Childcare", "payload": "childcare" },
-          { "title": "👵 Elder Care", "payload": "elder_care" },
-          { "title": "🤝 Respite Care", "payload": "respite" }
-        ]
+          { title: "👶 Childcare", payload: "childcare" },
+          { title: "👵 Elder Care", payload: "elder_care" },
+          { title: "🤝 Respite Care", payload: "respite" },
+        ],
       },
       order: 1,
     },
@@ -2970,7 +3037,7 @@ export const CARE_SERVICES_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "Nice to meet you, {{contact_name}}. What's the best phone number for us to reach you on for a sensitive, 5-minute chat about your family's needs? 📱",
+        text: "Nice to meet you, {{contact_name || lead_name}}. What's the best phone number for us to reach you on for a sensitive, 5-minute chat about your family's needs? 📱",
         variableName: "contact_phone",
         inputType: "phone",
         delayMs: 500,
@@ -2993,7 +3060,11 @@ export const CARE_SERVICES_TEMPLATE: FlowTemplateDefinition = {
       type: "action",
       content: {
         action: "tag_user",
-        tags: ["care-lead", "family-discovery-complete", "high-sensitivity-qualified"],
+        tags: [
+          "care-lead",
+          "family-discovery-complete",
+          "high-sensitivity-qualified",
+        ],
       },
       order: 7,
     },
@@ -3045,10 +3116,10 @@ export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 1000,
         quick_replies: [
-          { "title": "📅 Book a Table", "payload": "book" },
-          { "title": "🍷 View Menu", "payload": "menu" },
-          { "title": "📍 Location / Info", "payload": "location" }
-        ]
+          { title: "📅 Book a Table", payload: "book" },
+          { title: "🍷 View Menu", payload: "menu" },
+          { title: "📍 Location / Info", payload: "location" },
+        ],
       },
       order: 1,
     },
@@ -3174,7 +3245,7 @@ export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1000,
-        nextNodeOrder: 15,
+        nextNodeOrder: 13,
       },
       order: 11,
     },
@@ -3186,14 +3257,14 @@ export const RESTAURANT_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1200,
-        nextNodeOrder: 15,
+        nextNodeOrder: 13,
       },
       order: 12,
     },
     {
       type: "action",
       content: { action: "end_flow" },
-      order: 15,
+      order: 13,
     },
   ],
 };
@@ -3226,10 +3297,10 @@ export const HOTEL_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 1000,
         quick_replies: [
-          { "title": "🛌 Book a Room", "payload": "book" },
-          { "title": "✨ Amenities / Info", "payload": "info" },
-          { "title": "📍 Location", "payload": "location" }
-        ]
+          { title: "🛌 Book a Room", payload: "book" },
+          { title: "✨ Amenities / Info", payload: "info" },
+          { title: "📍 Location", payload: "location" },
+        ],
       },
       order: 1,
     },
@@ -3337,14 +3408,14 @@ export const HOTEL_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1300,
-        nextNodeOrder: 15,
+        nextNodeOrder: 11,
       },
       order: 10,
     },
     {
       type: "action",
       content: { action: "end_flow" },
-      order: 15,
+      order: 11,
     },
   ],
 };
@@ -3377,10 +3448,10 @@ export const GOLF_CLUB_TEMPLATE: FlowTemplateDefinition = {
         typingEnabled: true,
         typingDurationMs: 1000,
         quick_replies: [
-          { "title": "🏌️ Book Tee Time", "payload": "tee" },
-          { "title": "🤝 Memberships", "payload": "member" },
-          { "title": "🛍️ Pro Shop / Info", "payload": "info" }
-        ]
+          { title: "🏌️ Book Tee Time", payload: "tee" },
+          { title: "🤝 Memberships", payload: "member" },
+          { title: "🛍️ Pro Shop / Info", payload: "info" },
+        ],
       },
       order: 1,
     },
@@ -3488,7 +3559,7 @@ export const GOLF_CLUB_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1300,
-        nextNodeOrder: 15,
+        nextNodeOrder: 12,
       },
       order: 10,
     },
@@ -3500,14 +3571,14 @@ export const GOLF_CLUB_TEMPLATE: FlowTemplateDefinition = {
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1200,
-        nextNodeOrder: 15,
+        nextNodeOrder: 12,
       },
       order: 11,
     },
     {
       type: "action",
       content: { action: "end_flow" },
-      order: 15,
+      order: 12,
     },
   ],
 };

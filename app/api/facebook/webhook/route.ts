@@ -4,6 +4,32 @@ import logger from "@/lib/logger";
 import { messageQueue } from "@/lib/queue";
 import { verifyWebhookSignature } from "@/lib/server/facebook-utils";
 import { isChannelEnabled } from "@/lib/channel-config";
+import { z } from "zod";
+
+const FacebookMessagingEventSchema = z.object({
+  sender: z.object({ id: z.string() }).optional(),
+  recipient: z.object({ id: z.string() }).optional(),
+  message: z.object({
+    mid: z.string().optional(),
+    text: z.string().optional(),
+    is_echo: z.boolean().optional(),
+    quick_reply: z.object({ payload: z.string() }).optional(),
+  }).optional(),
+  postback: z.object({ payload: z.string() }).optional(),
+  delivery: z.unknown().optional(),
+  read: z.unknown().optional(),
+}).passthrough();
+
+const FacebookWebhookPayloadSchema = z.object({
+  object: z.string(),
+  entry: z.array(z.object({
+    id: z.string().optional(),
+    time: z.number().optional(),
+    messaging: z.array(FacebookMessagingEventSchema).optional()
+  }).passthrough())
+});
+
+type FacebookMessagingEvent = z.infer<typeof FacebookMessagingEventSchema>;
 
 export async function GET(req: NextRequest) {
   if (!isChannelEnabled("facebook")) {
@@ -43,12 +69,20 @@ export async function POST(req: NextRequest) {
     const isValid = verifyWebhookSignature(bodyText, signature, appSecret);
     if (!isValid) return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
 
-    const body = JSON.parse(bodyText);
+    const rawBody = JSON.parse(bodyText);
+    const parsedBody = FacebookWebhookPayloadSchema.safeParse(rawBody);
+
+    if (!parsedBody.success) {
+      logger.warn({ error: parsedBody.error }, "[Facebook Webhook] Invalid payload structure");
+      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+    }
+
+    const body = parsedBody.data;
 
     if (body.object === "page" && body.entry) {
       for (const entry of body.entry) {
         const messaging = entry.messaging;
-        if (!messaging || !Array.isArray(messaging)) continue;
+        if (!messaging) continue;
 
         for (const event of messaging) {
           handleMessagingEvent(event).catch((err) =>
@@ -63,7 +97,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function handleMessagingEvent(event: any) {
+async function handleMessagingEvent(event: FacebookMessagingEvent) {
   try {
     if (event.delivery || event.read || event.message?.is_echo) return;
 
@@ -92,11 +126,11 @@ async function handleMessagingEvent(event: any) {
             source: "facebook",
             event: eventKey,
             tenantId: pageRecord.tenantId,
-            data: { ...event, botId: pageRecord.botId } as any,
+            data: { ...event, botId: pageRecord.botId },
           },
         });
-      } catch (err: any) {
-        if (err.code === "P2002") return;
+      } catch (err) {
+        if (typeof err === "object" && err !== null && (err as any).code === "P2002") return;
         throw err;
       }
     }

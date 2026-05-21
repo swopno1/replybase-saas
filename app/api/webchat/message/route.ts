@@ -48,16 +48,18 @@ export async function POST(request: NextRequest) {
     }
     try { await prisma.idempotencyKey.create({ data: { key: lockKey, expiresAt: new Date(Date.now() + 1000 * 60 * 5) } }); }
     catch (e: unknown) { if (typeof e === "object" && e !== null && "code" in e && (e as any).code === "P2002") { const existing = await prisma.idempotencyKey.findUnique({ where: { key: lockKey } }); if (existing && existing.expiresAt > new Date()) { logger.warn({ conversationId }, "[Webchat Message] Concurrent duplicate blocked"); return NextResponse.json({ status: "duplicate_ignored" }, { status: 200, headers: createWebchatCorsHeaders(request) }); } else { await prisma.idempotencyKey.update({ where: { key: lockKey }, data: { createdAt: new Date(), expiresAt: new Date(Date.now() + 1000 * 60 * 5) } }); } } else throw e; }
-    await prisma.crmMessage.create({ data: { tenantId, conversationId, direction: "inbound", content: message.trim(), source: "human" } });
+    const [_, conversation, channel] = await Promise.all([
+      prisma.crmMessage.create({ data: { tenantId, conversationId, direction: "inbound", content: message.trim(), source: "human" } }),
+      prisma.crmConversation.findUnique({ where: { id: conversationId }, select: { contactId: true, metadata: true } }),
+      findActiveWebChannel({ botId })
+    ]);
     
     // --- LEAD EXTRACTION ---
     // Automatically capture email/phone from any inbound message
-    const conversation = await prisma.crmConversation.findUnique({ where: { id: conversationId }, select: { contactId: true, metadata: true } });
     if (conversation) {
       await leadService.extractAndSyncLeadDataFromMessage(tenantId, conversation.contactId, message);
     }
 
-    const channel = await findActiveWebChannel({ botId });
     if (!channel) { logger.error({ botId }, "[Webchat Message] Channel not found"); return NextResponse.json({ error: "Channel not found" }, { status: 404, headers: createWebchatCorsHeaders(request) }); }
     const config = (channel.config || {}) as Record<string, unknown>;
     const fallbackMode = (config.fallbackMode as string) || "ai";

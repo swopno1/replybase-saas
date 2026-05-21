@@ -13,7 +13,7 @@ import { stitchContactIdentities } from "@/lib/contact-stitching";
 import { leadService } from "./lead-service";
 import logger from "@/lib/logger";
 
-export async function processFacebookJob(payload: any) {
+export async function processFacebookJob(payload: { senderPsid: string, pageId: string, messageText: string, botId?: string }) {
   const { senderPsid, pageId, messageText, botId } = payload;
 
   const facebookPage = await prisma.facebookPage.findUnique({
@@ -158,7 +158,7 @@ export async function processFacebookJob(payload: any) {
           await waitForFlowDurationMs(Math.min(resp.durationMs, 3000));
           await sendFacebookSenderAction(accessToken, senderPsid, "typing_off");
         } else if (resp.type === "text" && resp.text) {
-          await sendTextMessage(accessToken, senderPsid, resp.text, (resp as any).quickReplies);
+          await sendTextMessage(accessToken, senderPsid, resp.text, (resp as { quickReplies?: any[] }).quickReplies);
           await prisma.crmMessage.create({
             data: {
               tenantId,
@@ -218,7 +218,7 @@ export async function processFacebookJob(payload: any) {
     if (typeof aiStream === "string") {
       aiText = aiStream;
     } else if (aiStream && typeof aiStream === "object" && "text" in aiStream) {
-      aiText = await (aiStream as any).text;
+      aiText = await (aiStream as { text: Promise<string> }).text;
     }
 
     if (aiText.trim()) {

@@ -240,65 +240,57 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    await recordActivity({
-      tenantId: site.bot.tenantId,
-      type: "lead_created",
-      title: "Lead Captured",
-      description: `Captured ${leadSource} lead from ${name}`,
-      entityType: "lead",
-      entityId: lead.id,
-      metadata: {
-        source: leadSource,
-        siteId: site.id,
-      } as Prisma.InputJsonValue,
-    });
-
-    const notifications = await sendNewLeadNotifications({
-      tenantId: site.bot.tenantId,
-      leadId: lead.id,
-      name,
-      enquiry: parsed.data.enquiry,
-      email,
-      phone,
-      source: leadSource,
-      createdAt: lead.createdAt,
-    });
-
-    if (notifications.telegram.failed > 0 || notifications.email.failed > 0) {
-      console.error("[Public Leads API] Lead notification delivery issues", {
-        leadId: lead.id,
+    const [notifications] = await Promise.all([
+      sendNewLeadNotifications({
         tenantId: site.bot.tenantId,
-        telegram: notifications.telegram,
-        email: notifications.email,
-      });
-    }
-
-    // Queue AI Enrichment and Outbound Webhooks reliably via BullMQ
-    try {
-      const { messageQueue } = await import("@/lib/queue");
-      if (messageQueue) {
-        await messageQueue.add("lead-enrichment", {
-          type: "lead_enrichment",
-          botId: site.bot.id,
-          payload: {
-            tenantId: site.bot.tenantId,
-            leadId: lead.id,
-            leadData: {
-              id: lead.id,
-              name,
-              email,
-              phone,
-              source: leadSource,
-              enquiry: parsed.data.enquiry,
-              metadata: parsed.data.metadata || {},
-              createdAt: lead.createdAt,
-            }
-          },
-        });
-      }
-    } catch (err) {
-      console.error("[Public Leads API] Failed to queue lead enrichment:", err);
-    }
+        leadId: lead.id,
+        name,
+        enquiry: parsed.data.enquiry,
+        email,
+        phone,
+        source: leadSource,
+        createdAt: lead.createdAt,
+      }),
+      recordActivity({
+        tenantId: site.bot.tenantId,
+        type: "lead_created",
+        title: "Lead Captured",
+        description: `Captured ${leadSource} lead from ${name}`,
+        entityType: "lead",
+        entityId: lead.id,
+        metadata: {
+          source: leadSource,
+          siteId: site.id,
+        } as Prisma.InputJsonValue,
+      }),
+      (async () => {
+        try {
+          const { messageQueue } = await import("@/lib/queue");
+          if (messageQueue) {
+            await messageQueue.add("lead-enrichment", {
+              type: "lead_enrichment",
+              botId: site.bot.id,
+              payload: {
+                tenantId: site.bot.tenantId,
+                leadId: lead.id,
+                leadData: {
+                  id: lead.id,
+                  name,
+                  email,
+                  phone,
+                  source: leadSource,
+                  enquiry: parsed.data.enquiry,
+                  metadata: parsed.data.metadata || {},
+                  createdAt: lead.createdAt,
+                }
+              },
+            });
+          }
+        } catch (err) {
+          console.error("[Public Leads API] Failed to queue lead enrichment:", err);
+        }
+      })()
+    ]);
 
     return NextResponse.json(
       {
