@@ -1,65 +1,33 @@
-# Performance & Scalability Report - ReplyBase SaaS (Updated August 2026)
-
-## Bottleneck Analysis
-
-### 1. Synchronous vs Asynchronous Processing
-- **Webhook Processing**: Fully migrated to BullMQ. Inbound hooks from Meta/Telegram/WhatsApp receive an immediate 200 OK. Heavy processing (AI, DB updates) is handled by background workers.
-- **AI Latency**: Responses are streamed via `ai-fallback.ts` using Vercel AI SDK, significantly improving perceived UX. Streaming is also implemented in the webchat message route (`POST /api/webchat/message`).
-
-### 2. Database Performance & Efficiency
-- **Query Efficiency**: Scoped Prisma queries are efficient due to `tenantId` indexing.
-- **Caching Strategy**:
-    - **Implemented**: A dual-layer TTL cache (L1 in-memory Map, L2 Redis) for tenant limits and subscription status in `lib/subscription.ts`.
-- **Opportunity (PENDING - Aug 2026)**: Dashboard metrics (Lead counts, Conversation volume) are still calculated on-the-fly from the DB. **Task 011** remains a high-priority efficiency gain to implement Redis-based caching (`dashboard:stats:[tenantId]`) with a 5-minute TTL.
-- **N+1 Issues**: Batching is implemented for Message and Lead lookups. However, `BotList` and `ChannelConfig` still perform sequential channel status checks. These should be consolidated into a single join or batched query.
-
-### 3. Usage Logging & Data Operations
-- **Buffering**: `UsageBuffer` system batches usage updates (messages, executions) and flushes them to the database every 10 seconds or upon reaching a threshold, preventing write amplification.
-- **Bulk Data Export**: Optimized June 2026 to use targeted `select` statements for large relations, reducing memory pressure in serverless environments.
-- **Idempotency**: Replaced in-memory locks with database-level de-duplication (via `IdempotencyKey` or unique constraints in `WebhookLog`).
-
-## Infrastructure & Scalability
-- **Connection Pooling**: Uses a centralized PostgreSQL connection pool via `pg.Pool` and `@prisma/adapter-pg`, preventing connection exhaustion.
-- **Worker Scaling**: BullMQ adoption prevents Webhook API timeouts. **Recommendation**: Implement concurrency limits per-tenant within BullMQ to prevent resource hogging by viral tenants.
-- **Deployment Context**: The current BullMQ architecture is suitable for long-running environments (DigitalOcean/Coolify) but would require adaptation (e.g., Inngest) for pure serverless (Vercel).
-
-## Optimization Roadmap
-1. **Redis Metrics Caching (HIGH - Task 011)**: Implement Redis-based caching for dashboard stats with a 300s TTL.
-2. **N+1 Consolidation (MEDIUM)**: Refactor `BotList` to fetch channel statuses in a single batched query per bot.
-3. **Log Pruning (LOW)**: Implement a cron job to move `WebhookLog` entries older than 30 days to cold storage.
-4. **Asset Optimization (LOW)**: Reduce Webchat Widget bundle size (target < 100kb).
-
-## Metrics & KPIs
-- **Target Throughput**: 100+ messages per second per worker instance.
-- **Target Latency**: Webchat handshake < 300ms; AI response start < 1500ms.
 # Performance, Infrastructure & DevOps Master Audit - ReplyBase SaaS (Updated August 2026)
 
 ## 1. Bottleneck Analysis & Optimization
 
-### Asynchronous Processing
-- **Webhook Architecture**: Fully migrated to BullMQ. Inbound hooks (Meta/Telegram/WhatsApp) receive immediate 200 OK responses, while heavy workloads (AI, DB, Webhooks) are processed by background workers.
-- **AI Latency**: Responses are streamed via `ai-fallback.ts` using Vercel AI SDK, significantly improving perceived UX.
+### Asynchronous vs Synchronous Processing
+- **Webhook Architecture**: Fully migrated to BullMQ. Inbound hooks from Meta/Telegram/WhatsApp receive an immediate 200 OK. Heavy processing workloads (AI inference, DB operations, and outbound webhooks) are offloaded to background workers.
+- **AI Latency**: Responses are streamed via `ai-fallback.ts` using the Vercel AI SDK, significantly improving perceived UX. Streaming is also natively implemented in the webchat message route (`POST /api/webchat/message`).
 
-### Database Performance
-- **Query Efficiency**: Scoped Prisma queries are efficient due to universal `tenantId` indexing.
+### Database Performance & Query Efficiency
+- **Query Efficiency**: Scoped Prisma queries are highly efficient due to universal `tenantId` indexing across all tenant-bound models.
 - **Dual-Layer Caching**: Implemented a dual-layer TTL cache (L1 in-memory Map, L2 Redis) for tenant limits and subscription status in `lib/subscription.ts`.
-- **N+1 Identification**: `BotList` (in `app/api/bots/route.ts`) performs an `include` for channels on a per-bot basis within a `findMany`. While Prisma's `include` is optimized, complex status checks often trigger subsequent sequential lookups in the UI or during data mapping. **Path**: Consolidate into a single batched query (Task 024).
-- **Dashboard Metric Aggregation**: Current dashboard metrics are computed in real-time from `usageLog`, `crmMessage`, and `crmConversation`. This introduces latency as the dataset grows. **Path**: Implement Redis caching (Task 001).
-- **CRM Polling Overhead**: The `ConversationPage` and Admin `Webhook Logs` confirmed to use 5s and 3s interval polling respectively. At scale, this creates significant unnecessary server load and database pressure. Verified `ConversationPage` uses `window.setInterval` with 5000ms. **Path**: Transition to SSE or WebSockets for event-driven updates (Task 033).
+- **Dashboard Metric Aggregation (PENDING - Task 001/011)**: Current dashboard metrics (Lead counts, Conversation volume) are computed in real-time from `usageLog`, `crmMessage`, and `crmConversation`. This introduces latency as the dataset grows. **Path**: Implement Redis-based caching (`dashboard:stats:[tenantId]`) with a 300s TTL and event-driven invalidation.
+- **N+1 Identification (MEDIUM - Task 024)**: Batching is implemented for Message and Lead lookups. However, `BotList` (in `app/api/bots/route.ts`) performs sequential channel status checks inside its list endpoint. **Path**: Consolidate into a single batched query fetching channel statuses in a single query per bot list.
+- **CRM Polling Overhead (MEDIUM - Task 033)**: The `ConversationPage` and Admin `Webhook Logs` use 5s and 3s interval polling (`window.setInterval`), causing excessive database and server load at scale. **Path**: Transition CRM message feed to Server-Sent Events (SSE) or WebSockets for real-time, event-driven updates.
 
-### Data Operations
-- **Usage Buffering**: `UsageBuffer` system batches usage updates and flushes to the DB every 10 seconds or upon threshold, preventing write amplification.
-- **Idempotency**: Replaced in-memory locks with DB-level de-duplication via `IdempotencyKey`.
+### Usage Logging & Data Operations
+- **Usage Buffering**: The `UsageBuffer` system batches usage updates (messages, executions) and flushes them to the database every 10 seconds or upon reaching a threshold, preventing write amplification.
+- **Bulk Data Export**: Optimized to use targeted `select` statements for large relations, reducing memory pressure in serverless environments.
+- **Idempotency**: Replaced in-memory locks with database-level de-duplication (via `IdempotencyKey` or unique constraints in `WebhookLog`).
 
 ## 2. Infrastructure & Deployment Architecture
 
-### Environment
+### Environment & Runtime
 - **Platform**: Dockerized for containerized environments (DigitalOcean, Render, Coolify).
 - **Runtime**: Node.js 22.12+.
-- **Database**: PostgreSQL 16+ with centralized connection pooling via `pg.Pool` and `@prisma/adapter-pg`.
+- **Database**: PostgreSQL 16+ with centralized connection pooling via `pg.Pool` and `@prisma/adapter-pg` to prevent connection exhaustion.
+- **Deployment Context**: The current BullMQ architecture is suitable for long-running environments (DigitalOcean/Coolify) but would require adaptation (e.g., Inngest) if transitioning to pure serverless (Vercel).
 
 ### Scalability
-- **Worker Scaling**: BullMQ workers are horizontally scalable as independent processes.
+- **Worker Scaling**: BullMQ workers are horizontally scalable as independent processes. **Recommendation**: Implement concurrency limits per-tenant within BullMQ to prevent resource hogging by viral tenants.
 - **Queue Resilience**: Tiered BullMQ architecture ensures spikes do not result in dropped webhooks.
 - **Cloud Transition**: Successfully migrated AI workloads to DigitalOcean AI, achieving ~40% latency reduction and ~61% OpEx savings.
 
@@ -79,9 +47,9 @@
 ## 4. Performance & Scalability Roadmap
 1. **Redis Metrics Caching (HIGH - Task 011/001)**: Implement Redis-based caching for dashboard stats (`dashboard:stats:[tenantId]`) with a 300s TTL and event-driven invalidation.
 2. **Real-time CRM (MEDIUM - Task 033)**: Replace 5s polling with SSE/WebSockets to reduce server load and improve UX.
-3. **N+1 Consolidation (MEDIUM)**: Refactor `BotList` to fetch channel statuses in a single batched query.
-3. **Backup Automation (CRITICAL - Task 004)**: Set up automated S3/GCS backups for PostgreSQL and Redis.
-4. **Monitoring (MEDIUM)**: Integrate Prometheus/Grafana or similar for real-time queue and error observability.
+3. **N+1 Consolidation (MEDIUM - Task 024)**: Refactor `BotList` to fetch channel statuses in a single batched query.
+4. **Backup Automation (CRITICAL - Task 004)**: Set up automated S3/GCS backups for PostgreSQL and Redis.
+5. **Monitoring (MEDIUM - Task 026/031)**: Expose Prometheus/Grafana metrics or build an admin health dashboard to observe queue depth and AI turn latencies.
 
 ## 5. Metrics & KPIs
 - **Throughput**: Target 100+ messages per second per worker instance.

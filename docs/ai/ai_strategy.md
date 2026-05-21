@@ -59,9 +59,35 @@ Use these for front-end and UX tasks.
 
 ---
 
+## 4. Active Production Configurations in ReplyBase (2026)
+
+To maintain system behavior consistency, the following AI model routing rules are actively enforced inside the codebase (see [config.ts](file:///Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-development/lib/config.ts)):
+
+### Provider Mappings
+
+* **DigitalOcean AI (Default & Main Provider)**:
+  - **Main**: `openai-gpt-oss-120b` (Main generative workflow)
+  - **Utility**: `openai-gpt-oss-20b` (Quick tasks and classification)
+  - **Premium**: `llama3.3-70b-instruct` (High-tier client interactions)
+  - **Analysis**: `gemma-4-31B-it` (Lead profiling and insights extraction)
+* **Gemini (Google)**:
+  - **Main**: `gemini-2.0-flash`
+  - **Utility**: `gemini-1.5-flash`
+  - **Premium**: `gemini-2.0-pro-exp-02-05`
+  - **Analysis**: `gemini-2.0-flash-lite-preview`
+* **OpenAI**:
+  - **Main / Premium**: `openai-gpt-oss-120b`
+  - **Utility / Analysis**: `openai-o3-mini`
+* **Anthropic**:
+  - **Main / Premium / Analysis**: `claude-3-5-sonnet-latest`
+  - **Utility**: `claude-3-haiku-latest`
+
+---
+
 ## Final Tip
 
 Since you are currently working on Comprehensive Production Testing:
 
 - **Use Gemini 3 Pro** to write the test strategy (high logic)
 - **Use Gemini 3 Flash** to actually write the individual test files (high volume)
+

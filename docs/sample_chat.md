@@ -89,6 +89,9 @@ This document showcases our 4 channel-specific master flows in action. Each scen
 * **Objective:** Skip name capture (Facebook profile name is auto-loaded in metadata), ask for email with active manual correction flow, deliver Facebook response-time consultation, and route to **Booking/Human Handoff Subflow**.
 * **Flow Used:** [ReplyBase_facebook_master.json](file:///Users/mdamirhossain/ViveScript-Solutions/projects/ReplyBase/replybase-development/docs/templates/ReplyBase_facebook_master.json)
 
+> [!WARNING]
+> **Legacy / Parked Channel:** Facebook Messenger is currently parked and out of active product focus for the 2026 release cycle. This scenario is kept for future design reference.
+
 ```markdown
 🤖 Bot: 👋 Welcome to ReplyBase! We've automatically linked your Facebook Messenger profile to our support hub.
       

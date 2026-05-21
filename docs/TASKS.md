@@ -307,7 +307,7 @@
 
 - **Task UX-008**
   - Priority: HIGH
-  - Status: PENDING
+  - Status: IN_PROGRESS
   - Category: UI/UX
   - Severity: MEDIUM
   - Issue: Non-Interactive Dashboard Status Cards.
