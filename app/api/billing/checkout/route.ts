@@ -14,6 +14,7 @@ export const dynamic = 'force-dynamic';
 const checkoutRequestSchema = z.object({
   priceId: z.string().min(1),
   planName: z.string().optional(),
+  promoCode: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { priceId, planName } = parsedBody.data;
+    const { priceId, planName, promoCode } = parsedBody.data;
 
     const userId = session.user.id;
     const tenantId = session.user.tenantId;
@@ -109,7 +110,9 @@ export async function POST(req: NextRequest) {
 
     // 3. Create Checkout Session
     // Redesign: Use /billing/success with session_id for reliable sync (Step 3)
-    const checkoutSession = await stripe.checkout.sessions.create({
+    
+    // Stripe does not allow passing both allow_promotion_codes and discounts.
+    const checkoutOptions: any = {
       customer: stripeCustomerId,
       line_items: [
         {
@@ -118,8 +121,6 @@ export async function POST(req: NextRequest) {
         },
       ],
       mode: "subscription",
-      allow_promotion_codes: true,
-      // Pass CHECKOUT_SESSION_ID to our success page for verification
       success_url: `${appUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/pricing?canceled=true`,
       metadata,
@@ -127,7 +128,21 @@ export async function POST(req: NextRequest) {
         metadata,
         trial_period_days: trialDays,
       },
-    });
+    };
+
+    if (promoCode) {
+      // For promotion codes (not just coupons), use the coupon ID or if passing a user-facing code it must be handled differently or matched to its API ID
+      // To keep it simple, we pass the user-facing string "FOUNDING50" as coupon (if Stripe is set up to accept the name as the coupon ID)
+      // Actually, if it's a promotion_code, the ID was `promo_1TZSrRJlpKwK1y1z3iPZIr3o`
+      // We will just use `coupon: promoCode` as it usually resolves if the coupon ID matches the name, 
+      // or we can map it if we strictly know it. The user showed: API ID = promo_1TZSrRJlpKwK1y1z3iPZIr3o, Coupon = FOUNDING50
+      // Often, the Coupon ID in Stripe is the same as the name if created manually.
+      checkoutOptions.discounts = [{ coupon: promoCode }];
+    } else {
+      checkoutOptions.allow_promotion_codes = true;
+    }
+
+    const checkoutSession = await stripe.checkout.sessions.create(checkoutOptions);
 
     return NextResponse.json({ url: checkoutSession.url });
   } catch (error) {

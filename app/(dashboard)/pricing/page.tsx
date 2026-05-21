@@ -113,6 +113,7 @@ function PricingContent() {
   const [selectedPlan, setSelectedPlan] = useState<(typeof PLANS)[number] | null>(null);
   const preferredPlan = parsePlanName(searchParams.get("plan")) || "pro";
   const source = searchParams.get("source");
+  const promo = searchParams.get("promo");
 
   useEffect(() => {
     setClarityTags({
@@ -144,10 +145,17 @@ function PricingContent() {
   useEffect(() => {
     const checkoutParam = searchParams.get("checkout");
     const planParam = searchParams.get("plan");
+    const promoParam = searchParams.get("promo");
+
     if (checkoutParam === "true" && planParam) {
       const plan = PLANS.find((p) => p.name === planParam);
       if (plan && plan.name !== "free") {
-        setSelectedPlan(plan);
+        if (promoParam) {
+          // Straight to checkout, bypassing modals
+          handleConfirmCheckout(plan);
+        } else {
+          setSelectedPlan(plan);
+        }
       }
     }
   }, [searchParams]);
@@ -169,9 +177,10 @@ function PricingContent() {
     setSelectedPlan(plan);
   };
 
-  const handleConfirmCheckout = async () => {
-    if (!selectedPlan) return;
-    const planName = selectedPlan.name;
+  const handleConfirmCheckout = async (planToCheckout?: typeof PLANS[number]) => {
+    const targetPlan = planToCheckout || selectedPlan;
+    if (!targetPlan) return;
+    const planName = targetPlan.name;
 
     trackEvent("get_started_click", {
       properties: {
@@ -227,6 +236,7 @@ function PricingContent() {
         body: JSON.stringify({
           planName,
           priceId,
+          promoCode: promo || undefined,
         }),
       });
 

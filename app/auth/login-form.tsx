@@ -156,9 +156,12 @@ export function LoginForm() {
     const emailParam = sanitizePrefilledEmail(searchParams.get("email"));
     const planParam = searchParams.get("plan");
     const sourceParam = searchParams.get("source");
+    const promoParam = searchParams.get("promo");
+
     if (emailParam) params.set("email", emailParam);
     if (planParam) params.set("plan", planParam);
     if (sourceParam) params.set("source", sourceParam);
+    if (promoParam) params.set("promo", promoParam);
     const query = params.toString();
     return query ? `/auth/register?${query}` : "/auth/register";
   }, [searchParams]);
@@ -226,8 +229,11 @@ export function LoginForm() {
         message: "Authentication complete. Redirecting to your dashboard...",
       });
       const planParam = searchParams.get("plan");
+      const promoParam = searchParams.get("promo");
       if (planParam) {
-        router.push(`/pricing?plan=${planParam}&checkout=true`);
+        let redirectUrl = `/pricing?plan=${planParam}&checkout=true`;
+        if (promoParam) redirectUrl += `&promo=${promoParam}`;
+        router.push(redirectUrl);
       } else {
         router.push("/");
       }
@@ -247,7 +253,9 @@ export function LoginForm() {
   const handleGoogleLogin = () => {
     setIsLoading(true);
     const planParam = searchParams.get("plan");
-    const callbackUrl = planParam ? `/pricing?plan=${planParam}&checkout=true` : "/";
+    const promoParam = searchParams.get("promo");
+    let callbackUrl = planParam ? `/pricing?plan=${planParam}&checkout=true` : "/";
+    if (planParam && promoParam) callbackUrl += `&promo=${promoParam}`;
     signIn("google", { callbackUrl });
   };
 
@@ -391,6 +399,10 @@ export function RegisterForm() {
     () => parseSignupSourceIntent(searchParams.get("source")),
     [searchParams],
   );
+  const promoParam = useMemo(
+    () => searchParams.get("promo"),
+    [searchParams]
+  );
 
   const loginUrl = useMemo(() => {
     const params = new URLSearchParams();
@@ -531,7 +543,9 @@ export function RegisterForm() {
       });
 
       if (signupPlanIntent) {
-        router.push(`/pricing?plan=${signupPlanIntent}&checkout=true`);
+        let redirectUrl = `/pricing?plan=${signupPlanIntent}&checkout=true`;
+        if (promoParam) redirectUrl += `&promo=${promoParam}`;
+        router.push(redirectUrl);
       } else {
         router.push("/");
       }
@@ -558,7 +572,8 @@ export function RegisterForm() {
     });
 
     setIsLoading(true);
-    const callbackUrl = signupPlanIntent ? `/pricing?plan=${signupPlanIntent}&checkout=true` : "/";
+    let callbackUrl = signupPlanIntent ? `/pricing?plan=${signupPlanIntent}&checkout=true` : "/";
+    if (signupPlanIntent && promoParam) callbackUrl += `&promo=${promoParam}`;
     signIn("google", { callbackUrl });
   };
 
@@ -572,7 +587,8 @@ export function RegisterForm() {
     });
 
     setIsLoading(true);
-    const callbackUrl = signupPlanIntent ? `/pricing?plan=${signupPlanIntent}&checkout=true` : "/";
+    let callbackUrl = signupPlanIntent ? `/pricing?plan=${signupPlanIntent}&checkout=true` : "/";
+    if (signupPlanIntent && promoParam) callbackUrl += `&promo=${promoParam}`;
     signIn("facebook", { callbackUrl });
   };
 

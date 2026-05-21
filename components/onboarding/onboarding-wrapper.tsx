@@ -4,9 +4,13 @@ import { useEffect, useState } from "react";
 import { OnboardingModal } from "./onboarding-modal";
 import { OnboardingBanner } from "./onboarding-banner";
 
+import { useSearchParams } from "next/navigation";
 import type { OnboardingData } from "@/types/shared/onboarding";
 
 export function OnboardingWrapper() {
+  const searchParams = useSearchParams();
+  const isCheckoutFlow = searchParams.get("checkout") === "true";
+
   const [status, setStatus] = useState<{
     isOnboarded: boolean;
     onboardingStep: number;
@@ -24,7 +28,7 @@ export function OnboardingWrapper() {
     fetchStatus();
   }, []);
 
-  if (!status || status.isOnboarded) {
+  if (isCheckoutFlow || !status || status.isOnboarded) {
     return null;
   }
 
