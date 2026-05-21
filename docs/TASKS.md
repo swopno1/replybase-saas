@@ -124,7 +124,7 @@
 
 - **Task 027**
   - Priority: MEDIUM
-  - Status: PENDING
+  - Status: COMPLETED
   - Category: Security/Engineering
   - Severity: MEDIUM
   - Issue: Legacy Manual Scoping in Flow API.
@@ -134,7 +134,7 @@
   - Detailed Instructions: 1. Update `GET` and `POST` in `app/api/flows/route.ts`. 2. Use the provided `db` client which is already tenant-scoped.
   - Expected Deliverables: Hardened Flow API routes.
   - Dependencies: `withAuthAndTenant` helper.
-  - Notes: Consistency improvement.
+  - Notes: Completed on 2026-05-21. Refactored the GET and POST routes in `app/api/flows/route.ts` to utilize the standardized `withAuthAndTenant` middleware. The GET handler handles retrieving private tenant-owned flows using the tenant-scoped `db` client, and queries the global `prisma` client for global templates (`isGlobal: true`). The POST handler enforces tenant plan limits (counting non-global flows) and checks platform-admin status before allowing the creation of global template flows. Cast the unified client to `any` to prevent typescript excessive stack depth errors during compilation. Added 13 comprehensive unit tests in `tests/api/flows.test.ts` covering tenant/global querying, plan limit checking, bad request handling, admin checks, and auto-promotion of the first admin in the database. All unit tests passed, and the Next.js production build compiled successfully.
   - Rollout Risk: LOW.
 
 - **Task 028**
