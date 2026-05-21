@@ -65,6 +65,7 @@ interface FlowReference {
 interface FlowNodeContent {
   text?: string;
   buttons?: FlowButton[];
+  quick_replies?: FlowButton[];
   variableName?: string;
   inputType?: string;
   validationMessage?: string;
@@ -75,6 +76,9 @@ interface FlowNodeContent {
   nextNodeOrder?: number;
   tags?: string[];
   status?: string;
+  bookingService?: string;
+  checkoutUrl?: string;
+  scheduleLink?: string;
   delayMs?: number;
   waitMs?: number;
   typingDurationMs?: number;
@@ -349,9 +353,9 @@ export default function FlowEditorPage() {
           {node.type === "message" && (
             <div className="space-y-2">
               <p className="text-sm">{node.content.text || "No message"}</p>
-              {node.content.buttons && node.content.buttons.length > 0 && (
+              {((node.content.quick_replies || node.content.buttons) && (node.content.quick_replies || node.content.buttons)!.length > 0) && (
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {node.content.buttons?.map((btn: FlowButton, i: number) => (
+                  {(node.content.quick_replies || node.content.buttons)?.map((btn: FlowButton, i: number) => (
                     <Badge key={i} variant="secondary">
                       {btn.title}
                     </Badge>
@@ -362,12 +366,22 @@ export default function FlowEditorPage() {
           )}
           {node.type === "input" && (
             <div className="text-sm space-y-1">
+              <p className="text-sm italic">{node.content.text || "No prompt text"}</p>
               <p>
                 <strong>Variable:</strong> {node.content.variableName || "N/A"}
               </p>
               <p>
                 <strong>Type:</strong> {node.content.inputType || "text"}
               </p>
+              {((node.content.quick_replies || node.content.buttons) && (node.content.quick_replies || node.content.buttons)!.length > 0) && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {(node.content.quick_replies || node.content.buttons)?.map((btn: FlowButton, i: number) => (
+                    <Badge key={i} variant="secondary">
+                      {btn.title}
+                    </Badge>
+                  ))}
+                </div>
+              )}
               {node.content.nextNodeOrder !== undefined && (
                 <p>
                   <strong>Next Step:</strong> {node.content.nextNodeOrder + 1}
@@ -404,19 +418,44 @@ export default function FlowEditorPage() {
               <p>
                 <strong>Action:</strong> {node.content.action || "N/A"}
               </p>
+              {node.content.text && (
+                <p>
+                  <strong>Message:</strong> "{node.content.text}"
+                </p>
+              )}
+              {node.content.bookingService && (
+                <p>
+                  <strong>Booking Service:</strong> {node.content.bookingService}
+                </p>
+              )}
+              {node.content.checkoutUrl && (
+                <p>
+                  <strong>Checkout URL:</strong> {node.content.checkoutUrl}
+                </p>
+              )}
+              {node.content.scheduleLink && (
+                <p>
+                  <strong>Schedule Link:</strong> {node.content.scheduleLink}
+                </p>
+              )}
               {node.content.targetFlowName && (
                 <p>
                   <strong>Calls Flow:</strong> {node.content.targetFlowName}
                 </p>
               )}
+              {node.content.status && (
+                <p>
+                  <strong>Status Update:</strong> {node.content.status}
+                </p>
+              )}
+              {node.content.tags && node.content.tags.length > 0 && (
+                <p>
+                  <strong>Tags:</strong> {node.content.tags.join(", ")}
+                </p>
+              )}
               {node.content.nextNodeOrder !== undefined && (
                 <p>
                   <strong>Next Step:</strong> {node.content.nextNodeOrder + 1}
-                </p>
-              )}
-              {node.content.tags && (
-                <p>
-                  <strong>Tags:</strong> {node.content.tags.join(", ")}
                 </p>
               )}
             </div>
@@ -513,7 +552,7 @@ export default function FlowEditorPage() {
               <Textarea
                 placeholder="Button 1&#10;Button 2&#10;Button 3"
                 value={
-                  nodeContent.buttons
+                  (nodeContent.quick_replies || nodeContent.buttons)
                     ?.map((b: FlowButton) => b.title)
                     .join("\n") || ""
                 }
@@ -522,6 +561,11 @@ export default function FlowEditorPage() {
                   setNodeContent({
                     ...nodeContent,
                     buttons: titles.map((title) => ({
+                      type: "postback",
+                      title,
+                      payload: title,
+                    })),
+                    quick_replies: titles.map((title) => ({
                       type: "postback",
                       title,
                       payload: title,
@@ -613,6 +657,37 @@ export default function FlowEditorPage() {
                   <SelectItem value="number">Number</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Quick Reply Buttons (Optional)</Label>
+              <p className="text-sm text-muted-foreground">
+                Enter button titles, one per line to present quick responses to the user
+              </p>
+              <Textarea
+                placeholder="Button 1&#10;Button 2&#10;Button 3"
+                value={
+                  (nodeContent.quick_replies || nodeContent.buttons)
+                    ?.map((b: FlowButton) => b.title)
+                    .join("\n") || ""
+                }
+                onChange={(e) => {
+                  const titles = e.target.value.split("\n").filter(Boolean);
+                  setNodeContent({
+                    ...nodeContent,
+                    buttons: titles.map((title) => ({
+                      type: "postback",
+                      title,
+                      payload: title,
+                    })),
+                    quick_replies: titles.map((title) => ({
+                      type: "postback",
+                      title,
+                      payload: title,
+                    })),
+                  });
+                }}
+                rows={3}
+              />
             </div>
             <div className="space-y-2">
               <Label>Next Step Order (Optional)</Label>
@@ -876,6 +951,10 @@ export default function FlowEditorPage() {
                   <SelectItem value="update_status">Update Status</SelectItem>
                   <SelectItem value="call_flow">Call Another Flow</SelectItem>
                   <SelectItem value="end_flow">End Flow</SelectItem>
+                  <SelectItem value="booking">Booking Escalation</SelectItem>
+                  <SelectItem value="checkout">Stripe Checkout</SelectItem>
+                  <SelectItem value="schedule">Schedule Event</SelectItem>
+                  <SelectItem value="trigger_webhook">Trigger Webhook</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -948,6 +1027,179 @@ export default function FlowEditorPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+
+            {nodeContent.action === "booking" && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Response Message (Optional)</Label>
+                  <Textarea
+                    placeholder="I've forwarded your requirements to our specialist. They'll reach out to schedule your walkthrough shortly!"
+                    value={nodeContent.text || ""}
+                    onChange={(e) =>
+                      setNodeContent({ ...nodeContent, text: e.target.value })
+                    }
+                    rows={3}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Custom message sent to the user when booking is requested. You can use variable interpolation (e.g., {"`{{booking_link}}`"}).
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Booking Service (Optional)</Label>
+                  <Input
+                    placeholder="e.g., general, calendly, table"
+                    value={nodeContent.bookingService || ""}
+                    onChange={(e) =>
+                      setNodeContent({ ...nodeContent, bookingService: e.target.value })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Identifier for the booking system used (e.g., calendly).
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Additional Tags (comma-separated, optional)</Label>
+                  <Input
+                    placeholder="e.g., booking-request, new-appointment"
+                    value={nodeContent.tags?.join(", ") || ""}
+                    onChange={(e) =>
+                      setNodeContent({
+                        ...nodeContent,
+                        tags: e.target.value
+                          .split(",")
+                          .map((t) => t.trim())
+                          .filter(Boolean),
+                      })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Tags automatically added to the lead when this action runs.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {nodeContent.action === "checkout" && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Response Message (Optional)</Label>
+                  <Textarea
+                    placeholder="I've pre-configured your secure checkout page. You can start in seconds here: {{stripe_url}}"
+                    value={nodeContent.text || ""}
+                    onChange={(e) =>
+                      setNodeContent({ ...nodeContent, text: e.target.value })
+                    }
+                    rows={3}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Message containing the payment URL. Must contain {"`{{stripe_url}}`"} to output the Stripe link.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Checkout URL (Optional)</Label>
+                  <Input
+                    placeholder="e.g., https://buy.stripe.com/..."
+                    value={nodeContent.checkoutUrl || ""}
+                    onChange={(e) =>
+                      setNodeContent({ ...nodeContent, checkoutUrl: e.target.value })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Custom checkout link or static store page redirect.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Additional Tags (comma-separated, optional)</Label>
+                  <Input
+                    placeholder="e.g., checkout-initiated"
+                    value={nodeContent.tags?.join(", ") || ""}
+                    onChange={(e) =>
+                      setNodeContent({
+                        ...nodeContent,
+                        tags: e.target.value
+                          .split(",")
+                          .map((t) => t.trim())
+                          .filter(Boolean),
+                      })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Tags automatically added to the lead when checkout is initiated.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {nodeContent.action === "schedule" && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Response Message (Optional)</Label>
+                  <Textarea
+                    placeholder="Let's schedule a meeting: {{schedule_link}}"
+                    value={nodeContent.text || ""}
+                    onChange={(e) =>
+                      setNodeContent({ ...nodeContent, text: e.target.value })
+                    }
+                    rows={3}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Message text sent when scheduling.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Schedule Link (Optional)</Label>
+                  <Input
+                    placeholder="e.g., https://calendly.com/username"
+                    value={nodeContent.scheduleLink || ""}
+                    onChange={(e) =>
+                      setNodeContent({ ...nodeContent, scheduleLink: e.target.value })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Calendly or custom booking calendar url.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Additional Tags (comma-separated, optional)</Label>
+                  <Input
+                    placeholder="e.g., schedule-initiated"
+                    value={nodeContent.tags?.join(", ") || ""}
+                    onChange={(e) =>
+                      setNodeContent({
+                        ...nodeContent,
+                        tags: e.target.value
+                          .split(",")
+                          .map((t) => t.trim())
+                          .filter(Boolean),
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            )}
+
+            {nodeContent.action === "trigger_webhook" && (
+              <div className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground space-y-2">
+                <p>
+                  ⚡ <strong>Trigger Webhook Action</strong>
+                </p>
+                <p>
+                  This action dispatches a <code>flow.action</code> event to your configured outgoing webhooks.
+                </p>
+                <p>
+                  It will include:
+                </p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Lead ID / Contact ID</li>
+                  <li>Action name (<code>trigger_webhook</code>)</li>
+                  <li>Node ID</li>
+                  <li>All collected session variables</li>
+                </ul>
+                <p className="text-xs mt-2 text-warning-foreground">
+                  Make sure you have configured active outgoing webhooks in your developer settings.
+                </p>
               </div>
             )}
 
