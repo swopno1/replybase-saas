@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { prisma } from "../lib/prisma";
-import { executeWebchatFlowFirst } from "../lib/webchat-conversation-engine";
+import { executeWebchatFlowFirst, buildWebchatSourceContext } from "../lib/webchat-conversation-engine";
 import { leadService } from "../lib/services/lead-service";
 
 const TENANT_ID = "cmox3h0uw000013nwaubo2wm8";
@@ -64,14 +64,13 @@ async function main() {
       siteId: "test-site",
       message: turn.text,
       channelId: "cmox71u7v000414r76q7e9x82",
-      sourceContext: {},
+      sourceContext: buildWebchatSourceContext({}),
     });
 
     console.log(`Flow Result Handled: ${result?.handled}`);
     if (result) {
       console.log(`Responses:`, JSON.stringify(result.responses, null, 2));
       console.log(`Flow Session ID: ${result.flowSessionId}`);
-      console.log(`Current Node ID: ${result.currentNodeId}`);
     } else {
       console.log(`Result is null (not handled by flow)`);
     }
