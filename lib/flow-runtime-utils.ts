@@ -87,8 +87,14 @@ export function interpolateText(
   variables: Record<string, unknown>,
 ): string {
   return text.replace(/\{\{\s*([^}]+)\s*\}\}/g, (_, expression) => {
-    const [keysPart, ...filters] = expression.split('|').map((s: string) => s.trim());
-    const keys = keysPart.split('||').map((s: string) => s.trim());
+    let expr = expression;
+    let urlencode = false;
+    if (expr.includes('| urlencode') || expr.includes('|urlencode')) {
+        urlencode = true;
+        expr = expr.replace(/\|\s*urlencode/, '');
+    }
+    
+    const keys = expr.split('||').map((s: string) => s.trim());
     
     let value: unknown = "";
     for (const key of keys) {
@@ -99,7 +105,7 @@ export function interpolateText(
     }
     
     let strValue = String(value);
-    if (filters.includes('urlencode')) {
+    if (urlencode) {
       strValue = encodeURIComponent(strValue);
     }
     return strValue;

@@ -169,7 +169,8 @@
     "type": "action",
     "content": {
       "action": "call_flow",
-      "targetFlowName": "ReplyBase_SubFlow_Pricing"
+      "targetFlowName": "ReplyBase_SubFlow_Pricing",
+      "nextNodeOrder": 9
     }
   },
   {
@@ -177,7 +178,8 @@
     "type": "action",
     "content": {
       "action": "call_flow",
-      "targetFlowName": "ReplyBase_SubFlow_Demo"
+      "targetFlowName": "ReplyBase_SubFlow_Demo",
+      "nextNodeOrder": 9
     }
   },
   {
@@ -185,7 +187,8 @@
     "type": "action",
     "content": {
       "action": "call_flow",
-      "targetFlowName": "ReplyBase_SubFlow_Booking"
+      "targetFlowName": "ReplyBase_SubFlow_Booking",
+      "nextNodeOrder": 9
     }
   },
   {
@@ -201,7 +204,8 @@
     "type": "action",
     "content": {
       "action": "call_flow",
-      "targetFlowName": "ReplyBase_SubFlow_Checkout"
+      "targetFlowName": "ReplyBase_SubFlow_Checkout",
+      "nextNodeOrder": 9
     }
   }
 ]
