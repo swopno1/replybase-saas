@@ -11,6 +11,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { isChannelVisibleInUi, type ChannelId } from "@/lib/channel-config";
 
 interface Bot {
   id: string;
@@ -61,11 +62,22 @@ export function BotList() {
     return <div className="p-4">Loading...</div>;
   }
 
-  const toLabel = (value: string) =>
-    value.charAt(0).toUpperCase() + value.slice(1);
+  const toLabel = (value: string) => {
+    const val = value.toLowerCase();
+    if (val === "web" || val === "webchat") return "Web";
+    if (val === "whatsapp") return "WhatsApp";
+    if (val === "facebook") return "Facebook";
+    if (val === "telegram") return "Telegram";
+    return value.charAt(0).toUpperCase() + value.slice(1);
+  };
 
-  const isLegacyHiddenChannel = (value: string) =>
-    ["facebook", "whatsapp"].includes(value.toLowerCase());
+  const isChannelVisible = (type: string) => {
+    const channelId = type.toLowerCase() === "web" ? "webchat" : type.toLowerCase();
+    if (["facebook", "telegram", "webchat", "whatsapp"].includes(channelId)) {
+      return isChannelVisibleInUi(channelId as ChannelId);
+    }
+    return false;
+  };
 
   const isLimitReached = limitStatus ? !limitStatus.allowed : false;
 
@@ -151,7 +163,7 @@ export function BotList() {
                     <p className="font-medium">{bot.name}</p>
                     <p className="text-sm text-gray-600">
                       Primary:{" "}
-                      {isLegacyHiddenChannel(bot.primaryChannel)
+                      {!isChannelVisible(bot.primaryChannel)
                         ? "Legacy"
                         : toLabel(bot.primaryChannel)}
                     </p>
@@ -159,7 +171,7 @@ export function BotList() {
                       {bot.channels
                         .filter(
                           (channel) =>
-                            !isLegacyHiddenChannel(channel.type),
+                            isChannelVisible(channel.type),
                         )
                         .map((channel) => (
                           <span
