@@ -14,16 +14,25 @@ import {
   resumeParentFlow,
   sanitizeNameInput,
   setRuntimeState,
+  FlowWithOrderedNodes,
 } from "@/lib/flow-runtime-utils";
 import { leadService } from "./services/lead-service";
+
+export type FlowResponseQuickReply = {
+  content_type: "text";
+  title: string;
+  payload: string;
+};
+
+export type FlowResponse =
+  | { type: "text"; text: string; quickReplies?: FlowResponseQuickReply[] }
+  | { type: "typing"; durationMs: number };
 
 const MIN_TYPING_DELAY_MS = 300;
 
 async function applyDelayWithOptionalTyping(
   content: FlowNodeContent,
-  responses: Array<
-    { type: "text"; text: string; quickReplies?: any[] } | { type: "typing"; durationMs: number }
-  >,
+  responses: FlowResponse[],
   explicitDelayMs?: number,
 ) {
   const delayMs = normalizeDurationMs(explicitDelayMs ?? content.delayMs);
@@ -578,7 +587,7 @@ export async function executeWebchatFlowFirst(params: {
     return {
       handled: Boolean(activeFlow.fallbackMessage),
       responses: activeFlow.fallbackMessage
-        ? [{ type: "text" as const, text: activeFlow.fallbackMessage, quickReplies: [] as any[] }]
+        ? [{ type: "text" as const, text: activeFlow.fallbackMessage, quickReplies: [] }]
         : [],
       flowId: activeFlow.id,
       flowName: activeFlow.name,
@@ -609,9 +618,7 @@ export async function executeWebchatFlowFirst(params: {
   variables.contact_is_qualified = contactRecord?.email ? "true" : "false";
 
   const runtime = getRuntimeState(variables, session.flowId);
-  const responses: Array<
-    { type: "text"; text: string; quickReplies?: any[] } | { type: "typing"; durationMs: number }
-  > = [];
+  const responses: FlowResponse[] = [];
   let pendingMessage = resolved.isNewSession ? "" : params.message.trim();
 
   if (pendingMessage) {
@@ -654,18 +661,19 @@ export async function executeWebchatFlowFirst(params: {
         }
 
         if (text.trim()) {
-          const resp: { type: "text"; text: string; quickReplies?: any[] } = {
+          const quickRepliesMapped = quickReplies && quickReplies.length > 0
+            ? quickReplies.map((qr) => ({
+                content_type: "text" as const,
+                title: qr.title,
+                payload: qr.payload || qr.title,
+              }))
+            : undefined;
+
+          responses.push({
             type: "text",
             text: text.trim(),
-          };
-          if (quickReplies && quickReplies.length > 0) {
-            resp.quickReplies = quickReplies.map((qr) => ({
-              content_type: "text",
-              title: qr.title,
-              payload: qr.payload || qr.title,
-            }));
-          }
-          responses.push(resp);
+            quickReplies: quickRepliesMapped,
+          });
         }
         
         await applyDelayWithOptionalTyping(content, responses);
@@ -837,7 +845,7 @@ export async function executeWebchatFlowFirst(params: {
               type: "BOOKING_REQUESTED",
               title: "Demo Walkthrough Requested",
               description: `User ${variables.contact_email || variables.lead_email || "N/A"} requested a demo for ${variables.business_type || "N/A"}`,
-              metadata: { variables: variables as any },
+              metadata: { variables } as Prisma.JsonObject,
             },
           });
           responses.push({
@@ -927,7 +935,7 @@ export async function executeWebchatFlowFirst(params: {
   });
 
   if (!responses.length && activeFlow.fallbackMessage) {
-    responses.push({ type: "text", text: activeFlow.fallbackMessage, quickReplies: [] as any[] });
+    responses.push({ type: "text", text: activeFlow.fallbackMessage, quickReplies: [] });
   }
 
   return {

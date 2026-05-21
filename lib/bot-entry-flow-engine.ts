@@ -1,15 +1,4 @@
 import { Prisma } from "@prisma/client";
-
-export interface ExecutionTraceStep {
-  nodeId: string;
-  type: string;
-  status: "success" | "failure" | "skipped";
-  variablesBefore: Record<string, unknown>;
-  variablesAfter: Record<string, unknown>;
-  responses: any[];
-  error?: string;
-  durationMs?: number;
-}
 import { prisma } from "@/lib/prisma";
 import { checkTenantUsageLimits } from "@/lib/subscription";
 import {
@@ -25,16 +14,35 @@ import {
   resumeParentFlow,
   sanitizeNameInput,
   setRuntimeState,
+  FlowWithOrderedNodes,
 } from "@/lib/flow-runtime-utils";
+
+export type FlowResponseQuickReply = {
+  content_type: "text";
+  title: string;
+  payload: string;
+};
+
+export type FlowResponse =
+  | { type: "text"; text: string; quickReplies?: FlowResponseQuickReply[] }
+  | { type: "typing"; durationMs: number };
+
+export interface ExecutionTraceStep {
+  nodeId: string;
+  type: string;
+  status: "success" | "failure" | "skipped";
+  variablesBefore: Record<string, unknown>;
+  variablesAfter: Record<string, unknown>;
+  responses: FlowResponse[];
+  error?: string;
+  durationMs?: number;
+}
 
 const MIN_TYPING_DELAY_MS = 300;
 
 async function applyDelayWithOptionalTyping(
   content: FlowNodeContent,
-  responses: Array<
-    | { type: "text"; text: string; quickReplies?: any[] }
-    | { type: "typing"; durationMs: number }
-  >,
+  responses: FlowResponse[],
   explicitDelayMs?: number,
 ) {
   const delayMs = normalizeDurationMs(explicitDelayMs ?? content.delayMs);
@@ -104,7 +112,7 @@ async function resolveFlow(params: {
       return null;
     }
 
-    let flow = configuredFlow;
+    let flow: FlowWithOrderedNodes = configuredFlow;
     let currentNodeId = flow.nodes[0]?.id || null;
 
     if (!isNewSession && params.variables) {
@@ -116,7 +124,7 @@ async function resolveFlow(params: {
           flowId: runtime.activeFlowId,
         });
         if (activeFlow) {
-          flow = activeFlow as any;
+          flow = activeFlow;
           if (!params.variables.last_node_id) {
             currentNodeId = activeFlow.nodes[0]?.id || null;
           }
@@ -271,7 +279,7 @@ async function resolveFlow(params: {
         variables: {
           __runtime: createInitialRuntimeState(flow.id),
           contact_name: contact?.name || "",
-          business_type: (contact as any)?.businessType || "", // Cast for safety
+          business_type: businessType,
           sync_hash: "", // Placeholder, will be set after session is created
         },
         isActive: true,
@@ -283,7 +291,7 @@ async function resolveFlow(params: {
       where: { id: session.id },
       data: {
         variables: {
-          ...(session.variables as Record<string, any>),
+          ...(session.variables as Prisma.JsonObject),
           sync_hash: session.id,
         },
       },
@@ -525,7 +533,7 @@ export async function executeBotEntryFlowFirst(params: {
     return {
       handled: Boolean(activeFlow.fallbackMessage),
       responses: activeFlow.fallbackMessage
-        ? [{ type: "text" as const, text: activeFlow.fallbackMessage, quickReplies: [] as any[] }]
+        ? [{ type: "text" as const, text: activeFlow.fallbackMessage, quickReplies: [] }]
         : [],
       flowId: activeFlow.id,
       flowName: activeFlow.name,
@@ -557,13 +565,10 @@ export async function executeBotEntryFlowFirst(params: {
     ? "true"
     : "false";
   mergedVariables.session_id = session.id;
-  mergedVariables.sync_hash = (session.variables as any)?.sync_hash || session.id;
+  mergedVariables.sync_hash = ((session.variables as Prisma.JsonObject)?.sync_hash as string) || session.id;
 
   const runtime = getRuntimeState(mergedVariables, session.flowId);
-  const responses: Array<
-    | { type: "text"; text: string; quickReplies?: any[] }
-    | { type: "typing"; durationMs: number }
-  > = [];
+  const responses: FlowResponse[] = [];
   let pendingMessage = resolved.isNewSession ? "" : params.message.trim();
 
   if (pendingMessage) {
@@ -607,18 +612,19 @@ export async function executeBotEntryFlowFirst(params: {
         }
 
         if (text.trim()) {
-          const resp: { type: "text"; text: string; quickReplies?: any[] } = {
+          const quickRepliesMapped = quickReplies && quickReplies.length > 0
+            ? quickReplies.map((qr) => ({
+                content_type: "text" as const,
+                title: qr.title,
+                payload: qr.payload || qr.title,
+              }))
+            : undefined;
+
+          responses.push({
             type: "text",
             text: text.trim(),
-          };
-          if (quickReplies && quickReplies.length > 0) {
-            resp.quickReplies = quickReplies.map((qr) => ({
-              content_type: "text",
-              title: qr.title,
-              payload: qr.payload || qr.title,
-            }));
-          }
-          responses.push(resp);
+            quickReplies: quickRepliesMapped,
+          });
         }
         
         await applyDelayWithOptionalTyping(content, responses);
@@ -802,7 +808,7 @@ export async function executeBotEntryFlowFirst(params: {
               type: "BOOKING_REQUESTED",
               title: "Demo Walkthrough Requested",
               description: `User ${mergedVariables.contact_email} requested a demo for ${mergedVariables.business_type}`,
-              metadata: { variables: mergedVariables as any },
+              metadata: { variables: mergedVariables } as Prisma.JsonObject,
             },
           });
           responses.push({
@@ -942,7 +948,7 @@ export async function executeBotEntryFlowFirst(params: {
   });
 
   if (!responses.length && activeFlow.fallbackMessage && !shouldFallbackToAi) {
-    responses.push({ type: "text", text: activeFlow.fallbackMessage, quickReplies: [] as any[] });
+    responses.push({ type: "text", text: activeFlow.fallbackMessage, quickReplies: [] });
   }
 
   return {
