@@ -290,7 +290,7 @@
 
 - **Task 038**
   - Priority: MEDIUM
-  - Status: PENDING
+  - Status: COMPLETED
   - Category: Reliability/Engineering
   - Severity: MEDIUM
   - Issue: Unit Test Failures in Batch Operation Routes.
@@ -300,7 +300,7 @@
   - Detailed Instructions: 1. Update `tests/mocks/prisma.ts` to correctly handle `$transaction` calls. 2. Verify batch API tests pass.
   - Expected Deliverables: Green CI pipeline for batch operations.
   - Dependencies: Vitest, `vitest-mock-extended`.
-  - Notes: Critical for maintaining bulk action reliability.
+  - Notes: Completed on 2026-05-22. Enhanced the centralized Prisma mock in `tests/mocks/prisma.ts` with a default `$transaction` implementation that handles both callback and array-of-promises styles. Standardized `tests/api/contacts-conversations-batch.test.ts` and `tests/api/leads-batch.test.ts` to use this centralized mock, ensuring consistent and reliable transaction mocking across the suite. All 476 tests pass.
   - Rollout Risk: LOW.
 
 - **Task 039**

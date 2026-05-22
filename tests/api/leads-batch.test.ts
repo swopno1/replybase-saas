@@ -1,25 +1,17 @@
-import { NextRequest } from "next/server";
-import { GET, DELETE, PATCH } from "@/app/api/leads/route";
-import { prisma } from "@/lib/prisma";
-import { vi, describe, it, expect, beforeEach } from "vitest";
+import { prismaMock } from "../mocks/prisma";
+import { vi } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({
-  prisma: {
-    lead: {
-      findMany: vi.fn(),
-      count: vi.fn(),
-      deleteMany: vi.fn(),
-      updateMany: vi.fn(),
-    },
-    subscription: {
-      findFirst: vi.fn(),
-    },
-  },
+  prisma: prismaMock,
 }));
+
+import { NextRequest } from "next/server";
+import { GET, DELETE, PATCH } from "@/app/api/leads/route";
+import { describe, it, expect, beforeEach } from "vitest";
 
 vi.mock("@/lib/route-helpers", () => ({
   withAuthAndTenant: (fn: any) => async (request: any, context: any) => {
-    return fn({ tenantId: "test-tenant", id: "test-user" }, request, context, prisma);
+    return fn({ tenantId: "test-tenant", id: "test-user" }, request, context, prismaMock);
   },
 }));
 
@@ -30,14 +22,14 @@ describe("Leads API Batch Actions", () => {
 
   it("GET should support pagination", async () => {
     const req = new NextRequest("http://localhost/api/leads?page=2&limit=10");
-    (prisma.lead.findMany as any).mockResolvedValue([]);
-    (prisma.lead.count as any).mockResolvedValue(25);
-    (prisma.subscription.findFirst as any).mockResolvedValue(null);
+    prismaMock.lead.findMany.mockResolvedValue([]);
+    prismaMock.lead.count.mockResolvedValue(25);
+    prismaMock.subscription.findFirst.mockResolvedValue(null);
 
     const res = await GET(req, { params: Promise.resolve({}) });
     const data = await res.json();
 
-    expect(prisma.lead.findMany).toHaveBeenCalledWith(expect.objectContaining({
+    expect(prismaMock.lead.findMany).toHaveBeenCalledWith(expect.objectContaining({
       skip: 10,
       take: 10,
     }));
@@ -51,12 +43,12 @@ describe("Leads API Batch Actions", () => {
       method: "DELETE",
       body: JSON.stringify({ ids: ["1", "2"] }),
     });
-    (prisma.lead.deleteMany as any).mockResolvedValue({ count: 2 });
+    prismaMock.lead.deleteMany.mockResolvedValue({ count: 2 });
 
     const res = await DELETE(req, { params: Promise.resolve({}) });
     const data = await res.json();
 
-    expect(prisma.lead.deleteMany).toHaveBeenCalledWith({
+    expect(prismaMock.lead.deleteMany).toHaveBeenCalledWith({
       where: {
         id: { in: ["1", "2"] },
         tenantId: "test-tenant",
@@ -70,12 +62,12 @@ describe("Leads API Batch Actions", () => {
       method: "DELETE",
       body: JSON.stringify({ ids: "ALL" }),
     });
-    (prisma.lead.deleteMany as any).mockResolvedValue({ count: 100 });
+    prismaMock.lead.deleteMany.mockResolvedValue({ count: 100 });
 
     const res = await DELETE(req, { params: Promise.resolve({}) });
     const data = await res.json();
 
-    expect(prisma.lead.deleteMany).toHaveBeenCalledWith({
+    expect(prismaMock.lead.deleteMany).toHaveBeenCalledWith({
       where: {
         tenantId: "test-tenant",
       },
@@ -88,12 +80,12 @@ describe("Leads API Batch Actions", () => {
       method: "PATCH",
       body: JSON.stringify({ ids: "ALL", status: "qualified" }),
     });
-    (prisma.lead.updateMany as any).mockResolvedValue({ count: 100 });
+    prismaMock.lead.updateMany.mockResolvedValue({ count: 100 });
 
     const res = await PATCH(req, { params: Promise.resolve({}) });
     const data = await res.json();
 
-    expect(prisma.lead.updateMany).toHaveBeenCalledWith({
+    expect(prismaMock.lead.updateMany).toHaveBeenCalledWith({
       where: {
         tenantId: "test-tenant",
       },

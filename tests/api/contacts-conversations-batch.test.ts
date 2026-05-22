@@ -1,31 +1,18 @@
+import { prismaMock } from "../mocks/prisma";
+import { vi } from "vitest";
+
+vi.mock("@/lib/prisma", () => ({
+  prisma: prismaMock,
+}));
+
 import { NextRequest } from "next/server";
 import { GET as getContacts, DELETE as deleteContacts } from "@/app/api/contacts/route";
 import { GET as getConversations, DELETE as deleteConversations } from "@/app/api/conversations/route";
-import { prisma } from "@/lib/prisma";
-import { vi, describe, it, expect, beforeEach } from "vitest";
-
-vi.mock("@/lib/prisma", () => ({
-  prisma: {
-    contact: {
-      findMany: vi.fn(),
-      count: vi.fn(),
-      deleteMany: vi.fn(),
-    },
-    crmConversation: {
-      findMany: vi.fn(),
-      count: vi.fn(),
-      deleteMany: vi.fn(),
-    },
-    contactIdentity: { deleteMany: vi.fn() },
-    lead: { deleteMany: vi.fn() },
-    onboardingSession: { deleteMany: vi.fn() },
-    $transaction: vi.fn((fn) => fn(prisma)),
-  },
-}));
+import { describe, it, expect, beforeEach } from "vitest";
 
 vi.mock("@/lib/route-helpers", () => ({
   withAuthAndTenant: (fn: (...args: unknown[]) => unknown) => async (request: unknown, context: unknown) => {
-    return fn({ tenantId: "test-tenant", id: "test-user" }, request, context, prisma);
+    return fn({ tenantId: "test-tenant", id: "test-user" }, request, context, prismaMock);
   },
 }));
 
@@ -39,13 +26,13 @@ describe("Contacts & Conversations API Batch Actions", () => {
       method: "DELETE",
       body: JSON.stringify({ ids: "ALL" }),
     });
-    vi.mocked(prisma.contact.deleteMany).mockResolvedValue({ count: 50 });
+    prismaMock.contact.deleteMany.mockResolvedValue({ count: 50 });
 
     const res = await deleteContacts(req, { params: Promise.resolve({}) });
     const result = await res.json();
     const data = result.data;
 
-    expect(prisma.contact.deleteMany).toHaveBeenCalledWith({
+    expect(prismaMock.contact.deleteMany).toHaveBeenCalledWith({
       where: {},
     });
     expect(data.count).toBe(50);
@@ -56,13 +43,13 @@ describe("Contacts & Conversations API Batch Actions", () => {
       method: "DELETE",
       body: JSON.stringify({ ids: "ALL" }),
     });
-    vi.mocked(prisma.crmConversation.deleteMany).mockResolvedValue({ count: 30 });
+    prismaMock.crmConversation.deleteMany.mockResolvedValue({ count: 30 });
 
     const res = await deleteConversations(req, { params: Promise.resolve({}) });
     const result = await res.json();
     const data = result.data;
 
-    expect(prisma.crmConversation.deleteMany).toHaveBeenCalledWith({
+    expect(prismaMock.crmConversation.deleteMany).toHaveBeenCalledWith({
       where: {},
     });
     expect(data.count).toBe(30);
