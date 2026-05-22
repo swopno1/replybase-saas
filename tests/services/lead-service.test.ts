@@ -242,6 +242,13 @@ describe('LeadService', () => {
         identities: [],
         leads: []
       } as any);
+      prismaMock.lead.create.mockResolvedValue({
+        id: 'lead-1',
+        name: 'Jane Doe',
+        email: 'jane@example.com',
+        mobile: '+123456789',
+        createdAt: new Date()
+      } as any);
 
       await leadService.syncContactIdentifiedStatus('tenant-1', 'contact-1');
 
@@ -269,6 +276,13 @@ describe('LeadService', () => {
           phone: null,
           identities: [{ type, value: 'social-123' }],
           leads: []
+        } as any);
+        prismaMock.lead.create.mockResolvedValue({
+          id: 'lead-1',
+          name: 'Jane Doe',
+          email: null,
+          mobile: null,
+          createdAt: new Date()
         } as any);
 
         await leadService.syncContactIdentifiedStatus('tenant-1', 'contact-1');
@@ -367,6 +381,13 @@ describe('LeadService', () => {
           identities: [],
           leads: []
         } as any);
+      prismaMock.lead.create.mockResolvedValue({
+        id: 'lead-1',
+        name: 'Jane Doe',
+        email: 'test@example.com',
+        mobile: '+1 555-555-0199',
+        createdAt: new Date()
+      } as any);
 
       const result = await leadService.extractAndSyncLeadDataFromMessage(
         'tenant-1',
@@ -418,6 +439,13 @@ describe('LeadService', () => {
           ],
           leads: []
         } as any);
+      prismaMock.lead.create.mockResolvedValue({
+        id: 'lead-1',
+        name: 'Jane Doe',
+        email: 'primary@example.com',
+        mobile: '+1111111111',
+        createdAt: new Date()
+      } as any);
 
       const result = await leadService.extractAndSyncLeadDataFromMessage(
         'tenant-1',

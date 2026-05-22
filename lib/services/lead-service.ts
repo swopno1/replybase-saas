@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { extractLeadDataFromText } from "../lead-extraction";
+import { sendNewLeadNotifications } from "@/lib/lead-notifications";
 
 export class LeadService {
   constructor(private db: PrismaClient) {}
@@ -118,7 +119,7 @@ export class LeadService {
         }
       } else {
         // Create lead automatically for identified contacts
-        await this.db.lead.create({
+        const lead = await this.db.lead.create({
           data: {
             tenantId,
             contactId,
@@ -129,6 +130,17 @@ export class LeadService {
             email: contact.email,
             mobile: contact.phone,
           }
+        });
+
+        void sendNewLeadNotifications({
+          tenantId,
+          leadId: lead.id,
+          name: lead.name || "Unknown",
+          enquiry: "Lead automatically identified and qualified based on provided contact details.",
+          email: lead.email || undefined,
+          phone: lead.mobile || undefined,
+          source: "auto_identified",
+          createdAt: lead.createdAt,
         });
       }
     }

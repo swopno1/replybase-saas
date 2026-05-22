@@ -17,6 +17,7 @@ import {
   FlowWithOrderedNodes,
 } from "@/lib/flow-runtime-utils";
 import { leadService } from "./services/lead-service";
+import { sendNewLeadNotifications } from "@/lib/lead-notifications";
 
 export type FlowResponseQuickReply = {
   content_type: "text";
@@ -403,8 +404,19 @@ async function persistLeadCapture(params: {
     return;
   }
 
-  await prisma.lead.create({
+  const lead = await prisma.lead.create({
     data: leadData,
+  });
+
+  void sendNewLeadNotifications({
+    tenantId: params.tenantId,
+    leadId: lead.id,
+    name: lead.name || "Unknown",
+    enquiry: (lead.metadata as any)?.lastUserMessage || "Captured via Webchat Flow",
+    email: lead.email || undefined,
+    phone: lead.mobile || undefined,
+    source: "webchat",
+    createdAt: lead.createdAt,
   });
 }
 
