@@ -1,30 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { withAdmin } from "@/lib/route-helpers";
 
 export const dynamic = 'force-dynamic';
 
-// PATCH /api/admin/bots/:id - Update any bot (Admin only)
-export async function PATCH(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> },
-) {
+export const PATCH = withAdmin(async (session, request, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (session.user.role !== "ADMIN" && session.user.role !== "SUPERADMIN" && !session.user.isAdmin) {
-      return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 });
-    }
-
-    const { id } = await context.params;
-    const body = await req.json();
+    const { id } = (await context.params) as { id: string };
+    const body = await request.json();
     const { name, enabled, entryFlow } = body;
 
-    const bot = await prisma.bot.update({
+    const bot = await db.bot.update({
       where: { id },
       data: {
         ...(name !== undefined && { name }),
@@ -41,26 +26,13 @@ export async function PATCH(
       { status: 500 },
     );
   }
-}
+});
 
-// DELETE /api/admin/bots/:id - Delete any bot (Admin only)
-export async function DELETE(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> },
-) {
+export const DELETE = withAdmin(async (session, request, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { id } = (await context.params) as { id: string };
 
-    if (session.user.role !== "ADMIN" && session.user.role !== "SUPERADMIN" && !session.user.isAdmin) {
-      return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 });
-    }
-
-    const { id } = await context.params;
-
-    await prisma.bot.delete({
+    await db.bot.delete({
       where: { id },
     });
 
@@ -72,4 +44,4 @@ export async function DELETE(
       { status: 500 },
     );
   }
-}
+});

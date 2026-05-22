@@ -1,33 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(req: NextRequest) {
+export const POST = withAuthAndTenant(async ({ id: userId, tenantId }, request, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const tenantId = session.user.tenantId;
-    if (!tenantId) {
-      return NextResponse.json({ error: "No tenant found" }, { status: 403 });
-    }
-
-    const { feedback, type } = await req.json().catch(() => ({ feedback: "", type: "CANCEL" }));
+    const { feedback, type } = await request.json().catch(() => ({ feedback: "", type: "CANCEL" }));
 
     if (feedback) {
       console.log(
         `[Subscription Feedback] ${type} from tenant ${tenantId}: ${feedback}`,
       );
-      await prisma.churnFeedback.create({
+      await db.churnFeedback.create({
         data: {
           tenantId,
-          userId: session.user.id,
+          userId,
           type: type || "CANCEL",
           reason: feedback,
         },
@@ -39,7 +27,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const subscription = await prisma.subscription.findUnique({
+    const subscription = await db.subscription.findUnique({
       where: { tenantId },
       include: { plan: true },
     });
@@ -57,7 +45,7 @@ export async function POST(req: NextRequest) {
       !subscription.stripeId ||
       subscription.stripeId.startsWith("free_")
     ) {
-      const updated = await prisma.subscription.update({
+      const updated = await db.subscription.update({
         where: { id: subscription.id },
         data: {
           status: "CANCELED",
@@ -72,7 +60,7 @@ export async function POST(req: NextRequest) {
       cancel_at_period_end: true,
     });
 
-    const updated = await prisma.subscription.update({
+    const updated = await db.subscription.update({
       where: { id: subscription.id },
       data: {
         status: (stripeSub as any).status.toUpperCase(),
@@ -95,4 +83,4 @@ export async function POST(req: NextRequest) {
       { status: 500 },
     );
   }
-}
+});

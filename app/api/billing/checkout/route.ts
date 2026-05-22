@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { randomUUID } from "node:crypto";
-import { authOptions } from "@/lib/auth";
 import { stripe } from "@/lib/stripe";
-import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = 'force-dynamic';
-
-
-
 
 const checkoutRequestSchema = z.object({
   priceId: z.string().min(1),
@@ -17,7 +11,7 @@ const checkoutRequestSchema = z.object({
   promoCode: z.string().optional(),
 });
 
-export async function POST(req: NextRequest) {
+export const POST = withAuthAndTenant(async (user, request, context, db) => {
   try {
     if (!stripe) {
       return NextResponse.json(
@@ -26,13 +20,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const parsedBody = checkoutRequestSchema.safeParse(await req.json());
+    const parsedBody = checkoutRequestSchema.safeParse(await request.json());
 
     if (!parsedBody.success) {
       return NextResponse.json(
@@ -43,13 +31,8 @@ export async function POST(req: NextRequest) {
 
     const { priceId, planName, promoCode } = parsedBody.data;
 
-    const userId = session.user.id;
-    const tenantId = session.user.tenantId;
+    const { id: userId, tenantId, email, name: userName } = user;
     const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-
-    if (!tenantId) {
-      return NextResponse.json({ error: "Tenant ID missing" }, { status: 400 });
-    }
 
     if (!appUrl) {
       return NextResponse.json(
@@ -59,8 +42,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. Resolve Stripe Customer
-    // Identity Handling: Reuse customer if email exists (Rule #9)
-    const tenant = await prisma.tenant.findUnique({
+    const tenant = await db.tenant.findUnique({
       where: { id: tenantId },
       include: { subscriptions: true },
     });
@@ -69,11 +51,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
     }
 
-    let stripeCustomerId = tenant.subscriptions?.stripeCustomerId;
+    let stripeCustomerId = (tenant as any).subscriptions?.stripeCustomerId;
 
-    if (!stripeCustomerId && session.user.email) {
+    if (!stripeCustomerId && email) {
       const existingCustomers = await stripe.customers.list({
-        email: session.user.email.toLowerCase(),
+        email: email.toLowerCase(),
         limit: 1,
       });
 
@@ -84,8 +66,8 @@ export async function POST(req: NextRequest) {
 
     if (!stripeCustomerId) {
       const customer = await stripe.customers.create({
-        email: session.user.email || undefined,
-        name: session.user.name || undefined,
+        email: email || undefined,
+        name: userName || undefined,
         metadata: {
           userId,
           tenantId,
@@ -94,9 +76,8 @@ export async function POST(req: NextRequest) {
       stripeCustomerId = customer.id;
     }
 
-    // 2. Prevent Trial Abuse (Rule #2)
-    // Check if this tenant has already used a trial
-    const hasUsedTrial = tenant.trialUsed;
+    // 2. Prevent Trial Abuse
+    const hasUsedTrial = (tenant as any).trialUsed;
     const trialDays = hasUsedTrial ? undefined : 14;
 
     const metadata: Record<string, string> = {
@@ -109,9 +90,6 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Create Checkout Session
-    // Redesign: Use /billing/success with session_id for reliable sync (Step 3)
-    
-    // Stripe does not allow passing both allow_promotion_codes and discounts.
     const checkoutOptions: any = {
       customer: stripeCustomerId,
       line_items: [
@@ -131,12 +109,6 @@ export async function POST(req: NextRequest) {
     };
 
     if (promoCode) {
-      // For promotion codes (not just coupons), use the coupon ID or if passing a user-facing code it must be handled differently or matched to its API ID
-      // To keep it simple, we pass the user-facing string "FOUNDING50" as coupon (if Stripe is set up to accept the name as the coupon ID)
-      // Actually, if it's a promotion_code, the ID was `promo_1TZSrRJlpKwK1y1z3iPZIr3o`
-      // We will just use `coupon: promoCode` as it usually resolves if the coupon ID matches the name, 
-      // or we can map it if we strictly know it. The user showed: API ID = promo_1TZSrRJlpKwK1y1z3iPZIr3o, Coupon = FOUNDING50
-      // Often, the Coupon ID in Stripe is the same as the name if created manually.
       checkoutOptions.discounts = [{ coupon: promoCode }];
     } else {
       checkoutOptions.allow_promotion_codes = true;
@@ -152,4 +124,4 @@ export async function POST(req: NextRequest) {
       { status: 500 },
     );
   }
-}
+});

@@ -1,28 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { isPlatformAdmin } from "@/lib/admin";
-import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
 import { logAdminActivity } from "@/lib/admin-audit";
+import { Prisma } from "@prisma/client";
+import { withAdmin } from "@/lib/route-helpers";
 
 export const dynamic = "force-dynamic";
 
-async function requireAdmin() {
-  const session = await getServerSession(authOptions);
-  if (!isPlatformAdmin(session)) {
-    return null;
-  }
-  return session;
-}
-
-import { Prisma } from "@prisma/client";
-
-export async function GET(request: NextRequest) {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
+export const GET = withAdmin(async (session, request, context, db) => {
   const { searchParams } = new URL(request.url);
   const search = searchParams.get("search") || "";
   const role = searchParams.get("role") || "";
@@ -54,7 +37,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const [users, total] = await Promise.all([
-      prisma.user.findMany({
+      db.user.findMany({
         where,
         select: {
           id: true,
@@ -71,7 +54,7 @@ export async function GET(request: NextRequest) {
         skip,
         take: limit,
       }),
-      prisma.user.count({ where }),
+      db.user.count({ where }),
     ]);
 
     return NextResponse.json({ 
@@ -94,4 +77,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

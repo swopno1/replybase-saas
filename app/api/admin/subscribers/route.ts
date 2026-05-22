@@ -1,25 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { isPlatformAdmin } from "@/lib/admin";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { logAdminActivity } from "@/lib/admin-audit";
+import { Prisma } from "@prisma/client";
+import { withAdmin } from "@/lib/route-helpers";
 
 export const dynamic = "force-dynamic";
 
-import { Prisma } from "@prisma/client";
-
-export async function GET(request: NextRequest) {
+export const GET = withAdmin(async (session, request, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!isPlatformAdmin(session)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
-    const status = searchParams.get("status") || "";
+    const status = searchParams.get("status") || "all";
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
     const skip = (page - 1) * limit;
@@ -40,10 +30,9 @@ export async function GET(request: NextRequest) {
           OR: [
             { name: { contains: search, mode: "insensitive" } },
             { users: { some: { email: { contains: search, mode: "insensitive" } } } },
-            { users: { some: { name: { contains: search, mode: "insensitive" } } } },
           ],
         } : {},
-        // Handle status filtering by looking at the active subscription
+        // If status is provided, we filter based on the active subscription
         status && status !== "all" ? {
           subscriptions: {
             status
@@ -53,7 +42,7 @@ export async function GET(request: NextRequest) {
     };
 
     const [tenants, total] = await Promise.all([
-      prisma.tenant.findMany({
+      db.tenant.findMany({
         where,
         include: {
           users: {
@@ -81,7 +70,7 @@ export async function GET(request: NextRequest) {
         skip,
         take: limit,
       }),
-      prisma.tenant.count({ where }),
+      db.tenant.count({ where }),
     ]);
 
     // Map tenants back to a "subscriber" format for the frontend
@@ -122,4 +111,4 @@ export async function GET(request: NextRequest) {
       { status: 500 },
     );
   }
-}
+});

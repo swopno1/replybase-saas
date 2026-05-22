@@ -1,83 +1,30 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { z } from "zod";
-import { isPlatformAdmin } from "@/lib/admin";
-import { authOptions } from "@/lib/auth";
-import {
-  getWebchatRolloutConfig,
-  updateWebchatRolloutConfig,
-  type WebchatRolloutMode,
-} from "@/lib/webchat-rollout";
+import { withAdmin } from "@/lib/route-helpers";
 
 export const dynamic = "force-dynamic";
 
-const updateSchema = z.object({
-  mode: z.enum(["off", "pilot", "tiered", "ga"]),
-  enabledTenantIds: z.array(z.string()).default([]),
-  disabledTenantIds: z.array(z.string()).default([]),
-  pilotTenantIds: z.array(z.string()).default([]),
-  allowedPlanNames: z.array(z.string()).default([]),
-});
-
-function normalizeList(values: string[]) {
-  return Array.from(
-    new Set(values.map((entry) => entry.trim()).filter(Boolean)),
-  );
-}
-
-export async function GET() {
+export const GET = withAdmin(async (session, request, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!isPlatformAdmin(session)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
-    return NextResponse.json({ config: getWebchatRolloutConfig() });
-  } catch (error) {
-    console.error("[Admin API] Error fetching webchat rollout config:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch rollout config" },
-      { status: 500 },
-    );
-  }
-}
-
-export async function PATCH(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-
-    if (!isPlatformAdmin(session)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
-    const body = await request.json();
-    const parsed = updateSchema.safeParse(body);
-
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Invalid input", details: parsed.error.issues },
-        { status: 400 },
-      );
-    }
-
-    const config = updateWebchatRolloutConfig({
-      mode: parsed.data.mode as WebchatRolloutMode,
-      enabledTenantIds: normalizeList(parsed.data.enabledTenantIds),
-      disabledTenantIds: normalizeList(parsed.data.disabledTenantIds),
-      pilotTenantIds: normalizeList(parsed.data.pilotTenantIds),
-      allowedPlanNames: normalizeList(parsed.data.allowedPlanNames),
+    const tenantsWithWebchat = await db.channel.count({
+      where: { type: "web" },
     });
+
+    const totalTenants = await db.tenant.count();
+
+    const percentage = totalTenants > 0 ? (tenantsWithWebchat / totalTenants) * 100 : 0;
 
     return NextResponse.json({
-      config,
-      note: "Runtime rollout config updated. Persist to deployment env for durability.",
+      rollout: {
+        total: tenantsWithWebchat,
+        percentage: Math.round(percentage),
+        target: 100,
+      },
     });
   } catch (error) {
-    console.error("[Admin API] Error updating webchat rollout config:", error);
+    console.error("[Admin API] Error fetching webchat rollout:", error);
     return NextResponse.json(
-      { error: "Failed to update rollout config" },
+      { error: "Failed to fetch webchat rollout" },
       { status: 500 },
     );
   }
-}
+});

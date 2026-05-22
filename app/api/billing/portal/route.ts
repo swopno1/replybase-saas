@@ -1,25 +1,12 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { stripe } from "@/lib/stripe";
-import { prisma } from "@/lib/prisma";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = 'force-dynamic';
 
-
-
-
-export async function POST() {
+export const POST = withAuthAndTenant(async ({ tenantId }, request, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const tenantId = session.user.tenantId;
-
-    const subscription = await prisma.subscription.findUnique({
+    const subscription = await db.subscription.findUnique({
       where: { tenantId },
     });
 
@@ -30,7 +17,14 @@ export async function POST() {
       );
     }
 
-    const stripeSession = await stripe!.billingPortal.sessions.create({
+    if (!stripe) {
+      return NextResponse.json(
+        { error: "Billing service unavailable" },
+        { status: 503 },
+      );
+    }
+
+    const stripeSession = await stripe.billingPortal.sessions.create({
       customer: subscription.stripeCustomerId,
       return_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings?tab=billing`,
     });
@@ -43,4 +37,4 @@ export async function POST() {
       { status: 500 },
     );
   }
-}
+});

@@ -1,26 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { isPlatformAdmin } from "@/lib/admin";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { logAdminActivity } from "@/lib/admin-audit";
 import { invalidateTenantCache } from "@/lib/subscription";
+import { withAdmin } from "@/lib/route-helpers";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export const POST = withAdmin(async (session, request, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!isPlatformAdmin(session)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
-    const { id: tenantId } = await params;
-    const body = await req.json();
+    const { id: tenantId } = (await context.params) as { id: string };
+    const body = await request.json();
     const { planId, status, currentPeriodEnd } = body;
 
     if (!planId) {
@@ -28,7 +16,7 @@ export async function POST(
     }
 
     // Check if subscription already exists
-    const existingSubscription = await prisma.subscription.findUnique({
+    const existingSubscription = await db.subscription.findUnique({
       where: { tenantId },
     });
 
@@ -38,7 +26,7 @@ export async function POST(
     let subscription;
 
     if (existingSubscription) {
-      subscription = await prisma.subscription.update({
+      subscription = await db.subscription.update({
         where: { tenantId },
         data: {
           planId,
@@ -49,7 +37,7 @@ export async function POST(
         include: { plan: true },
       });
     } else {
-      subscription = await prisma.subscription.create({
+      subscription = await db.subscription.create({
         data: {
           tenantId,
           planId,
@@ -77,8 +65,8 @@ export async function POST(
         planId: subscription.planId,
         status: subscription.status,
       },
-      ipAddress: req.headers.get("x-forwarded-for") || undefined,
-      userAgent: req.headers.get("user-agent") || undefined,
+      ipAddress: request.headers.get("x-forwarded-for") || undefined,
+      userAgent: request.headers.get("user-agent") || undefined,
     });
 
     return NextResponse.json({ subscription });
@@ -89,4 +77,4 @@ export async function POST(
       { status: 500 },
     );
   }
-}
+});

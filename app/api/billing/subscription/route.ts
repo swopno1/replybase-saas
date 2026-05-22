@@ -1,46 +1,27 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
-import { authOptions } from "@/lib/auth";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = 'force-dynamic';
 
-
-
-
-export async function GET() {
+export const GET = withAuthAndTenant(async ({ tenantId }, request, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      include: { tenant: true },
-    });
-
-    if (!user?.tenantId) {
-      return NextResponse.json({ error: "No tenant found" }, { status: 403 });
-    }
-
     // Get subscription by tenantId
-    const subscription = await prisma.subscription.findUnique({
-      where: { tenantId: user.tenantId },
+    const subscription = await db.subscription.findUnique({
+      where: { tenantId },
       include: { plan: true },
     });
 
     if (!subscription) {
       // Ensure a free plan exists
-      let freePlan = await prisma.plan.findUnique({
+      let freePlan = await db.plan.findUnique({
         where: { name: "free" },
       });
 
       if (!freePlan) {
         const { PLAN_CONFIGS } = await import("@/lib/plans");
         const config = PLAN_CONFIGS.free;
-        freePlan = await prisma.plan.create({
+        freePlan = await db.plan.create({
           data: {
             name: "free",
             displayName: config.displayName,
@@ -59,13 +40,13 @@ export async function GET() {
       const currentPeriodEnd = new Date();
       currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
 
-      const created = await prisma.subscription.upsert({
-        where: { tenantId: user.tenantId },
+      const created = await db.subscription.upsert({
+        where: { tenantId },
         update: {},
         create: {
-          tenantId: user.tenantId,
+          tenantId,
           planId: freePlan.id,
-          stripeId: `free_${user.tenantId}`,
+          stripeId: `free_${tenantId}`,
           status: "FREE",
           currentPeriodStart: new Date(),
           currentPeriodEnd,
@@ -75,7 +56,7 @@ export async function GET() {
       });
 
       const { getTenantUsage } = await import("@/lib/subscription");
-      const usage = await getTenantUsage(user.tenantId);
+      const usage = await getTenantUsage(tenantId);
 
       return NextResponse.json({
         subscription: {
@@ -119,7 +100,7 @@ export async function GET() {
     }
 
     const { getTenantUsage } = await import("@/lib/subscription");
-    const usage = await getTenantUsage(user.tenantId);
+    const usage = await getTenantUsage(tenantId);
 
     const trialDaysRemaining = subscription.trialEndsAt
       ? Math.ceil(
@@ -143,23 +124,18 @@ export async function GET() {
       { status: 500 },
     );
   }
-}
+});
 
-export async function PATCH(req: Request) {
+export const PATCH = withAuthAndTenant(async ({ tenantId }, request, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { priceId, planId } = await req.json();
+    const { priceId, planId } = await request.json();
 
     if (!priceId || !planId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     // Resolve Plan
-    const plan = await prisma.plan.findFirst({
+    const plan = await db.plan.findFirst({
       where: {
         OR: [
           { id: planId },
@@ -172,8 +148,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Plan not found" }, { status: 404 });
     }
 
-    const tenantId = session.user.tenantId;
-    const subscription = await prisma.subscription.findUnique({
+    const subscription = await db.subscription.findUnique({
       where: { tenantId },
       include: { plan: true },
     });
@@ -198,7 +173,7 @@ export async function PATCH(req: Request) {
     });
 
     // Update DB
-    const updated = await prisma.subscription.update({
+    const updated = await db.subscription.update({
       where: { tenantId },
       data: {
         planId: plan.id,
@@ -219,4 +194,4 @@ export async function PATCH(req: Request) {
       { status: 500 },
     );
   }
-}
+});

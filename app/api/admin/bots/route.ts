@@ -1,23 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { withAdmin } from "@/lib/route-helpers";
 
 export const dynamic = 'force-dynamic';
 
-// POST /api/admin/bots - Create a bot for a specific tenant (Admin only)
-export async function POST(req: NextRequest) {
+export const POST = withAdmin(async (session, request, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (session.user.role !== "ADMIN" && session.user.role !== "SUPERADMIN" && !session.user.isAdmin) {
-      return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 });
-    }
-
-    const body = await req.json();
+    const body = await request.json();
     const { tenantId, name } = body;
 
     if (!tenantId || !name) {
@@ -25,7 +13,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify tenant exists
-    const tenant = await prisma.tenant.findUnique({
+    const tenant = await db.tenant.findUnique({
       where: { id: tenantId },
     });
 
@@ -34,7 +22,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Create bot
-    const bot = await prisma.bot.create({
+    const bot = await db.bot.create({
       data: {
         name,
         tenantId,
@@ -59,4 +47,4 @@ export async function POST(req: NextRequest) {
       { status: 500 },
     );
   }
-}
+});
