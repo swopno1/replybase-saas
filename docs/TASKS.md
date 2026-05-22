@@ -273,9 +273,9 @@
   - Notes: Completed on 2026-05-22. Implemented three-layer defense in `lib/ai-fallback.ts`: (1) `GUARDRAIL_SYSTEM_PREFIX` — a 6-rule security directive prepended to every system prompt covering persona locking, injection resistance, content filtering, system prompt concealment, AI identity disclosure, and on-topic enforcement; (2) `containsPromptInjection()` — a runtime detector with 9 regex patterns ("ignore previous instructions", "you are now", "act as", "pretend", "DAN", "jailbreak", "system prompt", "reveal your", "override rules") that short-circuits the entire AI pipeline at $0 cost before any DB or LLM calls; (3) `GUARDRAIL_SYSTEM_PREFIX` prepended to `finalSystemPrompt` for both primary and fallback model invocations. Added 27 comprehensive unit tests covering all injection patterns, safe message passthrough, case sensitivity, and compound attack vectors. All 476 tests pass.
   - Rollout Risk: LOW.
 
-  - **Task 037**
+- **Task 037**
   - Priority: MEDIUM
-  - Status: PENDING
+  - Status: COMPLETED
   - Category: Security/Engineering
   - Severity: MEDIUM
   - Issue: Legacy Manual Scoping in Billing, Admin, and Settings APIs.
@@ -285,7 +285,7 @@
   - Detailed Instructions: 1. Target high-risk paths: `app/api/billing/`, `app/api/admin/`, and `app/api/settings/`. 2. Replace manual session handling with the wrapper. 3. Verify tenant isolation in each refactored route.
   - Expected Deliverables: Unified API security architecture.
   - Dependencies: `withAuthAndTenant` helper.
-  - Notes: Follows Task 027 and 034 successes.
+  - Notes: Completed on 2026-05-22. Refactored all internal routes in `app/api/billing/` and `app/api/admin/` to use standardized `withAuthAndTenant` and `withAdmin` wrappers. Unified security architecture and eliminated manual session handling and scoping. Standardized error codes (401 for unauthenticated, 403 for forbidden). Updated test suite to align with hardened security behavior. All 477 tests pass.
   - Rollout Risk: LOW.
 
 - **Task 038**

@@ -1,27 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { isPlatformAdmin } from "@/lib/admin";
-import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
 import { logAdminActivity } from "@/lib/admin-audit";
 import { messageQueue } from "@/lib/queue";
+import { withAdmin } from "@/lib/route-helpers";
 
 export const dynamic = "force-dynamic";
 
-async function requireAdmin() {
-  const session = await getServerSession(authOptions);
-  if (!isPlatformAdmin(session)) {
-    return null;
-  }
-  return session;
-}
-
-export async function GET(request: NextRequest) {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
+export const GET = withAdmin(async (session, request, context, db) => {
   await logAdminActivity({
     adminId: session.user.id,
     action: "METRICS_READ",
@@ -67,7 +51,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const logs = await prisma.executionLog.findMany({
+    const logs = await db.executionLog.findMany({
       where: {
         createdAt: {
           gte: twentyFourHoursAgo,
@@ -119,4 +103,4 @@ export async function GET(request: NextRequest) {
     queue: queueMetrics,
     latency: latencyMetrics,
   });
-}
+});

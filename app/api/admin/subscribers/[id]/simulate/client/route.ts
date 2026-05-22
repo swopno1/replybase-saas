@@ -1,28 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { getSystemModel } from "@/lib/ai-service";
 import { generateText } from "ai";
 import { SIMULATION_SCENARIOS } from "@/lib/simulation-scenarios";
+import { withAdmin } from "@/lib/route-helpers";
 
-export async function POST(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  const session = await getServerSession(authOptions);
-  // Ensure only admins can run simulations
-  if (!session?.user?.id || ((session.user as any).role !== "ADMIN" && (session.user as any).role !== "SUPERADMIN")) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const POST = withAdmin(async (session, request) => {
+  try {
+    const body = await request.json();
+    const { history, scenarioId } = body;
 
-  const body = await req.json();
-  const { history, scenarioId } = body;
+    const scenario = SIMULATION_SCENARIOS.find((s) => s.id === scenarioId);
 
-  const scenario = SIMULATION_SCENARIOS.find((s) => s.id === scenarioId);
-
-  let systemPrompt = "";
-  if (scenario) {
-    systemPrompt = `You are simulating a customer/client conversing with an automated business chatbot.
+    let systemPrompt = "";
+    if (scenario) {
+      systemPrompt = `You are simulating a customer/client conversing with an automated business chatbot.
 Your goal is to stay fully in character based on the following test scenario:
 
 Scenario Name: ${scenario.name}
@@ -39,8 +30,8 @@ Here is the conversation history so far:
 ${(history || []).map((m: any) => `${m.role === 'user' ? 'CUSTOMER' : 'BOT'}: ${m.text}`).join('\n')}
 
 Generate the next single response from the CUSTOMER. Return ONLY the plain text of the message, without prefixing it with 'CUSTOMER:' or anything else.`;
-  } else {
-    systemPrompt = `You are simulating a customer/client conversing with an automated business chatbot.
+    } else {
+      systemPrompt = `You are simulating a customer/client conversing with an automated business chatbot.
 Your goal is to act as a normal prospect or customer looking for assistance.
 
 Rules for your responses:
@@ -52,9 +43,8 @@ Here is the conversation history so far:
 ${(history || []).map((m: any) => `${m.role === 'user' ? 'CUSTOMER' : 'BOT'}: ${m.text}`).join('\n')}
 
 Generate the next single response from the CUSTOMER. Return ONLY the plain text of the message, without prefixing it with 'CUSTOMER:' or anything else.`;
-  }
+    }
 
-  try {
     const model = getSystemModel({ task: "chat" });
     const { text } = await generateText({
       model,
@@ -72,4 +62,4 @@ Generate the next single response from the CUSTOMER. Return ONLY the plain text 
       error: error.message || "Failed to generate client message",
     }, { status: 500 });
   }
-}
+});

@@ -42,8 +42,21 @@ describe("Admin Metrics API Endpoint GET Route", () => {
     } as any);
   });
 
-  it("should return 403 Forbidden for non-admin users", async () => {
+  it("should return 401 Unauthorized for unauthenticated users", async () => {
     vi.mocked(getServerSession).mockResolvedValue(null);
+
+    const req = new NextRequest("http://localhost/api/admin/metrics");
+    const res = await getMetrics(req);
+    expect(res.status).toBe(401);
+
+    const body = await res.json();
+    expect(body).toEqual({ error: "Unauthorized" });
+  });
+
+  it("should return 403 Forbidden for non-admin users", async () => {
+    vi.mocked(getServerSession).mockResolvedValue({
+      user: { id: "user_1", role: "USER" },
+    } as any);
 
     const req = new NextRequest("http://localhost/api/admin/metrics");
     const res = await getMetrics(req);
@@ -61,11 +74,6 @@ describe("Admin Metrics API Endpoint GET Route", () => {
     vi.mocked(messageQueue.getFailedCount).mockResolvedValue(5);
     vi.mocked(messageQueue.getCompletedCount).mockResolvedValue(100);
 
-    // Mock Prisma execution logs with 10 values: 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000
-    // Total sum = 5500, average = 550
-    // Sorted array: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
-    // p50 index = ceil(0.5 * 10) - 1 = 5 - 1 = 4. Sorted[4] = 500
-    // p95 index = ceil(0.95 * 10) - 1 = 10 - 1 = 9. Sorted[9] = 1000
     const mockLogs = Array.from({ length: 10 }, (_, i) => ({
       executionTime: (i + 1) * 100,
     }));

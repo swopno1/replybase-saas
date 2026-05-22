@@ -1,28 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { withAdmin } from "@/lib/route-helpers";
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/admin/flows/:id - Get any flow (Admin only)
-export async function GET(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> },
-) {
+export const GET = withAdmin(async (session, request, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { id } = (await context.params) as { id: string };
 
-    if (session.user.role !== "ADMIN" && session.user.role !== "SUPERADMIN" && !session.user.isAdmin) {
-      return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 });
-    }
-
-    const { id } = await context.params;
-
-    const flow = await prisma.flow.findUnique({
+    const flow = await db.flow.findUnique({
       where: { id },
       include: {
         owner: {
@@ -61,7 +46,7 @@ export async function GET(
       return NextResponse.json({ error: "Flow not found" }, { status: 404 });
     }
 
-    const channelAssignments = await prisma.flowChannelAssignment.findMany({
+    const channelAssignments = await db.flowChannelAssignment.findMany({
       where: {
         flowId: flow.id,
       },
@@ -98,27 +83,14 @@ export async function GET(
       { status: 500 },
     );
   }
-}
+});
 
-// PUT /api/admin/flows/:id - Update any flow (Admin only)
-export async function PUT(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> },
-) {
+export const PUT = withAdmin(async (session, request, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (session.user.role !== "ADMIN" && session.user.role !== "SUPERADMIN" && !session.user.isAdmin) {
-      return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 });
-    }
-
-    const { id } = await context.params;
+    const { id } = (await context.params) as { id: string };
 
     // Check if flow exists
-    const existingFlow = await prisma.flow.findUnique({
+    const existingFlow = await db.flow.findUnique({
       where: { id },
     });
 
@@ -126,7 +98,7 @@ export async function PUT(
       return NextResponse.json({ error: "Flow not found" }, { status: 404 });
     }
 
-    const body = await req.json();
+    const body = await request.json();
     const {
       name,
       description,
@@ -138,7 +110,7 @@ export async function PUT(
     } = body;
 
     // Update flow
-    const updatedFlow = await prisma.$transaction(async (tx) => {
+    const updatedFlow = await db.$transaction(async (tx) => {
       // If nodes are provided, delete existing nodes and create new ones
       if (nodes !== undefined) {
         await tx.flowNode.deleteMany({
@@ -198,27 +170,14 @@ export async function PUT(
       { status: 500 },
     );
   }
-}
+});
 
-// DELETE /api/admin/flows/:id - Delete any flow (Admin only)
-export async function DELETE(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> },
-) {
+export const DELETE = withAdmin(async (session, request, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (session.user.role !== "ADMIN" && session.user.role !== "SUPERADMIN" && !session.user.isAdmin) {
-      return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 });
-    }
-
-    const { id } = await context.params;
+    const { id } = (await context.params) as { id: string };
 
     // Check if flow exists
-    const existingFlow = await prisma.flow.findUnique({
+    const existingFlow = await db.flow.findUnique({
       where: { id },
     });
 
@@ -227,7 +186,7 @@ export async function DELETE(
     }
 
     // Delete flow (Prisma will handle cascading deletes if configured in schema)
-    await prisma.flow.delete({
+    await db.flow.delete({
       where: { id },
     });
 
@@ -239,4 +198,4 @@ export async function DELETE(
       { status: 500 },
     );
   }
-}
+});

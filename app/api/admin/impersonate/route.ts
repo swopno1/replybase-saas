@@ -1,25 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { isPlatformAdmin } from "@/lib/admin";
 import { cookies } from "next/headers";
+import { withAdmin } from "@/lib/route-helpers";
 
-export async function POST(req: NextRequest) {
+export const POST = withAdmin(async (session, request) => {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!isPlatformAdmin(session)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
-    const { tenantId } = await req.json();
+    const { tenantId } = await request.json();
 
     if (!tenantId) {
       return NextResponse.json({ error: "Tenant ID is required" }, { status: 400 });
     }
 
-    // Set impersonation cookie
-    // In a real production app, you might want to sign this cookie or store it in a DB session
     (await cookies()).set("replybase_impersonation_target", tenantId, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -33,20 +23,13 @@ export async function POST(req: NextRequest) {
     console.error("[Admin Impersonation API] Error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-}
+});
 
-export async function DELETE() {
+export const DELETE = withAdmin(async () => {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!isPlatformAdmin(session)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
     (await cookies()).delete("replybase_impersonation_target");
-
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-}
+});
