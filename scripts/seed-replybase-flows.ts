@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "../lib/prisma";
 import fs from "fs";
 import path from "path";
 import { Prisma } from "@prisma/client";
@@ -50,7 +50,7 @@ const FLOWS_TO_SEED = [
 ];
 
 async function main() {
-  const adminEmail = "replybase1@gmail.com";
+  const adminEmail = process.env.ADMIN_EMAIL || "replybase1@gmail.com";
   console.log(`🚀 Starting ReplyBase flows seeding for: ${adminEmail}`);
 
   try {
@@ -60,11 +60,13 @@ async function main() {
     });
 
     if (!user) {
-      console.error(`❌ User not found with email: ${adminEmail}`);
-      process.exit(1);
+      console.warn(`⚠️ User not found with email: ${adminEmail}. Skipping flow seeding.`);
+      return;
     }
 
     console.log(`🔗 Target user resolved. User ID: ${user.id}, Tenant ID: ${user.tenantId}`);
+
+    const flowIdMap: Record<string, string> = {};
 
     for (const flowConfig of FLOWS_TO_SEED) {
       const filePath = path.resolve(process.cwd(), "docs/templates", flowConfig.fileName);
@@ -81,19 +83,19 @@ async function main() {
       const flowDescription = flowConfig.description;
 
       // Idempotency: check if the flow already exists for this tenant
-      const existingFlow = await prisma.flow.findFirst({
+      let flow = await prisma.flow.findFirst({
         where: { tenantId: user.tenantId, name: flowName }
       });
 
-      if (existingFlow) {
+      if (flow) {
         // Delete all old nodes to prevent duplicates/orphans
         await prisma.flowNode.deleteMany({
-          where: { flowId: existingFlow.id }
+          where: { flowId: flow.id }
         });
 
         // Update the flow and create the fresh node set
-        await prisma.flow.update({
-          where: { id: existingFlow.id },
+        flow = await prisma.flow.update({
+          where: { id: flow.id },
           data: {
             description: flowDescription,
             isActive: true,
@@ -106,10 +108,10 @@ async function main() {
             }
           }
         });
-        console.log(`🔄 Flow updated successfully: ${flowName} (${existingFlow.id})`);
+        console.log(`🔄 Flow updated successfully: ${flowName} (${flow.id})`);
       } else {
         // Create a completely new flow assignment
-        const newFlow = await prisma.flow.create({
+        flow = await prisma.flow.create({
           data: {
             name: flowName,
             description: flowDescription,
@@ -125,11 +127,39 @@ async function main() {
             }
           }
         });
-        console.log(`✅ Flow created successfully: ${flowName} (${newFlow.id})`);
+        console.log(`✅ Flow created successfully: ${flowName} (${flow.id})`);
+      }
+
+      flowIdMap[flowName] = flow.id;
+    }
+
+    // Phase 2: Wire call_flow actions with actual flow IDs
+    console.log("\n🔗 Wiring sub-flow references with IDs...");
+
+    for (const [flowName, flowId] of Object.entries(flowIdMap)) {
+      const nodes = await prisma.flowNode.findMany({
+        where: { flowId: flowId },
+      });
+
+      for (const node of nodes) {
+        const content = node.content as any;
+        if (content?.action === "call_flow" && content?.targetFlowName) {
+          const targetId = flowIdMap[content.targetFlowName];
+          if (targetId) {
+            content.targetFlowId = targetId;
+            await prisma.flowNode.update({
+              where: { id: node.id },
+              data: { content: content as any }
+            });
+            console.log(`   ✅ [${flowName}] ${content.targetFlowName} → ${targetId}`);
+          } else {
+            console.log(`   ⚠️  [${flowName}] No ID found for: ${content.targetFlowName}`);
+          }
+        }
       }
     }
 
-    console.log("🏁 All ReplyBase Master and SubFlows seeded successfully!");
+    console.log("\n🏁 All ReplyBase Master and SubFlows seeded and wired successfully!");
 
   } catch (error) {
     console.error("❌ Seeding failed with error:", error);

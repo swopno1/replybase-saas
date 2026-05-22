@@ -1,15 +1,6 @@
-import { PrismaClient } from "@prisma/client";
+import "dotenv/config";
+import { prisma } from "../lib/prisma";
 import { PLAN_CONFIGS } from "../lib/plans";
-import * as dotenv from "dotenv";
-
-dotenv.config();
-
-console.log("DATABASE_URL present:", !!process.env.DATABASE_URL);
-if (process.env.DATABASE_URL) {
-  console.log("DATABASE_URL starts with:", process.env.DATABASE_URL.substring(0, 10));
-}
-
-const prisma = new PrismaClient();
 
 async function sync() {
   console.log("Starting Plan Synchronization...");
@@ -21,22 +12,24 @@ async function sync() {
       where: { name },
       update: {
         displayName: config.displayName,
-        price: config.price,
+        price: config.price / 100,
         dailyMessageLimit: config.dailyMessageLimit,
         monthlyMessageLimit: config.monthlyMessageLimit,
         flowExecutionCap: config.flowExecutionCap,
         maxBots: config.maxBots,
         maxChannelsPerBot: config.maxChannelsPerBot,
+        maxConversations: config.maxConversations,
       },
       create: {
         name: config.name,
         displayName: config.displayName,
-        price: config.price,
+        price: config.price / 100,
         dailyMessageLimit: config.dailyMessageLimit,
         monthlyMessageLimit: config.monthlyMessageLimit,
         flowExecutionCap: config.flowExecutionCap,
         maxBots: config.maxBots,
         maxChannelsPerBot: config.maxChannelsPerBot,
+        maxConversations: config.maxConversations,
         currency: "GBP",
       },
     });
