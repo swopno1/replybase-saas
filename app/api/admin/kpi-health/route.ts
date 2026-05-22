@@ -7,22 +7,23 @@ export const GET = withAdmin(async (session, request, context, db) => {
   try {
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    const [totalConversations, totalUsers, totalMessages, activeTenants] = await Promise.all([
-      db.conversation.count({
-        where: { createdAt: { gte: twentyFourHoursAgo } },
-      }),
-      db.user.count(),
-      db.message.count({
-        where: { createdAt: { gte: twentyFourHoursAgo } },
-      }),
-      db.tenant.count({
-        where: {
-          activityLogs: {
-            some: { createdAt: { gte: twentyFourHoursAgo } },
+    const [totalConversations, totalUsers, totalMessages, activeTenants] =
+      await Promise.all([
+        db.crmConversation.count({
+          where: { createdAt: { gte: twentyFourHoursAgo } },
+        }),
+        db.user.count(),
+        db.crmMessage.count({
+          where: { createdAt: { gte: twentyFourHoursAgo } },
+        }),
+        db.tenant.count({
+          where: {
+            activityLogs: {
+              some: { createdAt: { gte: twentyFourHoursAgo } },
+            },
           },
-        },
-      }),
-    ]);
+        }),
+      ]);
 
     const kpis = [
       {
