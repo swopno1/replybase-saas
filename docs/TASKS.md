@@ -274,6 +274,51 @@
   - Notes: Completed on 2026-05-22. Implemented three-layer defense in `lib/ai-fallback.ts`: (1) `GUARDRAIL_SYSTEM_PREFIX` — a 6-rule security directive prepended to every system prompt covering persona locking, injection resistance, content filtering, system prompt concealment, AI identity disclosure, and on-topic enforcement; (2) `containsPromptInjection()` — a runtime detector with 9 regex patterns ("ignore previous instructions", "you are now", "act as", "pretend", "DAN", "jailbreak", "system prompt", "reveal your", "override rules") that short-circuits the entire AI pipeline at $0 cost before any DB or LLM calls; (3) `GUARDRAIL_SYSTEM_PREFIX` prepended to `finalSystemPrompt` for both primary and fallback model invocations. Added 27 comprehensive unit tests covering all injection patterns, safe message passthrough, case sensitivity, and compound attack vectors. All 476 tests pass.
   - Rollout Risk: LOW.
 
+- **Task 037**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Security/Engineering
+  - Severity: MEDIUM
+  - Issue: Legacy Manual Scoping in Billing, Admin, and Settings APIs.
+  - Root Cause: ~60 routes still use manual `getServerSession` lookups instead of the standardized `withAuthAndTenant` wrapper.
+  - Business Impact: Higher risk of IDOR regressions and increased architectural debt.
+  - Objective: Standardize all internal API routes to use the scoped `db` client from `withAuthAndTenant`.
+  - Detailed Instructions: 1. Target high-risk paths: `app/api/billing/`, `app/api/admin/`, and `app/api/settings/`. 2. Replace manual session handling with the wrapper. 3. Verify tenant isolation in each refactored route.
+  - Expected Deliverables: Unified API security architecture.
+  - Dependencies: `withAuthAndTenant` helper.
+  - Notes: Follows Task 027 and 034 successes.
+  - Rollout Risk: LOW.
+
+- **Task 038**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Reliability/Engineering
+  - Severity: MEDIUM
+  - Issue: Unit Test Failures in Batch Operation Routes.
+  - Root Cause: `tests/api/contacts-conversations-batch.test.ts` fails with `db.$transaction is not a function` due to Prisma mocking limitations.
+  - Business Impact: Inability to verify critical bulk data operations during CI/CD.
+  - Objective: Fix Prisma transaction mocking in the test suite.
+  - Detailed Instructions: 1. Update `tests/mocks/prisma.ts` to correctly handle `$transaction` calls. 2. Verify batch API tests pass.
+  - Expected Deliverables: Green CI pipeline for batch operations.
+  - Dependencies: Vitest, `vitest-mock-extended`.
+  - Notes: Critical for maintaining bulk action reliability.
+  - Rollout Risk: LOW.
+
+- **Task 039**
+  - Priority: LOW
+  - Status: PENDING
+  - Category: Observability/DevOps
+  - Severity: LOW
+  - Issue: Surface-level Health Checks.
+  - Root Cause: `/api/health` only checks if the server is up, not if it can reach the DB or Redis.
+  - Business Impact: Potential for "Zombie" containers to stay in rotation despite downstream failures.
+  - Objective: Implement deep health diagnostics.
+  - Detailed Instructions: 1. Update `app/api/health/route.ts` to perform a simple `prisma.$queryRaw` and Redis `ping`. 2. Return 503 if dependencies are unreachable.
+  - Expected Deliverables: Production-grade health check endpoint.
+  - Dependencies: Prisma, Redis.
+  - Notes: Improves automated recovery and load balancer accuracy.
+  - Rollout Risk: LOW.
+
 ## 2. Product & Feature Expansion
 
 - **Task 006**

@@ -1,27 +1,31 @@
-# Master Roadmap - Updated August 2026
+# ReplyBase Master Roadmap (August 2026 Update)
 
-## Phase 3: Operations & Scale (98% Complete)
-- [x] BullMQ Worker Refactor
-- [x] Usage Buffering & Quotas
-- [x] DigitalOcean AI Migration (Llama 3.3)
-- [x] Lead Action Engine (Outbound Webhooks)
-- [ ] Redis Metrics Caching (High Priority - Task 001)
-- [ ] Real-time CRM (SSE/WebSockets) (Task 033)
-- [ ] Automated DB & Redis Backups (Task 004)
+## 🎯 Phase 1: Foundation & Core (COMPLETE)
+- Multi-channel Ingress (Meta, Telegram, WhatsApp, Webchat).
+- V6 Flow Orchestrator Engine.
+- AI Fallback System with persona grounding.
+- Stripe Integration for tiered subscriptions.
 
-## Phase 4: Growth & Enterprise (Active)
-- [x] Admin Conversation Simulation Lab
-- [x] V6 Master Orchestrator Sync
-- [x] Documentation Overhaul & Intelligence Consolidation (August 2026)
-- [ ] Interactive Dashboard "Command Center" (Task UX-008)
-- [ ] IAM Roles & Permissions (In Design)
-- [ ] Granular Admin Audit Logging (Task 021)
-- [ ] LLM Guardrails for AI Fallback (Task 036)
-- [ ] SEO Action Plan Execution
-- [ ] Mobile-First "Flow Summary" Management (Task 012/UX-011)
+## 🚀 Phase 2: Polish & Reliability (COMPLETE)
+- Multi-tenant isolation via Prisma Client Extensions.
+- Lead Action Engine for real-time CRM synchronization.
+- Dashboard Interactive "Command Center" (Task UX-008).
+- AI Guardrails & Injection Detection (Task 036).
+- Accessibility audit and remediation (Task 035).
 
-## Phase 5: Ecosystem & Integration (Planned)
-- [ ] Visual Flow Builder (Drag-and-Drop)
-- [ ] Native External CRM Integrations (HubSpot/Salesforce)
-- [ ] AI-Driven Multi-Agent Presence & Collaboration
-- [ ] Global Data Locality & Region Clusters
+## 📈 Phase 3: Operations & Scale (98% COMPLETE)
+- **Redis Metrics Caching (PENDING - Task 011)**: Reduce DB overhead for dashboard stats.
+- **API Standardization (IN PROGRESS - Task 037)**: Refactor remaining manual scoping routes to `withAuthAndTenant`.
+- **Enhanced Observability (PENDING - Task 039)**: Implement deep health diagnostics for DB/Redis.
+- **Queue Monitoring**: Admin suite visibility into BullMQ performance.
+
+## 🏢 Phase 4: Growth & Enterprise (ACTIVE)
+- **Real-time CRM (Task 033)**: Transition from polling to WebSockets/SSE.
+- **Enterprise IAM (Proposal)**: Granular roles (Owner, Admin, Agent, Viewer) and comprehensive audit logs.
+- **Mobile Flow Management (Task 012)**: Linearized list views for on-the-go bot adjustments.
+- **SEO/AEO/GEO Execution**: Implementation of landing pages and structured data for AI discovery.
+
+## 🔮 Phase 5: Advanced Intelligence (FUTURE)
+- **Sentiment & Intent Analytics**: Visualizing lead quality trends over time.
+- **Predictive Handoff**: Proactively alerting human agents based on AI-detected lead urgency.
+- **Automated Sub-Flow Generation**: AI generating bot logic from text-based business descriptions.
