@@ -305,17 +305,17 @@
 
 - **Task 039**
   - Priority: LOW
-  - Status: PENDING
+  - Status: COMPLETED
   - Category: Observability/DevOps
   - Severity: LOW
   - Issue: Surface-level Health Checks.
-  - Root Cause: `/api/health` only checks if the server is up, not if it can reach the DB or Redis.
+  - Root Cause: /api/health only checks if the server is up, not if it can reach the DB or Redis.
   - Business Impact: Potential for "Zombie" containers to stay in rotation despite downstream failures.
   - Objective: Implement deep health diagnostics.
-  - Detailed Instructions: 1. Update `app/api/health/route.ts` to perform a simple `prisma.$queryRaw` and Redis `ping`. 2. Return 503 if dependencies are unreachable.
+  - Detailed Instructions: 1. Update app/api/health/route.ts to perform a simple prisma.$queryRaw and Redis ping. 2. Return 503 if dependencies are unreachable.
   - Expected Deliverables: Production-grade health check endpoint.
   - Dependencies: Prisma, Redis.
-  - Notes: Improves automated recovery and load balancer accuracy.
+  - Notes: Completed on 2026-05-22. Enhanced /api/health with active connectivity checks for Postgres (via prisma.$queryRaw) and Redis (via redis.ping). Returns 503 Service Unavailable if dependencies are unreachable. Added comprehensive unit tests in tests/api/health.test.ts. Verified with full suite pass (480/480 tests).
   - Rollout Risk: LOW.
 
 ## 2. Product & Feature Expansion
