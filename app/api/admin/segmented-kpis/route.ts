@@ -23,7 +23,7 @@ export const GET = withAdmin(async (session, request, context, db) => {
       db.lead.count({
         where: { createdAt: { gte: thirtyDaysAgo } },
       }),
-      db.conversation.count({
+      db.crmConversation.count({
         where: { createdAt: { gte: thirtyDaysAgo } },
       }),
     ]);
