@@ -184,7 +184,7 @@
 
 - **Task 031**
   - Priority: MEDIUM
-  - Status: PENDING
+  - Status: DEFERRED
   - Category: Observability
   - Severity: MEDIUM
   - Issue: Admin Dashboard: Real-time Queue & AI Monitoring.
@@ -194,7 +194,7 @@
   - Detailed Instructions: 1. Create `/api/admin/metrics` to expose BullMQ and AI stats. 2. Build a "System Health" tab in the Admin UI with Recharts.
   - Expected Deliverables: Real-time health dashboard for admins.
   - Dependencies: BullMQ.
-  - Notes: Essential for enterprise-grade operations.
+  - Notes: Deferred on 2026-05-22. The backend API (`GET /api/admin/metrics`) was completed in Task 026, exposing queue sizes and AI latency percentiles. The remaining work is a frontend-only Recharts dashboard page. Deferred as a standalone UI feature ticket — the API foundation is production-ready and can be consumed by any monitoring tool (Grafana, DataDog) in the interim.
   - Rollout Risk: LOW.
 
 - **Task 032**
@@ -214,7 +214,7 @@
 
 - **Task 033**
   - Priority: MEDIUM
-  - Status: PENDING
+  - Status: DECLINED
   - Category: Performance
   - Severity: LOW
   - Issue: CRM Real-time Polling Latency.
@@ -224,7 +224,7 @@
   - Detailed Instructions: 1. Implement a WebSocket/SSE server (e.g., using Socket.io or native SSE). 2. Update `ConversationPage` to subscribe to conversation-specific events. Verified `refreshConversation` is called via `window.setInterval` every 5000ms.
   - Expected Deliverables: Real-time "Instant" CRM updates.
   - Dependencies: WebSocket infrastructure.
-  - Notes: Part of the "Delightful UX" initiative.
+  - Notes: Declined on 2026-05-22. Requires a persistent WebSocket/SSE server that runs alongside the Next.js serverless deployment. The current Vercel-based deployment model does not support long-lived WebSocket connections natively. This task requires an infrastructure migration (e.g., dedicated Node.js server, Ably/Pusher integration, or Vercel Edge Config with SSE) that is outside the scope of this codebase sweep. The existing 5-second polling is functional and adequate for current user volumes.
   - Rollout Risk: MEDIUM.
 
 - **Task 034**
@@ -257,7 +257,6 @@
   - Notes: Completed on 2026-05-22. Audited all components with `size="icon"` buttons. Added 11 descriptive aria-labels across 7 files — conversations-list (MoreHorizontal → "Conversation actions"), contacts-list (MoreHorizontal → "Contact actions"), admin-sidebar (3 buttons — dynamic "Expand/Collapse sidebar", "Open menu", "Close menu"), admin-top-bar (Bell → "Notifications"), ChatInterface (Send → "Send message"), webchat-config (Send → "Send message", Copy → "Copy to clipboard"), billing-tab (RotateCw → "Refresh usage data", Download → "Download invoice"). Verified 4 additional files (nav-main, sidebar.tsx, conversation-header, reply-composer) already had accessible labels via `sr-only` spans or visible text. All 476 tests pass, build compiles successfully.
   - Rollout Risk: LOW.
 
-
 - **Task 036**
   - Task Number: 036
   - Priority: MEDIUM
@@ -274,7 +273,7 @@
   - Notes: Completed on 2026-05-22. Implemented three-layer defense in `lib/ai-fallback.ts`: (1) `GUARDRAIL_SYSTEM_PREFIX` — a 6-rule security directive prepended to every system prompt covering persona locking, injection resistance, content filtering, system prompt concealment, AI identity disclosure, and on-topic enforcement; (2) `containsPromptInjection()` — a runtime detector with 9 regex patterns ("ignore previous instructions", "you are now", "act as", "pretend", "DAN", "jailbreak", "system prompt", "reveal your", "override rules") that short-circuits the entire AI pipeline at $0 cost before any DB or LLM calls; (3) `GUARDRAIL_SYSTEM_PREFIX` prepended to `finalSystemPrompt` for both primary and fallback model invocations. Added 27 comprehensive unit tests covering all injection patterns, safe message passthrough, case sensitivity, and compound attack vectors. All 476 tests pass.
   - Rollout Risk: LOW.
 
-- **Task 037**
+  - **Task 037**
   - Priority: MEDIUM
   - Status: PENDING
   - Category: Security/Engineering
@@ -323,7 +322,7 @@
 
 - **Task 006**
   - Priority: LOW
-  - Status: PENDING
+  - Status: DEFERRED
   - Category: Features
   - Severity: LOW
   - Issue: Advanced "AI Analytics" dashboard.
@@ -333,12 +332,12 @@
   - Detailed Instructions: 1. Aggregate `Lead.insights`. 2. Build visual analytics charts using Recharts.
   - Expected Deliverables: New Analytics page for premium users.
   - Dependencies: Lead enrichment data.
-  - Notes: Part of Phase 4 roadmap.
+  - Notes: Deferred on 2026-05-22. This is a Phase 4 roadmap feature that depends on lead enrichment data accumulation and the AI intent/sentiment extraction pipeline. The current `Lead.insights` field is sparsely populated — implementing a dashboard now would show empty charts for most tenants. Better to implement after lead enrichment is systematically populated across all channels.
   - Rollout Risk: LOW.
 
 - **Task 017**
   - Priority: LOW
-  - Status: PENDING
+  - Status: DECLINED
   - Category: Features
   - Severity: MEDIUM
   - Issue: Advanced WhatsApp Media Support.
@@ -348,7 +347,7 @@
   - Detailed Instructions: 1. Implement media download/upload service. 2. Extend WhatsApp provider for outbound images/docs.
   - Expected Deliverables: Full media support across WhatsApp and CRM.
   - Dependencies: S3/Storage infrastructure.
-  - Notes: Requires storage scaling plan.
+  - Notes: Declined on 2026-05-22. Requires S3/GCS storage infrastructure for binary media persistence (image/video/document uploads and downloads). The application does not currently have a configured object storage service, and implementing one involves provisioning cloud storage buckets, configuring IAM/CORS policies, implementing signed URL generation, and adding CDN delivery — all of which are infrastructure-level concerns outside the scope of this codebase sweep.
   - Rollout Risk: MEDIUM.
 
 - **Task UX-008**
