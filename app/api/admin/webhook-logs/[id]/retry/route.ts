@@ -1,26 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { logAdminActivity } from "@/lib/admin-audit";
+import { withAdmin } from "@/lib/route-helpers";
 
 export const dynamic = "force-dynamic";
 
-// POST /api/admin/webhook-logs/[id]/retry
-// Re-dispatches the original webhook event for a given log entry.
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export const POST = withAdmin(async (session, request, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-    const { isPlatformAdmin } = await import("@/lib/admin");
-
-    if (!isPlatformAdmin(session)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const { id } = await params;
+    const { id } = (await context.params) as { id: string };
 
     if (!id) {
       return NextResponse.json(
@@ -30,7 +16,7 @@ export async function POST(
     }
 
     // Fetch the original webhook log entry
-    const log = await (prisma as any).webhookLog.findUnique({
+    const log = await (db as any).webhookLog.findUnique({
       where: { id },
     });
 
@@ -99,4 +85,4 @@ export async function POST(
       { status: 500 },
     );
   }
-}
+});

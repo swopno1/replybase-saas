@@ -1,24 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { isPlatformAdmin } from "@/lib/admin";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { logAdminActivity } from "@/lib/admin-audit";
+import { withAdmin } from "@/lib/route-helpers";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export const GET = withAdmin(async (session, request, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!isPlatformAdmin(session)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
-    const { id: tenantId } = await params;
+    const { id: tenantId } = (await context.params) as { id: string };
 
     await logAdminActivity({
       adminId: session.user.id,
@@ -27,11 +15,11 @@ export async function GET(
       entityId: tenantId,
       description: `Admin read tenant details for tenant ID: ${tenantId}`,
       metadata: { tenantId },
-      ipAddress: req.headers.get("x-forwarded-for") || undefined,
-      userAgent: req.headers.get("user-agent") || undefined,
+      ipAddress: request.headers.get("x-forwarded-for") || undefined,
+      userAgent: request.headers.get("user-agent") || undefined,
     });
 
-    const tenant = await prisma.tenant.findUnique({
+    const tenant = await db.tenant.findUnique({
       where: { id: tenantId },
       include: {
         users: {
@@ -76,4 +64,4 @@ export async function GET(
       { status: 500 },
     );
   }
-}
+});

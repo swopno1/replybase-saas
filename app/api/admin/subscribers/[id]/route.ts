@@ -1,25 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { isPlatformAdmin } from "@/lib/admin";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { logAdminActivity } from "@/lib/admin-audit";
 import { invalidateTenantCache } from "@/lib/subscription";
+import { withAdmin } from "@/lib/route-helpers";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export const GET = withAdmin(async (session, request, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!isPlatformAdmin(session)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
-    const { id } = await params;
+    const { id } = (await context.params) as { id: string };
 
     await logAdminActivity({
       adminId: session.user.id,
@@ -28,15 +16,15 @@ export async function GET(
       entityId: id,
       description: `Admin read subscriber details for: ${id}`,
       metadata: { id },
-      ipAddress: req.headers.get("x-forwarded-for") || undefined,
-      userAgent: req.headers.get("user-agent") || undefined,
+      ipAddress: request.headers.get("x-forwarded-for") || undefined,
+      userAgent: request.headers.get("user-agent") || undefined,
     });
 
     let subscription: any = null;
 
     if (id.startsWith("no-sub-")) {
       const tenantId = id.replace("no-sub-", "");
-      const tenant = await prisma.tenant.findUnique({
+      const tenant = await db.tenant.findUnique({
         where: { id: tenantId },
         include: {
           users: {
@@ -79,7 +67,7 @@ export async function GET(
         tenant,
       };
     } else {
-      subscription = await prisma.subscription.findUnique({
+      subscription = await db.subscription.findUnique({
         where: { id },
         include: {
           plan: true,
@@ -121,7 +109,7 @@ export async function GET(
 
     // Fetch execution logs for the tenant's bots
     const botIds = subscription.tenant.bots.map((b: { id: string }) => b.id);
-    const executionLogs = await prisma.executionLog.findMany({
+    const executionLogs = await db.executionLog.findMany({
       where: {
         botId: { in: botIds },
       },
@@ -144,24 +132,15 @@ export async function GET(
       { status: 500 },
     );
   }
-}
+});
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export const PATCH = withAdmin(async (session, request, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!isPlatformAdmin(session)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
-    const { id } = await params;
-    const body = await req.json();
+    const { id } = (await context.params) as { id: string };
+    const body = await request.json();
     const { planId, status, currentPeriodEnd } = body;
 
-    const oldSubscription = await prisma.subscription.findUnique({
+    const oldSubscription = await db.subscription.findUnique({
       where: { id },
       include: { plan: true },
     });
@@ -170,7 +149,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Subscription not found" }, { status: 404 });
     }
 
-    const subscription = await prisma.subscription.update({
+    const subscription = await db.subscription.update({
       where: { id },
       data: {
         ...(planId && { planId }),
@@ -206,8 +185,8 @@ export async function PATCH(
           currentPeriodEnd: subscription.currentPeriodEnd,
         },
       },
-      ipAddress: req.headers.get("x-forwarded-for") || undefined,
-      userAgent: req.headers.get("user-agent") || undefined,
+      ipAddress: request.headers.get("x-forwarded-for") || undefined,
+      userAgent: request.headers.get("user-agent") || undefined,
     });
 
     return NextResponse.json({ subscription });
@@ -218,27 +197,18 @@ export async function PATCH(
       { status: 500 },
     );
   }
-}
+});
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export const DELETE = withAdmin(async (session, request, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
+    const { id } = (await context.params) as { id: string };
 
-    if (!isPlatformAdmin(session)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
-    const { id } = await params;
-
-    const subscription = await prisma.subscription.findUnique({ where: { id } });
+    const subscription = await db.subscription.findUnique({ where: { id } });
     if (!subscription) {
       return NextResponse.json({ error: "Subscription not found" }, { status: 404 });
     }
  
-    await prisma.subscription.delete({
+    await db.subscription.delete({
       where: { id },
     });
  
@@ -251,8 +221,8 @@ export async function DELETE(
       metadata: {
         tenantId: subscription.tenantId,
       },
-      ipAddress: req.headers.get("x-forwarded-for") || undefined,
-      userAgent: req.headers.get("user-agent") || undefined,
+      ipAddress: request.headers.get("x-forwarded-for") || undefined,
+      userAgent: request.headers.get("user-agent") || undefined,
     });
  
     return NextResponse.json({ success: true });
@@ -263,4 +233,4 @@ export async function DELETE(
       { status: 500 },
     );
   }
-}
+});

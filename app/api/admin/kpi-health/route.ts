@@ -1,48 +1,58 @@
 import { NextResponse } from "next/server";
-import { checkKpiHealth } from "@/lib/kpi-health-check";
+import { withAdmin } from "@/lib/route-helpers";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-
-
-
-/**
- * GET /api/admin/kpi-health
- *
- * KPI health check endpoint for monitoring and uptime services.
- * Returns KPI status, data freshness, and any active alerts.
- *
- * Can be monitored by:
- * - UptimeRobot or similar services (check for 200 status + "healthy" or "degraded" status)
- * - Internal dashboards
- * - Alerting services (via webhook integration)
- *
- * Authentication: Public endpoint (provides non-sensitive aggregated health data)
- */
-export async function GET() {
+export const GET = withAdmin(async (session, request, context, db) => {
   try {
-    const health = await checkKpiHealth();
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    // Return appropriate HTTP status for external monitors
-    const httpStatus =
-      health.status === "healthy"
-        ? 200
-        : health.status === "degraded"
-          ? 200
-          : 503;
+    const [totalConversations, totalUsers, totalMessages, activeTenants] = await Promise.all([
+      db.conversation.count({
+        where: { createdAt: { gte: twentyFourHoursAgo } },
+      }),
+      db.user.count(),
+      db.message.count({
+        where: { createdAt: { gte: twentyFourHoursAgo } },
+      }),
+      db.tenant.count({
+        where: {
+          activityLogs: {
+            some: { createdAt: { gte: twentyFourHoursAgo } },
+          },
+        },
+      }),
+    ]);
 
-    return NextResponse.json(health, { status: httpStatus });
-  } catch (error) {
-    console.error("[KPI Health Endpoint] Error:", error);
-
-    return NextResponse.json(
+    const kpis = [
       {
-        timestamp: new Date().toISOString(),
-        status: "critical",
-        error:
-          error instanceof Error ? error.message : "Failed to check KPI health",
+        name: "Conversations (24h)",
+        value: totalConversations,
+        status: totalConversations > 0 ? "healthy" : "warning",
       },
-      { status: 503 },
+      {
+        name: "Total Users",
+        value: totalUsers,
+        status: totalUsers > 0 ? "healthy" : "critical",
+      },
+      {
+        name: "Messages (24h)",
+        value: totalMessages,
+        status: totalMessages > 10 ? "healthy" : "warning",
+      },
+      {
+        name: "Active Tenants (24h)",
+        value: activeTenants,
+        status: activeTenants > 0 ? "healthy" : "warning",
+      },
+    ];
+
+    return NextResponse.json({ kpis });
+  } catch (error) {
+    console.error("[Admin API] Error fetching KPI health:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch KPI health" },
+      { status: 500 },
     );
   }
-}
+});

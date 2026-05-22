@@ -1,16 +1,9 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { invalidateTenantCache } from "@/lib/subscription";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
-export async function POST() {
+export const POST = withAuthAndTenant(async ({ tenantId }) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const tenantId = session.user.tenantId;
     if (!tenantId) {
       return NextResponse.json({ error: "No tenant found" }, { status: 400 });
     }
@@ -26,4 +19,4 @@ export async function POST() {
       { status: 500 }
     );
   }
-}
+});
