@@ -22,6 +22,12 @@ vi.mock("@/lib/prisma", () => ({
       update: vi.fn().mockResolvedValue({ id: "contact_1" }),
       findUnique: vi.fn().mockResolvedValue({ id: "contact_1" }),
     },
+    tenantLeadNotificationSettings: {
+      findUnique: vi.fn().mockResolvedValue(null),
+    },
+    channel: {
+      findFirst: vi.fn().mockResolvedValue(null),
+    },
   },
 }));
 

@@ -16,6 +16,7 @@ import {
   setRuntimeState,
   FlowWithOrderedNodes,
 } from "@/lib/flow-runtime-utils";
+import { sendNewLeadNotifications } from "@/lib/lead-notifications";
 
 export type FlowResponseQuickReply = {
   content_type: "text";
@@ -495,9 +496,22 @@ async function persistLeadCapture(params: {
     return;
   }
 
-  if (!params.isSimulation) await prisma.lead.create({
-    data: leadData,
-  });
+  if (!params.isSimulation) {
+    const lead = await prisma.lead.create({
+      data: leadData,
+    });
+
+    void sendNewLeadNotifications({
+      tenantId: params.tenantId,
+      leadId: lead.id,
+      name: lead.name || "Unknown",
+      enquiry: (lead.metadata as any)?.lastUserMessage || "Captured via Social Flow",
+      email: lead.email || undefined,
+      phone: lead.mobile || undefined,
+      source: "social",
+      createdAt: lead.createdAt,
+    });
+  }
 }
 
 import { incrementTenantUsage } from "./subscription";
