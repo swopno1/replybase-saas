@@ -409,3 +409,68 @@
   - Dependencies: Shadcn UI, Next.js Link.
   - Notes: Completed on 2026-05-21. Wrapped status cards in Next.js Link components mapping to /bots, /settings?tab=channels, /settings?tab=notifications, and /conversations respectively. Applied cursor-pointer and hover:bg-accent states to Cards for premium interactivity feedback.
   - Rollout Risk: LOW.
+
+- **Task 044**
+  - Priority: HIGH
+  - Status: PENDING
+  - Category: Observability
+  - Quota Impact: LOW
+  - Complexity: MEDIUM
+  - Issue: Missing Multi-Tenant Visibility in Sentry.
+  - Root Cause: Sentry scope is not enriched with tenant or user metadata in API routes or workers.
+  - Business Impact: Debugging tenant-specific failures is slow and requires manual log correlation.
+  - Objective: Inject tenant_id and user_id into all server-side Sentry events.
+  - Detailed Instructions: 1. Update `withAuthAndTenant` in `lib/route-helpers.ts` to call `Sentry.setUser()` and `Sentry.setTag("tenant_id", ...)`. 2. Ensure worker jobs in `lib/queue.ts` also set the tenant tag.
+  - Expected Deliverables: Sentry errors tagged with tenant_id and user_id.
+
+- **Task 045**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Observability
+  - Quota Impact: LOW
+  - Complexity: MEDIUM
+  - Issue: Lack of AI Provider Instrumentation.
+  - Root Cause: AI SDK calls are not traced or tagged with provider/task metadata.
+  - Business Impact: Difficult to monitor AI reliability and latency across different providers (DigitalOcean vs OpenAI).
+  - Objective: Add AI-specific tagging and spans to Sentry.
+  - Detailed Instructions: 1. Update `getAiModel` in `lib/ai-service.ts` to set tags for `ai.provider`, `ai.model`, and `ai.task`. 2. Wrap AI invocations in Sentry spans for performance monitoring.
+  - Expected Deliverables: Granular AI performance and error tracking.
+
+- **Task 046**
+  - Priority: HIGH
+  - Status: PENDING
+  - Category: Security
+  - Quota Impact: NONE
+  - Complexity: LOW
+  - Issue: PII Leakage Risk in Sentry.
+  - Root Cause: `sendDefaultPii` and `includeLocalVariables` are enabled in Sentry config.
+  - Business Impact: Potential exposure of sensitive user data or API keys in monitoring logs.
+  - Objective: Harden Sentry privacy settings and implement sanitization.
+  - Detailed Instructions: 1. Set `sendDefaultPii: false` in all Sentry config files. 2. Implement `beforeSend` hooks to scrub secrets (Stripe, AI keys) from breadcrumbs and payloads.
+  - Expected Deliverables: Privacy-safe observability implementation.
+
+- **Task 047**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Observability
+  - Quota Impact: MEDIUM
+  - Complexity: MEDIUM
+  - Issue: Broken Distributed Tracing for Background Workers.
+  - Root Cause: BullMQ workers do not inherit the Sentry trace context from the originating webhook or user request.
+  - Business Impact: Inability to trace a message from "Ingress Webhook" to "AI Response" to "Provider Dispatch".
+  - Objective: Implement trace propagation across the BullMQ queue.
+  - Detailed Instructions: 1. Capture `sentry-trace` and `baggage` headers in webhook routes. 2. Pass these to BullMQ job data. 3. Use `Sentry.continueTrace` in worker processing loops.
+  - Expected Deliverables: End-to-end distributed traces in Sentry.
+
+- **Task 048**
+  - Priority: LOW
+  - Status: PENDING
+  - Category: Observability
+  - Quota Impact: HIGH
+  - Complexity: LOW
+  - Issue: Sentry Quota Waste in Production.
+  - Root Cause: 10% sampling rate and lack of inbound filtering for health checks and rapid polling.
+  - Business Impact: Free quota exhaustion, leading to blind spots during actual outages.
+  - Objective: Optimize sampling and implement inbound filtering.
+  - Detailed Instructions: 1. Implement dynamic sampling in `sentry.server.config.ts`. 2. Filter out `/api/health` and CRM polling requests from transaction tracking.
+  - Expected Deliverables: Sustainable quota usage on Sentry Free Plan.
