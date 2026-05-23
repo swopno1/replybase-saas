@@ -149,15 +149,97 @@ function PricingContent() {
   const [loading, setLoading] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<(typeof PLANS)[number] | null>(null);
   const [currentSubscription, setCurrentSubscription] = useState<any>(null);
+  const [promoCode, setPromoCode] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
+
+  const triggerAutoCheckout = async (plan: (typeof PLANS)[number], cycle: "monthly" | "annual", promo: string | null) => {
+    setLoading(plan.name);
+    try {
+      const priceId = cycle === "annual"
+        ? (STRIPE_PLANS as any)[plan.name].annualPriceId
+        : (STRIPE_PLANS as any)[plan.name].monthlyPriceId;
+
+      const response = await fetch("/api/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          priceId,
+          planName: plan.name,
+          billingCycle: cycle,
+          promoCode: promo || (cycle === "annual" ? "FOUNDING50" : undefined),
+        }),
+      });
+
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error(data.error || "Failed to start checkout");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Something went wrong. Please try again.");
+      setLoading(null);
+    }
+  };
 
   useEffect(() => {
     fetch("/api/billing/subscription")
-      .then((res) => res.json())
-      .then((data) => setCurrentSubscription(data))
+      .then((res) => {
+        if (res.status === 401) {
+          // Not logged in! If they came with a plan query, redirect them to register.
+          const planParam = searchParams.get("plan");
+          if (planParam) {
+            const promoParam = searchParams.get("promo");
+            const cycleParam = searchParams.get("cycle");
+            const sourceParam = searchParams.get("source");
+
+            const registerUrl = new URL("/auth/register", window.location.origin);
+            registerUrl.searchParams.set("plan", planParam);
+            if (promoParam) registerUrl.searchParams.set("promo", promoParam);
+            if (cycleParam) registerUrl.searchParams.set("cycle", cycleParam);
+            if (sourceParam) registerUrl.searchParams.set("source", sourceParam);
+            
+            router.push(registerUrl.pathname + registerUrl.search);
+            return null;
+          }
+          setIsAuthenticated(false);
+          return null;
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (data) {
+          if (data.error === "Unauthorized") {
+            setIsAuthenticated(false);
+          } else {
+            setCurrentSubscription(data);
+            setIsAuthenticated(true);
+          }
+        }
+      })
       .catch((err) => console.error("Failed to fetch subscription:", err));
 
     const cycle = searchParams.get("cycle");
     if (cycle === "annual") setBillingCycle("annual");
+
+    const promo = searchParams.get("promo");
+    if (promo) setPromoCode(promo);
+
+    const planParam = searchParams.get("plan");
+    const checkoutParam = searchParams.get("checkout");
+    if (planParam) {
+      let normalized = planParam.trim().toLowerCase();
+      if (normalized === "pro") normalized = "scale";
+      if (normalized === "starter") normalized = "launch";
+
+      const matchedPlan = PLANS.find((p) => p.name === normalized);
+      if (matchedPlan) {
+        setSelectedPlan(matchedPlan);
+        if (checkoutParam === "true") {
+          triggerAutoCheckout(matchedPlan, cycle === "annual" ? "annual" : "monthly", promo);
+        }
+      }
+    }
   }, [searchParams]);
 
   const handleSubscribeClick = (planName: string) => {
@@ -166,6 +248,13 @@ function PricingContent() {
     if (plan.priceMonthly === 0) {
         router.push("/dashboard");
         return;
+    }
+    if (!isAuthenticated) {
+      const registerUrl = new URL("/auth/register", window.location.origin);
+      registerUrl.searchParams.set("plan", plan.name);
+      if (promoCode) registerUrl.searchParams.set("promo", promoCode);
+      router.push(registerUrl.pathname + registerUrl.search);
+      return;
     }
     setSelectedPlan(plan);
   };
@@ -186,7 +275,7 @@ function PricingContent() {
           priceId,
           planName: selectedPlan.name,
           billingCycle,
-          promoCode: billingCycle === "annual" ? "FOUNDING50" : undefined,
+          promoCode: promoCode || (billingCycle === "annual" ? "FOUNDING50" : undefined),
         }),
       });
 

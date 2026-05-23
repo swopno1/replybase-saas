@@ -116,8 +116,21 @@ export async function proxy(req: NextRequest) {
 
   // Allow explicitly public paths even if they fall under protected prefixes
   if (isPublicPath || isAuthPath) {
-    // If logged in and hitting auth path, redirect to home
+    // If logged in and hitting auth path, redirect to home (or pricing if checkout parameters exist)
     if (token && isAuthPath) {
+      const planParam = req.nextUrl.searchParams.get("plan");
+      const promoParam = req.nextUrl.searchParams.get("promo");
+      const cycleParam = req.nextUrl.searchParams.get("cycle");
+      const sourceParam = req.nextUrl.searchParams.get("source");
+
+      if (planParam || promoParam) {
+        const pricingUrl = new URL("/pricing", req.url);
+        if (planParam) pricingUrl.searchParams.set("plan", planParam);
+        if (promoParam) pricingUrl.searchParams.set("promo", promoParam);
+        if (cycleParam) pricingUrl.searchParams.set("cycle", cycleParam);
+        if (sourceParam) pricingUrl.searchParams.set("source", sourceParam);
+        return NextResponse.redirect(pricingUrl);
+      }
       return NextResponse.redirect(new URL("/", req.url));
     }
     return NextResponse.next();

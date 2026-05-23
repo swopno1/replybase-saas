@@ -112,10 +112,11 @@ export const POST = withAuthAndTenant(async (user, request, context, db) => {
     };
 
     // 4. Handle Founding Offer & Coupons
-    if (billingCycle === "annual") {
+    const activePromo = promoCode || (billingCycle === "annual" ? "FOUNDING50" : undefined);
+    if (activePromo) {
       try {
         const promoCodes = await stripe.promotionCodes.list({
-          code: "FOUNDING50",
+          code: activePromo,
           active: true,
           limit: 1,
         });
@@ -127,10 +128,10 @@ export const POST = withAuthAndTenant(async (user, request, context, db) => {
             },
           ];
         } else {
-          console.warn("[Stripe Checkout] Active promotion code 'FOUNDING50' not found in Stripe");
+          console.warn(`[Stripe Checkout] Active promotion code '${activePromo}' not found in Stripe`);
         }
       } catch (err) {
-        console.error("[Stripe Checkout] Failed to fetch/apply FOUNDING50 promo code:", err);
+        console.error(`[Stripe Checkout] Failed to fetch/apply promo code '${activePromo}':`, err);
       }
     }
 
