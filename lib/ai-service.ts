@@ -5,6 +5,7 @@ import { LanguageModel } from "ai";
 import { prisma } from "./prisma";
 import logger from "./logger";
 import { APP_CONFIG } from "./config";
+import * as Sentry from "@sentry/nextjs";
 
 // --- 1. TYPES & SCHEMA ---
 export type AiProvider = "default" | "gemini" | "openai" | "anthropic" | "digitalocean";
@@ -174,6 +175,11 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
       break;
     }
   }
+
+  Sentry.setTag("ai.provider", effectiveProvider);
+  Sentry.setTag("ai.model", effectiveModel || "auto");
+  Sentry.setTag("ai.task", task);
+  Sentry.setTag("ai.is_fallback", isFallback);
 
   logger.debug({ 
     task, 

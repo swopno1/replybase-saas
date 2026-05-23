@@ -2,6 +2,7 @@ import { generateText } from "ai";
 import { getSystemModel } from "./ai-service";
 import { OnboardingData, OnboardingSummary } from "@/types/shared/onboarding";
 import { FlowTemplateCategory, getTemplateByCategory } from "./flow-templates";
+import * as Sentry from "@sentry/nextjs";
 
 // ─── Industry → Template Mapping ────────────────────────────────────────────
 
@@ -124,9 +125,14 @@ Return ONLY a JSON object with these keys:
 Output ONLY valid JSON, no markdown.`;
 
   try {
-    const { text } = await generateText({ model, prompt, 
-      // @ts-ignore
-      maxTokens: 1000 });
+    const { text } = await Sentry.startSpan(
+      { name: "AI Summarize Onboarding", op: "ai.generate_text" },
+      async () => {
+        return generateText({ model, prompt, 
+          // @ts-ignore
+          maxTokens: 1000 });
+      }
+    );
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
     return {
@@ -192,9 +198,14 @@ ${JSON.stringify(nodes, null, 2)}
 Return ONLY a valid JSON array of the customized nodes. Same length, same structure.`;
 
   try {
-    const { text } = await generateText({ model, prompt, 
-      // @ts-ignore
-      maxTokens: 2500 });
+    const { text } = await Sentry.startSpan(
+      { name: "AI Customize Flow Nodes", op: "ai.generate_text" },
+      async () => {
+        return generateText({ model, prompt, 
+          // @ts-ignore
+          maxTokens: 2500 });
+      }
+    );
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     const customizedNodes = JSON.parse(jsonMatch ? jsonMatch[0] : text);
     if (Array.isArray(customizedNodes) && customizedNodes.length === nodes.length) {

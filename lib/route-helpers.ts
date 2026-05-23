@@ -5,6 +5,7 @@ import { getTenantPrisma } from "./prisma-tenant";
 import { isPlatformAdmin } from "./admin";
 import { prisma } from "./prisma";
 import type { Session } from "next-auth";
+import * as Sentry from "@sentry/nextjs";
 
 export function withAuthAndTenant(
   handler: (
@@ -22,6 +23,12 @@ export function withAuthAndTenant(
     if (!session?.user?.id || !session.user.tenantId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    Sentry.setUser({
+      id: session.user.id,
+      email: session.user.email || undefined,
+    });
+    Sentry.setTag("tenant_id", session.user.tenantId);
 
     const db = getTenantPrisma(session.user.tenantId);
 
@@ -61,6 +68,16 @@ export function withAdmin(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    if (session.user) {
+      Sentry.setUser({
+        id: session.user.id,
+        email: session.user.email || undefined,
+      });
+      if (session.user.tenantId) {
+        Sentry.setTag("tenant_id", session.user.tenantId);
+      }
+    }
+
     return await handler(
       session,
       request,
@@ -69,3 +86,4 @@ export function withAdmin(
     );
   };
 }
+

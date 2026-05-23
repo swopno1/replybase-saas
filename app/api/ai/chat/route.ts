@@ -10,6 +10,7 @@ import {
 } from "@/lib/subscription";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 import { z } from "zod";
+import * as Sentry from "@sentry/nextjs";
 
 const chatSchema = z.object({
   messages: z.array(z.object({
@@ -76,13 +77,18 @@ The current workspace is ${tenant?.name || "unknown"}.`;
     ];
 
     // Use the Vercel AI SDK to stream AI output
-    const aiStream = await streamText({
-      model,
-      messages: promptMessages,
-      onFinish: async () => {
-        await incrementTenantUsage(tenantId, "message", 1);
-      },
-    });
+    const aiStream = await Sentry.startSpan(
+      { name: "AI Chat Stream", op: "ai.stream_text" },
+      async () => {
+        return streamText({
+          model,
+          messages: promptMessages,
+          onFinish: async () => {
+            await incrementTenantUsage(tenantId, "message", 1);
+          },
+        });
+      }
+    );
 
     // Use the SDK's built-in streaming response for Next.js
     return aiStream.toTextStreamResponse({

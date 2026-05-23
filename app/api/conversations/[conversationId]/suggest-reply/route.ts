@@ -4,6 +4,7 @@ import { getTenantModel } from "@/lib/ai-service";
 import { prisma } from "@/lib/prisma";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 import { getTenantLimits } from "@/lib/subscription";
+import * as Sentry from "@sentry/nextjs";
 
 export const dynamic = "force-dynamic";
 
@@ -96,12 +97,17 @@ Suggest the next reply:`;
       try {
         let textResult = "";
         try {
-          const { text } = await generateText({
-            model,
-            system: systemPrompt,
-            prompt: userPrompt,
-            abortSignal: controller.signal,
-          });
+          const { text } = await Sentry.startSpan(
+            { name: "AI Suggest Reply (Primary)", op: "ai.generate_text" },
+            async () => {
+              return generateText({
+                model,
+                system: systemPrompt,
+                prompt: userPrompt,
+                abortSignal: controller.signal,
+              });
+            }
+          );
           textResult = text;
         } catch (primaryError: any) {
           const isRateLimit = 
@@ -116,12 +122,17 @@ Suggest the next reply:`;
               isFallback: true,
             });
 
-            const { text } = await generateText({
-              model: fallbackModel,
-              system: systemPrompt,
-              prompt: userPrompt,
-              abortSignal: controller.signal,
-            });
+            const { text } = await Sentry.startSpan(
+              { name: "AI Suggest Reply (Fallback)", op: "ai.generate_text" },
+              async () => {
+                return generateText({
+                  model: fallbackModel,
+                  system: systemPrompt,
+                  prompt: userPrompt,
+                  abortSignal: controller.signal,
+                });
+              }
+            );
             textResult = text;
           } else {
             throw primaryError;

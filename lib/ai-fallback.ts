@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getTenantModel } from "@/lib/ai-service";
 import { incrementTenantUsage } from "./subscription";
 import { buildFallbackSystemPrompt } from "@/lib/onboarding-ai";
+import * as Sentry from "@sentry/nextjs";
 
 // ---------------------------------------------------------------------------
 // LLM SECURITY GUARDRAILS
@@ -96,20 +97,26 @@ export async function aiFallback({
   const fastModel = await getTenantModel(bot.tenantId, { planName, task: "chat", isFallback: true });
 
   // --- MODULE 2, LAYER 2: FAST INTENT & EXTRACTION (Cost: Low) ---
-  const { object: intentData } = await generateObject({
-    model: fastModel,
-    schema: z.object({
-      intent: z.enum(["pricing", "feature_request", "demo", "support", "generic"]),
-      confidence: z.number().min(0).max(1),
-      extractedEntities: z.object({
-        businessType: z.string().optional(),
-        monthlyVolume: z.string().optional(),
-      }),
-    }),
-    prompt: `Analyze this user message for ReplyBase SaaS: "${lastUserMessage}"`,
-    // @ts-ignore
-    maxTokens: 150, // Small limit for structured extraction
-  });
+  const intentData = await Sentry.startSpan(
+    { name: "AI Intent Extraction", op: "ai.generate_object" },
+    async () => {
+      const { object } = await generateObject({
+        model: fastModel,
+        schema: z.object({
+          intent: z.enum(["pricing", "feature_request", "demo", "support", "generic"]),
+          confidence: z.number().min(0).max(1),
+          extractedEntities: z.object({
+            businessType: z.string().optional(),
+            monthlyVolume: z.string().optional(),
+          }),
+        }),
+        prompt: `Analyze this user message for ReplyBase SaaS: "${lastUserMessage}"`,
+        // @ts-ignore
+        maxTokens: 150, // Small limit for structured extraction
+      });
+      return object;
+    }
+  );
 
   // --- MODULE 3.1: CONFIDENCE-BASED EXTRACTION ---
   if (intentData.confidence > 0.85 && !isSimulation) {
@@ -192,20 +199,25 @@ export async function aiFallback({
       task: "chat",
     });
 
-    const aiStream = await streamText({
-      model: primaryModel,
-      system: finalSystemPrompt,
-      messages: messages,
-      output: Output.text(),
-      abortSignal: controller.signal,
-      onFinish: async () => {
-        if (!isSimulation) {
-          await incrementTenantUsage(bot.tenantId, "message", 1, botId);
-        }
-      },
-      // @ts-ignore
-      maxTokens: 800, // Balanced limit for helpful but concise chat
-    });
+    const aiStream = await Sentry.startSpan(
+      { name: "AI Stream Text (Primary)", op: "ai.stream_text" },
+      async () => {
+        return streamText({
+          model: primaryModel,
+          system: finalSystemPrompt,
+          messages: messages,
+          output: Output.text(),
+          abortSignal: controller.signal,
+          onFinish: async () => {
+            if (!isSimulation) {
+              await incrementTenantUsage(bot.tenantId, "message", 1, botId);
+            }
+          },
+          // @ts-ignore
+          maxTokens: 800, // Balanced limit for helpful but concise chat
+        });
+      }
+    );
     return aiStream;
   } catch (primaryError) {
     console.error(
@@ -221,20 +233,25 @@ export async function aiFallback({
         isFallback: true,
       });
 
-      const secondaryStream = await streamText({
-        model: secondaryModel,
-        system: finalSystemPrompt,
-        messages: messages,
-        output: Output.text(),
-        abortSignal: controller.signal,
-        onFinish: async () => {
-          if (!isSimulation) {
-            await incrementTenantUsage(bot.tenantId, "message", 1, botId);
-          }
-        },
-        // @ts-ignore
-        maxTokens: 800,
-      });
+      const secondaryStream = await Sentry.startSpan(
+        { name: "AI Stream Text (Secondary Fallback)", op: "ai.stream_text" },
+        async () => {
+          return streamText({
+            model: secondaryModel,
+            system: finalSystemPrompt,
+            messages: messages,
+            output: Output.text(),
+            abortSignal: controller.signal,
+            onFinish: async () => {
+              if (!isSimulation) {
+                await incrementTenantUsage(bot.tenantId, "message", 1, botId);
+              }
+            },
+            // @ts-ignore
+            maxTokens: 800,
+          });
+        }
+      );
       return secondaryStream;
     } catch (secondaryError) {
       console.error("[AI Fallback] Secondary model also failed:", secondaryError);
