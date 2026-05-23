@@ -16,6 +16,10 @@ vi.mock("@/lib/prisma", () => ({
     tenant: {
       findUnique: vi.fn(),
     },
+    contact: {
+      findFirst: vi.fn(),
+      create: vi.fn(),
+    },
   },
 }));
 
@@ -34,6 +38,7 @@ vi.mock("@/lib/admin-audit", () => ({
 describe("Subscriber Simulation API", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(prisma.contact.findFirst).mockResolvedValue({ id: "contact_123" } as any);
   });
 
   it("should return 401 if user is unauthorized", async () => {

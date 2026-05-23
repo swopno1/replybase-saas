@@ -42,13 +42,29 @@ const nextConfig: NextConfig = {
 };
 
 export default withSentryConfig(nextConfig, {
+  // Sentry organisation and project slugs
   org: "replybase",
-  project: "replybase-saas",
+  project: "javascript-nextjs",
+
+  // Suppresses source map uploading logs during build
   silent: !process.env.CI,
+
+  // Upload a larger set of source maps for prettier stack traces (increases build time)
   widenClientFileUpload: true,
+
+  // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
+  // This can increase your server load as well as your hosting bill.
+  // Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-side errors will fail.
   tunnelRoute: "/monitoring",
-  webpack: {
-    reactComponentAnnotation: { enabled: true },
-    treeshake: { removeDebugLogging: true },
+
+  // Automatically annotate React components to show their full name in breadcrumbs and session replay
+  reactComponentAnnotation: { enabled: true },
+
+  // Deletes source maps after uploading to Sentry so they don't appear in production bundles
+  sourcemaps: {
+    deleteSourcemapsAfterUpload: true,
   },
+
+  // Automatically tree-shake Sentry logger statements to reduce bundle size
+  disableLogger: true,
 });
