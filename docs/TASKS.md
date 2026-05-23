@@ -318,6 +318,51 @@
   - Notes: Completed on 2026-05-22. Enhanced /api/health with active connectivity checks for Postgres (via prisma.$queryRaw) and Redis (via redis.ping). Returns 503 Service Unavailable if dependencies are unreachable. Added comprehensive unit tests in tests/api/health.test.ts. Verified with full suite pass (480/480 tests).
   - Rollout Risk: LOW.
 
+- **Task 041**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Performance/Engineering
+  - Severity: MEDIUM
+  - Issue: Sequential Database Writes in Webchat Engine.
+  - Root Cause: `app/api/webchat/message/route.ts` performs multiple sequential Prisma calls (`idempotencyKey.create`, `crmMessage.create`, `crmConversation.findUnique`, `crmMessage.createMany`) instead of using batching or transactions where appropriate.
+  - Business Impact: Increased API response latency for webchat users; potential for database connection saturation during message bursts.
+  - Objective: Optimize database write path in the webchat message handler.
+  - Detailed Instructions: 1. Consolidate sequential writes into `prisma.$transaction`. 2. Utilize `createMany` for multi-message responses where not already batched.
+  - Expected Deliverables: Streamlined message ingestion pipeline.
+  - Dependencies: Prisma.
+  - Notes: Identified during August 2026 inspection. Sequential writes in the webchat API contribute to higher latency and connection holding time.
+  - Rollout Risk: LOW.
+
+- **Task 042**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Performance/UX
+  - Severity: MEDIUM
+  - Issue: CRM High-Frequency Polling.
+  - Root Cause: `app/(dashboard)/conversations/[conversationId]/page.tsx` uses 5-second interval polling for the entire conversation payload.
+  - Business Impact: Sub-optimal "live" feel; unnecessary server load and database pressure at scale.
+  - Objective: Transition CRM to event-driven updates (WebSockets/SSE).
+  - Detailed Instructions: 1. Implement SSE or WebSocket support for conversation-specific events. 2. Replace polling with real-time subscriptions in the CRM UI.
+  - Expected Deliverables: Real-time "Instant" CRM updates.
+  - Dependencies: Redis (for pub/sub), SSE/WebSocket infrastructure.
+  - Notes: Identified during August 2026 inspection. The current 5s polling is a placeholder for a truly real-time event-driven architecture.
+  - Rollout Risk: MEDIUM.
+
+- **Task 043**
+  - Priority: HIGH
+  - Status: PENDING
+  - Category: Security/Multi-tenancy
+  - Severity: HIGH
+  - Issue: Residual Manual Scoping in Workers and Export API.
+  - Root Cause: `lib/services/facebook-worker.ts` uses global `prisma` with manual filters. `app/api/user/data-export/route.ts` uses legacy `getServerSession` and manual `tenantId` lookups.
+  - Business Impact: Elevated risk of cross-tenant data leaks (IDOR) if manual filters are misconfigured during future maintenance.
+  - Objective: Standardize background workers and export utilities to use `getTenantPrisma` and `withAuthAndTenant`.
+  - Detailed Instructions: 1. Refactor `facebook-worker.ts` to use the scoped `db` client pattern. 2. Transition `data-export/route.ts` to the `withAuthAndTenant` wrapper.
+  - Expected Deliverables: Hardened tenant isolation for background and data utility layers.
+  - Dependencies: `getTenantPrisma`, `withAuthAndTenant`.
+  - Notes: Identified during August 2026 inspection. Facebook worker and Data Export API remain as legacy outliers in the standardized scoping architecture.
+  - Rollout Risk: LOW.
+
 ## 2. Product & Feature Expansion
 
 - **Task 006**

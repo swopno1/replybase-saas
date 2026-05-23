@@ -10,9 +10,9 @@ ReplyBase is in a "Stable Polish" phase as of August 2026. The platform is archi
 - **Architecture**: DigitalOcean AI migration is complete, providing ~61% OpEx savings and ~40% lower latency.
 
 ## Immediate Priorities
-1. **API Standardization**: Execute Task 037 to refactor legacy manual scoping routes to `withAuthAndTenant`.
-2. **Performance Optimization**: Implement Redis Metrics Caching (Task 011).
-3. **Real-time UX**: Transition CRM to WebSockets/SSE (Task 033).
+1. **API Standardization**: Execute Task 037/043 to refactor legacy manual scoping in routes, workers, and export utilities.
+2. **Performance Optimization**: Implement Redis Metrics Caching (Task 011) and optimize sequential writes in webchat engine (Task 041).
+3. **Real-time UX**: Transition CRM to WebSockets/SSE (Task 033/042).
 4. **Test Reliability**: Fix Prisma transaction mocking in CI (Task 038).
 
 ## Roadmap Status

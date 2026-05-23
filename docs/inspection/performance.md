@@ -11,7 +11,8 @@
 - **Dual-Layer Caching**: Implemented a dual-layer TTL cache (L1 in-memory Map, L2 Redis) for tenant limits and subscription status in `lib/subscription.ts`.
 - **Dashboard Metric Aggregation (PENDING - Task 001/011)**: Current dashboard metrics (Lead counts, Conversation volume) are computed in real-time from `usageLog`, `crmMessage`, and `crmConversation`. This introduces latency as the dataset grows. **Path**: Implement Redis-based caching (`dashboard:stats:[tenantId]`) with a 300s TTL and event-driven invalidation.
 - **N+1 Identification (MEDIUM - Task 024)**: Batching is implemented for Message and Lead lookups. However, `BotList` (in `app/api/bots/route.ts`) performs sequential channel status checks inside its list endpoint. **Path**: Consolidate into a single batched query fetching channel statuses in a single query per bot list.
-- **CRM Polling Overhead (MEDIUM - Task 033)**: The `ConversationPage` and Admin `Webhook Logs` use 5s and 3s interval polling (`window.setInterval`), causing excessive database and server load at scale. **Path**: Transition CRM message feed to Server-Sent Events (SSE) or WebSockets for real-time, event-driven updates.
+- **CRM Polling Overhead (MEDIUM - Task 033/042)**: The `ConversationPage` and Admin `Webhook Logs` use 5s and 3s interval polling (`window.setInterval`), causing excessive database and server load at scale. **Path**: Transition CRM message feed to Server-Sent Events (SSE) or WebSockets for real-time, event-driven updates.
+- **Sequential Write Latency (MEDIUM - Task 041)**: `app/api/webchat/message/route.ts` executes multiple sequential Prisma writes (Idempotency, CRM Message, CRM Conversation) for every inbound event. This increases the total response time and database connection holding time. **Path**: Consolidate into `prisma.$transaction`.
 
 ### Usage Logging & Data Operations
 - **Usage Buffering**: The `UsageBuffer` system batches usage updates (messages, executions) and flushes them to the database every 10 seconds or upon reaching a threshold, preventing write amplification.
@@ -46,10 +47,11 @@
 
 ## 4. Performance & Scalability Roadmap
 1. **Redis Metrics Caching (HIGH - Task 011/001)**: Implement Redis-based caching for dashboard stats (`dashboard:stats:[tenantId]`) with a 300s TTL and event-driven invalidation.
-2. **Real-time CRM (MEDIUM - Task 033)**: Replace 5s polling with SSE/WebSockets to reduce server load and improve UX.
-3. **N+1 Consolidation (MEDIUM - Task 024)**: Refactor `BotList` to fetch channel statuses in a single batched query.
-4. **Backup Automation (CRITICAL - Task 004)**: Set up automated S3/GCS backups for PostgreSQL and Redis.
-5. **Monitoring (MEDIUM - Task 026/031)**: Expose Prometheus/Grafana metrics or build an admin health dashboard to observe queue depth and AI turn latencies.
+2. **Real-time CRM (MEDIUM - Task 033/042)**: Replace 5s polling with SSE/WebSockets to reduce server load and improve UX.
+3. **Sequential Write Optimization (MEDIUM - Task 041)**: Refactor webchat message ingestion to use Prisma transactions for sequential writes.
+4. **N+1 Consolidation (MEDIUM - Task 024)**: Refactor `BotList` to fetch channel statuses in a single batched query.
+5. **Backup Automation (CRITICAL - Task 004)**: Set up automated S3/GCS backups for PostgreSQL and Redis.
+6. **Monitoring (MEDIUM - Task 026/031)**: Expose Prometheus/Grafana metrics or build an admin health dashboard to observe queue depth and AI turn latencies.
 
 ## 5. Metrics & KPIs
 - **Throughput**: Target 100+ messages per second per worker instance.
