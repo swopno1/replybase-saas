@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getMe, setTelegramWebhook } from "@/lib/telegram-api";
 import { encryptTelegramToken } from "@/lib/telegram-crypto";
-import { checkChannelLimit } from "@/lib/subscription";
+import { checkChannelLimitWithType } from "@/lib/subscription";
 import crypto from "crypto";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 
@@ -33,12 +33,12 @@ export const POST = withAuthAndTenant(async ({ tenantId }, req, context, db) => 
       return NextResponse.json({ error: "Invalid Telegram bot token" }, { status: 400 });
     }
 
-    const limitStatus = await checkChannelLimit(tenantId, botId);
+    const limitStatus = await checkChannelLimitWithType(tenantId, botId, "telegram");
     if (!limitStatus.allowed) {
       return NextResponse.json(
         {
-          error: "Channel limit reached",
-          details: `You have reached the maximum of ${limitStatus.limit} channels per bot on the ${limitStatus.planName} plan. Please upgrade.`,
+          error: limitStatus.error,
+          details: limitStatus.message,
         },
         { status: 403 },
       );

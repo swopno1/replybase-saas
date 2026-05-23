@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { normalizeWhatsAppE164 } from '@/lib/whatsapp-provider';
 import { encryptWhatsAppCredentialEnvelope } from "@/lib/whatsapp-channel-credentials";
-import { checkChannelLimit } from "@/lib/subscription";
+import { checkChannelLimitWithType } from "@/lib/subscription";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 import { prisma } from "@/lib/prisma";
 
@@ -13,12 +13,12 @@ export const POST = withAuthAndTenant(async ({ tenantId }, req, context, db) => 
     const body = await req.json();
     const { provider, name, ...credentials } = body;
 
-    const limitStatus = await checkChannelLimit(tenantId, botId);
+    const limitStatus = await checkChannelLimitWithType(tenantId, botId, "whatsapp");
     if (!limitStatus.allowed) {
       return NextResponse.json(
         {
-          error: "Channel limit reached",
-          details: `You have reached the maximum of ${limitStatus.limit} channels per bot on the ${limitStatus.planName} plan. Please upgrade.`,
+          error: limitStatus.error,
+          details: limitStatus.message,
         },
         { status: 403 },
       );

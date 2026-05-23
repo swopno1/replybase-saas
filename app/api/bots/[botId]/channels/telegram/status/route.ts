@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { decryptTelegramToken } from "@/lib/telegram-crypto";
 import { getTelegramWebhookInfo } from "@/lib/telegram-api";
-import { checkChannelLimit } from "@/lib/subscription";
+import { checkChannelLimitWithType } from "@/lib/subscription";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = 'force-dynamic';
@@ -46,7 +46,7 @@ export const GET = withAuthAndTenant(async ({ tenantId }, req, context, db) => {
           updatedAt: "desc",
         },
       }),
-      checkChannelLimit(tenantId, botId),
+      checkChannelLimitWithType(tenantId, botId, "telegram"),
     ]);
 
     if (!channel) {
