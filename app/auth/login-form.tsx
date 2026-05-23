@@ -33,13 +33,24 @@ type AuthFeedback = {
   message: string;
   instruction?: string;
 };
-type SignupPlanIntent = "free" | "starter" | "pro" | "business";
+type SignupPlanIntent = "free" | "launch" | "grow" | "scale" | "business";
 function parseSignupPlanIntent(value?: string | null): SignupPlanIntent | null {
   if (!value) return null;
   const normalized = value.trim().toLowerCase();
-  return ["free", "starter", "pro", "business"].includes(normalized)
-    ? (normalized as SignupPlanIntent)
-    : null;
+  if (
+    normalized === "free" ||
+    normalized === "launch" ||
+    normalized === "grow" ||
+    normalized === "scale" ||
+    normalized === "business" ||
+    normalized === "starter" ||
+    normalized === "pro"
+  ) {
+    if (normalized === "starter") return "launch";
+    if (normalized === "pro") return "scale";
+    return normalized as SignupPlanIntent;
+  }
+  return null;
 }
 function parseSignupSourceIntent(value?: string | null): string | null {
   if (!value) return null;
@@ -423,8 +434,9 @@ export function RegisterForm() {
 
   const signupPlanLabel = useMemo(() => {
     if (signupPlanIntent === "free") return "Free";
-    if (signupPlanIntent === "starter") return "Starter";
-    if (signupPlanIntent === "pro") return "Pro";
+    if (signupPlanIntent === "launch") return "Launch";
+    if (signupPlanIntent === "grow") return "Grow";
+    if (signupPlanIntent === "scale") return "Scale";
     if (signupPlanIntent === "business") return "Business";
     return null;
   }, [signupPlanIntent]);

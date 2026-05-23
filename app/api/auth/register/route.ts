@@ -5,7 +5,7 @@ import { hashPassword } from "@/lib/server/password";
 
 export const dynamic = "force-dynamic";
 
-type SignupPlanIntent = "free" | "starter" | "pro" | "business";
+type SignupPlanIntent = "free" | "launch" | "grow" | "scale" | "business";
 
 function parseSignupPlanIntent(value: unknown): SignupPlanIntent | null {
   if (typeof value !== "string") {
@@ -15,11 +15,16 @@ function parseSignupPlanIntent(value: unknown): SignupPlanIntent | null {
   const normalized = value.trim().toLowerCase();
   if (
     normalized === "free" ||
+    normalized === "launch" ||
+    normalized === "grow" ||
+    normalized === "scale" ||
+    normalized === "business" ||
     normalized === "starter" ||
-    normalized === "pro" ||
-    normalized === "business"
+    normalized === "pro"
   ) {
-    return normalized;
+    if (normalized === "starter") return "launch";
+    if (normalized === "pro") return "scale";
+    return normalized as SignupPlanIntent;
   }
 
   return null;

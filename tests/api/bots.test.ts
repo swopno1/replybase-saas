@@ -43,7 +43,7 @@ describe("Bots List API Route (GET)", () => {
       { id: "chan-3", botId: "bot-2", type: "whatsapp", name: "WhatsApp Channel", enabled: true, isActive: true },
     ];
 
-    const mockLimitStatus = { allowed: true, limit: 5, current: 2, planName: "pro" };
+    const mockLimitStatus = { allowed: true, limit: 5, current: 2, planName: "scale" };
 
     vi.mocked(prisma.bot.findMany).mockResolvedValue(mockBots as any);
     vi.mocked(prisma.channel.findMany).mockResolvedValue(mockChannels as any);
@@ -108,7 +108,7 @@ describe("Bots List API Route (GET)", () => {
     const req = new NextRequest("http://localhost/api/bots");
     vi.mocked(prisma.bot.findMany).mockResolvedValue([]);
     const { checkBotLimit } = await import("@/lib/subscription");
-    vi.mocked(checkBotLimit).mockResolvedValue({ allowed: true, limit: 5, current: 0, planName: "pro" } as any);
+    vi.mocked(checkBotLimit).mockResolvedValue({ allowed: true, limit: 5, current: 0, planName: "scale" } as any);
 
     const res = await GET(req, { params: Promise.resolve({}) });
     const data = await res.json();

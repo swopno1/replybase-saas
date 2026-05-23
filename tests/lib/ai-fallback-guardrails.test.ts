@@ -150,7 +150,7 @@ describe("aiFallback() — injection guard short-circuit", () => {
   const baseOptions = {
     botId: "bot-123",
     conversationId: "conv-456",
-    planName: "Pro",
+    planName: "Scale",
   };
 
   it("returns safe static string without calling any AI for 'ignore previous instructions'", async () => {

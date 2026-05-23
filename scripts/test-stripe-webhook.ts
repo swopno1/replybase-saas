@@ -11,10 +11,10 @@ async function main() {
     },
   });
 
-  const plan = await prisma.plan.findFirst({ where: { name: "pro" } }) || await prisma.plan.create({
+  const plan = await prisma.plan.findFirst({ where: { name: "scale" } }) || await prisma.plan.create({
       data: {
-          name: "pro",
-          displayName: "Pro Plan",
+          name: "scale",
+          displayName: "Scale Plan",
           price: 8900,
       }
   });

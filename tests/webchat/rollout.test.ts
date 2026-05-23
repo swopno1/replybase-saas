@@ -50,7 +50,7 @@ describe("getWebchatRolloutDecision", () => {
     process.env.WEBCHAT_ROLLOUT_MODE = "tiered";
     vi.mocked(prisma.subscription.findFirst).mockResolvedValue({
       plan: {
-        name: "starter",
+        name: "launch",
         features: { webchat_enabled: true },
       },
     } as never);
@@ -58,15 +58,15 @@ describe("getWebchatRolloutDecision", () => {
     const result = await getWebchatRolloutDecision("tenant_1");
     expect(result.allowed).toBe(true);
     expect(result.reason).toBe("plan_feature_enabled");
-    expect(result.planName).toBe("starter");
+    expect(result.planName).toBe("launch");
   });
 
   it("allows tiered rollout when plan name is allowlisted", async () => {
     process.env.WEBCHAT_ROLLOUT_MODE = "tiered";
-    process.env.WEBCHAT_ALLOWED_PLAN_NAMES = "pro,enterprise";
+    process.env.WEBCHAT_ALLOWED_PLAN_NAMES = "scale,enterprise";
     vi.mocked(prisma.subscription.findFirst).mockResolvedValue({
       plan: {
-        name: "Pro",
+        name: "Scale",
         features: {},
       },
     } as never);
@@ -74,7 +74,7 @@ describe("getWebchatRolloutDecision", () => {
     const result = await getWebchatRolloutDecision("tenant_1");
     expect(result.allowed).toBe(true);
     expect(result.reason).toBe("plan_allowlisted");
-    expect(result.planName).toBe("pro");
+    expect(result.planName).toBe("scale");
   });
 
   it("blocks tiered rollout when plan is not allowlisted and no feature flag", async () => {
@@ -82,7 +82,7 @@ describe("getWebchatRolloutDecision", () => {
     process.env.WEBCHAT_ALLOWED_PLAN_NAMES = "enterprise";
     vi.mocked(prisma.subscription.findFirst).mockResolvedValue({
       plan: {
-        name: "starter",
+        name: "launch",
         features: {},
       },
     } as never);

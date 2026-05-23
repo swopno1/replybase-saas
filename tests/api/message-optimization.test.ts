@@ -92,7 +92,7 @@ describe("Webchat Message API Optimization", () => {
         conversationId: "conv_1",
         botId: "bot_1",
         message: "Hello",
-        planName: "pro",
+        planName: "scale",
       }),
     });
 

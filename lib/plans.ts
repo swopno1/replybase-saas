@@ -15,20 +15,31 @@ export const PLAN_CONFIGS = {
     maxChannelsPerBot: 1,
     maxConversations: 100,
   },
-  starter: {
-    name: "starter",
-    displayName: "Starter",
+  launch: {
+    name: "launch",
+    displayName: "Launch",
     price: 2900,
     dailyMessageLimit: 100,
     monthlyMessageLimit: 1000,
     flowExecutionCap: 1500,
-    maxBots: 3,
-    maxChannelsPerBot: 3,
+    maxBots: 2,
+    maxChannelsPerBot: 2,
     maxConversations: 1500,
   },
-  pro: {
-    name: "pro",
-    displayName: "Pro",
+  grow: {
+    name: "grow",
+    displayName: "Grow",
+    price: 4900,
+    dailyMessageLimit: 250,
+    monthlyMessageLimit: 3500,
+    flowExecutionCap: 5000,
+    maxBots: 5,
+    maxChannelsPerBot: 3,
+    maxConversations: 5000,
+  },
+  scale: {
+    name: "scale",
+    displayName: "Scale",
     price: 8900,
     dailyMessageLimit: 500,
     monthlyMessageLimit: 7500,
@@ -53,6 +64,9 @@ export const PLAN_CONFIGS = {
 export type PlanName = keyof typeof PLAN_CONFIGS;
 
 export function getPlanConfig(name: string) {
-  const normalized = name.toLowerCase() as PlanName;
-  return PLAN_CONFIGS[normalized] || PLAN_CONFIGS.free;
+  let normalized = name.toLowerCase();
+  if (normalized === "starter") normalized = "launch";
+  if (normalized === "pro") normalized = "scale";
+  return PLAN_CONFIGS[normalized as PlanName] || PLAN_CONFIGS.free;
 }
+

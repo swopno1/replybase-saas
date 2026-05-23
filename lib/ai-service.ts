@@ -88,7 +88,7 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
   } = options;
 
   const plan = planName.toLowerCase();
-  const isPro = plan.includes("pro") || plan.includes("business");
+  const isPro = plan.includes("scale") || plan.includes("pro") || plan.includes("grow") || plan.includes("business");
   const isHighPriority = task === "onboarding" || isPro;
   const isUtilityTask = task === "intent" || task === "tagging" || task === "summary";
   const isAnalysisTask = task === "analysis";

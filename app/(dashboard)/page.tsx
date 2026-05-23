@@ -18,7 +18,7 @@ import { ExternalLink } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-type SignupPlanIntent = "free" | "starter" | "pro" | "business";
+type SignupPlanIntent = "free" | "launch" | "grow" | "scale" | "business";
 
 function parseSignupPlanIntent(value: unknown): SignupPlanIntent | null {
   if (typeof value !== "string") {
@@ -28,11 +28,16 @@ function parseSignupPlanIntent(value: unknown): SignupPlanIntent | null {
   const normalized = value.trim().toLowerCase();
   if (
     normalized === "free" ||
+    normalized === "launch" ||
+    normalized === "grow" ||
+    normalized === "scale" ||
+    normalized === "business" ||
     normalized === "starter" ||
-    normalized === "pro" ||
-    normalized === "business"
+    normalized === "pro"
   ) {
-    return normalized;
+    if (normalized === "starter") return "launch";
+    if (normalized === "pro") return "scale";
+    return normalized as SignupPlanIntent;
   }
 
   return null;
@@ -40,8 +45,9 @@ function parseSignupPlanIntent(value: unknown): SignupPlanIntent | null {
 
 function planDisplayName(plan: SignupPlanIntent): string {
   if (plan === "free") return "Free";
-  if (plan === "starter") return "Starter";
-  if (plan === "pro") return "Pro";
+  if (plan === "launch") return "Launch";
+  if (plan === "grow") return "Grow";
+  if (plan === "scale") return "Scale";
   return "Business";
 }
 
@@ -196,7 +202,7 @@ export default async function DashboardPage() {
   const intentPlan = parseSignupPlanIntent(intentMetadata?.plan);
   const intentSource =
     typeof intentMetadata?.source === "string" ? intentMetadata.source : null;
-  const recommendedPlan: SignupPlanIntent = intentPlan || "pro";
+  const recommendedPlan: SignupPlanIntent = intentPlan || "scale";
   const recommendedPlanLabel = planDisplayName(recommendedPlan);
   const activePlanName = parseSignupPlanIntent(activeSubscription?.plan?.name);
   const hasSelectedPlan = Boolean(activePlanName && activePlanName !== "free");
@@ -221,23 +227,29 @@ export default async function DashboardPage() {
           "Priority+ support and faster escalation when issues happen",
           "Designed for teams managing multiple channels and agents",
         ]
-      : recommendedPlan === "starter"
+      : recommendedPlan === "launch"
         ? [
             "Start small with enough automation for early traction",
             "Keep costs low while validating your lead workflow",
             "Upgrade seamlessly as inbound volume grows",
           ]
-        : recommendedPlan === "free"
+        : recommendedPlan === "grow"
           ? [
-              "Launch quickly without cost while your stack is being configured",
-              "Validate your first lead flows before committing budget",
-              "Move to a paid trial later when you need scale",
+              "Best balance for growing businesses with multiple channels",
+              "Manage higher volume lead capture with prioritized support",
+              "Integrate both Facebook + WhatsApp messaging side-by-side",
             ]
-          : [
-              "Best balance of automation scale and AI usage for growth teams",
-              "Includes API + priority support for serious lead operations",
-              "Strong fit once your first channel is live and producing leads",
-            ];
+          : recommendedPlan === "free"
+            ? [
+                "Launch quickly without cost while your stack is being configured",
+                "Validate your first lead flows before committing budget",
+                "Move to a paid trial later when you need scale",
+              ]
+            : [
+                "Best balance of automation scale and AI usage for growth teams",
+                "Includes API + priority support for serious lead operations",
+                "Strong fit once your first channel is live and producing leads",
+              ];
 
   const planActionHref = isBusinessIntent
     ? "https://wa.me/447822033580?text=Hi%2C%20I%27m%20interested%20in%20the%20Business%20Plan"

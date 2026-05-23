@@ -26,8 +26,9 @@ export async function syncSubscription(tenantId: string, stripeSubId: string) {
     if (!planName) {
       const nameLower = product.name.toLowerCase();
       if (nameLower.includes("business")) planName = "business";
-      else if (nameLower.includes("pro")) planName = "pro";
-      else if (nameLower.includes("starter")) planName = "starter";
+      else if (nameLower.includes("scale") || nameLower.includes("pro")) planName = "scale";
+      else if (nameLower.includes("grow")) planName = "grow";
+      else if (nameLower.includes("launch") || nameLower.includes("starter")) planName = "launch";
       else planName = "free";
     }
   }

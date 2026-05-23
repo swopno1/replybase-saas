@@ -48,7 +48,7 @@ function logResolution(task, plan, isFallback = false) {
   const taskConfig = routing[task] || routing.general;
   const provider = taskConfig.provider;
 
-  const isPro = plan.includes("pro") || plan.includes("business");
+  const isPro = plan.includes("scale") || plan.includes("pro") || plan.includes("grow") || plan.includes("business");
   const isHighPriority = task === "onboarding" || isPro;
   const isUtilityTask = task === "intent" || task === "tagging" || task === "summary";
 
@@ -70,7 +70,7 @@ console.log("Current Default Provider:", APP_CONFIG.ai.providers.default);
 console.log("");
 
 const tasks = ["chat", "onboarding", "summary", "intent", "general"];
-const plans = ["free", "pro"];
+const plans = ["free", "launch", "grow", "scale", "business"];
 
 tasks.forEach(task => {
   plans.forEach(plan => {
@@ -81,7 +81,7 @@ tasks.forEach(task => {
 console.log("");
 console.log("--- Fallback Scenarios ---");
 logResolution("chat", "free", true);
-logResolution("chat", "pro", true);
+logResolution("chat", "scale", true);
 
 console.log("");
 console.log("--- DigitalOcean Config ---");

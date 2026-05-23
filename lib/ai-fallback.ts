@@ -74,7 +74,7 @@ export async function aiFallback({
   }
 
   if (lowerMsg.includes("pricing") || lowerMsg.includes("how much") || lowerMsg.includes("cost")) {
-    return "I'd be happy to show you our plans! We offer Starter (£29/mo), Pro (£89/mo), and Business tiers. Based on your volume, I can recommend the best one. Would you like to see a personalized ROI breakdown?";
+    return "I'd be happy to show you our plans! We offer Launch (£29/mo), Grow (£49/mo), Scale (£89/mo), and Business (£249/mo) tiers. Based on your volume, I can recommend the best one. Would you like to see a personalized ROI breakdown?";
   }
   if (lowerMsg.includes("human") || lowerMsg.includes("agent") || lowerMsg.includes("specialist")) {
     return "I understand. I'm loopng in one of our automation specialists to assist you further. In the meantime, feel free to ask me anything about our features!";
@@ -147,10 +147,10 @@ export async function aiFallback({
   }
 
   // Cross-channel context: ALL plans get history so context is never lost.
-  // Pro/Business gets a deeper window (12 msgs), Free/Starter gets 6.
+  // Grow/Scale/Business gets a deeper window (12 msgs), Free/Launch gets 6.
   const plan = planName.toLowerCase();
   const historyDepth =
-    plan.includes("pro") || plan.includes("business") ? 12 : 6;
+    plan.includes("scale") || plan.includes("pro") || plan.includes("grow") || plan.includes("business") ? 12 : 6;
 
   let historyBlock = "";
   if (!isSimulation) {

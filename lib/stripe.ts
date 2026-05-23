@@ -7,13 +7,18 @@ export const stripe = process.env.STRIPE_SECRET_KEY
   : null;
 
 export const PLANS = {
-  starter: {
-    name: "Starter",
+  launch: {
+    name: "Launch",
     price: 2900, // in cents
     priceId: process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID || "",
   },
-  pro: {
-    name: "Pro",
+  grow: {
+    name: "Grow",
+    price: 4900,
+    priceId: process.env.NEXT_PUBLIC_STRIPE_GROW_PRICE_ID || "",
+  },
+  scale: {
+    name: "Scale",
     price: 8900,
     priceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || "",
   },

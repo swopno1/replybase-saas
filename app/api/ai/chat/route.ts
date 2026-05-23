@@ -50,7 +50,7 @@ export const POST = withAuthAndTenant(async ({ id, tenantId }, request, context,
 
     // Prepare AI context based on plan and tenant settings
     const planName = (limits.displayName || limits.name || "free").toLowerCase();
-    const isPremium = planName.includes("pro") || planName.includes("business");
+    const isPremium = planName.includes("scale") || planName.includes("pro") || planName.includes("grow") || planName.includes("business");
 
     // Fetch full tenant name for context injection
     const tenant = await db.tenant.findUnique({

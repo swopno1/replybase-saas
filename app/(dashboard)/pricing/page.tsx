@@ -36,50 +36,65 @@ const PLANS = [
     highlight: false,
   },
   {
-    name: "starter",
-    displayName: "Starter",
-    aiLabel: "Smart Automation",
+    name: "launch",
+    displayName: "Launch",
+    aiLabel: "Basic Lead Flow",
     price: 2900,
     automations: "1,500",
     aiResponses: "1,000",
     aiOverage: "£12 / 1k",
-    bots: "3",
-    supportedChannels: "Telegram, Webchat, Facebook, WhatsApp, Website Forms",
+    bots: "2",
+    supportedChannels: "Webchat, Facebook or WhatsApp",
     crmAccess: true,
     apiAccess: false,
-    support: "Email",
+    support: "Standard Email",
     cta: "Start Free Trial",
     highlight: false,
   },
   {
-    name: "pro",
-    displayName: "Pro",
+    name: "grow",
+    displayName: "Grow",
+    aiLabel: "Smart Automation",
+    price: 4900,
+    automations: "5,000",
+    aiResponses: "3,500",
+    aiOverage: "£10 / 1k",
+    bots: "5",
+    supportedChannels: "Webchat, Facebook + WhatsApp",
+    crmAccess: true,
+    apiAccess: false,
+    support: "Priority Email",
+    cta: "Start Free Trial",
+    highlight: false,
+  },
+  {
+    name: "scale",
+    displayName: "Scale",
     aiLabel: "AI Co-Pilot",
     price: 8900,
     automations: "10,000",
     aiResponses: "7,500",
-    aiOverage: "£10 / 1k",
+    aiOverage: "£8 / 1k",
     bots: "10",
-    supportedChannels: "Telegram, Webchat, Facebook, WhatsApp, Website Forms",
+    supportedChannels: "Webchat, Facebook, WhatsApp, Telegram",
     crmAccess: true,
     apiAccess: true,
-    support: "Priority",
+    support: "Priority Live-Chat",
     cta: "Start Free Trial",
     highlight: true,
   },
   {
     name: "business",
     displayName: "Business",
-    aiLabel: "AI Agent",
     price: 24900,
     automations: "40,000",
     aiResponses: "25,000",
-    aiOverage: "£8 / 1k",
+    aiOverage: "£6 / 1k",
     bots: "25",
-    supportedChannels: "Telegram, Webchat, Facebook, WhatsApp, Website Forms",
+    supportedChannels: "All channels + API/Custom Integrations",
     crmAccess: true,
     apiAccess: true,
-    support: "Priority +",
+    support: "Dedicated SLA",
     cta: "Start Free Trial",
     highlight: false,
   },
@@ -95,8 +110,9 @@ function parsePlanName(value: string | null): PlanName | null {
   const normalized = value.trim().toLowerCase();
   if (
     normalized === "free" ||
-    normalized === "starter" ||
-    normalized === "pro" ||
+    normalized === "launch" ||
+    normalized === "grow" ||
+    normalized === "scale" ||
     normalized === "business"
   ) {
     return normalized;
@@ -111,7 +127,7 @@ function PricingContent() {
   const [loading, setLoading] = useState<string | null>(null);
   const [currentSubscription, setCurrentSubscription] = useState<any>(null);
   const [selectedPlan, setSelectedPlan] = useState<(typeof PLANS)[number] | null>(null);
-  const preferredPlan = parsePlanName(searchParams.get("plan")) || "pro";
+  const preferredPlan = parsePlanName(searchParams.get("plan")) || "scale";
   const source = searchParams.get("source");
   const promo = searchParams.get("promo");
 
@@ -589,10 +605,13 @@ export default function PricingPage() {
 }
 
 function getPriceId(planName: string) {
-  if (planName === "starter") {
+  if (planName === "launch") {
     return process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID;
   }
-  if (planName === "pro") {
+  if (planName === "grow") {
+    return process.env.NEXT_PUBLIC_STRIPE_GROW_PRICE_ID;
+  }
+  if (planName === "scale") {
     return process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID;
   }
   if (planName === "business") {

@@ -143,7 +143,7 @@ function validBody(overrides: Record<string, unknown> = {}) {
     conversationId: "conv_1",
     botId: "bot_1",
     message: "Hello bot",
-    planName: "pro",
+    planName: "scale",
     botSignals: { honeypot: "" },
     ...overrides,
   };

@@ -388,10 +388,10 @@ export default function BillingTabContent() {
             
             <div className="space-y-4">
               <Button onClick={handleUpgrade} className="w-full bg-foreground text-background hover:bg-foreground/90 font-bold h-11 rounded-xl shadow-md">
-                {subscription?.plan.name === "business" || subscription?.plan.name === "pro" ? "Manage Plan" : "Upgrade Plan"}
+                {subscription?.plan.name && subscription?.plan.name !== "free" ? "Manage Plan" : "Upgrade Plan"}
               </Button>
 
-              {subscription && subscription.plan.name !== "free" && subscription.plan.name !== "starter" && !isCanceled && (
+              {subscription && subscription.plan.name !== "free" && subscription.plan.name !== "launch" && subscription.plan.name !== "starter" && !isCanceled && (
                  <Button
                    variant="outline"
                    onClick={() => setShowDowngradeDialog(true)}

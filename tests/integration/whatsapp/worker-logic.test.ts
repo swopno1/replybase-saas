@@ -155,7 +155,7 @@ describe("WhatsApp Worker Integration", () => {
     
     // Mock AI fallback
     vi.mocked(prisma.crmMessage.findMany).mockResolvedValue([]);
-    vi.mocked(prisma.subscription.findUnique).mockResolvedValue({ plan: { name: "pro" } } as any);
+    vi.mocked(prisma.subscription.findUnique).mockResolvedValue({ plan: { name: "scale" } } as any);
 
     // Mock the dynamic import of aiFallback
     // In Vitest we can use vi.mock for modules used in dynamic imports too
