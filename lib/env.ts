@@ -34,8 +34,10 @@ const envSchema = z.object({
   ),
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
   NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID: z.string().optional(),
+  NEXT_PUBLIC_STRIPE_LAUNCH_PRICE_ID: z.string().optional(),
   NEXT_PUBLIC_STRIPE_GROW_PRICE_ID: z.string().optional(),
   NEXT_PUBLIC_STRIPE_PRO_PRICE_ID: z.string().optional(),
+  NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID: z.string().optional(),
   NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID: z.string().optional(),
 
   // AI

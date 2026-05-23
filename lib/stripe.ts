@@ -10,7 +10,7 @@ export const PLANS = {
   launch: {
     name: "Launch",
     price: 2900, // in cents
-    priceId: process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID || "",
+    priceId: process.env.NEXT_PUBLIC_STRIPE_LAUNCH_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID || "",
   },
   grow: {
     name: "Grow",
@@ -20,7 +20,7 @@ export const PLANS = {
   scale: {
     name: "Scale",
     price: 8900,
-    priceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || "",
+    priceId: process.env.NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || "",
   },
   business: {
     name: "Business",

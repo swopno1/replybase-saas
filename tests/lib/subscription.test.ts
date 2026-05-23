@@ -70,18 +70,27 @@ const PLAN_FREE = {
   maxBots: 1,
 };
 
-const PLAN_STARTER = {
-  name: 'starter',
-  displayName: 'Starter',
+const PLAN_LAUNCH = {
+  name: 'launch',
+  displayName: 'Launch',
   monthlyMessageLimit: 1000,   // AI Responses / Month
   dailyMessageLimit: 100,
   flowExecutionCap: 1500,      // Automations / Month
-  maxBots: 3,
+  maxBots: 2,
 };
 
-const PLAN_PRO = {
-  name: 'pro',
-  displayName: 'Pro',
+const PLAN_GROW = {
+  name: 'grow',
+  displayName: 'Grow',
+  monthlyMessageLimit: 3500,   // AI Responses / Month
+  dailyMessageLimit: 250,
+  flowExecutionCap: 5000,      // Automations / Month
+  maxBots: 5,
+};
+
+const PLAN_SCALE = {
+  name: 'scale',
+  displayName: 'Scale',
   monthlyMessageLimit: 7500,   // AI Responses / Month
   dailyMessageLimit: 500,
   flowExecutionCap: 10000,     // Automations / Month
@@ -127,8 +136,9 @@ describe('Plan limit values (pricing table compliance)', () => {
 
   it.each([
     ['free',     PLAN_FREE,     100,   200,  1],
-    ['starter',  PLAN_STARTER,  1000,  1500, 3],
-    ['pro',      PLAN_PRO,      7500,  10000, 10],
+    ['launch',   PLAN_LAUNCH,   1000,  1500, 2],
+    ['grow',     PLAN_GROW,     3500,  5000, 5],
+    ['scale',    PLAN_SCALE,    7500,  10000, 10],
     ['business', PLAN_BUSINESS, 25000, 40000, 25],
   ])(
     '%s plan: monthlyMessageLimit=%d, flowExecutionCap=%d, maxBots=%d',
@@ -172,9 +182,9 @@ describe('getTenantLimits', () => {
   });
 
   it('returns active subscription plan limits', async () => {
-    mockActiveSub(PLAN_PRO);
+    mockActiveSub(PLAN_SCALE);
     const limits = await getTenantLimits('tenant_1');
-    expect(limits.name).toBe('pro');
+    expect(limits.name).toBe('scale');
     expect(limits.monthlyMessageLimit).toBe(7500);
     expect(limits.flowExecutionCap).toBe(10000);
     expect(limits.maxBots).toBe(10);
@@ -205,15 +215,15 @@ describe('checkLimit — AI Responses (message type)', () => {
     expect(result.remaining).toBe(0);
   });
 
-  it('blocks at hard limit for starter plan (1000 monthly → 1100 hard)', async () => {
-    mockActiveSub(PLAN_STARTER);
+  it('blocks at hard limit for launch plan (1000 monthly → 1100 hard)', async () => {
+    mockActiveSub(PLAN_LAUNCH);
     mockUsageLog(1100);
     const result = await checkLimit('user_1', 'message');
     expect(result.allowed).toBe(false);
   });
 
-  it('allows at grace zone for pro plan — monthly only over 100%, daily ok', async () => {
-    mockActiveSub(PLAN_PRO);
+  it('allows at grace zone for scale plan — monthly only over 100%, daily ok', async () => {
+    mockActiveSub(PLAN_SCALE);
     // First call: daily usage (below daily cap of 500)
     vi.mocked(prisma.usageLog.aggregate)
       .mockResolvedValueOnce({ _sum: { count: 300 } } as unknown as Awaited<ReturnType<typeof prisma.usageLog.aggregate>>)
@@ -247,15 +257,15 @@ describe('checkLimit — Automations (flow_execution type, MONTHLY window)', () 
     expect(result.remaining).toBe(0);
   });
 
-  it('allows flow executions at grace zone for starter (1500 cap, usage 1550)', async () => {
-    mockActiveSub(PLAN_STARTER);
+  it('allows flow executions at grace zone for launch (1500 cap, usage 1550)', async () => {
+    mockActiveSub(PLAN_LAUNCH);
     mockUsageLog(1550); // 1550 / 1500 = 1.033 — grace zone, still allowed
     const result = await checkLimit('user_1', 'flow_execution');
     expect(result.allowed).toBe(true);
   });
 
-  it('blocks flow executions when hard limit exceeded for pro (10000 cap → 11001 blocks)', async () => {
-    mockActiveSub(PLAN_PRO);
+  it('blocks flow executions when hard limit exceeded for scale (10000 cap → 11001 blocks)', async () => {
+    mockActiveSub(PLAN_SCALE);
     mockUsageLog(11001); // 11001 > 10000 * 1.10
     const result = await checkLimit('user_1', 'flow_execution');
     expect(result.allowed).toBe(false);
@@ -313,7 +323,7 @@ describe('incrementUsage (buffered)', () => {
 
   it('buffers usage and does not immediately write to DB', async () => {
     mockUser();
-    mockActiveSub(PLAN_PRO);
+    mockActiveSub(PLAN_SCALE);
     mockUsageLog(10);
 
     await incrementUsage('user_1', 'message', 5);
@@ -323,7 +333,7 @@ describe('incrementUsage (buffered)', () => {
 
   it('writes to DB when buffer is flushed', async () => {
     mockUser();
-    mockActiveSub(PLAN_PRO);
+    mockActiveSub(PLAN_SCALE);
     mockUsageLog(10);
 
     await incrementUsage('user_1', 'message', 5);
@@ -384,12 +394,12 @@ describe('checkBotLimit', () => {
   });
 
   it('allows bot creation when under limit', async () => {
-    mockActiveSub(PLAN_STARTER); // maxBots: 3
+    mockActiveSub(PLAN_LAUNCH); // maxBots: 2
     vi.mocked(prisma.bot.count).mockResolvedValue(1);
     const result = await checkBotLimit('tenant_1');
     expect(result.allowed).toBe(true);
     expect(result.current).toBe(1);
-    expect(result.limit).toBe(3);
+    expect(result.limit).toBe(2);
   });
 
   it('blocks bot creation when at limit', async () => {
@@ -408,14 +418,11 @@ describe('checkChannelLimit', () => {
   });
 
   it('allows channel connection when under limit', async () => {
-    mockActiveSub(PLAN_STARTER); // maxChannelsPerBot: 1 (default for starter in mock, wait let me check)
-    // Actually mock PLAN_STARTER has maxChannelsPerBot undefined in the file, let\u0027s check what it defaults to in schema
-    // In schema.prisma it defaults to 1.
-
-    vi.mocked(prisma.channel.count).mockResolvedValue(0);
+    mockActiveSub(PLAN_LAUNCH); // maxChannelsPerBot: 2
+    vi.mocked(prisma.channel.count).mockResolvedValue(1);
     const result = await checkChannelLimit('tenant_1', 'bot_1');
     expect(result.allowed).toBe(true);
-    expect(result.current).toBe(0);
+    expect(result.current).toBe(1);
   });
 
   it('blocks channel connection when at limit', async () => {

@@ -606,13 +606,13 @@ export default function PricingPage() {
 
 function getPriceId(planName: string) {
   if (planName === "launch") {
-    return process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID;
+    return process.env.NEXT_PUBLIC_STRIPE_LAUNCH_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID;
   }
   if (planName === "grow") {
     return process.env.NEXT_PUBLIC_STRIPE_GROW_PRICE_ID;
   }
   if (planName === "scale") {
-    return process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID;
+    return process.env.NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID;
   }
   if (planName === "business") {
     return process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID;
