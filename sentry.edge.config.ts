@@ -34,7 +34,10 @@ Sentry.init({
   sendDefaultPii: false,
 
   tracesSampler: (samplingContext) => {
-    const transactionName = samplingContext.transactionContext.name || "";
+    const transactionName =
+      samplingContext?.name ||
+      (samplingContext as any)?.transactionContext?.name ||
+      "";
     if (transactionName.includes("/api/health") || transactionName.includes("/api/system-health")) {
       return 0.0;
     }
