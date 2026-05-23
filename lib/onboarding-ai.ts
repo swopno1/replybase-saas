@@ -1,4 +1,5 @@
-import { generateText } from "ai";
+import { generateText, generateObject } from "ai";
+import { z } from "zod";
 import { getSystemModel } from "./ai-service";
 import { OnboardingData, OnboardingSummary } from "@/types/shared/onboarding";
 import { FlowTemplateCategory, getTemplateByCategory } from "./flow-templates";
@@ -96,10 +97,18 @@ const PERSONALITY_TO_TONE: Record<string, string> = {
 
 // ─── Step 1: Summarize Onboarding Data ──────────────────────────────────────
 
+const onboardingSummarySchema = z.object({
+  companyProfile: z.string().describe("2-sentence summary of what the company does and its value proposition."),
+  targetAudience: z.string().describe("Who their ideal customer is (1 sentence)."),
+  keyOfferings: z.string().describe("Comma-separated list of main products/services."),
+  commonQueries: z.string().describe("Top 5 questions the chatbot should answer, as a numbered list."),
+  toneAndVoice: z.string().describe("One sentence describing the recommended chatbot tone."),
+});
+
 export async function summarizeOnboardingData(data: OnboardingData): Promise<OnboardingSummary> {
   const model = getSystemModel({ planName: "free", task: "onboarding" });
 
-  const prompt = `You are a business analyst. Summarize the following business data into a structured JSON profile that will configure an AI chatbot.
+  const prompt = `You are a business analyst. Summarize the following business data into a structured profile that will configure an AI chatbot.
 
 BUSINESS DATA:
 - Company: ${data.business.company}
@@ -113,28 +122,21 @@ BUSINESS DATA:
 - Chatbot goal: ${data.chatbotGoals.conversionGoal}
 - Preferred CTA: ${data.chatbotGoals.preferredCta}
 - Bot personality: ${data.chatbotGoals.botPersonality}
-${data.context.otherInfo ? `- Additional context: ${data.context.otherInfo}` : ""}
-
-Return ONLY a JSON object with these keys:
-- companyProfile: 2-sentence summary of what the company does and its value proposition.
-- targetAudience: Who their ideal customer is (1 sentence).
-- keyOfferings: Comma-separated list of main products/services.
-- commonQueries: Top 5 questions the chatbot should answer, as a numbered list.
-- toneAndVoice: One sentence describing the recommended chatbot tone.
-
-Output ONLY valid JSON, no markdown.`;
+${data.context.otherInfo ? `- Additional context: ${data.context.otherInfo}` : ""}`;
 
   try {
-    const { text } = await Sentry.startSpan(
-      { name: "AI Summarize Onboarding", op: "ai.generate_text" },
+    const { object: parsed } = await Sentry.startSpan(
+      { name: "AI Summarize Onboarding", op: "ai.generate_object" },
       async () => {
-        return generateText({ model, prompt, 
+        return generateObject({
+          model,
+          schema: onboardingSummarySchema,
+          prompt,
           // @ts-ignore
-          maxTokens: 1000 });
+          maxTokens: 1000,
+        });
       }
     );
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
     return {
       ...parsed,
       conversionGoal: data.chatbotGoals.conversionGoal,
