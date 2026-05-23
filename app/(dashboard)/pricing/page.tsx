@@ -32,7 +32,26 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { PLANS as STRIPE_PLANS } from "@/lib/stripe";
 
-const PLANS = [
+interface PricingPlan {
+  readonly name: "free" | "launch" | "grow" | "scale" | "business";
+  readonly displayName: string;
+  readonly aiLabel?: string;
+  readonly priceMonthly: number;
+  readonly priceAnnual: number;
+  readonly automations: string;
+  readonly aiResponses: string;
+  readonly aiOverage: string;
+  readonly bots: string;
+  readonly supportedChannels: string;
+  readonly crmAccess: boolean;
+  readonly apiAccess: boolean;
+  readonly support: string;
+  readonly cta: string;
+  readonly highlight: boolean;
+  readonly featuredLabel?: string;
+}
+
+const PLANS: readonly PricingPlan[] = [
   {
     name: "free",
     displayName: "Free",
@@ -119,7 +138,7 @@ const PLANS = [
     cta: "Start Free Trial",
     highlight: false,
   },
-] as const;
+];
 
 type PlanName = (typeof PLANS)[number]["name"];
 
