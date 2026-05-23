@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { recordWebhookSetupLog } from "@/lib/webhook-setup-log";
 import { isChannelEnabled } from "@/lib/channel-config";
 import { getFacebookGraphUrl, setupMessengerProfile } from "@/lib/server/facebook-utils";
-import { checkChannelLimit } from "@/lib/subscription";
+import { checkChannelLimitWithType } from "@/lib/subscription";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +32,7 @@ export const GET = withAuthAndTenant(async ({ tenantId }, req, context, db) => {
         createdAt: "desc",
       },
     }),
-    checkChannelLimit(tenantId, botId),
+    checkChannelLimitWithType(tenantId, botId, "facebook"),
   ]);
 
   return NextResponse.json({ pages, limitStatus });
@@ -54,12 +54,12 @@ export const POST = withAuthAndTenant(async ({ tenantId }, req, context, db) => 
     return NextResponse.json({ error: "Bot not found" }, { status: 404 });
   }
 
-  const limitStatus = await checkChannelLimit(tenantId, botId);
+  const limitStatus = await checkChannelLimitWithType(tenantId, botId, "facebook");
   if (!limitStatus.allowed) {
     return NextResponse.json(
       {
-        error: "Channel limit reached",
-        details: `You have reached the maximum of ${limitStatus.limit} channels per bot on the ${limitStatus.planName} plan. Please upgrade.`,
+        error: limitStatus.error,
+        details: limitStatus.message,
       },
       { status: 403 },
     );

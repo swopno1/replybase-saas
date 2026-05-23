@@ -1,20 +1,70 @@
 # Stripe Migration Plan
 
-## 1. Environment Variable Update
-Introduce new Price IDs for annual plans:
-- `NEXT_PUBLIC_STRIPE_LAUNCH_ANNUAL_PRICE_ID`
-- `NEXT_PUBLIC_STRIPE_GROW_ANNUAL_PRICE_ID`
-- `NEXT_PUBLIC_STRIPE_SCALE_ANNUAL_PRICE_ID`
-- `NEXT_PUBLIC_STRIPE_BUSINESS_ANNUAL_PRICE_ID`
+This document outlines the operational roadmap to align our Stripe products, prices, checkouts, and webhooks with the new **Launch, Grow, Scale, Business** pricing structures.
 
-## 2. Product/Price Configuration
-- Create 4 new Products in Stripe (Launch, Grow, Scale, Business).
-- Create 2 Prices for each: Monthly and Annual.
-- Annual price = Monthly price * 10.
+---
 
-## 3. Checkout Flow Enhancements
-- Update `/api/billing/checkout` to accept `billingCycle` (monthly|annual).
-- Enforce `FOUNDING50` coupon check for annual plans.
+## 1. Environment Variable Mapping
+Configure the following keys in your development and production environments:
 
-## 4. Subscription Management
-- Ensure webhook handler (`/api/billing/webhook`) correctly maps incoming Stripe plan IDs back to the internal plan names.
+```env
+# Monthly Price IDs
+NEXT_PUBLIC_STRIPE_LAUNCH_PRICE_ID=price_1TaELrJlpKwK1y1zUnL4eKVb
+NEXT_PUBLIC_STRIPE_GROW_PRICE_ID=price_1TaELuJlpKwK1y1zdGlTG3Bv
+NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID=price_1TaELwJlpKwK1y1zv6HPliga
+NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID=price_1TS6cZJlpKwK1y1zBNKHOwCq
+
+# Annual Price IDs (10 Months Value)
+NEXT_PUBLIC_STRIPE_LAUNCH_ANNUAL_PRICE_ID=price_1TaELrJlpKwK1y1zE6tmYyJ5
+NEXT_PUBLIC_STRIPE_GROW_ANNUAL_PRICE_ID=price_1TaELuJlpKwK1y1zTDzBZ8DL
+NEXT_PUBLIC_STRIPE_SCALE_ANNUAL_PRICE_ID=price_1TaELxJlpKwK1y1zcGw9iLUi
+NEXT_PUBLIC_STRIPE_BUSINESS_ANNUAL_PRICE_ID=price_1TaELyJlpKwK1y1zrU4qoYjk
+
+# Legacy Aliases (Must be kept in production for backward compatibility)
+NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID=price_1TaELrJlpKwK1y1zUnL4eKVb
+NEXT_PUBLIC_STRIPE_PRO_PRICE_ID=price_1TaELwJlpKwK1y1zv6HPliga
+```
+
+---
+
+## 2. Product and Price Setup (Stripe Dashboard)
+To migrate prices:
+1. Log into your Stripe Dashboard (or use Test Mode).
+2. Create/Update 4 Products named:
+   - `ReplyBase Launch`
+   - `ReplyBase Grow`
+   - `ReplyBase Scale`
+   - `ReplyBase Business`
+3. Under each product, create two prices:
+   - **Monthly Price**: £29, £49, £89, or £249 (Recurring monthly).
+   - **Annual Price**: £290, £490, £890, or £2490 (Recurring yearly).
+4. Run the Stripe product seeding script:
+   ```bash
+   npm run seed:stripe
+   ```
+   This script verifies/creates products and prices in Stripe and updates the limits inside the local database `plans` table.
+
+---
+
+## 3. Webhook Integration Flow
+ReplyBase uses a queue-based system to process Stripe events:
+- Stripe delivers webhook requests to `/api/billing/webhook`.
+- Webhooks verify signatures using `STRIPE_WEBHOOK_SECRET`.
+- The webhook enqueues a job (`stripe-event`) in Redis.
+- Background worker `stripe-worker.ts` processes the job and synchronizes data with the DB via `syncSubscription` in `lib/billing-service.ts`.
+
+### Webhook Action Mapping
+- `checkout.session.completed`: Sets up subscription linking to the tenant.
+- `customer.subscription.created` & `customer.subscription.updated`: Resolves plans and updates limits.
+- `customer.subscription.deleted`: Revokes limits and sets plan back to `Free`.
+- `invoice.payment_succeeded`: Inserts a revenue record in the `revenue` table.
+- `invoice.payment_failed`: Marks subscription as `PAST_DUE`.
+
+---
+
+## 4. Stripe Customer Portal Configuration
+Ensure the Customer Portal is enabled in your Stripe Dashboard settings:
+- Go to **Settings > Billing > Customer Portal**.
+- Allow customers to upgrade, downgrade, or cancel subscriptions.
+- Set the redirection URL to `https://app.replybase.co.uk/settings?tab=billing`.
+- Ensure all 8 price IDs (monthly and annual) are added to the list of allowed products in the portal settings so users can self-migrate between tiers.

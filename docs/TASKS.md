@@ -203,3 +203,19 @@
   - Objective: Optimize sampling and implement inbound filtering.
   - Detailed Instructions: 1. Implement dynamic sampling in `sentry.server.config.ts`. 2. Filter out `/api/health` and CRM polling requests from transaction tracking.
   - Expected Deliverables: Sustainable quota usage on Sentry Free Plan.
+
+- **Task 049**
+  - Priority: HIGH
+  - Status: COMPLETED
+  - Category: Subscription & Billing
+  - Severity: HIGH
+  - Issue: Legacy pricing model alignment and channel connect gating leakages.
+  - Root Cause: Historical jump between Starter (£29) and Pro (£89) was too large. Gating verification in separate Facebook/WhatsApp/Telegram bot connection routes checked channel count limit only, bypassing plan allowed types.
+  - Business Impact: Improved pricing conversion with a Grow (£49) plan. Hardened channel connection endpoints to prevent quota and channel type leakages.
+  - Objective: Complete normalization of Price IDs, auto-apply FOUNDING50 for annual billing, and enforce channel type validation on all channel connect paths.
+  - Detailed Instructions: 1. Update `lib/plans.ts` and `lib/stripe.ts` with new tiers and yearly price options. 2. Add `checkChannelLimitWithType` validation inside facebook, telegram, and whatsapp connect/status routes. 3. Auto-apply active Stripe promo codes matching `FOUNDING50` on checkout.
+  - Expected Deliverables: Restructured pricing plans, type-gated connect routes, annual billing checkout validation, and comprehensive migration architecture documents.
+  - Dependencies: Stripe API.
+  - Notes: Completed on 2026-05-23. Verified all 481 unit/integration tests successfully.
+  - Rollout Risk: LOW.
+

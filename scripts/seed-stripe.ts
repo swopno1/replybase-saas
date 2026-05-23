@@ -40,19 +40,22 @@ async function seed() {
         console.log(`   Product existing: ${product.id}`);
       }
 
-      const prices = await stripe.prices.list({
+      const pricesList = await stripe.prices.list({
         product: product.id,
-        limit: 1,
         active: true,
+        limit: 10,
       });
 
-      let price = prices.data[0];
+      // Find monthly price
+      let monthlyPrice = pricesList.data.find(
+        (p) => p.recurring?.interval === "month" && p.unit_amount === plan.price
+      );
 
-      if (!price || price.unit_amount !== plan.price) {
+      if (!monthlyPrice) {
         console.log(
-          `   Creating price for ${plan.displayName}: £${plan.price / 100}`,
+          `   Creating monthly price for ${plan.displayName}: £${plan.price / 100}`
         );
-        price = await stripe.prices.create({
+        monthlyPrice = await stripe.prices.create({
           product: product.id,
           unit_amount: plan.price,
           currency: "gbp",
@@ -64,10 +67,36 @@ async function seed() {
           },
         });
       } else {
-        console.log(`   Price existing: ${price.id}`);
+        console.log(`   Monthly price existing: ${monthlyPrice.id}`);
       }
 
-      priceId = price.id;
+      // Find annual price (10 months rate)
+      const annualAmount = plan.price * 10;
+      let annualPrice = pricesList.data.find(
+        (p) => p.recurring?.interval === "year" && p.unit_amount === annualAmount
+      );
+
+      if (!annualPrice) {
+        console.log(
+          `   Creating annual price for ${plan.displayName}: £${annualAmount / 100}`
+        );
+        annualPrice = await stripe.prices.create({
+          product: product.id,
+          unit_amount: annualAmount,
+          currency: "gbp",
+          recurring: {
+            interval: "year",
+          },
+          metadata: {
+            app_plan_id: plan.name,
+          },
+        });
+      } else {
+        console.log(`   Annual price existing: ${annualPrice.id}`);
+      }
+
+      priceId = monthlyPrice.id;
+      console.log(`   --> Stripe Annual Price ID for ${plan.name}: ${annualPrice.id}`);
     }
 
     console.log(`   Upserting DB Plan: ${plan.name}`);

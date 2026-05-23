@@ -112,27 +112,25 @@ export const POST = withAuthAndTenant(async (user, request, context, db) => {
     };
 
     // 4. Handle Founding Offer & Coupons
-    let effectivePromoCode = promoCode;
+    if (billingCycle === "annual") {
+      try {
+        const promoCodes = await stripe.promotionCodes.list({
+          code: "FOUNDING50",
+          active: true,
+          limit: 1,
+        });
 
-    // Auto-apply FOUNDING50 for annual plans if requested
-    if (billingCycle === "annual" && (promoCode === "FOUNDING50" || !promoCode)) {
-       // We can either auto-apply or just allow it.
-       // For the founding offer, we'll auto-apply if it's annual and no other code is provided
-       // Note: In production, you might want to verify coupon validity here first.
-       if (!promoCode) effectivePromoCode = "FOUNDING50";
-    }
-
-    if (effectivePromoCode) {
-      // If a specific code is provided, we can either validate it here or let Stripe handle it.
-      // Stripe Checkout discounts array requires a coupon ID (not necessarily the promo code string).
-      // For simplicity, we'll use allow_promotion_codes: true and handle FOUNDING50 specially if needed.
-
-      // If we want to FORCE a coupon (Founding Offer), we use 'discounts'
-      if (effectivePromoCode === "FOUNDING50" && billingCycle === "annual") {
-          // checkoutOptions.discounts = [{ coupon: "FOUNDING50" }];
-          // NOTE: Usually you'd use the Coupon ID from Stripe.
-          // To be safe and flexible, we'll just let the user enter it OR pass it via URL
-          // and let Stripe handle the validation.
+        if (promoCodes.data.length > 0) {
+          checkoutOptions.discounts = [
+            {
+              promotion_code: promoCodes.data[0].id,
+            },
+          ];
+        } else {
+          console.warn("[Stripe Checkout] Active promotion code 'FOUNDING50' not found in Stripe");
+        }
+      } catch (err) {
+        console.error("[Stripe Checkout] Failed to fetch/apply FOUNDING50 promo code:", err);
       }
     }
 
