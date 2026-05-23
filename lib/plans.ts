@@ -68,13 +68,7 @@ export const PLAN_CONFIGS = {
 
 export type PlanName = keyof typeof PLAN_CONFIGS;
 
-/**
- * @deprecated Legacy plan names are aliased for backward compatibility.
- * Use new plan names (launch, grow, scale, business) in new code.
- */
 export function getPlanConfig(name: string) {
-  let normalized = name.toLowerCase();
-  if (normalized === "starter") normalized = "launch";
-  if (normalized === "pro") normalized = "scale";
+  const normalized = name.toLowerCase();
   return PLAN_CONFIGS[normalized as PlanName] || PLAN_CONFIGS.free;
 }

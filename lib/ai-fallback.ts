@@ -52,8 +52,8 @@ export interface AiFallbackOptions {
  * and streams an AI fallback response.
  *
  * ALL plan tiers now receive a structured system prompt built from bot context.
- * - Pro/Business: includes recent conversation history for richer context
- * - Free/Starter: system prompt only (no conversation history)
+ * - Grow/Scale/Business: includes recent conversation history for richer context
+ * - Free/Launch: system prompt only (no conversation history)
  */
 export async function aiFallback({
   botId,
@@ -150,7 +150,7 @@ export async function aiFallback({
   // Grow/Scale/Business gets a deeper window (12 msgs), Free/Launch gets 6.
   const plan = planName.toLowerCase();
   const historyDepth =
-    plan.includes("scale") || plan.includes("pro") || plan.includes("grow") || plan.includes("business") ? 12 : 6;
+    plan.includes("scale") || plan.includes("grow") || plan.includes("business") ? 12 : 6;
 
   let historyBlock = "";
   if (!isSimulation) {

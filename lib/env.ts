@@ -46,9 +46,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_STRIPE_SCALE_ANNUAL_PRICE_ID: z.string().optional(),
   NEXT_PUBLIC_STRIPE_BUSINESS_ANNUAL_PRICE_ID: z.string().optional(),
 
-  // Legacy Price IDs
-  NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID: z.string().optional(),
-  NEXT_PUBLIC_STRIPE_PRO_PRICE_ID: z.string().optional(),
+
 
   // AI
   OPENAI_API_KEY: z.string().optional(),
@@ -86,8 +84,7 @@ const clientEnvSchema = z.object({
   NEXT_PUBLIC_STRIPE_GROW_ANNUAL_PRICE_ID: z.string().optional(),
   NEXT_PUBLIC_STRIPE_SCALE_ANNUAL_PRICE_ID: z.string().optional(),
   NEXT_PUBLIC_STRIPE_BUSINESS_ANNUAL_PRICE_ID: z.string().optional(),
-  NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID: z.string().optional(),
-  NEXT_PUBLIC_STRIPE_PRO_PRICE_ID: z.string().optional(),
+
 });
 
 const parsed = isServer 
@@ -104,8 +101,7 @@ const parsed = isServer
       NEXT_PUBLIC_STRIPE_GROW_ANNUAL_PRICE_ID: process.env.NEXT_PUBLIC_STRIPE_GROW_ANNUAL_PRICE_ID,
       NEXT_PUBLIC_STRIPE_SCALE_ANNUAL_PRICE_ID: process.env.NEXT_PUBLIC_STRIPE_SCALE_ANNUAL_PRICE_ID,
       NEXT_PUBLIC_STRIPE_BUSINESS_ANNUAL_PRICE_ID: process.env.NEXT_PUBLIC_STRIPE_BUSINESS_ANNUAL_PRICE_ID,
-      NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID: process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID,
-      NEXT_PUBLIC_STRIPE_PRO_PRICE_ID: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID,
+
     });
 
 if (!parsed.success) {

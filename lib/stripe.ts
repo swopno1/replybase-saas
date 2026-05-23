@@ -12,7 +12,7 @@ export const PLANS = {
     name: "Launch",
     monthlyPrice: 2900,
     annualPrice: 29000,
-    monthlyPriceId: env.NEXT_PUBLIC_STRIPE_LAUNCH_PRICE_ID || env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID || "",
+    monthlyPriceId: env.NEXT_PUBLIC_STRIPE_LAUNCH_PRICE_ID || "",
     annualPriceId: env.NEXT_PUBLIC_STRIPE_LAUNCH_ANNUAL_PRICE_ID || "",
   },
   grow: {
@@ -26,7 +26,7 @@ export const PLANS = {
     name: "Scale",
     monthlyPrice: 8900,
     annualPrice: 89000,
-    monthlyPriceId: env.NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID || env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || "",
+    monthlyPriceId: env.NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID || "",
     annualPriceId: env.NEXT_PUBLIC_STRIPE_SCALE_ANNUAL_PRICE_ID || "",
   },
   business: {
@@ -36,14 +36,6 @@ export const PLANS = {
     monthlyPriceId: env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID || "",
     annualPriceId: env.NEXT_PUBLIC_STRIPE_BUSINESS_ANNUAL_PRICE_ID || "",
   },
-};
-
-// Legacy support for code that expects a flat price field
-export const LEGACY_PLANS = {
-  launch: { ...PLANS.launch, price: PLANS.launch.monthlyPrice, priceId: PLANS.launch.monthlyPriceId },
-  grow: { ...PLANS.grow, price: PLANS.grow.monthlyPrice, priceId: PLANS.grow.monthlyPriceId },
-  scale: { ...PLANS.scale, price: PLANS.scale.monthlyPrice, priceId: PLANS.scale.monthlyPriceId },
-  business: { ...PLANS.business, price: PLANS.business.monthlyPrice, priceId: PLANS.business.monthlyPriceId },
 };
 
 export const TRIAL_DAYS = 14;
