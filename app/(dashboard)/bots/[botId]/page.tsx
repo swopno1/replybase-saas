@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, Settings, Share2, ArrowLeft, Loader2, Plus, MessageSquare, Globe, Bot, Calendar, Power, Trash2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Settings, Share2, ArrowLeft, Loader2, Plus, MessageSquare, Globe, Bot, Calendar, Power, Trash2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -406,8 +406,16 @@ function BotDetailContent() {
                 <Bot className="h-5 w-5 text-indigo-500" />
                 Bot Profile & Settings
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="flex items-center gap-1.5 flex-wrap">
                 Manage your bot's core identity and default fallback behavior.
+                <a 
+                  href="https://replybase.co.uk/docs/admin-panel" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-indigo-600 hover:text-indigo-500 font-semibold hover:underline inline-flex items-center gap-1"
+                >
+                  Dashboard Guide <ExternalLink className="h-3 w-3" />
+                </a>
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
@@ -454,7 +462,15 @@ function BotDetailContent() {
                       Default Entry Flow
                     </Label>
                     <p className="text-xs text-slate-500 mb-2">
-                      If no specific channel flow is assigned, the bot will use this flow. If none is set, it falls back to AI knowledge.
+                      If no specific channel flow is assigned, the bot will use this flow. If none is set, it falls back to AI knowledge.{" "}
+                      <a 
+                        href="https://replybase.co.uk/docs/platform/flow-builder" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-indigo-600 hover:text-indigo-500 font-semibold hover:underline inline-flex items-center gap-0.5"
+                      >
+                        Flow Builder Guide <ExternalLink className="h-3 w-3" />
+                      </a>
                     </p>
                     <Select
                       value={formData?.entryFlow ?? "__none__"}
@@ -588,8 +604,16 @@ function BotDetailContent() {
                       <Plus className="h-5 w-5 text-emerald-500" />
                       Available Integrations
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="flex items-center gap-1.5 flex-wrap">
                       Connect your bot to messaging platforms to start receiving messages.
+                      <a 
+                        href="https://replybase.co.uk/docs/get-started/choose-channel" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-indigo-600 hover:text-indigo-500 font-semibold hover:underline inline-flex items-center gap-1"
+                      >
+                        Choose a Channel Guide <ExternalLink className="h-3 w-3" />
+                      </a>
                     </CardDescription>
                   </div>
                   {channelLimitStatus && (

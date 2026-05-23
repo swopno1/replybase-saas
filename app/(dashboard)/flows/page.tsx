@@ -378,6 +378,38 @@ export default function FlowsPage() {
         </div>
       </div>
 
+      {/* Partner Callout Banner */}
+      <div className="relative overflow-hidden rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50/80 via-white to-emerald-50/50 p-6 dark:border-indigo-950/40 dark:from-indigo-950/20 dark:via-zinc-900/50 dark:to-emerald-950/10">
+        <div className="absolute top-0 right-0 h-40 w-40 -mr-10 -mt-10 rounded-full bg-gradient-to-tr from-indigo-200/20 to-emerald-200/20 blur-2xl" />
+        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-semibold text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
+                Partner Service
+              </span>
+              <span className="text-xs text-muted-foreground font-medium">
+                ReplyBase × ViveScript Solutions
+              </span>
+            </div>
+            <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">
+              Pre-Engineered Flow Builder Packages
+            </h3>
+            <p className="max-w-2xl text-sm text-zinc-600 dark:text-zinc-400">
+              Accelerate your automation setup with certified custom blueprints. Deploy pre-engineered lead capture pipelines, concierge appointment calendars, Stripe e-commerce checkout funnels, or custom AI support routing built directly into your ReplyBase workspace.
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center">
+            <Button
+              onClick={() => window.open("https://www.vivescriptsolutions.com/en/shop/product/partners", "_blank")}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm dark:bg-indigo-500 dark:hover:bg-indigo-600 font-medium"
+            >
+              Explore Packages
+              <ExternalLink className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+
       <Tabs defaultValue="my" className="min-w-0 space-y-4">
         <TabsList className="grid h-auto w-full grid-cols-1 gap-2 sm:inline-flex sm:w-auto sm:grid-cols-none">
           <TabsTrigger value="my">My Flows ({myFlows.length})</TabsTrigger>

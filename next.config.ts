@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
           {
             key: "Content-Security-Policy",
             value:
-              "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://engine.replybase.co.uk https://*.stripe.com https://*.clarity.ms https://connect.facebook.net https://*.facebook.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://api.openai.com https://api.anthropic.com https://*.google.com https://*.stripe.com https://engine.replybase.co.uk https://*.clarity.ms https://*.posthog.com https://*.facebook.com; frame-src 'self' https://*.stripe.com https://*.facebook.com; worker-src 'self' blob:;",
+              "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://engine.replybase.co.uk https://*.stripe.com https://*.clarity.ms https://connect.facebook.net https://*.facebook.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://api.openai.com https://api.anthropic.com https://*.google.com https://*.stripe.com https://engine.replybase.co.uk https://*.clarity.ms https://*.posthog.com https://*.facebook.com https://*.sentry.io https://*.ingest.sentry.io https://*.ingest.de.sentry.io; frame-src 'self' https://*.stripe.com https://*.facebook.com; worker-src 'self' blob:;",
           },
           {
             key: "Strict-Transport-Security",

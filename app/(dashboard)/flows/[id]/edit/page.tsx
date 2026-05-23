@@ -37,6 +37,7 @@ import {
   ArrowDown,
   Save,
   ArrowLeft,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -1450,11 +1451,23 @@ export default function FlowEditorPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Flow Steps</CardTitle>
-          <CardDescription>
-            Build your flow with messages, input capture, branching conditions,
-            and reusable subflows
-          </CardDescription>
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle>Flow Steps</CardTitle>
+              <CardDescription>
+                Build your flow with messages, input capture, branching conditions,
+                and reusable subflows
+              </CardDescription>
+            </div>
+            <a 
+              href="https://replybase.co.uk/docs/platform/flow-builder" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-xs text-indigo-600 hover:text-indigo-500 font-semibold hover:underline inline-flex items-center gap-1 shrink-0"
+            >
+              Flow Builder Guide <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {nodes.length === 0 ? (

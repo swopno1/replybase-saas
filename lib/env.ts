@@ -70,14 +70,49 @@ const envSchema = z.object({
 });
 
 // Validate env vars
+const isServer = typeof window === "undefined";
 const isBuildTime = process.env.NEXT_PHASE === "phase-production-build" || process.env.CI === "true";
-const parsed = envSchema.safeParse(process.env);
+
+// Schema for public variables exposed to the client
+const clientEnvSchema = z.object({
+  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  NEXT_PUBLIC_APP_URL: z.string().url(),
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+  NEXT_PUBLIC_STRIPE_LAUNCH_PRICE_ID: z.string().optional(),
+  NEXT_PUBLIC_STRIPE_GROW_PRICE_ID: z.string().optional(),
+  NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID: z.string().optional(),
+  NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID: z.string().optional(),
+  NEXT_PUBLIC_STRIPE_LAUNCH_ANNUAL_PRICE_ID: z.string().optional(),
+  NEXT_PUBLIC_STRIPE_GROW_ANNUAL_PRICE_ID: z.string().optional(),
+  NEXT_PUBLIC_STRIPE_SCALE_ANNUAL_PRICE_ID: z.string().optional(),
+  NEXT_PUBLIC_STRIPE_BUSINESS_ANNUAL_PRICE_ID: z.string().optional(),
+  NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID: z.string().optional(),
+  NEXT_PUBLIC_STRIPE_PRO_PRICE_ID: z.string().optional(),
+});
+
+const parsed = isServer 
+  ? envSchema.safeParse(process.env) 
+  : clientEnvSchema.safeParse({
+      NODE_ENV: process.env.NODE_ENV,
+      NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+      NEXT_PUBLIC_STRIPE_LAUNCH_PRICE_ID: process.env.NEXT_PUBLIC_STRIPE_LAUNCH_PRICE_ID,
+      NEXT_PUBLIC_STRIPE_GROW_PRICE_ID: process.env.NEXT_PUBLIC_STRIPE_GROW_PRICE_ID,
+      NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID: process.env.NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID,
+      NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID: process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID,
+      NEXT_PUBLIC_STRIPE_LAUNCH_ANNUAL_PRICE_ID: process.env.NEXT_PUBLIC_STRIPE_LAUNCH_ANNUAL_PRICE_ID,
+      NEXT_PUBLIC_STRIPE_GROW_ANNUAL_PRICE_ID: process.env.NEXT_PUBLIC_STRIPE_GROW_ANNUAL_PRICE_ID,
+      NEXT_PUBLIC_STRIPE_SCALE_ANNUAL_PRICE_ID: process.env.NEXT_PUBLIC_STRIPE_SCALE_ANNUAL_PRICE_ID,
+      NEXT_PUBLIC_STRIPE_BUSINESS_ANNUAL_PRICE_ID: process.env.NEXT_PUBLIC_STRIPE_BUSINESS_ANNUAL_PRICE_ID,
+      NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID: process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID,
+      NEXT_PUBLIC_STRIPE_PRO_PRICE_ID: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID,
+    });
 
 if (!parsed.success) {
   if (!isBuildTime) {
     console.error("❌ Invalid environment variables:", JSON.stringify(parsed.error.format(), null, 2));
     
-    if (process.env.NODE_ENV === "production") {
+    if (process.env.NODE_ENV === "production" && isServer) {
       throw new Error("Invalid environment variables. Fix them before starting the app.");
     }
   } else {
@@ -85,4 +120,4 @@ if (!parsed.success) {
   }
 }
 
-export const env = parsed.success ? parsed.data : (process.env as unknown as z.infer<typeof envSchema>);
+export const env = (parsed.success ? parsed.data : process.env) as unknown as z.infer<typeof envSchema>;

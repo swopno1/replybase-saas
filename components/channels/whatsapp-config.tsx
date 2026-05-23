@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Unplug,
   MessageCircle,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -415,7 +416,7 @@ export function WhatsAppConfig({ botId, channelLimitStatus }: { botId: string; c
               rel="noopener noreferrer"
               className="mt-2 text-[10px] text-primary hover:underline flex items-center gap-1 font-bold"
             >
-              Guide: How to complete this step <MessageCircle className="h-2 w-2" />
+              Guide: How to complete this step <ExternalLink className="h-2 w-2" />
             </a>
           </CardDescription>
         </CardHeader>
