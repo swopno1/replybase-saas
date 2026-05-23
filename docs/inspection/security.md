@@ -5,6 +5,8 @@
 - **Mechanism**: Standardized usage of `getTenantPrisma(tenantId)` extension. This automatically injects `where: { tenantId }` into all supported queries (Find, Update, Delete) and enforces `data: { tenantId }` on creations.
 - **Verification**: August 2026 audit confirmed 100% coverage on core messaging and contact entities.
 - **Legacy Risk**: Identified ~60 API routes still using manual session lookups and `prisma.user.findUnique` patterns. Task 037 is active to refactor these to the `withAuthAndTenant` middleware.
+- **Worker Isolation Gap**: August 2026 inspection revealed that while `whatsapp-worker.ts` uses `getTenantPrisma`, the `facebook-worker.ts` still relies on the global `prisma` instance with manual `tenantId` filtering. This creates an inconsistency in the multi-tenant protection layer (Task 043).
+- **Data Export Vulnerability**: The `/api/user/data-export` route still utilizes legacy `getServerSession` and manual scoping, bypassing the standardized `withAuthAndTenant` guardrails.
 
 ## 2. Authentication & Authorization
 - **Provider**: NextAuth.js with JWT Strategy.
@@ -20,12 +22,12 @@
 - **Idempotency**: Message processing and billing events use a DB-backed `IdempotencyKey` table to prevent replay attacks and duplicate processing.
 
 ## 4. Threat Model & Risk Assessment
-- **IDOR**: Low risk on scoped models; Medium risk on legacy routes (Task 037 mitigation underway).
+- **IDOR**: Low risk on scoped models; Medium risk on legacy routes and data export utilities (Task 037/043 mitigation underway).
 - **Injection**: High-quality protection via Prisma parameterized queries.
 - **Prompt Injection**: Mitigated via hard-coded system prompt prefixes and runtime detection.
 - **PII Exposure**: Minimal; only authorized tenants can access their own contact data. Superadmin access is audited.
 
 ## 5. Security Roadmap
-1. **API Standardization (HIGH)**: Complete Task 037 to eliminate manual scoping.
+1. **API Standardization (HIGH)**: Complete Task 037/043 to eliminate manual scoping in internal routes and background workers.
 2. **Enterprise IAM (MEDIUM)**: Transition to granular roles (Owner, Admin, Agent, Viewer) per `docs/proposals/enterprise-iam.md`.
 3. **Automated Scanning (LOW)**: Integrate Snyk/Dependabot for dependency vulnerability tracking.
