@@ -1,7 +1,23 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import React, { useState, useEffect, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import {
+  Check,
+  X,
+  Loader2,
+  Sparkles,
+  ArrowRight,
+  Shield,
+  Zap,
+  TrendingUp,
+  Globe,
+  MessageSquare,
+  Lock,
+  ChevronRight,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -10,25 +26,24 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Check, X, ArrowRight, Loader2, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { setClarityTags, trackEvent } from "@/lib/client-analytics";
-
-export const dynamic = "force-dynamic";
+import { PLANS as STRIPE_PLANS } from "@/lib/stripe";
 
 const PLANS = [
   {
     name: "free",
     displayName: "Free",
     aiLabel: "Basic AI Assist",
-    price: 0,
+    priceMonthly: 0,
+    priceAnnual: 0,
     automations: "200",
     aiResponses: "100",
     aiOverage: "Upgrade",
     bots: "1",
-    supportedChannels: "Webchat, Facebook, Website Forms",
+    supportedChannels: "Webchat",
     crmAccess: false,
     apiAccess: false,
     support: "Community",
@@ -39,7 +54,8 @@ const PLANS = [
     name: "launch",
     displayName: "Launch",
     aiLabel: "Basic Lead Flow",
-    price: 2900,
+    priceMonthly: 2900,
+    priceAnnual: 29000,
     automations: "1,500",
     aiResponses: "1,000",
     aiOverage: "£12 / 1k",
@@ -55,7 +71,8 @@ const PLANS = [
     name: "grow",
     displayName: "Grow",
     aiLabel: "Smart Automation",
-    price: 4900,
+    priceMonthly: 4900,
+    priceAnnual: 49000,
     automations: "5,000",
     aiResponses: "3,500",
     aiOverage: "£10 / 1k",
@@ -65,13 +82,15 @@ const PLANS = [
     apiAccess: false,
     support: "Priority Email",
     cta: "Start Free Trial",
-    highlight: false,
+    highlight: true,
+    featuredLabel: "Most Popular",
   },
   {
     name: "scale",
     displayName: "Scale",
     aiLabel: "AI Co-Pilot",
-    price: 8900,
+    priceMonthly: 8900,
+    priceAnnual: 89000,
     automations: "10,000",
     aiResponses: "7,500",
     aiOverage: "£8 / 1k",
@@ -81,12 +100,14 @@ const PLANS = [
     apiAccess: true,
     support: "Priority Live-Chat",
     cta: "Start Free Trial",
-    highlight: true,
+    highlight: false,
+    featuredLabel: "Best for Teams",
   },
   {
     name: "business",
     displayName: "Business",
-    price: 24900,
+    priceMonthly: 24900,
+    priceAnnual: 249000,
     automations: "40,000",
     aiResponses: "25,000",
     aiOverage: "£6 / 1k",
@@ -102,427 +123,270 @@ const PLANS = [
 
 type PlanName = (typeof PLANS)[number]["name"];
 
-function parsePlanName(value: string | null): PlanName | null {
-  if (!value) {
-    return null;
-  }
-
-  const normalized = value.trim().toLowerCase();
-  if (
-    normalized === "free" ||
-    normalized === "launch" ||
-    normalized === "grow" ||
-    normalized === "scale" ||
-    normalized === "business"
-  ) {
-    return normalized;
-  }
-
-  return null;
-}
-
 function PricingContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
   const [loading, setLoading] = useState<string | null>(null);
-  const [currentSubscription, setCurrentSubscription] = useState<any>(null);
   const [selectedPlan, setSelectedPlan] = useState<(typeof PLANS)[number] | null>(null);
-  const preferredPlan = parsePlanName(searchParams.get("plan")) || "scale";
-  const source = searchParams.get("source");
-  const promo = searchParams.get("promo");
+  const [currentSubscription, setCurrentSubscription] = useState<any>(null);
 
   useEffect(() => {
-    setClarityTags({
-      page_type: "pricing",
-      funnel_step: "landing",
-    });
+    fetch("/api/billing/subscription")
+      .then((res) => res.json())
+      .then((data) => setCurrentSubscription(data))
+      .catch((err) => console.error("Failed to fetch subscription:", err));
 
-    trackEvent("pricing_viewed", {
-      onceKey: "pricing_viewed",
-      onceScope: "session",
-      properties: { origin: "app" },
-    });
-
-    const fetchCurrentSub = async () => {
-      try {
-        const res = await fetch("/api/billing/subscription");
-        if (res.ok) {
-          const data = await res.json();
-          setCurrentSubscription(data.subscription);
-        }
-      } catch (err) {
-        console.error("Failed to fetch subscription", err);
-      }
-    };
-    fetchCurrentSub();
-  }, []);
-
-  // Fast-track deep-linked checkout!
-  useEffect(() => {
-    const checkoutParam = searchParams.get("checkout");
-    const planParam = searchParams.get("plan");
-    const promoParam = searchParams.get("promo");
-
-    if (checkoutParam === "true" && planParam) {
-      const plan = PLANS.find((p) => p.name === planParam);
-      if (plan && plan.name !== "free") {
-        if (promoParam) {
-          // Straight to checkout, bypassing modals
-          handleConfirmCheckout(plan);
-        } else {
-          setSelectedPlan(plan);
-        }
-      }
-    }
+    const cycle = searchParams.get("cycle");
+    if (cycle === "annual") setBillingCycle("annual");
   }, [searchParams]);
 
   const handleSubscribeClick = (planName: string) => {
     const plan = PLANS.find((p) => p.name === planName);
     if (!plan) return;
-
-    if (planName === "free") {
-      if (currentSubscription?.plan?.name === "free") {
-        toast.info("You are already on the Free plan");
-        router.push("/");
-      } else {
-        router.push("/");
-      }
-      return;
+    if (plan.priceMonthly === 0) {
+        router.push("/dashboard");
+        return;
     }
-
     setSelectedPlan(plan);
   };
 
-  const handleConfirmCheckout = async (planToCheckout?: typeof PLANS[number]) => {
-    const targetPlan = planToCheckout || selectedPlan;
-    if (!targetPlan) return;
-    const planName = targetPlan.name;
-
-    trackEvent("get_started_click", {
-      properties: {
-        plan: planName,
-        source: "pricing_table",
-        origin: "app",
-      },
-    });
-
-    trackEvent("subscription_started", {
-      properties: {
-        plan: planName,
-      },
-    });
-
-    setLoading(planName);
-    setSelectedPlan(null);
+  const handleConfirmCheckout = async () => {
+    if (!selectedPlan) return;
+    setLoading(selectedPlan.name);
 
     try {
-      const priceId = getPriceId(planName);
-      
-      // OPTION B: Seamless Update if already on a paid plan
-      const isPaidSub = currentSubscription && 
-                        currentSubscription.stripeId && 
-                        !currentSubscription.stripeId.startsWith("free_");
+      const priceId = billingCycle === "annual"
+        ? (STRIPE_PLANS as any)[selectedPlan.name].annualPriceId
+        : (STRIPE_PLANS as any)[selectedPlan.name].monthlyPriceId;
 
-      if (isPaidSub) {
-        const response = await fetch("/api/billing/subscription", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            planId: planName, // Backend handles lookup by name
-            priceId,
-          }),
-        });
-
-        if (response.ok) {
-          toast.success("Plan updated successfully!");
-          router.push("/settings?tab=billing");
-          return;
-        } else {
-          const errData = await response.json();
-          throw new Error(errData.error || "Failed to update plan");
-        }
-      }
-
-      // Default: Checkout for new/free users
       const response = await fetch("/api/billing/checkout", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          planName,
           priceId,
-          promoCode: promo || undefined,
+          planName: selectedPlan.name,
+          billingCycle,
+          promoCode: billingCycle === "annual" ? "FOUNDING50" : undefined,
         }),
       });
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          toast.error("Please login to subscribe");
-          router.push("/auth/login?callbackUrl=/pricing");
-          return;
-        }
-        throw new Error("Failed to start checkout");
-      }
-
       const data = await response.json();
       if (data.url) {
-        const isSafe =
-          data.url.startsWith("/") ||
-          data.url.startsWith("https://checkout.stripe.com/") ||
-          data.url.startsWith("https://billing.stripe.com/");
-
-        if (isSafe) {
-          window.location.href = data.url;
-        } else {
-          console.error("Blocked insecure redirect attempt to:", data.url);
-          toast.error("Insecure redirect blocked.");
-        }
+        window.location.href = data.url;
+      } else {
+        throw new Error(data.error || "Failed to start checkout");
       }
-    } catch (error) {
-      toast.error("Something went wrong. Please try again.");
-      console.error(error);
-    } finally {
+    } catch (err: any) {
+      toast.error(err.message || "Something went wrong. Please try again.");
       setLoading(null);
     }
   };
 
   return (
-    <div className="py-20 px-4 max-w-7xl mx-auto">
-      <div className="text-center mb-12">
-        <Badge variant="outline" className="mb-4 px-4 py-1 text-primary border-primary/20 bg-primary/5">
-          <Sparkles className="mr-2 h-3.5 w-3.5" />
-          14-Day Free Trial on all paid plans
+    <div className="container py-12 px-4 max-w-7xl mx-auto">
+      <div className="text-center mb-12 space-y-4">
+        <Badge variant="outline" className="px-4 py-1 border-primary/20 text-primary font-bold animate-pulse">
+          🚀 Founding Offer: 50% OFF Annual Plans with code FOUNDING50
         </Badge>
-        <h1 className="text-4xl font-bold mb-4 tracking-tight sm:text-5xl">Simple, Transparent Pricing</h1>
-        <p className="text-muted-foreground text-lg max-w-3xl mx-auto">
-          Start free, upgrade as you grow. Paid plans unlock Telegram and
-          WhatsApp alongside Webchat, Facebook, and website lead capture.
+        <h1 className="text-4xl md:text-5xl font-black tracking-tight text-foreground">
+          Scale Your Conversations
+        </h1>
+        <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          Choose the perfect plan for your business. Start with a 14-day free trial on any premium plan.
         </p>
-        <div className="mt-6 inline-flex flex-wrap items-center justify-center gap-2 rounded-full border bg-muted/50 px-5 py-2.5 text-sm">
-          <span className="font-semibold text-foreground">Zero risk:</span>
-          <span className="text-muted-foreground">
-            No charges during trial • Cancel anytime • 24/7 Support
-          </span>
+
+        <div className="flex items-center justify-center gap-4 mt-8">
+          <Label htmlFor="billing-toggle" className={`text-sm font-bold ${billingCycle === 'monthly' ? 'text-foreground' : 'text-muted-foreground'}`}>
+            Monthly
+          </Label>
+          <Switch
+            id="billing-toggle"
+            checked={billingCycle === "annual"}
+            onCheckedChange={(checked) => setBillingCycle(checked ? "annual" : "monthly")}
+          />
+          <Label htmlFor="billing-toggle" className={`text-sm font-bold flex items-center gap-2 ${billingCycle === 'annual' ? 'text-foreground' : 'text-muted-foreground'}`}>
+            Annual
+            <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200 font-bold">
+              2 Months Free
+            </Badge>
+          </Label>
         </div>
-        {source ? (
-          <p className="mt-3 text-xs text-muted-foreground">
-            Recommended based on your onboarding path.
-          </p>
-        ) : null}
       </div>
 
-      <div className="overflow-x-auto rounded-3xl border bg-card p-2 shadow-xl ring-1 ring-border/50">
-        <table className="w-full text-sm text-left">
-          <thead className="text-xs uppercase text-muted-foreground">
-            <tr>
-              <th className="p-6 w-1/5">Feature</th>
-              {PLANS.map((plan) => {
-                const isRecommended = plan.name === preferredPlan;
-                const isCurrent = currentSubscription?.plan?.name === plan.name;
-                return (
-                  <th
-                    key={plan.name}
-                    className={`p-6 text-center rounded-t-2xl ${plan.highlight || isRecommended ? "bg-primary/5" : ""}`}
-                  >
-                    <div className="font-bold text-foreground text-base">
-                      {plan.displayName}
-                    </div>
-                    {plan.highlight && (
-                      <Badge className="mt-2" variant="default">
-                        Most Popular
-                      </Badge>
-                    )}
-                    {!plan.highlight && isRecommended && (
-                      <Badge className="mt-2" variant="secondary">
-                        Recommended
-                      </Badge>
-                    )}
-                    {isCurrent && (
-                      <Badge className="mt-2 bg-green-500/10 text-green-600 border-green-200" variant="outline">
-                        Current Plan
-                      </Badge>
-                    )}
-                  </th>
-                );
-              })}
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-20">
+        {PLANS.map((plan) => {
+          const isCurrent = currentSubscription?.plan?.name === plan.name;
+          const price = billingCycle === "annual" ? plan.priceAnnual : plan.priceMonthly;
+          const displayPrice = price / 100;
+          const effectiveMonthly = billingCycle === "annual" ? Math.floor(displayPrice / 12) : displayPrice;
+
+          return (
+            <div
+              key={plan.name}
+              className={`relative flex flex-col rounded-3xl border p-6 transition-all duration-300 hover:shadow-2xl ${
+                plan.highlight
+                ? "border-primary bg-primary/[0.02] shadow-xl scale-105 z-10"
+                : "border-border bg-card hover:border-primary/50"
+              }`}
+            >
+              {plan.featuredLabel && (
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                  <Badge className="bg-primary text-primary-foreground font-bold px-4 py-1 shadow-lg">
+                    {plan.featuredLabel}
+                  </Badge>
+                </div>
+              )}
+
+              <div className="mb-6">
+                <h3 className="text-xl font-bold mb-1">{plan.displayName}</h3>
+                <p className="text-xs text-muted-foreground font-medium mb-4">{plan.aiLabel}</p>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-black">£{billingCycle === "annual" ? effectiveMonthly : displayPrice}</span>
+                  <span className="text-muted-foreground text-sm">/mo</span>
+                </div>
+                {billingCycle === "annual" && price > 0 && (
+                  <p className="text-[10px] text-green-600 font-bold mt-1">
+                    Billed £{displayPrice} annually (Save £{(plan.priceMonthly * 12 - plan.priceAnnual) / 100})
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-4 mb-8 flex-1">
+                <div className="flex items-center gap-3">
+                  <div className={`p-1 rounded-full ${plan.highlight ? 'bg-primary/20' : 'bg-muted'}`}>
+                    <Check className={`h-3 w-3 ${plan.highlight ? 'text-primary' : 'text-muted-foreground'}`} />
+                  </div>
+                  <p className="text-sm font-medium">{plan.aiResponses} AI Responses</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className={`p-1 rounded-full ${plan.highlight ? 'bg-primary/20' : 'bg-muted'}`}>
+                    <Check className={`h-3 w-3 ${plan.highlight ? 'text-primary' : 'text-muted-foreground'}`} />
+                  </div>
+                  <p className="text-sm font-medium">{plan.automations} Automations</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className={`p-1 rounded-full ${plan.highlight ? 'bg-primary/20' : 'bg-muted'}`}>
+                    <Check className={`h-3 w-3 ${plan.highlight ? 'text-primary' : 'text-muted-foreground'}`} />
+                  </div>
+                  <p className="text-sm font-medium">{plan.bots} Active {parseInt(plan.bots) === 1 ? 'Bot' : 'Bots'}</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className={`p-1 rounded-full mt-0.5 ${plan.highlight ? 'bg-primary/20' : 'bg-muted'}`}>
+                    <Globe className={`h-3 w-3 ${plan.highlight ? 'text-primary' : 'text-muted-foreground'}`} />
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-snug">
+                    <span className="font-bold text-foreground">Channels:</span><br/>
+                    {plan.supportedChannels}
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                className={`w-full rounded-2xl font-bold py-6 ${
+                  plan.highlight
+                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30"
+                  : "variant-outline"
+                }`}
+                variant={plan.highlight ? "default" : "outline"}
+                onClick={() => handleSubscribeClick(plan.name)}
+                disabled={loading !== null || isCurrent}
+              >
+                {loading === plan.name ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : isCurrent ? (
+                  "Current Plan"
+                ) : (
+                  plan.cta
+                )}
+              </Button>
+              {price > 0 && !isCurrent && (
+                <p className="text-center text-[10px] text-muted-foreground mt-3 font-medium">
+                  14-day free trial included
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Comparison Table */}
+      <div className="hidden lg:block overflow-hidden rounded-3xl border border-border bg-card shadow-xl mb-20">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-muted/50">
+              <th className="p-6 text-xl font-bold">Features</th>
+              {PLANS.map((plan) => (
+                <th key={plan.name} className={`p-6 text-center ${plan.highlight ? "bg-primary/5" : ""}`}>
+                  <div className="font-bold text-foreground">{plan.displayName}</div>
+                  <div className="text-xs text-muted-foreground font-normal">£{billingCycle === 'annual' ? (plan.priceAnnual/1200).toFixed(0) : (plan.priceMonthly/100)}/mo</div>
+                </th>
+              ))}
             </tr>
           </thead>
-          <tbody className="divide-y border-t">
+          <tbody className="divide-y divide-border">
             <tr>
-              <td className="p-6 font-semibold text-foreground">
-                Monthly Price
-              </td>
+              <td className="p-6 font-semibold text-foreground">Monthly AI Responses</td>
               {PLANS.map((plan) => (
-                <td
-                  key={`${plan.name}-price`}
-                  className={`p-6 text-center ${plan.highlight ? "font-bold text-primary bg-primary/5" : "text-foreground"}`}
-                >
-                  <div className="flex flex-col items-center">
-                    <span className="text-2xl font-bold">£{plan.price / 100}</span>
-                    <span className="text-xs text-muted-foreground font-normal">per month</span>
-                  </div>
-                </td>
-              ))}
-            </tr>
-            <tr>
-              <td className="p-6 font-semibold text-foreground">AI Role</td>
-              {PLANS.map((plan) => (
-                <td
-                  key={`${plan.name}-ai-role`}
-                  className={`p-6 text-center text-muted-foreground ${plan.highlight ? "bg-primary/5" : ""}`}
-                >
-                  {plan.aiLabel}
-                </td>
-              ))}
-            </tr>
-            <tr>
-              <td className="p-6 font-semibold text-foreground">
-                Automations / Month
-              </td>
-              {PLANS.map((plan) => (
-                <td
-                  key={`${plan.name}-automations`}
-                  className={`p-6 text-center text-muted-foreground ${plan.highlight ? "bg-primary/5" : ""}`}
-                >
-                  {plan.automations}
-                </td>
-              ))}
-            </tr>
-            <tr>
-              <td className="p-6 font-semibold text-foreground">
-                AI Responses / Month
-              </td>
-              {PLANS.map((plan) => (
-                <td
-                  key={`${plan.name}-ai-responses`}
-                  className={`p-6 text-center text-muted-foreground ${plan.highlight ? "bg-primary/5" : ""}`}
-                >
+                <td key={`${plan.name}-ai-responses`} className={`p-6 text-center text-muted-foreground ${plan.highlight ? "bg-primary/5" : ""}`}>
                   {plan.aiResponses}
                 </td>
               ))}
             </tr>
             <tr>
-              <td className="p-6 font-semibold text-foreground">AI Overage</td>
+              <td className="p-6 font-semibold text-foreground">Flow Automations</td>
               {PLANS.map((plan) => (
-                <td
-                  key={`${plan.name}-ai-overage`}
-                  className={`p-6 text-center text-muted-foreground ${plan.highlight ? "bg-primary/5" : ""}`}
-                >
-                  {plan.aiOverage}
+                <td key={`${plan.name}-automations`} className={`p-6 text-center text-muted-foreground ${plan.highlight ? "bg-primary/5" : ""}`}>
+                  {plan.automations}
                 </td>
               ))}
             </tr>
             <tr>
-              <td className="p-6 font-semibold text-foreground">Bots</td>
+              <td className="p-6 font-semibold text-foreground">Active Bots</td>
               {PLANS.map((plan) => (
-                <td
-                  key={`${plan.name}-bots`}
-                  className={`p-6 text-center text-muted-foreground ${plan.highlight ? "bg-primary/5" : ""}`}
-                >
+                <td key={`${plan.name}-bots`} className={`p-6 text-center text-muted-foreground ${plan.highlight ? "bg-primary/5" : ""}`}>
                   {plan.bots}
                 </td>
               ))}
             </tr>
             <tr>
-              <td className="p-6 font-semibold text-foreground">
-                Supported Channels
-              </td>
+              <td className="p-6 font-semibold text-foreground">CRM & Lead Insights</td>
               {PLANS.map((plan) => (
-                <td
-                  key={`${plan.name}-channels`}
-                  className={`p-6 text-center text-muted-foreground ${plan.highlight ? "bg-primary/5" : ""}`}
-                >
-                  {plan.supportedChannels}
-                </td>
-              ))}
-            </tr>
-            <tr>
-              <td className="p-6 font-semibold text-foreground">CRM Access</td>
-              {PLANS.map((plan) => (
-                <td
-                  key={`${plan.name}-crm-access`}
-                  className={`p-6 text-center ${plan.highlight ? "bg-primary/5" : ""} ${plan.crmAccess ? "text-green-600" : "text-muted-foreground"}`}
-                >
-                  {plan.crmAccess ? (
-                    <Check className="mx-auto h-5 w-5" />
-                  ) : (
-                    <X className="mx-auto h-5 w-5 opacity-30" />
-                  )}
+                <td key={`${plan.name}-crm`} className={`p-6 text-center ${plan.highlight ? "bg-primary/5" : ""}`}>
+                  {plan.crmAccess ? <Check className="mx-auto h-5 w-5 text-green-500" /> : <X className="mx-auto h-5 w-5 text-muted-foreground opacity-30" />}
                 </td>
               ))}
             </tr>
             <tr>
               <td className="p-6 font-semibold text-foreground">API Access</td>
               {PLANS.map((plan) => (
-                <td
-                  key={`${plan.name}-api-access`}
-                  className={`p-6 text-center ${plan.highlight ? "bg-primary/5" : ""} ${plan.apiAccess ? "text-green-600" : "text-muted-foreground"}`}
-                >
-                  {plan.apiAccess ? (
-                    <Check className="mx-auto h-5 w-5" />
-                  ) : (
-                    <X className="mx-auto h-5 w-5 opacity-30" />
-                  )}
+                <td key={`${plan.name}-api`} className={`p-6 text-center ${plan.highlight ? "bg-primary/5" : ""}`}>
+                  {plan.apiAccess ? <Check className="mx-auto h-5 w-5 text-green-500" /> : <X className="mx-auto h-5 w-5 text-muted-foreground opacity-30" />}
                 </td>
               ))}
             </tr>
             <tr>
-              <td className="p-6 font-semibold text-foreground text-center rounded-b-2xl">
-                Action
-              </td>
-              {PLANS.map((plan) => {
-                const isRecommended = plan.name === preferredPlan;
-                const isCurrent = currentSubscription?.plan?.name === plan.name;
-                const isPaidSub = currentSubscription && currentSubscription.stripeId && !currentSubscription.stripeId.startsWith("free_");
-                return (
-                  <td
-                    key={`${plan.name}-cta`}
-                    className={`p-6 text-center align-top rounded-b-2xl ${plan.highlight || isRecommended ? "bg-primary/5" : ""}`}
-                  >
-                    <Button
-                      className="w-full shadow-lg"
-                      variant={isCurrent ? "outline" : (plan.highlight || isRecommended ? "default" : "outline")}
-                      onClick={() => handleSubscribeClick(plan.name)}
-                      disabled={loading !== null || isCurrent}
-                    >
-                      {loading === plan.name ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : isCurrent ? (
-                        "Current Plan"
-                      ) : isPaidSub ? (
-                        "Switch to Plan"
-                      ) : (
-                        plan.cta
-                      )}
-                    </Button>
-                    {plan.price > 0 && !isCurrent && !isPaidSub && (
-                      <p className="mt-3 text-xs font-medium text-primary">
-                        14 days free trial
-                      </p>
-                    )}
-                  </td>
-                );
-              })}
+              <td className="p-6 font-semibold text-foreground">Support Level</td>
+              {PLANS.map((plan) => (
+                <td key={`${plan.name}-support`} className={`p-6 text-center text-xs text-muted-foreground ${plan.highlight ? "bg-primary/5" : ""}`}>
+                  {plan.support}
+                </td>
+              ))}
             </tr>
           </tbody>
         </table>
       </div>
 
-      {/* Pricing Summary Modal */}
+      {/* Confirmation Modal */}
       <Dialog open={!!selectedPlan} onOpenChange={(open) => !open && setSelectedPlan(null)}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] rounded-3xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
-              {currentSubscription && currentSubscription.stripeId && !currentSubscription.stripeId.startsWith("free_") 
-                ? "Update Plan" 
-                : "Trial Summary"}
+              Plan Summary
             </DialogTitle>
             <DialogDescription>
-              {currentSubscription && currentSubscription.stripeId && !currentSubscription.stripeId.startsWith("free_")
-                ? "Confirm your new plan selection below."
-                : "Review your trial details before proceeding."}
+              Review your selection before starting your 14-day free trial.
             </DialogDescription>
           </DialogHeader>
           {selectedPlan && (
@@ -532,59 +396,54 @@ function PricingContent() {
                   <span className="text-sm text-muted-foreground">Selected Plan</span>
                   <Badge variant="outline" className="font-bold border-primary/20 text-primary">{selectedPlan.displayName}</Badge>
                 </div>
-                {!(currentSubscription && currentSubscription.stripeId && !currentSubscription.stripeId.startsWith("free_")) && (
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-sm text-muted-foreground">Free Trial</span>
-                    <span className="font-semibold text-green-600">14 Days</span>
+                <div className="flex justify-between items-center mb-4">
+                  <span className="text-sm text-muted-foreground">Billing Cycle</span>
+                  <Badge variant="secondary" className="capitalize">{billingCycle}</Badge>
+                </div>
+                <div className="flex justify-between items-center mb-4">
+                  <span className="text-sm text-muted-foreground">Free Trial</span>
+                  <span className="font-semibold text-green-600">14 Days</span>
+                </div>
+                {billingCycle === "annual" && (
+                   <div className="flex justify-between items-center mb-4">
+                    <span className="text-sm text-muted-foreground">Offer Applied</span>
+                    <span className="font-bold text-primary">50% OFF (FOUNDING50)</span>
                   </div>
                 )}
                 <div className="flex justify-between items-center pt-4 border-t border-border">
-                  <span className="text-sm font-semibold">Price per month</span>
-                  <span className="text-lg font-bold text-foreground">£{selectedPlan.price / 100}/mo</span>
+                  <span className="text-sm font-semibold">Total to pay today</span>
+                  <span className="text-lg font-bold text-foreground">£0.00</span>
+                </div>
+                <div className="mt-2 text-[10px] text-muted-foreground text-right">
+                  Then £{billingCycle === 'annual' ? (selectedPlan.priceAnnual/200).toFixed(2) : (selectedPlan.priceMonthly/100).toFixed(2)} / {billingCycle === 'annual' ? 'year' : 'month'} after trial
+                  {billingCycle === 'annual' && " (incl. 50% discount)"}
                 </div>
               </div>
 
-              <div className="space-y-3 px-1">
-                <div className="flex gap-3 text-sm">
-                  <Check className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
-                  <p>
-                    {currentSubscription && currentSubscription.stripeId && !currentSubscription.stripeId.startsWith("free_")
-                      ? "Prorated charges may apply to your next invoice."
-                      : "You won't be charged until your trial ends."}
-                  </p>
+              <div className="space-y-3 px-1 text-sm">
+                <div className="flex gap-3">
+                  <div className="mt-1 bg-green-100 rounded-full p-0.5"><Check className="h-3 w-3 text-green-600" /></div>
+                  <p>You won&apos;t be charged until your trial ends.</p>
                 </div>
-                <div className="flex gap-3 text-sm">
-                  <Check className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
-                  <p>Full access to all {selectedPlan.displayName} features.</p>
+                <div className="flex gap-3">
+                  <div className="mt-1 bg-green-100 rounded-full p-0.5"><Check className="h-3 w-3 text-green-600" /></div>
+                  <p>Full access to all {selectedPlan.displayName} features immediately.</p>
                 </div>
-                <div className="flex gap-3 text-sm">
-                  <Check className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
-                  <p>Cancel or change your plan anytime.</p>
+                <div className="flex gap-3">
+                  <div className="mt-1 bg-green-100 rounded-full p-0.5"><Check className="h-3 w-3 text-green-600" /></div>
+                  <p>Cancel anytime before trial ends to avoid charges.</p>
                 </div>
               </div>
             </div>
           )}
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="ghost" onClick={() => setSelectedPlan(null)} className="flex-1">
-              Go Back
-            </Button>
-            <Button onClick={() => handleConfirmCheckout()} className="flex-1 shadow-lg shadow-primary/20 gap-2">
-              {currentSubscription && currentSubscription.stripeId && !currentSubscription.stripeId.startsWith("free_")
-                ? "Confirm Change"
-                : "Start Free Trial"}
+          <DialogFooter>
+            <Button onClick={handleConfirmCheckout} className="w-full py-6 rounded-2xl font-bold shadow-xl shadow-primary/20 gap-2">
+              Start Free Trial
               <ArrowRight className="h-4 w-4" />
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <div className="mt-12 max-w-4xl mx-auto rounded-2xl border border-primary/10 bg-primary/5 p-6 text-center">
-        <p className="text-sm text-muted-foreground">
-          <strong className="text-foreground">Secure Billing:</strong> We use Stripe for all payments. 
-          Your information is 100% secure and encrypted. Need a custom plan? 
-          <Button variant="link" className="px-1 text-primary font-bold">Contact Sales</Button>
-        </p>
-      </div>
     </div>
   );
 }
@@ -602,20 +461,4 @@ export default function PricingPage() {
       <PricingContent />
     </Suspense>
   );
-}
-
-function getPriceId(planName: string) {
-  if (planName === "launch") {
-    return process.env.NEXT_PUBLIC_STRIPE_LAUNCH_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID;
-  }
-  if (planName === "grow") {
-    return process.env.NEXT_PUBLIC_STRIPE_GROW_PRICE_ID;
-  }
-  if (planName === "scale") {
-    return process.env.NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID;
-  }
-  if (planName === "business") {
-    return process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID;
-  }
-  return "";
 }

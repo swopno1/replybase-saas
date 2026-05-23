@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { checkChannelLimit } from "@/lib/subscription";
+import { checkChannelLimitWithType } from "@/lib/subscription";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = 'force-dynamic';
@@ -36,7 +36,7 @@ export const GET = withAuthAndTenant(async ({ tenantId }, _req, context, db) => 
       return NextResponse.json({ error: "Bot not found" }, { status: 404 });
     }
 
-    const [channels, limitStatus] = await Promise.all([
+    const [channels, tenant] = await Promise.all([
       db.channel.findMany({
         where: { botId },
         include: {
@@ -49,10 +49,16 @@ export const GET = withAuthAndTenant(async ({ tenantId }, _req, context, db) => 
         },
         orderBy: { createdAt: "desc" },
       }),
-      checkChannelLimit(tenantId, botId),
+      db.tenant.findUnique({
+        where: { id: tenantId },
+        include: { subscriptions: { include: { plan: true } } }
+      })
     ]);
 
-    return NextResponse.json({ channels, limitStatus });
+    return NextResponse.json({
+      channels,
+      plan: (tenant as any)?.subscriptions?.[0]?.plan || null
+    });
   } catch (error) {
     console.error("[Channels API] Error fetching channels:", error);
     return NextResponse.json({ error: "Failed to fetch channels" }, { status: 500 });
@@ -71,19 +77,19 @@ export const POST = withAuthAndTenant(async ({ tenantId }, req, context, db) => 
       return NextResponse.json({ error: "Bot not found" }, { status: 404 });
     }
 
-    const limitStatus = await checkChannelLimit(tenantId, botId);
+    const body = await req.json();
+    const validated = createChannelSchema.parse(body);
+
+    const limitStatus = await checkChannelLimitWithType(tenantId, botId, validated.type);
     if (!limitStatus.allowed) {
       return NextResponse.json(
         {
-          error: "Channel limit reached",
-          details: `You have reached the maximum of ${limitStatus.limit} channels per bot on the ${limitStatus.planName} plan. Please upgrade.`,
+          error: limitStatus.error,
+          details: limitStatus.message,
         },
         { status: 403 },
       );
     }
-
-    const body = await req.json();
-    const validated = createChannelSchema.parse(body);
 
     const channel = await db.channel.create({
       data: {

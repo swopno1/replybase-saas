@@ -1,4 +1,4 @@
-import "dotenv/config";
+// import "dotenv/config";
 import { prisma } from "../lib/prisma";
 import { PLAN_CONFIGS } from "../lib/plans";
 
