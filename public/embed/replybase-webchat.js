@@ -495,7 +495,7 @@
           conversationId: conversationId,
           botId: botId,
           message: text,
-          planName: window.ReplyBaseWebchatPlanName || "pro",
+          planName: window.ReplyBaseWebchatPlanName || "scale",
           metadata: buildRuntimeMetadata(),
           botSignals: buildBotSignals(),
         }),

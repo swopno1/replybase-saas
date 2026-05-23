@@ -1,4 +1,5 @@
 import logger from "./logger";
+import { getPlanConfig } from "./plans";
 import { prisma } from "@/lib/prisma";
 import { redis } from "./redis";
 
@@ -882,3 +883,61 @@ The ReplyBase Team
 
 // Alias for legacy support
 export const getTenantSubscription = getTenantLimits;
+
+/**
+ * Check if a specific channel type is allowed on the current plan.
+ */
+export async function isChannelTypeAllowed(tenantId: string, type: string) {
+  const limits = await getTenantLimits(tenantId);
+
+  // Get allowed channels from the plan config
+  const planName = limits.name?.toLowerCase() || "free";
+  const config = getPlanConfig(planName);
+
+  // If allowedChannels is not defined, default to web-only for safety
+  const allowedChannels = (config as any).allowedChannels || ["web"];
+
+  const isAllowed = allowedChannels.includes(type.toLowerCase());
+
+  return {
+    allowed: isAllowed,
+    planName: config.displayName,
+    allowedChannels,
+  };
+}
+
+/**
+ * Enhanced channel limit check that also validates the channel type.
+ */
+export async function checkChannelLimitWithType(tenantId: string, botId: string, type: string) {
+  const [limitStatus, typeStatus] = await Promise.all([
+    checkChannelLimit(tenantId, botId),
+    isChannelTypeAllowed(tenantId, type)
+  ]);
+
+  if (!typeStatus.allowed) {
+    return {
+      allowed: false,
+      error: "UNSUPPORTED_CHANNEL",
+      message: `The ${type} channel is not supported on the ${typeStatus.planName} plan. Please upgrade to access this channel.`,
+      limit: limitStatus.limit,
+      current: limitStatus.current
+    };
+  }
+
+  if (!limitStatus.allowed) {
+    return {
+      allowed: false,
+      error: "LIMIT_REACHED",
+      message: `You have reached the maximum of ${limitStatus.limit} channels per bot on the ${limitStatus.planName} plan. Please upgrade.`,
+      limit: limitStatus.limit,
+      current: limitStatus.current
+    };
+  }
+
+  return {
+    allowed: true,
+    limit: limitStatus.limit,
+    current: limitStatus.current
+  };
+}
