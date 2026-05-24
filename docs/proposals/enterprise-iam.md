@@ -28,7 +28,10 @@ As ReplyBase scales into the enterprise market, the need for granular access con
   - Implement server-side redirects in `layout.tsx` for restricted pages (e.g., Billing).
 
 ## 5. Rollout Strategy
-1. **Phase 1 (Audit)**: Identify every API route and its required minimal role.
+1. **Phase 1 (Audit)**: Identify every API route and its required minimal role. Initial audit recommends:
+   - `ADMIN`: `/api/bots/*`, `/api/flows/*`, `/api/settings/channels/*`.
+   - `AGENT`: `/api/conversations/*`, `/api/contacts/*`, `/api/leads/*`.
+   - `OWNER`: `/api/billing/*`, `/api/settings/team/*`.
 2. **Phase 2 (Migration)**: Deploy schema changes and backfill roles for existing 1,000+ users.
 3. **Phase 3 (Gating)**: Enable API-level enforcement and UI "Grey-out" states.
 4. **Phase 4 (Management)**: Launch the "Team Management" UI in Tenant Settings.

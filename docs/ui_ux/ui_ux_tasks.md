@@ -43,7 +43,7 @@
   - Root Cause: Jarring layout shifts during asynchronous data fetching.
   - Business Impact: Perceived slowness and degraded premium feel.
   - Objective: Implement skeleton loading states for Conversation Detail and Settings views.
-  - Detailed Instructions: Create skeleton primitives matching the detail view layouts. Show while `isLoading` is true.
+  - Detailed Instructions: 1. Create skeleton primitives matching the detail view layouts. 2. In `app/(dashboard)/conversations/[conversationId]/page.tsx`, replace the `Loading conversation...` text with the new skeleton loader.
   - Expected Deliverables: Skeleton components for core detail views.
   - Dependencies: None.
   - Notes: High impact on perceived speed.
@@ -156,4 +156,19 @@
   - Expected Deliverables: Accessible CRM interface.
   - Dependencies: None.
   - Notes: Improves inclusive design. Confirmed missing labels in August 2026 Audit.
+  - Rollout Risk: LOW.
+
+- **Task UX-014**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: CRM
+  - Severity: LOW
+  - Issue: Lack of Agent Composition Feedback.
+  - Root Cause: No "Typing..." indicator when an agent is composing a reply in the CRM.
+  - Business Impact: Improved team collaboration; prevents agents from stepping on each other's toes.
+  - Objective: Implement a real-time "Agent is typing..." indicator in the CRM.
+  - Detailed Instructions: 1. Emit a "typing" event from `ReplyComposer` via WebSocket/SSE when the input is focused or changed. 2. Listen for these events in `MessageFeed` and display a "Typing..." bubble for other agents.
+  - Expected Deliverables: Real-time agent typing feedback.
+  - Dependencies: WebSocket/SSE infrastructure.
+  - Notes: Complements Task UX-009 ("Bot is thinking...").
   - Rollout Risk: LOW.
