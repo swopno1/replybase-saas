@@ -30,7 +30,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { PLANS as STRIPE_PLANS } from "@/lib/stripe";
+import { env } from "@/lib/env";
 
 interface PricingPlan {
   readonly name: "free" | "launch" | "grow" | "scale" | "business";
@@ -140,6 +140,25 @@ const PLANS: readonly PricingPlan[] = [
   },
 ];
 
+const PRICE_IDS: Record<string, { monthlyPriceId: string; annualPriceId: string }> = {
+  launch: {
+    monthlyPriceId: env.NEXT_PUBLIC_STRIPE_LAUNCH_PRICE_ID || "",
+    annualPriceId: env.NEXT_PUBLIC_STRIPE_LAUNCH_ANNUAL_PRICE_ID || "",
+  },
+  grow: {
+    monthlyPriceId: env.NEXT_PUBLIC_STRIPE_GROW_PRICE_ID || "",
+    annualPriceId: env.NEXT_PUBLIC_STRIPE_GROW_ANNUAL_PRICE_ID || "",
+  },
+  scale: {
+    monthlyPriceId: env.NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID || "",
+    annualPriceId: env.NEXT_PUBLIC_STRIPE_SCALE_ANNUAL_PRICE_ID || "",
+  },
+  business: {
+    monthlyPriceId: env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID || "",
+    annualPriceId: env.NEXT_PUBLIC_STRIPE_BUSINESS_ANNUAL_PRICE_ID || "",
+  },
+};
+
 type PlanName = (typeof PLANS)[number]["name"];
 
 function PricingContent() {
@@ -156,8 +175,8 @@ function PricingContent() {
     setLoading(plan.name);
     try {
       const priceId = cycle === "annual"
-        ? (STRIPE_PLANS as any)[plan.name].annualPriceId
-        : (STRIPE_PLANS as any)[plan.name].monthlyPriceId;
+        ? PRICE_IDS[plan.name].annualPriceId
+        : PRICE_IDS[plan.name].monthlyPriceId;
 
       const response = await fetch("/api/billing/checkout", {
         method: "POST",
@@ -234,6 +253,10 @@ function PricingContent() {
 
       const matchedPlan = PLANS.find((p) => p.name === normalized);
       if (matchedPlan) {
+        if (matchedPlan.name === "free") {
+          router.push("/dashboard");
+          return;
+        }
         setSelectedPlan(matchedPlan);
         if (checkoutParam === "true") {
           triggerAutoCheckout(matchedPlan, cycle === "annual" ? "annual" : "monthly", promo);
@@ -265,8 +288,8 @@ function PricingContent() {
 
     try {
       const priceId = billingCycle === "annual"
-        ? (STRIPE_PLANS as any)[selectedPlan.name].annualPriceId
-        : (STRIPE_PLANS as any)[selectedPlan.name].monthlyPriceId;
+        ? PRICE_IDS[selectedPlan.name].annualPriceId
+        : PRICE_IDS[selectedPlan.name].monthlyPriceId;
 
       const response = await fetch("/api/billing/checkout", {
         method: "POST",
@@ -394,7 +417,7 @@ function PricingContent() {
                 className={`w-full rounded-2xl font-bold py-6 ${
                   plan.highlight
                   ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30"
-                  : "variant-outline"
+                  : ""
                 }`}
                 variant={plan.highlight ? "default" : "outline"}
                 onClick={() => handleSubscribeClick(plan.name)}
