@@ -62,16 +62,31 @@
   - Notes: Declined on 2026-05-22. Requires a persistent WebSocket/SSE server that runs alongside the Next.js serverless deployment. The current Vercel-based deployment model does not support long-lived WebSocket connections natively. This task requires an infrastructure migration (e.g., dedicated Node.js server, Ably/Pusher integration, or Vercel Edge Config with SSE) that is outside the scope of this codebase sweep. The existing 5-second polling is functional and adequate for current user volumes.
   - Rollout Risk: MEDIUM.
 
+- **Task 039**
+  - Priority: MEDIUM
+  - Status: COMPLETED
+  - Category: Observability
+  - Severity: MEDIUM
+  - Issue: Basic vs Deep Health Checks.
+  - Root Cause: `/api/health` only performed basic uptime checks without verifying dependency connectivity.
+  - Business Impact: Improved incident detection and platform reliability.
+  - Objective: Implement deep health checks for Database and Redis.
+  - Detailed Instructions: 1. Implement `prisma.$queryRaw` check. 2. Implement `redis.ping()` check. 3. Return 503 if any dependency fails.
+  - Expected Deliverables: Enhanced `/api/health` endpoint.
+  - Dependencies: Prisma, Redis.
+  - Notes: Completed in August 2026. Endpoint verified to perform deep dependency pings.
+  - Rollout Risk: LOW.
+
 - **Task 041**
   - Priority: MEDIUM
   - Status: PENDING
   - Category: Performance/Engineering
   - Severity: MEDIUM
   - Issue: Sequential Database Writes in Webchat Engine.
-  - Root Cause: `app/api/webchat/message/route.ts` performs multiple sequential Prisma calls (`idempotencyKey.create`, `crmMessage.create`, `crmConversation.findUnique`, `crmMessage.createMany`) instead of using batching or transactions where appropriate.
+  - Root Cause: `app/api/webchat/message/route.ts` performs multiple sequential Prisma calls (`idempotencyKey.create`, `crmMessage.create`, `crmMessage.createMany`) instead of using batching or transactions where appropriate.
   - Business Impact: Increased API response latency for webchat users; potential for database connection saturation during message bursts.
   - Objective: Optimize database write path in the webchat message handler.
-  - Detailed Instructions: 1. Consolidate sequential writes into `prisma.$transaction`. 2. Utilize `createMany` for multi-message responses where not already batched.
+  - Detailed Instructions: 1. Consolidate sequential writes (`idempotencyKey.create`, `crmMessage.create`, and `crmMessage.createMany`) into a `prisma.$transaction`. 2. Ensure `resolveWebchatVisitorSession` and `webChatEvent.create` (for shadow promotions) are also included in transaction context where safe.
   - Expected Deliverables: Streamlined message ingestion pipeline.
   - Dependencies: Prisma.
   - Notes: Identified during August 2026 inspection. Sequential writes in the webchat API contribute to higher latency and connection holding time.
@@ -101,7 +116,7 @@
   - Root Cause: `lib/services/facebook-worker.ts` uses global `prisma` with manual filters. `app/api/user/data-export/route.ts` uses legacy `getServerSession` and manual `tenantId` lookups.
   - Business Impact: Elevated risk of cross-tenant data leaks (IDOR) if manual filters are misconfigured during future maintenance.
   - Objective: Standardize background workers and export utilities to use `getTenantPrisma` and `withAuthAndTenant`.
-  - Detailed Instructions: 1. Refactor `facebook-worker.ts` to use the scoped `db` client pattern. 2. Transition `data-export/route.ts` to the `withAuthAndTenant` wrapper.
+  - Detailed Instructions: 1. In `facebook-worker.ts`, initialize a scoped `db` instance using `getTenantPrisma(tenantId)` immediately after resolving the `tenantId` from the `FacebookPage` or payload. 2. In `app/api/user/data-export/route.ts`, replace the manual session check and `prisma` calls with the `withAuthAndTenant` higher-order function, utilizing the provided `db` client.
   - Expected Deliverables: Hardened tenant isolation for background and data utility layers.
   - Dependencies: `getTenantPrisma`, `withAuthAndTenant`.
   - Notes: Identified during August 2026 inspection. Facebook worker and Data Export API remain as legacy outliers in the standardized scoping architecture.

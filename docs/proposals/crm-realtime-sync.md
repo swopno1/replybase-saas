@@ -37,5 +37,7 @@ Transition the ReplyBase CRM from 5-second interval polling to a real-time event
 1. Setup a basic SSE endpoint at /api/conversations/[id]/stream.
 2. Integrate with Redis Pub/Sub to broadcast CrmMessage creation events.
 3. Update ConversationPage.tsx to use EventSource for real-time updates.
-4. Remove the 5000ms setInterval polling.
+4. Replace the 5000ms window.setInterval with the EventSource listener.
+5. In ReplyComposer, add an onFocus/onChange event to emit a 'typing' event to /api/conversations/[id]/typing.
+6. Update MessageFeed to listen for 'typing' events and display a temporary "Agent is typing..." indicator.
 ```

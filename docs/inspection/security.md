@@ -5,8 +5,8 @@
 - **Mechanism**: Standardized usage of `getTenantPrisma(tenantId)` extension. This automatically injects `where: { tenantId }` into all supported queries (Find, Update, Delete) and enforces `data: { tenantId }` on creations.
 - **Verification**: August 2026 audit confirmed 100% coverage on core messaging and contact entities.
 - **Legacy Risk**: Identified ~60 API routes still using manual session lookups and `prisma.user.findUnique` patterns. Task 037 is active to refactor these to the `withAuthAndTenant` middleware.
-- **Worker Isolation Gap**: August 2026 inspection revealed that while `whatsapp-worker.ts` uses `getTenantPrisma`, the `facebook-worker.ts` still relies on the global `prisma` instance with manual `tenantId` filtering. This creates an inconsistency in the multi-tenant protection layer (Task 043).
-- **Data Export Vulnerability**: The `/api/user/data-export` route still utilizes legacy `getServerSession` and manual scoping, bypassing the standardized `withAuthAndTenant` guardrails.
+- **Worker Isolation Gap**: August 2026 inspection revealed that while `whatsapp-worker.ts` uses `getTenantPrisma`, the `facebook-worker.ts` still relies on the global `prisma` instance with manual `tenantId` filtering. This creates an inconsistency in the multi-tenant protection layer (Task 043). Analysis confirms `facebook-worker.ts` performs direct `prisma.contact.create` and `prisma.crmConversation.create` without the `getTenantPrisma` wrapper.
+- **Data Export Vulnerability**: The `/api/user/data-export` route still utilizes legacy `getServerSession` and manual scoping, bypassing the standardized `withAuthAndTenant` guardrails. Audit of `app/api/user/data-export/route.ts` confirmed manual extraction of `session.user.tenantId` instead of utilizing the `db` client from the `withAuthAndTenant` higher-order function.
 
 ## 2. Authentication & Authorization
 - **Provider**: NextAuth.js with JWT Strategy.
