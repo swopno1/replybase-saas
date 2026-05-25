@@ -1,20 +1,51 @@
+import { prisma } from "@/lib/prisma";
+import { redis } from "@/lib/redis";
 import logger from "./logger";
 import { getPlanConfig } from "./plans";
-import { prisma } from "@/lib/prisma";
-import { redis } from "./redis";
 
-const AGGREGATE_BOT_ID = "__aggregate_bot__";
-const AGGREGATE_CHANNEL_ID = "__aggregate_channel__";
+// Date utilities (inline to avoid import issues)
+export function startOfUtcDay(date: Date = new Date()): Date {
+  const d = new Date(date);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
 
-// Industry standards for usage management
-const WARNING_THRESHOLD = 0.9;  // 90% usage
-const GRACE_THRESHOLD = 1.0;    // 100% usage
+export function startOfNextUtcDay(date: Date = new Date()): Date {
+  const d = startOfUtcDay(date);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d;
+}
+
+export function startOfUtcMonth(date: Date = new Date()): Date {
+  const d = new Date(date);
+  d.setUTCDate(1);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+
+export function startOfNextUtcMonth(date: Date = new Date()): Date {
+  const d = startOfUtcMonth(date);
+  d.setUTCMonth(d.getUTCMonth() + 1);
+  return d;
+}
+
+export function secondsUntil(end: Date, start: Date = new Date()): number {
+  return Math.max(0, Math.floor((end.getTime() - start.getTime()) / 1000));
+}
+
+const TENANT_LIMITS_CACHE = new Map<string, { data: any; expires: number }>();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const AGGREGATE_BOT_ID = "ALL_BOTS";
+const AGGREGATE_CHANNEL_ID = "ALL_CHANNELS";
+const WARNING_THRESHOLD = 0.9; // 90% usage
 const HARD_LIMIT_THRESHOLD = 1.1; // 110% usage
 
 export enum UsageZone {
   SAFE = "SAFE",
+  NORMAL = "NORMAL",
   WARNING = "WARNING",
   GRACE = "GRACE",
+  EXCEEDED = "EXCEEDED",
   HARD = "HARD",
 }
 
@@ -25,88 +56,50 @@ export interface UsageStatus {
   allowed: boolean;
 }
 
-// --- Date Utilities ---
-
-function startOfUtcDay(date = new Date()): Date {
-  const value = new Date(date);
-  value.setUTCHours(0, 0, 0, 0);
-  return value;
-}
-
-function startOfUtcMonth(date = new Date()): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
-}
-
-function startOfNextUtcDay(date = new Date()): Date {
-  const value = startOfUtcDay(date);
-  value.setUTCDate(value.getUTCDate() + 1);
-  return value;
-}
-
-function startOfNextUtcMonth(date = new Date()): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1));
-}
-
-function secondsUntil(target: Date, from = new Date()): number {
-  return Math.max(1, Math.ceil((target.getTime() - from.getTime()) / 1000));
-}
-
-// --- Helper Functions ---
-
-function normalizeUsageDimension(
-  value: string | undefined,
-  fallback: string,
-): string {
-  return value && value.length > 0 ? value : fallback;
-}
-
 async function getUsageCount(input: {
   tenantId: string;
   type: "message" | "flow_execution";
   startDate: Date;
-  endDate?: Date;
-}): Promise<number> {
+  endDate: Date;
+}) {
   const result = await prisma.usageLog.aggregate({
     where: {
       tenantId: input.tenantId,
       type: input.type,
-      date: input.endDate
-        ? {
-          gte: input.startDate,
-          lt: input.endDate,
-        }
-        : {
-          gte: input.startDate,
-        },
+      date: {
+        gte: input.startDate,
+        lt: input.endDate,
+      },
     },
     _sum: {
       count: true,
     },
   });
 
-  return result._sum.count ?? 0;
+  return result._sum.count || 0;
 }
 
 export async function getMonthlyConversationCount(
   tenantId: string,
 ): Promise<number> {
-  const monthStart = startOfUtcMonth();
-  const monthEnd = startOfNextUtcMonth(monthStart);
+  const now = new Date();
+  const start = startOfUtcMonth(now);
+  const end = startOfNextUtcMonth(now);
+
   return prisma.crmConversation.count({
     where: {
-      contact: { tenantId },
+      tenantId,
       createdAt: {
-        gte: monthStart,
-        lt: monthEnd,
+        gte: start,
+        lt: end,
       },
     },
   });
 }
 
-// --- Subscription Logic & Caching ---
-
-const TENANT_LIMITS_CACHE = new Map<string, { data: any; expires: number }>();
-const CACHE_TTL_MS = 1000 * 60 * 5; // 5 minutes
+function normalizeUsageDimension(val: string | undefined, fallback: string) {
+  return val || fallback;
+}
 
 async function getActiveSubscriptionWithPlan(tenantId: string) {
   return prisma.subscription.findFirst({
@@ -123,31 +116,24 @@ async function getActiveSubscriptionWithPlan(tenantId: string) {
   });
 }
 
-/**
- * Optimized lookup for subscription status to avoid frequent DB hits in middleware/auth.
- * Uses the same 5-minute TTL cache as getTenantLimits.
- */
 export async function getTenantSubscriptionStatus(tenantId: string): Promise<string> {
   const limits = await getTenantLimits(tenantId);
-  return limits.subscriptionStatus || "active";
+  return limits.subscriptionStatus || "inactive";
 }
 
 export async function getTenantLimits(tenantId: string) {
   const now = Date.now();
 
-  // 1. Check L1 Cache (In-memory)
   const cachedL1 = TENANT_LIMITS_CACHE.get(tenantId);
   if (cachedL1 && cachedL1.expires > now) {
     return cachedL1.data;
   }
 
-  // 2. Check L2 Cache (Redis)
   const cacheKey = `limits:${tenantId}`;
   try {
     const cachedL2 = await redis.get(cacheKey);
     if (cachedL2) {
       const data = JSON.parse(cachedL2);
-      // Backfill L1
       TENANT_LIMITS_CACHE.set(tenantId, { data, expires: now + CACHE_TTL_MS });
       return data;
     }
@@ -155,7 +141,6 @@ export async function getTenantLimits(tenantId: string) {
     logger.error({ error: err, tenantId }, "[Subscription] Redis cache get failed");
   }
 
-  // 3. Database Lookup
   const subscription = await getActiveSubscriptionWithPlan(tenantId);
 
   let limits;
@@ -169,6 +154,7 @@ export async function getTenantLimits(tenantId: string) {
         ...freePlan,
         planName: freePlan.displayName,
         subscriptionStatus: "active",
+        allowOverage: false,
       };
     } else {
       limits = {
@@ -191,32 +177,30 @@ export async function getTenantLimits(tenantId: string) {
         updatedAt: new Date(),
         features: [],
         subscriptionStatus: "inactive",
+        allowOverage: false,
       };
     }
   } else {
     limits = {
       ...subscription.plan,
       planName: subscription.plan.displayName,
+      allowOverage: subscription.allowOverage,
       subscriptionStatus: subscription.status.toLowerCase(),
     };
   }
 
-  // 4. Update Caches
   try {
-    // Update L1
     TENANT_LIMITS_CACHE.set(tenantId, {
       data: limits,
       expires: now + CACHE_TTL_MS,
     });
 
-    // Basic L1 size management
     if (TENANT_LIMITS_CACHE.size > 1000) {
       const firstKey = TENANT_LIMITS_CACHE.keys().next().value;
       if (firstKey) TENANT_LIMITS_CACHE.delete(firstKey);
     }
 
-    // Update L2 (Redis)
-    await redis.set(cacheKey, JSON.stringify(limits), "EX", 3600); // 1 hour TTL
+    await redis.set(cacheKey, JSON.stringify(limits), "EX", 3600);
   } catch (err) {
     logger.error({ error: err, tenantId }, "[Subscription] Cache update failed");
   }
@@ -224,15 +208,8 @@ export async function getTenantLimits(tenantId: string) {
   return limits;
 }
 
-/**
- * Clear cache for a specific tenant across all layers.
- * Useful when subscription or plan changes.
- */
 export async function invalidateTenantCache(tenantId: string) {
-  // Clear L1
   TENANT_LIMITS_CACHE.delete(tenantId);
-
-  // Clear L2
   try {
     await redis.del(`limits:${tenantId}`);
   } catch (err) {
@@ -240,7 +217,6 @@ export async function invalidateTenantCache(tenantId: string) {
   }
 }
 
-// Alias for backward compatibility if needed, though we should migrate to invalidateTenantCache
 export const invalidateTenantLimitsCache = invalidateTenantCache;
 
 export function getUsageStatus(current: number, limit: number): UsageStatus {
@@ -259,16 +235,16 @@ export function getUsageStatus(current: number, limit: number): UsageStatus {
     return {
       zone: UsageZone.HARD,
       ratio,
-      message: "Hard limit exceeded. Action blocked.",
+      message: "Limit exceeded.",
       allowed: false,
     };
   }
 
-  if (ratio >= GRACE_THRESHOLD) {
+  if (ratio >= 1.0) {
     return {
       zone: UsageZone.GRACE,
       ratio,
-      message: "You've exceeded your limit. Upgrade recommended to avoid service interruption.",
+      message: "Plan limit reached.",
       allowed: true,
     };
   }
@@ -277,7 +253,7 @@ export function getUsageStatus(current: number, limit: number): UsageStatus {
     return {
       zone: UsageZone.WARNING,
       ratio,
-      message: "You're nearing your limit. Consider upgrading soon.",
+      message: "Approaching plan limit.",
       allowed: true,
     };
   }
@@ -285,81 +261,11 @@ export function getUsageStatus(current: number, limit: number): UsageStatus {
   return {
     zone: UsageZone.SAFE,
     ratio,
-    message: "",
+    message: "Usage within limits.",
     allowed: true,
   };
 }
 
-// --- Usage Monitoring ---
-
-export async function getTenantUsage(tenantId: string) {
-  const limits = await getTenantLimits(tenantId);
-  const today = startOfUtcDay();
-  const monthStart = startOfUtcMonth();
-  const nextMonthStart = startOfNextUtcMonth(monthStart);
-
-  const [tenantData, usageLogs] = await Promise.all([
-    prisma.tenant.findUnique({
-      where: { id: tenantId },
-      select: {
-        _count: {
-          select: { bots: true, contacts: true },
-        },
-      },
-    }),
-    prisma.usageLog.groupBy({
-      by: ["type", "date"],
-      where: {
-        tenantId,
-        date: {
-          gte: monthStart,
-          lt: nextMonthStart,
-        },
-      },
-      _sum: {
-        count: true,
-      },
-    }),
-  ]);
-
-  const botCount = tenantData?._count.bots ?? 0;
-  const contactCount = tenantData?._count.contacts ?? 0;
-
-  let dailyMessages = 0;
-  let monthlyMessages = 0;
-  let monthlyFlowExecutions = 0;
-
-  const todayTime = today.getTime();
-
-  for (const log of usageLogs) {
-    const count = log._sum.count ?? 0;
-    if (log.type === "message") {
-      monthlyMessages += count;
-      if (log.date.getTime() === todayTime) {
-        dailyMessages += count;
-      }
-    } else if (log.type === "flow_execution") {
-      monthlyFlowExecutions += count;
-    }
-  }
-
-  return {
-    ...limits,
-    dailyMessages,
-    monthlyMessages,
-    monthlyFlowExecutions,
-    usage: {
-      bots: botCount,
-      contacts: contactCount,
-      messages: monthlyMessages,
-      flowExecutions: monthlyFlowExecutions,
-    },
-  };
-}
-
-/**
- * Check if a bot can add more channels based on the plan's maxChannelsPerBot limit.
- */
 export async function checkChannelLimit(tenantId: string, botId: string) {
   const limits = await getTenantLimits(tenantId);
   const channelCount = await prisma.channel.count({
@@ -372,12 +278,8 @@ export async function checkChannelLimit(tenantId: string, botId: string) {
     allowed: status.allowed,
     limit: limits.maxChannelsPerBot,
     current: channelCount,
-    planName: limits.displayName || limits.name,
-    status,
-  }
+  };
 }
-
-export const checkBotLimits = checkBotLimit;
 
 export async function checkBotLimit(tenantId: string) {
   const limits = await getTenantLimits(tenantId);
@@ -391,62 +293,9 @@ export async function checkBotLimit(tenantId: string) {
     allowed: status.allowed,
     limit: limits.maxBots,
     current: botCount,
-    planName: limits.displayName || limits.name,
-    status,
   };
 }
 
-// --- Downgrade Handling ---
-
-export async function handlePlanDowngrade(tenantId: string, newPlanId: string) {
-  const newPlan = await prisma.plan.findUnique({ where: { id: newPlanId } });
-  if (!newPlan) return;
-
-  // 1. Check Bot/Integration limits
-  const bots = await prisma.bot.findMany({
-    where: { tenantId },
-    orderBy: { createdAt: "asc" },
-  });
-
-  if (bots.length > newPlan.maxBots) {
-    const botsToDeactivate = bots.slice(newPlan.maxBots);
-    await prisma.bot.updateMany({
-      where: { id: { in: botsToDeactivate.map((b) => b.id) } },
-      data: { enabled: false },
-    });
-
-    await prisma.activityLog.create({
-      data: {
-        tenantId,
-        type: "PLAN_DOWNGRADE_ADJUSTMENT",
-        title: "Integration Limits Adjusted",
-        description: `Downgraded to ${newPlan.displayName}. ${botsToDeactivate.length} bot(s) were deactivated but your data is preserved.`,
-      }
-    });
-  }
-
-  // 2. Check Channels per bot
-  for (const bot of bots) {
-    const channels = await prisma.channel.findMany({
-      where: { botId: bot.id },
-      orderBy: { createdAt: "asc" },
-    });
-
-    if (channels.length > newPlan.maxChannelsPerBot) {
-      const channelsToDeactivate = channels.slice(newPlan.maxChannelsPerBot);
-      await prisma.channel.updateMany({
-        where: { id: { in: channelsToDeactivate.map((c) => c.id) } },
-        data: { enabled: false },
-      });
-    }
-  }
-}
-
-// --- Rate Limiting Enforcement ---
-
-/**
- * Check tenant-wide limits for background processes where userId is not available.
- */
 export async function checkTenantUsageLimits(
   tenantId: string,
   type: "message" | "conversation" | "flow_execution"
@@ -459,7 +308,12 @@ export async function checkTenantUsageLimits(
     const limit = limits.maxConversations;
     const current = await getMonthlyConversationCount(tenantId);
     const status = getUsageStatus(current, limit);
-    return { allowed: status.allowed, current, limit, status };
+    return {
+      allowed: limits.allowOverage ? true : status.allowed,
+      current,
+      limit,
+      status: limits.allowOverage ? { ...status, allowed: true } : status
+    };
   }
 
   if (type === "message") {
@@ -494,11 +348,21 @@ export async function checkTenantUsageLimits(
     }
 
     const monthlyStatus = getUsageStatus(monthlyUsage, monthlyLimit);
+    const dailyStatus = getUsageStatus(dailyUsage, dailyLimit);
+
+    if (limits.allowOverage) {
+      return {
+        allowed: true,
+        current: monthlyUsage > dailyUsage ? monthlyUsage : dailyUsage,
+        limit: monthlyUsage > dailyUsage ? monthlyLimit : dailyLimit,
+        status: { ...(monthlyStatus.ratio > dailyStatus.ratio ? monthlyStatus : dailyStatus), allowed: true }
+      };
+    }
+
     if (!monthlyStatus.allowed) {
       return { allowed: false, current: monthlyUsage, limit: monthlyLimit, status: monthlyStatus };
     }
 
-    const dailyStatus = getUsageStatus(dailyUsage, dailyLimit);
     return { allowed: dailyStatus.allowed, current: dailyUsage, limit: dailyLimit, status: dailyStatus };
   }
 
@@ -510,7 +374,12 @@ export async function checkTenantUsageLimits(
     endDate: startOfNextUtcMonth(now),
   });
   const status = getUsageStatus(current, limit);
-  return { allowed: status.allowed, current, limit, status };
+  return {
+    allowed: limits.allowOverage ? true : status.allowed,
+    current,
+    limit,
+    status: limits.allowOverage ? { ...status, allowed: true } : status
+  };
 }
 
 export async function checkLimit(
@@ -590,13 +459,13 @@ export async function checkLimit(
     const monthlyIsTighter = monthlyRemaining < dailyRemaining;
 
     return {
-      allowed: status.allowed,
+      allowed: limits.allowOverage ? true : status.allowed,
       remaining: Math.floor(monthlyIsTighter ? monthlyRemaining : dailyRemaining),
       limit: monthlyIsTighter ? monthlyLimit : dailyLimit,
       retryAfter: monthlyIsTighter
         ? secondsUntil(startOfNextUtcMonth(now), now)
         : secondsUntil(startOfNextUtcDay(now), now),
-      status,
+      status: limits.allowOverage ? { ...status, allowed: true } : status,
     };
   }
 
@@ -606,7 +475,6 @@ export async function checkLimit(
     return { allowed: false, remaining: 0, limit: 0, status };
   }
 
-  // flowExecutionCap is a MONTHLY limit — check against the full billing month
   const monthlyUsage = await getUsageCount({
     tenantId: user.tenantId,
     type: "flow_execution",
@@ -618,18 +486,13 @@ export async function checkLimit(
   const remaining = Math.max(limit * HARD_LIMIT_THRESHOLD - monthlyUsage, 0);
 
   return {
-    allowed: status.allowed,
+    allowed: limits.allowOverage ? true : status.allowed,
     remaining: Math.floor(remaining),
     limit,
     retryAfter: secondsUntil(startOfNextUtcMonth(now), now),
-    status,
+    status: limits.allowOverage ? { ...status, allowed: true } : status,
   };
 }
-
-/**
- * Usage Buffering System
- * Redesign for scalability to prevent DB bottleneck on high-frequency writes.
- */
 
 interface UsageEntry {
   tenantId: string;
@@ -654,7 +517,6 @@ class UsageBuffer {
   private startFlushTimer() {
     if (this.flushInterval) return;
     this.flushInterval = setInterval(() => this.flush(), this.intervalMs);
-    // Ensure the process doesn't wait for this timer to exit
     if (this.flushInterval.unref) {
       this.flushInterval.unref();
     }
@@ -673,7 +535,6 @@ class UsageBuffer {
       this.buffer.set(key, { ...entry });
     }
 
-    // Proactive flush if buffer gets too large
     if (this.buffer.size >= 100) {
       this.flush();
     }
@@ -687,7 +548,6 @@ class UsageBuffer {
     this.buffer.clear();
 
     try {
-      // Process in batches to avoid overwhelming the connection pool
       for (const entry of entries) {
         await prisma.usageLog.upsert({
           where: {
@@ -717,16 +577,12 @@ class UsageBuffer {
       }
     } catch (error) {
       logger.error({ error: error }, "[UsageBuffer] Failed to flush usage logs:");
-      // Re-add failed entries back to buffer?
-      // For simplicity in this MVP-to-Scale refactor, we log error.
-      // In a production system, we would use a proper queue (Redis/SQS).
     } finally {
       this.isFlushing = false;
     }
   }
 }
 
-// Singleton instance
 export const usageBuffer = new UsageBuffer();
 
 export async function incrementUsage(
@@ -766,7 +622,6 @@ export async function incrementTenantUsage(
     AGGREGATE_CHANNEL_ID,
   );
 
-  // Add to in-memory buffer instead of immediate DB write
   usageBuffer.add({
     tenantId,
     type,
@@ -776,9 +631,6 @@ export async function incrementTenantUsage(
     count: amount,
   });
 
-  // Background notification check
-  // Note: Since usage is buffered, notification might be slightly delayed
-  // This is an acceptable trade-off for scalability.
   setTimeout(async () => {
     try {
       const limits = await getTenantLimits(tenantId);
@@ -810,10 +662,12 @@ async function notifyUsageIfNeeded(
 ) {
   if (limit <= 0) return;
 
+  const limits = await getTenantLimits(tenantId);
+  const isOverageEnabled = limits.allowOverage;
+
   const usageRatio = current / limit;
   let threshold = 0;
 
-  // Define thresholds: 0.9, 1.0, 1.1
   if (usageRatio >= 1.1) {
     threshold = 1.1;
   } else if (usageRatio >= 1.0) {
@@ -832,14 +686,12 @@ async function notifyUsageIfNeeded(
         : "USAGE_LIMIT_WARNING";
 
   try {
-    // Get the current billing period to avoid spamming multiple alerts in the same period
     const subscription = await prisma.subscription.findUnique({
       where: { tenantId },
       select: { currentPeriodStart: true },
     });
     const periodStart = subscription?.currentPeriodStart || startOfUtcMonth();
 
-    // Check if we already sent this specific threshold alert for this period
     const existing = await prisma.activityLog.findFirst({
       where: {
         tenantId,
@@ -853,16 +705,20 @@ async function notifyUsageIfNeeded(
     });
 
     if (!existing) {
-      const title =
+      let title =
         threshold >= 1.1
           ? "Critical Usage Limit: Service Restricted"
           : threshold >= 1.0
             ? "Usage Limit Reached"
             : `Usage Warning (${Math.floor(threshold * 100)}%)`;
 
-      const description = `Your ${type.replace("_", " ")} usage has reached ${Math.floor(usageRatio * 100)}% of your plan limit (${current}/${limit}).`;
+      let description = `Your ${type.replace("_", " ")} usage has reached ${Math.floor(usageRatio * 100)}% of your plan limit (${current}/${limit}).`;
 
-      // 1. Create In-App Notification (ActivityLog)
+      if (isOverageEnabled && threshold >= 1.0) {
+        title = threshold >= 1.1 ? "Critical Usage: Overage Billing Active" : "Usage Limit Reached: Overage Billing Active";
+        description += " Overage billing is enabled, so your service will remain active and you will be charged for the extra usage.";
+      }
+
       await prisma.activityLog.create({
         data: {
           tenantId,
@@ -873,7 +729,6 @@ async function notifyUsageIfNeeded(
         },
       });
 
-      // 2. Send Email to Admins
       const admins = await prisma.user.findMany({
         where: { tenantId, isAdmin: true },
         select: { email: true, name: true },
@@ -898,11 +753,13 @@ This is an automated alert regarding your ReplyBase usage.
 ${description}
 
 ${
-  threshold >= 1.1
-    ? "Your service has been restricted to protect your account. Please upgrade immediately to restore full functionality."
-    : threshold >= 1.0
-      ? "You have reached your plan limit. Please consider upgrading to avoid service interruption."
-      : "You are nearing your plan limit. We recommend checking your usage and considering an upgrade soon."
+  isOverageEnabled && threshold >= 1.0
+    ? "Your service remains active because AI Overage is enabled. Additional usage will be charged manually at the end of the billing period."
+    : threshold >= 1.1
+      ? "Your service has been restricted to protect your account. Please upgrade immediately to restore full functionality."
+      : threshold >= 1.0
+        ? "You have reached your plan limit. Please consider upgrading to avoid service interruption."
+        : "You are nearing your plan limit. We recommend checking your usage and considering an upgrade soon."
 }
 
 You can manage your subscription and upgrade here:
@@ -923,22 +780,11 @@ The ReplyBase Team
   }
 }
 
-// Alias for legacy support
-export const getTenantSubscription = getTenantLimits;
-
-/**
- * Check if a specific channel type is allowed on the current plan.
- */
 export async function isChannelTypeAllowed(tenantId: string, type: string) {
   const limits = await getTenantLimits(tenantId);
-
-  // Get allowed channels from the plan config
   const planName = limits.name?.toLowerCase() || "free";
   const config = getPlanConfig(planName);
-
-  // If allowedChannels is not defined, default to web-only for safety
   const allowedChannels = (config as any).allowedChannels || ["web"];
-
   const isAllowed = allowedChannels.includes(type.toLowerCase());
 
   return {
@@ -948,9 +794,6 @@ export async function isChannelTypeAllowed(tenantId: string, type: string) {
   };
 }
 
-/**
- * Enhanced channel limit check that also validates the channel type.
- */
 export async function checkChannelLimitWithType(tenantId: string, botId: string, type: string) {
   const [limitStatus, typeStatus] = await Promise.all([
     checkChannelLimit(tenantId, botId),
