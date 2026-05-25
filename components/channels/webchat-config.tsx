@@ -308,7 +308,8 @@ export function WebchatConfig({
     }
   };
 
-  const appUrl = typeof window !== "undefined" ? window.location.origin : "";
+  const [appUrl, setAppUrl] = useState("");
+  useEffect(() => { setAppUrl(window.location.origin); }, []);
   
   const snippets = useMemo(() => {
     if (!site) return { html: "", nextjs: "", react: "" };
