@@ -269,3 +269,20 @@
   - Dependencies: shadcn/ui.
   - Notes: High impact on perceived quality.
   - Rollout Risk: LOW.
+
+## Infrastructure & Redis Optimization (Startup Scale)
+
+> **NOTE:** Redis scaling and managed Redis migration are intentionally DEFERRED until ReplyBase reaches meaningful production load (~100+ active concurrent tenants). AI agents should focus on optimizing current resource usage rather than suggesting enterprise-grade migrations.
+
+- [ ] **Redis Memory Hardening**
+  - Set `maxmemory 256mb` and `maxmemory-policy allkeys-lru` in the self-hosted Redis configuration.
+  - Objective: Prevent Redis from exceeding allocated droplet RAM.
+- [ ] **In-Memory Rate Limiting Transition**
+  - Verify that `lib/rate-limit.ts` and `lib/webchat-rate-limit.ts` are primarily using in-memory stores for single-instance deployments.
+  - Objective: Reduce unnecessary network/Redis round-trips for low-risk traffic.
+- [ ] **Subscription Cache Review**
+  - Evaluate the real-world performance impact of removing Redis caching from `lib/subscription.ts`.
+  - Objective: Determine if the 50-100ms saved is worth the 50MB+ Redis memory footprint.
+- [ ] **Queue Simplification**
+  - Consolidate minor background tasks into the existing `message-processing` queue or handle them synchronously if latency allows.
+  - Objective: Reduce the number of BullMQ instances and associated Redis overhead.
