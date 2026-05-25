@@ -20,8 +20,8 @@ export const webhookQueue = isBuild
       defaultJobOptions: {
         attempts: 5,
         backoff: { type: "exponential", delay: 2000 },
-        removeOnComplete: 1000,
-        removeOnFail: 5000,
+        removeOnComplete: 100,
+        removeOnFail: 500,
       },
     });
 

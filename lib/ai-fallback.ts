@@ -194,7 +194,7 @@ export async function aiFallback({
   const finalSystemPrompt = GUARDRAIL_SYSTEM_PREFIX + '\n\n' + systemPrompt + salesNudge + historyBlock;
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
 
   try {
     const primaryModel = await getTenantModel(bot.tenantId, { planName, task: "chat" });

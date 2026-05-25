@@ -8,7 +8,7 @@ const pool =
   (globalThis as unknown as { pool?: Pool }).pool ??
   new Pool({
     connectionString: env.DATABASE_URL,
-    max: env.NODE_ENV === "production" ? 50 : 20,
+    max: env.NODE_ENV === "production" ? 20 : 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000,
   });

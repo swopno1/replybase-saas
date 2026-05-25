@@ -316,10 +316,10 @@
 ## Infrastructure & Performance Optimization (Post-Plausible Hardening)
 
 ### Phase 1: Resource Hardening (Low Effort)
-- [ ] **Redis Memory Safety:** Set `maxmemory 256mb` and `maxmemory-policy allkeys-lru` in self-hosted Redis container.
-- [ ] **Postgres Pool Optimization:** Reduce `max` connections in `lib/prisma.ts` from 50 to 20 to save ~400MB RAM.
-- [ ] **Queue Retention Tuning:** Update `removeOnComplete` to 100 and `removeOnFail` to 500 for all BullMQ instances (`lib/queue.ts`, `lib/services/webhook-dispatcher.ts`).
-- [ ] **AI Provider Failover Tuning:** Reduce `AbortController` timeout in `lib/ai-fallback.ts` to 8 seconds for faster failover.
+- [x] **Redis Memory Safety:** Set `maxmemory 256mb` and `maxmemory-policy allkeys-lru` in self-hosted Redis container.
+- [x] **Postgres Pool Optimization:** Reduce `max` connections in `lib/prisma.ts` from 50 to 20 to save ~400MB RAM.
+- [x] **Queue Retention Tuning:** Update `removeOnComplete` to 100 and `removeOnFail` to 500 for all BullMQ instances (`lib/queue.ts`, `lib/services/webhook-dispatcher.ts`).
+- [x] **AI Provider Failover Tuning:** Reduce `AbortController` timeout in `lib/ai-fallback.ts` to 8 seconds for faster failover.
 
 ### Phase 2: Performance Scalability (Medium Effort)
 - [ ] **CRM Real-time Sync:** Migrate from 5s polling to Server-Sent Events (SSE) in `ConversationPage` to reduce DB load.

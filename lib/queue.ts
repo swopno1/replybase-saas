@@ -24,8 +24,8 @@ export const messageQueue = isBuild
       defaultJobOptions: {
         attempts: 3,
         backoff: { type: "exponential", delay: 1000 },
-        removeOnComplete: true,
-        removeOnFail: false,
+        removeOnComplete: 100,
+        removeOnFail: 500,
       },
     });
 
