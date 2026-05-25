@@ -1,25 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { withAuthAndTenant, withAdmin } from "@/lib/route-helpers";
 import { exportTenantData } from "@/lib/data-export";
 import { prisma } from "@/lib/prisma";
-import { isPlatformAdmin } from "@/lib/admin";
 
-export async function GET(req: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id || !session.user.tenantId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+export const GET = async (req: NextRequest, context: any) => {
+  const type = req.nextUrl.searchParams.get("type");
 
-    const type = req.nextUrl.searchParams.get("type");
-
-    if (type === "onboarding") {
-      if (!isPlatformAdmin(session)) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-
-      const tenants = await prisma.tenant.findMany({
+  // Onboarding export is a global admin tool
+  if (type === "onboarding") {
+    return withAdmin(async (session, request, ctx, db) => {
+      const tenants = await db.tenant.findMany({
         include: {
           users: { select: { email: true, name: true } },
           subscriptions: { include: { plan: true } },
@@ -38,7 +28,6 @@ export async function GET(req: NextRequest) {
         const industry = data?.raw?.business?.industry || data?.raw?.businessBasics?.industry || "";
         const stage = t.isOnboarded ? "COMPLETED" : t.onboardingStep.toString();
         const status = t.isOnboarded ? "COMPLETED" : t.onboardingStep > 0 ? "IN_PROGRESS" : "NOT_STARTED";
-        // Handle subscriptions array to match schema
         const plan = t.subscriptions && Array.isArray(t.subscriptions) ? t.subscriptions[0]?.plan?.displayName || "" : "";
         const createdAt = new Date(t.createdAt).toISOString();
 
@@ -52,26 +41,27 @@ export async function GET(req: NextRequest) {
           "Content-Disposition": `attachment; filename="onboarding-export-${new Date().toISOString().split('T')[0]}.csv"`,
         },
       });
-    }
-
-    // Only allow admins or the account owner to export data
-    // In this multi-tenant setup, any user with the correct tenantId can export their workspace data
-    // but typically we'd want to restrict this to the tenant admin.
-    
-    const exportData = await exportTenantData(session.user.tenantId);
-
-    return new NextResponse(JSON.stringify(exportData, null, 2), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Content-Disposition": `attachment; filename="replybase-data-export-${session.user.tenantId}-${new Date().toISOString().split('T')[0]}.json"`,
-      },
-    });
-  } catch (error) {
-    console.error("[Data Export API] Error:", error);
-    return NextResponse.json(
-      { error: "Failed to generate data export" },
-      { status: 500 },
-    );
+    })(req, context);
   }
-}
+
+  // Standard user data export
+  return withAuthAndTenant(async (user, request, ctx, db) => {
+    try {
+      const exportData = await exportTenantData(user.tenantId);
+
+      return new NextResponse(JSON.stringify(exportData, null, 2), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Disposition": `attachment; filename="replybase-data-export-${user.tenantId}-${new Date().toISOString().split('T')[0]}.json"`,
+        },
+      });
+    } catch (error) {
+      console.error("[Data Export API] Error:", error);
+      return NextResponse.json(
+        { error: "Failed to generate data export" },
+        { status: 500 },
+      );
+    }
+  })(req, context);
+};

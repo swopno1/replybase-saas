@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getTenantPrisma } from "@/lib/prisma-tenant";
 import { ModelMessage } from "ai";
 import { executeBotEntryFlowFirst } from "@/lib/bot-entry-flow-engine";
 import { recordMilestoneEvent } from "@/lib/milestone-events";
@@ -26,6 +27,7 @@ export async function processFacebookJob(payload: { senderPsid: string, pageId: 
   if (!targetBotId) return;
 
   const { tenantId, accessToken } = facebookPage;
+  const db = getTenantPrisma(tenantId);
 
   // 1. Check Monthly Conversation Limit (across all channels)
   const convLimit = await checkTenantUsageLimits(tenantId, "conversation");
@@ -34,30 +36,36 @@ export async function processFacebookJob(payload: { senderPsid: string, pageId: 
     return;
   }
 
-  let userName: string | undefined;
-  try {
-    const profileUrl = getFacebookGraphUrl(senderPsid, accessToken, {
-      fields: "first_name,last_name",
-    });
-    const profileResponse = await fetch(profileUrl);
-    if (profileResponse.ok) {
-      const profileData = await profileResponse.json();
-      const fullName = `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim();
-      if (fullName) userName = fullName;
+  // Latency Optimization: Start profile fetch and contact lookup in parallel
+  const profilePromise = (async () => {
+    try {
+      const profileUrl = getFacebookGraphUrl(senderPsid, accessToken, {
+        fields: "first_name,last_name",
+      });
+      const profileResponse = await fetch(profileUrl);
+      if (profileResponse.ok) {
+        const profileData = await profileResponse.json();
+        return `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim();
+      }
+    } catch (e) {
+      logger.debug({ error: e }, "[Facebook Worker] Profile fetch failed (non-critical)");
     }
-  } catch {}
+    return undefined;
+  })();
 
-  let contact = await prisma.contact.findFirst({
+  const contactPromise = db.contact.findFirst({
     where: {
-      tenantId,
       identities: { some: { type: "facebook_psid", value: senderPsid } },
     },
   });
 
+  const [userName, existingContact] = await Promise.all([profilePromise, contactPromise]);
+
+  let contact = existingContact;
+
   if (!contact) {
-    contact = await prisma.contact.create({
+    contact = await db.contact.create({
       data: {
-        tenantId,
         name: userName || senderPsid,
         identities: { create: { type: "facebook_psid", value: senderPsid } },
       },
@@ -85,14 +93,13 @@ export async function processFacebookJob(payload: { senderPsid: string, pageId: 
     }
   }
 
-  let conversation = await prisma.crmConversation.findFirst({
+  let conversation = await db.crmConversation.findFirst({
     where: { contactId: contact.id, botId: targetBotId, channel: "facebook" },
   });
 
   if (!conversation) {
-    conversation = await prisma.crmConversation.create({
+    conversation = await db.crmConversation.create({
       data: {
-        tenantId,
         contactId: contact.id,
         channel: "facebook",
         botId: targetBotId,
@@ -101,9 +108,8 @@ export async function processFacebookJob(payload: { senderPsid: string, pageId: 
     });
   }
 
-  await prisma.crmMessage.create({
+  await db.crmMessage.create({
     data: {
-      tenantId,
       conversationId: conversation.id,
       direction: "inbound",
       content: messageText,
@@ -117,14 +123,14 @@ export async function processFacebookJob(payload: { senderPsid: string, pageId: 
   if (conversation.botPaused) return;
 
   // Bot Status check
-  const bot = await prisma.bot.findUnique({
+  const bot = await db.bot.findUnique({
     where: { id: targetBotId },
     select: { enabled: true }
   });
   if (!bot || !bot.enabled) return;
 
   try {
-    const flowAssignment = await prisma.flowAssignment.findFirst({
+    const flowAssignment = await db.flowAssignment.findFirst({
       where: { pageId: facebookPage.id, isActive: true },
       select: { flowId: true },
     });
@@ -155,13 +161,13 @@ export async function processFacebookJob(payload: { senderPsid: string, pageId: 
       for (const resp of flowResponses) {
         if (resp.type === "typing") {
           await sendFacebookSenderAction(accessToken, senderPsid, "typing_on");
-          await waitForFlowDurationMs(Math.min(resp.durationMs, 3000));
+          // Latency Optimization: Reduce max typing wait from 3000ms to 1500ms
+          await waitForFlowDurationMs(Math.min(resp.durationMs, 1500));
           await sendFacebookSenderAction(accessToken, senderPsid, "typing_off");
         } else if (resp.type === "text" && resp.text) {
           await sendTextMessage(accessToken, senderPsid, resp.text, (resp as { quickReplies?: any[] }).quickReplies);
-          await prisma.crmMessage.create({
+          await db.crmMessage.create({
             data: {
-              tenantId,
               conversationId: conversation.id,
               direction: "outbound",
               content: resp.text,
@@ -189,13 +195,13 @@ export async function processFacebookJob(payload: { senderPsid: string, pageId: 
     const msgLimit = await checkTenantUsageLimits(tenantId, "message");
     if (!msgLimit.allowed) return;
 
-    const subscription = await prisma.subscription.findUnique({
+    const subscription = await db.subscription.findUnique({
       where: { tenantId },
       select: { plan: { select: { name: true } } },
     });
     const plan = subscription?.plan?.name || "free";
 
-    const lastMessages = await prisma.crmMessage.findMany({
+    const lastMessages = await db.crmMessage.findMany({
       where: { conversationId: conversation.id },
       orderBy: { createdAt: "desc" },
       take: 10,
@@ -223,9 +229,8 @@ export async function processFacebookJob(payload: { senderPsid: string, pageId: 
 
     if (aiText.trim()) {
       await sendTextMessage(accessToken, senderPsid, aiText.trim());
-      await prisma.crmMessage.create({
+      await db.crmMessage.create({
         data: {
-          tenantId,
           conversationId: conversation.id,
           direction: "outbound",
           content: aiText.trim(),
