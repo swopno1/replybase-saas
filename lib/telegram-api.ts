@@ -168,14 +168,27 @@ export async function sendTelegramTextMessage(
   token: string,
   chatId: string,
   text: string,
+  quickReplies?: Array<{ title: string; payload: string }>,
 ): Promise<TelegramSendMessageResult> {
   const formattedText = formatTelegramText(text);
+
+  const replyMarkup = quickReplies && quickReplies.length > 0
+    ? {
+        inline_keyboard: quickReplies.map((qr) => [
+          {
+            text: qr.title,
+            callback_data: qr.payload,
+          },
+        ]),
+      }
+    : undefined;
 
   const attemptSend = async () =>
     callTelegram<{ message_id: number }>(token, "sendMessage", {
       chat_id: chatId,
       text: formattedText,
       parse_mode: "HTML",
+      reply_markup: replyMarkup,
     });
 
   let data: TelegramApiResponse<{ message_id: number }> | null = null;

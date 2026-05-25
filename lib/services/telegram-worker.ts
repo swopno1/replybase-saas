@@ -176,7 +176,7 @@ export async function processTelegramJob(payload: any) {
             await waitForFlowDurationMs(Math.min(resp.durationMs, 3000));
           } else if (resp.type === "text" && resp.text) {
             const normalized = normalizeTelegramText(resp.text);
-            await sendTelegramTextMessage(token, chatId, normalized);
+            await sendTelegramTextMessage(token, chatId, normalized, resp.quickReplies);
             await prisma.crmMessage.create({
               data: {
                 tenantId,
