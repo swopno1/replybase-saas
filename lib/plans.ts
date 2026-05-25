@@ -15,6 +15,7 @@ export const PLAN_CONFIGS = {
     maxChannelsPerBot: 1,
     maxConversations: 100,
     allowedChannels: ["web"],
+    apiAccess: false,
   },
   launch: {
     name: "launch",
@@ -27,6 +28,7 @@ export const PLAN_CONFIGS = {
     maxChannelsPerBot: 2,
     maxConversations: 1500,
     allowedChannels: ["web", "facebook", "whatsapp"],
+    apiAccess: false,
   },
   grow: {
     name: "grow",
@@ -39,6 +41,7 @@ export const PLAN_CONFIGS = {
     maxChannelsPerBot: 3,
     maxConversations: 5000,
     allowedChannels: ["web", "facebook", "whatsapp"],
+    apiAccess: false,
   },
   scale: {
     name: "scale",
@@ -51,6 +54,7 @@ export const PLAN_CONFIGS = {
     maxChannelsPerBot: 5,
     maxConversations: 10000,
     allowedChannels: ["web", "facebook", "whatsapp", "telegram"],
+    apiAccess: true,
   },
   business: {
     name: "business",
@@ -63,6 +67,7 @@ export const PLAN_CONFIGS = {
     maxChannelsPerBot: 10,
     maxConversations: 40000,
     allowedChannels: ["web", "facebook", "whatsapp", "telegram"],
+    apiAccess: true,
   },
 } as const;
 
