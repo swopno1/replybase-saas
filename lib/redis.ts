@@ -21,7 +21,7 @@ const redisInstance = isBuild
       },
     ) as any)
   : new Redis(getRedisUrl(), {
-      maxRetriesPerRequest: isProd ? 3 : null,
+      maxRetriesPerRequest: null,
       enableReadyCheck: false,
       lazyConnect: true,
       retryStrategy: (times) => {
