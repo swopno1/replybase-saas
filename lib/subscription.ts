@@ -296,35 +296,52 @@ export async function getTenantUsage(tenantId: string) {
   const limits = await getTenantLimits(tenantId);
   const today = startOfUtcDay();
   const monthStart = startOfUtcMonth();
+  const nextMonthStart = startOfNextUtcMonth(monthStart);
 
-  const [botCount, contactCount, dailyMessages, monthlyMessages, monthlyFlowExecutions] =
-    await Promise.all([
-      prisma.bot.count({
-        where: { tenantId },
-      }),
-      prisma.contact.count({
-        where: { tenantId },
-      }),
-      getUsageCount({
+  const [tenantData, usageLogs] = await Promise.all([
+    prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: {
+        _count: {
+          select: { bots: true, contacts: true },
+        },
+      },
+    }),
+    prisma.usageLog.groupBy({
+      by: ["type", "date"],
+      where: {
         tenantId,
-        type: "message",
-        startDate: today,
-        endDate: startOfNextUtcDay(today),
-      }),
-      getUsageCount({
-        tenantId,
-        type: "message",
-        startDate: monthStart,
-        endDate: startOfNextUtcMonth(monthStart),
-      }),
-      // flowExecutionCap is a MONTHLY limit — count the full billing month
-      getUsageCount({
-        tenantId,
-        type: "flow_execution",
-        startDate: monthStart,
-        endDate: startOfNextUtcMonth(monthStart),
-      }),
-    ]);
+        date: {
+          gte: monthStart,
+          lt: nextMonthStart,
+        },
+      },
+      _sum: {
+        count: true,
+      },
+    }),
+  ]);
+
+  const botCount = tenantData?._count.bots ?? 0;
+  const contactCount = tenantData?._count.contacts ?? 0;
+
+  let dailyMessages = 0;
+  let monthlyMessages = 0;
+  let monthlyFlowExecutions = 0;
+
+  const todayTime = today.getTime();
+
+  for (const log of usageLogs) {
+    const count = log._sum.count ?? 0;
+    if (log.type === "message") {
+      monthlyMessages += count;
+      if (log.date.getTime() === todayTime) {
+        dailyMessages += count;
+      }
+    } else if (log.type === "flow_execution") {
+      monthlyFlowExecutions += count;
+    }
+  }
 
   return {
     ...limits,
@@ -449,25 +466,38 @@ export async function checkTenantUsageLimits(
     const dailyLimit = limits.dailyMessageLimit;
     const monthlyLimit = limits.monthlyMessageLimit;
 
-    // Check monthly first as it's the primary constraint
-    const monthlyUsage = await getUsageCount({
-      tenantId,
-      type: "message",
-      startDate: startOfUtcMonth(now),
-      endDate: startOfNextUtcMonth(now),
+    const usageLogs = await prisma.usageLog.groupBy({
+      by: ["date"],
+      where: {
+        tenantId,
+        type: "message",
+        date: {
+          gte: startOfUtcMonth(now),
+          lt: startOfNextUtcMonth(now),
+        },
+      },
+      _sum: {
+        count: true,
+      },
     });
+
+    let dailyUsage = 0;
+    let monthlyUsage = 0;
+    const todayTime = today.getTime();
+
+    for (const log of usageLogs) {
+      const count = log._sum.count ?? 0;
+      monthlyUsage += count;
+      if (log.date.getTime() === todayTime) {
+        dailyUsage = count;
+      }
+    }
+
     const monthlyStatus = getUsageStatus(monthlyUsage, monthlyLimit);
     if (!monthlyStatus.allowed) {
       return { allowed: false, current: monthlyUsage, limit: monthlyLimit, status: monthlyStatus };
     }
 
-    // Check daily
-    const dailyUsage = await getUsageCount({
-      tenantId,
-      type: "message",
-      startDate: today,
-      endDate: startOfNextUtcDay(today),
-    });
     const dailyStatus = getUsageStatus(dailyUsage, dailyLimit);
     return { allowed: dailyStatus.allowed, current: dailyUsage, limit: dailyLimit, status: dailyStatus };
   }
@@ -520,20 +550,32 @@ export async function checkLimit(
       return { allowed: false, remaining: 0, limit: 0, status };
     }
 
-    const [dailyUsage, monthlyUsage] = await Promise.all([
-      getUsageCount({
+    const usageLogs = await prisma.usageLog.groupBy({
+      by: ["date"],
+      where: {
         tenantId: user.tenantId,
         type: "message",
-        startDate: today,
-        endDate: startOfNextUtcDay(today),
-      }),
-      getUsageCount({
-        tenantId: user.tenantId,
-        type: "message",
-        startDate: startOfUtcMonth(now),
-        endDate: startOfNextUtcMonth(now),
-      }),
-    ]);
+        date: {
+          gte: startOfUtcMonth(now),
+          lt: startOfNextUtcMonth(now),
+        },
+      },
+      _sum: {
+        count: true,
+      },
+    });
+
+    let dailyUsage = 0;
+    let monthlyUsage = 0;
+    const todayTime = today.getTime();
+
+    for (const log of usageLogs) {
+      const count = log._sum.count ?? 0;
+      monthlyUsage += count;
+      if (log.date.getTime() === todayTime) {
+        dailyUsage = count;
+      }
+    }
 
     const dailyStatus = getUsageStatus(dailyUsage, dailyLimit);
     const monthlyStatus = getUsageStatus(monthlyUsage, monthlyLimit);

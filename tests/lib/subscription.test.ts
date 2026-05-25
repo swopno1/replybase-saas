@@ -28,6 +28,7 @@ vi.mock('@/lib/prisma', () => ({
       aggregate: vi.fn(),
       upsert: vi.fn(),
       findUnique: vi.fn(),
+      groupBy: vi.fn(),
     },
     activityLog: {
       findFirst: vi.fn(),
@@ -44,6 +45,9 @@ vi.mock('@/lib/prisma', () => ({
     },
     crmConversation: {
       count: vi.fn(),
+    },
+    tenant: {
+      findUnique: vi.fn(),
     },
     plan: {
       findUnique: vi.fn(),
@@ -120,6 +124,16 @@ function mockUser() {
   } as unknown as NonNullable<Awaited<ReturnType<typeof prisma.user.findUnique>>>);
 }
 
+
+function mockUsageLogGrouped(logs: Array<{ date: Date; count: number; type?: string }>) {
+  vi.mocked(prisma.usageLog.groupBy).mockResolvedValue(
+    logs.map(log => ({
+      date: log.date,
+      type: log.type || 'message',
+      _sum: { count: log.count }
+    })) as any
+  );
+}
 function mockUsageLog(count: number) {
   vi.mocked(prisma.usageLog.aggregate).mockResolvedValue({
     _sum: { count },
@@ -200,16 +214,18 @@ describe('checkLimit — AI Responses (message type)', () => {
 
   it('allows requests under monthly limit', async () => {
     mockActiveSub(PLAN_FREE);
-    // Both daily AND monthly queries will return 50
-    mockUsageLog(50);
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    mockUsageLogGrouped([{ date: today, count: 50 }]);
     const result = await checkLimit('user_1', 'message');
     expect(result.allowed).toBe(true);
   });
 
   it('blocks requests when monthly limit is exceeded (free: 100 → 110 hard limit)', async () => {
     mockActiveSub(PLAN_FREE);
-    // 110 = 100 * 1.10 hard limit
-    mockUsageLog(110);
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    mockUsageLogGrouped([{ date: today, count: 110 }]);
     const result = await checkLimit('user_1', 'message');
     expect(result.allowed).toBe(false);
     expect(result.remaining).toBe(0);
@@ -217,18 +233,22 @@ describe('checkLimit — AI Responses (message type)', () => {
 
   it('blocks at hard limit for launch plan (1000 monthly → 1100 hard)', async () => {
     mockActiveSub(PLAN_LAUNCH);
-    mockUsageLog(1100);
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    mockUsageLogGrouped([{ date: today, count: 1100 }]);
     const result = await checkLimit('user_1', 'message');
     expect(result.allowed).toBe(false);
   });
 
   it('allows at grace zone for scale plan — monthly only over 100%, daily ok', async () => {
     mockActiveSub(PLAN_SCALE);
-    // First call: daily usage (below daily cap of 500)
-    vi.mocked(prisma.usageLog.aggregate)
-      .mockResolvedValueOnce({ _sum: { count: 300 } } as unknown as Awaited<ReturnType<typeof prisma.usageLog.aggregate>>)
-      // Second call: monthly usage (8000 / 7500 = 1.066 — grace zone)
-      .mockResolvedValueOnce({ _sum: { count: 8000 } } as unknown as Awaited<ReturnType<typeof prisma.usageLog.aggregate>>);
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const yesterday = new Date(today.getTime() - 86400000);
+    mockUsageLogGrouped([
+       { date: today, count: 300 },
+       { date: yesterday, count: 7700 } // Total 8000
+    ]);
     const result = await checkLimit('user_1', 'message');
     // Grace zone (100%-110%) is still allowed
     expect(result.allowed).toBe(true);
