@@ -1,6 +1,8 @@
 import { PrismaClient } from "@prisma/client";
 import { extractLeadDataFromText } from "../lead-extraction";
 import { sendNewLeadNotifications } from "@/lib/lead-notifications";
+import { mergeContacts } from "@/lib/contact-stitching";
+import logger from "@/lib/logger";
 
 export class LeadService {
   constructor(private db: PrismaClient) {}
@@ -148,19 +150,54 @@ export class LeadService {
 
   /**
    * Scans a message for lead data and updates the contact and lead status.
+   * If an email is found that matches another existing contact, they are merged.
    */
   async extractAndSyncLeadDataFromMessage(tenantId: string, contactId: string, text: string) {
     const extracted = extractLeadDataFromText(text);
     
     if (extracted.email || extracted.phone) {
-      // Fetch current contact to check for existing data
+      // 1. Identity Unification via Email
+      if (extracted.email) {
+        const existingContactWithEmail = await this.db.contact.findFirst({
+          where: {
+            tenantId,
+            email: extracted.email,
+            id: { not: contactId }
+          },
+          select: { id: true }
+        });
+
+        if (existingContactWithEmail) {
+          logger.info(
+            { sourceId: contactId, targetId: existingContactWithEmail.id, email: extracted.email },
+            "[LeadService] Found existing contact with same email, unifying..."
+          );
+
+          try {
+            await mergeContacts({
+              tenantId,
+              sourceContactId: contactId,
+              targetContactId: existingContactWithEmail.id,
+              reason: `Unified via email discovery: ${extracted.email}`
+            });
+
+            // IMPORTANT: Since we merged and deleted the source contact,
+            // any subsequent logic in this function must use the target contact ID.
+            contactId = existingContactWithEmail.id;
+          } catch (mergeError) {
+            logger.error({ mergeError }, "[LeadService] Failed to merge contacts during email discovery");
+          }
+        }
+      }
+
+      // Fetch current (possibly updated) contact to check for existing data
       const contact = await this.db.contact.findUnique({
         where: { id: contactId },
         select: { email: true, phone: true }
       });
 
       if (contact) {
-        // 1. Handle Email
+        // 2. Handle Email update if not already set or merged
         if (extracted.email) {
           if (!contact.email) {
             // Set as primary if empty
@@ -188,7 +225,7 @@ export class LeadService {
           }
         }
 
-        // 2. Handle Phone
+        // 3. Handle Phone
         if (extracted.phone) {
           if (!contact.phone) {
             // Set as primary if empty
