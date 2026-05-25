@@ -34,11 +34,12 @@
     "order": 3,
     "type": "input",
     "content": {
-      "text": "Excellent choice! 🚀 Setting up takes less than 2 minutes and is free for 14 days. No credit card required to test the features.\n\nWhich plan matches your business scale best?",
+      "text": "Excellent choice! 🚀 Setting up takes less than 2 minutes and is free for 14 days. No credit card required to start.\n\nWhich plan matches your business scale best?",
       "quick_replies": [
-        { "title": "🚀 Launch (£29/mo)", "payload": "Launch (£29/mo)" },
-        { "title": "📈 Scale (£89/mo) (Popular)", "payload": "Scale (£89/mo) (Popular)" },
-        { "title": "🏢 Business (£249/mo)", "payload": "Business (£249/mo)" }
+        { "title": "🚀 Launch (£29)", "payload": "Launch" },
+        { "title": "📈 Grow (£49)", "payload": "Grow" },
+        { "title": "⚖️ Scale (£89)", "payload": "Scale" },
+        { "title": "🏢 Business (£249)", "payload": "Business" }
       ],
       "variableName": "checkout_plan_choice",
       "typingEnabled": true,
@@ -51,8 +52,10 @@
     "content": {
       "variableName": "checkout_plan_choice",
       "conditions": [
-        { "variableName": "checkout_plan_choice", "operator": "contains", "value": "launch", "nextNodeOrder": 6 },
-        { "variableName": "checkout_plan_choice", "operator": "contains", "value": "business", "nextNodeOrder": 7 }
+        { "variableName": "checkout_plan_choice", "operator": "equals", "value": "Launch", "nextNodeOrder": 6 },
+        { "variableName": "checkout_plan_choice", "operator": "equals", "value": "Grow", "nextNodeOrder": 5 },
+        { "variableName": "checkout_plan_choice", "operator": "equals", "value": "Scale", "nextNodeOrder": 9 },
+        { "variableName": "checkout_plan_choice", "operator": "equals", "value": "Business", "nextNodeOrder": 10 }
       ],
       "nextNodeOrder": 5
     }
@@ -61,8 +64,8 @@
     "order": 5,
     "type": "message",
     "content": {
-      "text": "Outstanding! The Scale Plan recovered an average of 92% of after-hours leads for our partners by syncing Webchat, WhatsApp, and CRM. Tap here to start your 14-day Scale trial: **[Start Scale Trial](https://app.replybase.co.uk/auth/register?email={{contact_email || lead_email | urlencode}}&name={{contact_name || lead_name | urlencode}}&plan=scale)**",
-      "nextNodeOrder": 8,
+      "text": "Outstanding! The Grow Plan is ideal for growing businesses. Tap here to start your 14-day Grow trial: **[Start Grow Trial](https://app.replybase.co.uk/auth/register?email={{contact_email || lead_email | urlencode}}&name={{contact_name || lead_name | urlencode}}&plan=grow)**",
+      "nextNodeOrder": 11,
       "typingEnabled": true,
       "delayMs": 1500
     }
@@ -71,8 +74,8 @@
     "order": 6,
     "type": "message",
     "content": {
-      "text": "Perfect! The Launch Plan is ideal for solo founders launching B2B webchat. Tap here to start your 14-day Launch trial: **[Start Launch Trial](https://app.replybase.co.uk/auth/register?email={{contact_email || lead_email | urlencode}}&name={{contact_name || lead_name | urlencode}}&plan=launch)**",
-      "nextNodeOrder": 8,
+      "text": "Perfect! The Launch Plan is ideal for solo founders. Tap here to start your 14-day Launch trial: **[Start Launch Trial](https://app.replybase.co.uk/auth/register?email={{contact_email || lead_email | urlencode}}&name={{contact_name || lead_name | urlencode}}&plan=launch)**",
+      "nextNodeOrder": 11,
       "typingEnabled": true,
       "delayMs": 1500
     }
@@ -91,6 +94,33 @@
     "content": {
       "action": "end_flow",
       "description": "Handover to AI Fallback"
+    }
+  },
+  {
+    "order": 9,
+    "type": "message",
+    "content": {
+      "text": "Great! The Scale Plan includes full omnichannel support. Tap here to start your 14-day Scale trial: **[Start Scale Trial](https://app.replybase.co.uk/auth/register?email={{contact_email || lead_email | urlencode}}&name={{contact_name || lead_name | urlencode}}&plan=scale)**",
+      "nextNodeOrder": 11,
+      "typingEnabled": true,
+      "delayMs": 1500
+    }
+  },
+  {
+    "order": 10,
+    "type": "message",
+    "content": {
+      "text": "Excellent! The Business Plan offers the highest limits and SLA support. Tap here to start your Business trial: **[Start Business Trial](https://app.replybase.co.uk/auth/register?email={{contact_email || lead_email | urlencode}}&name={{contact_name || lead_name | urlencode}}&plan=business)**",
+      "nextNodeOrder": 11,
+      "typingEnabled": true,
+      "delayMs": 1500
+    }
+  },
+  {
+    "order": 11,
+    "type": "action",
+    "content": {
+      "action": "end_flow"
     }
   }
 ]
