@@ -3,6 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SimulationLab } from "@/components/admin/simulation/SimulationLab";
+import { AiOnboardingTab } from "@/components/admin/subscribers/AiOnboardingTab";
 import {
   Card,
   CardContent,
@@ -54,7 +55,7 @@ import {
   ExternalLink,
   Plus,
   Trash2,
-  ShieldAlert,
+  ShieldAlert, Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
@@ -524,7 +525,7 @@ export default function SubscriberDetailPage({
         }}
         className="space-y-4"
       >
-        <TabsList className="grid w-full grid-cols-6 h-auto">
+        <TabsList className="grid w-full grid-cols-7 h-auto">
           <TabsTrigger value="overview" className="flex items-center gap-2 py-2">
             <User className="h-4 w-4" /> Overview
           </TabsTrigger>
@@ -536,6 +537,9 @@ export default function SubscriberDetailPage({
           </TabsTrigger>
           <TabsTrigger value="flows" className="flex items-center gap-2 py-2">
             <Activity className="h-4 w-4" /> Flows
+          </TabsTrigger>
+          <TabsTrigger value="ai-onboarding" className="flex items-center gap-2 py-2 text-indigo-600 font-semibold">
+            <Sparkles className="h-4 w-4" /> AI & Onboarding
           </TabsTrigger>
           <TabsTrigger value="logs" className="flex items-center gap-2 py-2">
             <History className="h-4 w-4" /> Logs & Activity
@@ -1182,6 +1186,9 @@ export default function SubscriberDetailPage({
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+        <TabsContent value="ai-onboarding">
+          <AiOnboardingTab subscriberId={id} tenantData={subscription.tenant} />
         </TabsContent>
       <TabsContent value="simulation">
           <SimulationLab subscriberId={id} />
