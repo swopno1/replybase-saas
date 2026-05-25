@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAuthAndTenant, withAdmin } from "@/lib/route-helpers";
 import { exportTenantData } from "@/lib/data-export";
-import { prisma } from "@/lib/prisma";
 
 export const GET = async (req: NextRequest, context: any) => {
   const type = req.nextUrl.searchParams.get("type");
 
-  // Onboarding export is a global admin tool
   if (type === "onboarding") {
     return withAdmin(async (session, request, ctx, db) => {
       const tenants = await db.tenant.findMany({
@@ -14,12 +12,9 @@ export const GET = async (req: NextRequest, context: any) => {
           users: { select: { email: true, name: true } },
           subscriptions: { include: { plan: true } },
         },
-        orderBy: {
-          createdAt: "desc",
-        },
+        orderBy: { createdAt: "desc" },
       });
 
-      // Construct CSV
       let csv = "Tenant Name,Email,Company,Industry,Stage,Status,Plan,Created At\n";
       tenants.forEach(t => {
         const data = t.onboardingData as any;
@@ -28,7 +23,7 @@ export const GET = async (req: NextRequest, context: any) => {
         const industry = data?.raw?.business?.industry || data?.raw?.businessBasics?.industry || "";
         const stage = t.isOnboarded ? "COMPLETED" : t.onboardingStep.toString();
         const status = t.isOnboarded ? "COMPLETED" : t.onboardingStep > 0 ? "IN_PROGRESS" : "NOT_STARTED";
-        const plan = t.subscriptions && Array.isArray(t.subscriptions) ? t.subscriptions[0]?.plan?.displayName || "" : "";
+        const plan = (t.subscriptions && Array.isArray(t.subscriptions)) ? t.subscriptions[0]?.plan?.displayName || "" : "";
         const createdAt = new Date(t.createdAt).toISOString();
 
         csv += `"${t.name}","${email}","${companyName}","${industry}","${stage}","${status}","${plan}","${createdAt}"\n`;
@@ -44,11 +39,9 @@ export const GET = async (req: NextRequest, context: any) => {
     })(req, context);
   }
 
-  // Standard user data export
   return withAuthAndTenant(async (user, request, ctx, db) => {
     try {
       const exportData = await exportTenantData(user.tenantId);
-
       return new NextResponse(JSON.stringify(exportData, null, 2), {
         status: 200,
         headers: {
@@ -58,10 +51,7 @@ export const GET = async (req: NextRequest, context: any) => {
       });
     } catch (error) {
       console.error("[Data Export API] Error:", error);
-      return NextResponse.json(
-        { error: "Failed to generate data export" },
-        { status: 500 },
-      );
+      return NextResponse.json({ error: "Failed to generate data export" }, { status: 500 });
     }
   })(req, context);
 };

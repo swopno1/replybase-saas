@@ -27,16 +27,18 @@ export async function processFacebookJob(payload: { senderPsid: string, pageId: 
   if (!targetBotId) return;
 
   const { tenantId, accessToken } = facebookPage;
+
+  // Standardize Multi-Tenant Isolation (Task 043)
   const db = getTenantPrisma(tenantId);
 
-  // 1. Check Monthly Conversation Limit (across all channels)
+  // 1. Check Monthly Conversation Limit
   const convLimit = await checkTenantUsageLimits(tenantId, "conversation");
   if (!convLimit.allowed) {
     logger.warn({ tenantId }, "[Facebook Worker] Monthly conversation limit reached");
     return;
   }
 
-  // Latency Optimization: Start profile fetch and contact lookup in parallel
+  // Latency Optimization: Parallel profile fetch and contact lookup
   const profilePromise = (async () => {
     try {
       const profileUrl = getFacebookGraphUrl(senderPsid, accessToken, {
@@ -73,8 +75,10 @@ export async function processFacebookJob(payload: { senderPsid: string, pageId: 
     });
   }
 
-  // Auto-tag and promote to lead if identified
-  await leadService.syncContactIdentifiedStatus(tenantId, contact.id);
+  // --- NON-BLOCKING LEAD SYNC (Task 041/043) ---
+  leadService.syncContactIdentifiedStatus(tenantId, contact.id).catch(err => {
+    logger.error({ error: err }, "[Facebook Worker] Lead sync background error");
+  });
 
   // --- MODULE 1: IDENTITY STITCHING HANDSHAKE ---
   let stitchedVars: Record<string, any> = {};
@@ -88,7 +92,6 @@ export async function processFacebookJob(payload: { senderPsid: string, pageId: 
       });
       if (stitchResult) {
         stitchedVars = stitchResult.previousVariables;
-        // Optionally reply with a confirmation on social channel
         await sendTextMessage(accessToken, senderPsid, "Session synced! 👋 Picking up exactly where we left off.");
       }
     }
@@ -120,12 +123,13 @@ export async function processFacebookJob(payload: { senderPsid: string, pageId: 
     },
   });
 
-  // --- LEAD EXTRACTION ---
-  await leadService.extractAndSyncLeadDataFromMessage(tenantId, contact.id, messageText);
+  // --- NON-BLOCKING LEAD EXTRACTION ---
+  leadService.extractAndSyncLeadDataFromMessage(tenantId, contact.id, messageText).catch(err => {
+    logger.error({ error: err }, "[Facebook Worker] Lead extraction background error");
+  });
 
   if (conversation.botPaused) return;
 
-  // Bot Status check
   const bot = await db.bot.findUnique({
     where: { id: targetBotId },
     select: { enabled: true }
@@ -154,17 +158,12 @@ export async function processFacebookJob(payload: { senderPsid: string, pageId: 
 
     const flowResponses = flowResult?.responses;
     if (flowResponses && flowResponses.length > 0) {
-      // 2. Check AI Response / Automation Limit
       const msgLimit = await checkTenantUsageLimits(tenantId, "message");
-      if (!msgLimit.allowed) {
-        logger.warn({ tenantId }, "[Facebook Worker] Monthly message limit reached");
-        return;
-      }
+      if (!msgLimit.allowed) return;
 
       for (const resp of flowResponses) {
         if (resp.type === "typing") {
           await sendFacebookSenderAction(accessToken, senderPsid, "typing_on");
-          // Latency Optimization: Reduce max typing wait from 3000ms to 1500ms
           await waitForFlowDurationMs(Math.min(resp.durationMs, 1500));
           await sendFacebookSenderAction(accessToken, senderPsid, "typing_off");
         } else if (resp.type === "text" && resp.text) {
@@ -179,7 +178,6 @@ export async function processFacebookJob(payload: { senderPsid: string, pageId: 
             },
           });
           
-          // Increment Usage
           await incrementTenantUsage(tenantId, "message", 1, targetBotId, facebookPage.id);
         }
       }
@@ -195,7 +193,6 @@ export async function processFacebookJob(payload: { senderPsid: string, pageId: 
 
   // AI fallback
   try {
-    // 3. Check AI Response / Automation Limit (again for AI)
     const msgLimit = await checkTenantUsageLimits(tenantId, "message");
     if (!msgLimit.allowed) return;
 
@@ -243,14 +240,12 @@ export async function processFacebookJob(payload: { senderPsid: string, pageId: 
         },
       });
 
-      // Increment Usage
       await incrementTenantUsage(tenantId, "message", 1, targetBotId, facebookPage.id);
 
       await Promise.allSettled([
         recordMilestoneEvent(tenantId, "first-channel", { channelType: "facebook", pageId: facebookPage.id }),
         recordMilestoneEvent(tenantId, "first-automated-reply", { channelType: "facebook", source: "ai" }),
       ]);
-      return;
     }
   } catch (aiError) {
     logger.error({ error: aiError }, "[Facebook Worker] AI error");
