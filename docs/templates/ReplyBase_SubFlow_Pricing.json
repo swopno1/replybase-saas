@@ -58,23 +58,15 @@
     "order": 4,
     "type": "input",
     "content": {
-      "text": "ReplyBase offers simple, transparent pricing designed to scale with your volume:\n\n🚀 **Launch (£29/mo):** 1,000 AI responses, 1,500 automations, and Webchat + (Facebook or WhatsApp).\n\n📈 **Grow (£49/mo):** 3,500 AI responses, 5,000 automations, and Webchat + Facebook + WhatsApp.\n\n⚖️ **Scale (£89/mo):** 7,500 AI responses, 10,000 automations, and full Omnichannel (inc. Telegram).\n\n🏢 **Business (£249/mo):** 25,000 AI responses, 40,000 automations, and priority SLA support.\n\nAll plans include a 14-day free trial. Which one makes the most sense for your scale?",
+      "text": "ReplyBase offers simple, transparent pricing designed to scale with your volume:\n\n🚀 **Launch (£29/mo):** 1,000 AI responses, 1,500 automations, and Webchat + (Facebook or WhatsApp).\n\n📈 **Grow (£49/mo):** 3,500 AI responses, 5,000 automations, and Webchat + Facebook + WhatsApp.\n\n⚖️ **Scale (£89/mo):** 7,500 AI responses, 10,000 automations, and full Omnichannel (inc. Telegram).\n\n🏢 **Business (£249/mo):** 25,000 AI responses, 40,000 automations, and priority SLA support.\n\nAll plans include a 14-day free trial. Would you like to begin a trial?",
       "quick_replies": [
         {
-          "title": "🚀 Launch (£29)",
-          "payload": "Launch"
+          "title": "✅ Yes",
+          "payload": "Yes"
         },
         {
-          "title": "📈 Grow (£49)",
-          "payload": "Grow"
-        },
-        {
-          "title": "⚖️ Scale (£89)",
-          "payload": "Scale"
-        },
-        {
-          "title": "🏢 Business (£249)",
-          "payload": "Business"
+          "title": "✏️ No",
+          "payload": "No"
         }
       ],
       "variableName": "pricing_next_step",
@@ -88,6 +80,12 @@
     "content": {
       "variableName": "pricing_next_step",
       "conditions": [
+        {
+          "variableName": "pricing_next_step",
+          "operator": "contains",
+          "value": "Yes",
+          "nextNodeOrder": 6
+        },
         {
           "variableName": "pricing_next_step",
           "operator": "contains",

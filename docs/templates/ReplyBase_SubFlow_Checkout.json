@@ -34,7 +34,7 @@
     "order": 3,
     "type": "input",
     "content": {
-      "text": "Excellent choice! 🚀 Setting up takes less than 2 minutes and is free for 14 days. No credit card required to start.\n\nWhich plan matches your business scale best?",
+      "text": "Excellent choice! 🚀 Setting up takes less than 2 minutes and is free for 14 days. No payment is required to start.\n\nWhich plan matches your business scale best?",
       "quick_replies": [
         { "title": "🚀 Launch (£29)", "payload": "Launch" },
         { "title": "📈 Grow (£49)", "payload": "Grow" },

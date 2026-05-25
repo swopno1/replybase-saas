@@ -61,7 +61,7 @@ These scenarios showcase:
         (Evaluation: Node 0 checks lead_email and contact_email. "sarah.creative@gmail.com" contains "@" -> Skips to Order 2)
         (Action: Node 2 tags user with ["checkout_interest"])
         
-        Excellent choice! 🚀 Setting up takes less than 2 minutes and is free for 14 days. No credit card required to test the features.
+        Excellent choice! 🚀 Setting up takes less than 2 minutes and is free for 14 days. No payment is required to test the features.
         
         Which plan matches your business scale best?
         [👤 Starter Trial (£29/mo)] [👥 Pro Trial (£99/mo) (Recommended)] [🏢 Enterprise Custom]
