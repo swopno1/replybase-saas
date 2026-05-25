@@ -6,7 +6,7 @@
  * channel decisions deterministic in both server and client code.
  *
  * Optional override (single env var):
- *   CHANNEL_CONFIG_OVERRIDES_JSON='{"facebook":{"enabled":false},"whatsapp":{"uiVisible":true}}'
+ *   NEXT_PUBLIC_CHANNEL_CONFIG_OVERRIDES_JSON='{"facebook":{"enabled":false},"whatsapp":{"uiVisible":true}}'
  */
 
 import {
@@ -14,6 +14,7 @@ import {
   type ChannelId,
   type ChannelConfigData,
 } from "@/lib/channel-config.data";
+import { env } from "@/lib/env";
 
 export type { ChannelId };
 
@@ -35,7 +36,7 @@ type ChannelOverrides = Partial<
 >;
 
 function parseOverrides(): ChannelOverrides {
-  const raw = process.env.CHANNEL_CONFIG_OVERRIDES_JSON;
+  const raw = env.NEXT_PUBLIC_CHANNEL_CONFIG_OVERRIDES_JSON;
   if (!raw) {
     return {};
   }
@@ -165,13 +166,13 @@ export function requireChannelEnabled(
     const contextStr = context ? ` (${context})` : "";
     throw new Error(
       `Channel '${channelId}' is not enabled${contextStr}. ` +
-        `Enable it in lib/channel-config.data.ts or via CHANNEL_CONFIG_OVERRIDES_JSON.`,
+        `Enable it in lib/channel-config.data.ts or via NEXT_PUBLIC_CHANNEL_CONFIG_OVERRIDES_JSON.`,
     );
   }
 }
 
 /**
- * Optional override structure when using CHANNEL_CONFIG_OVERRIDES_JSON:
+ * Optional override structure when using NEXT_PUBLIC_CHANNEL_CONFIG_OVERRIDES_JSON:
  * {
  *   "facebook": { "enabled": true, "uiVisible": true },
  *   "telegram": { "enabled": true, "uiVisible": true },
@@ -179,4 +180,4 @@ export function requireChannelEnabled(
  *   "whatsapp": { "enabled": true, "uiVisible": true }
  * }
  */
-export const CHANNEL_OVERRIDE_ENV = "CHANNEL_CONFIG_OVERRIDES_JSON";
+export const CHANNEL_OVERRIDE_ENV = "NEXT_PUBLIC_CHANNEL_CONFIG_OVERRIDES_JSON";
