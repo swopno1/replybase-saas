@@ -1,17 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
-export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.tenantId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withAuthAndTenant(async (user, req, ctx, db) => {
   try {
-    const tenant = await prisma.tenant.findUnique({
-      where: { id: session.user.tenantId },
+    const tenant = await db.tenant.findUnique({
+      where: { id: user.tenantId },
       select: { aiProvider: true, aiApiKey: true, aiModel: true },
     });
 
@@ -24,14 +17,9 @@ export async function GET(req: NextRequest) {
     console.error("[AI Settings GET] Error:", error);
     return NextResponse.json({ error: "Failed to fetch AI settings" }, { status: 500 });
   }
-}
+});
 
-export async function PATCH(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.tenantId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const PATCH = withAuthAndTenant(async (user, req, ctx, db) => {
   try {
     const body = await req.json();
     const { aiProvider, aiApiKey, aiModel } = body;
@@ -45,35 +33,6 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    // Validate model based on provider
-    const validModels: Record<string, string[]> = {
-      openai: ["gpt-4o", "gpt-4o-mini"],
-      anthropic: ["claude-3-5-sonnet-latest", "claude-3-haiku-latest"],
-      gemini: [
-        "gemini-2.0-flash", 
-        "gemini-2.0-pro-exp-02-05", 
-        "gemini-1.5-flash", 
-        "gemini-2.0-flash-lite-preview",
-        "gemini-1.5-pro",
-        "gemma-2-27b-it"
-      ],
-      digitalocean: [
-        "openai-gpt-oss-120b",
-        "openai-gpt-oss-20b",
-        "llama3.3-70b-instruct",
-        "gemma-4-31B-it"
-      ],
-      default: [],
-    };
-
-    if (
-      aiProvider !== "default" &&
-      aiModel &&
-      !validModels[aiProvider]?.includes(aiModel)
-    ) {
-      return NextResponse.json({ error: "Invalid AI model" }, { status: 400 });
-    }
-
     const data: any = {
       aiProvider,
       aiModel: aiProvider === "default" ? null : aiModel || null,
@@ -85,8 +44,8 @@ export async function PATCH(req: NextRequest) {
       data.aiApiKey = aiApiKey === "" ? null : aiApiKey;
     }
 
-    const updatedTenant = await prisma.tenant.update({
-      where: { id: session.user.tenantId },
+    const updatedTenant = await db.tenant.update({
+      where: { id: user.tenantId },
       data,
     });
 
@@ -98,4 +57,4 @@ export async function PATCH(req: NextRequest) {
     console.error("[AI Settings PATCH] Error:", error);
     return NextResponse.json({ error: "Failed to update AI settings" }, { status: 500 });
   }
-}
+});

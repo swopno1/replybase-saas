@@ -29,6 +29,7 @@ export function withAuthAndTenant(
       email: session.user.email || undefined,
     });
     Sentry.setTag("tenant_id", session.user.tenantId);
+    Sentry.setTag("user_role", (session.user as any).role || "USER");
 
     const db = getTenantPrisma(session.user.tenantId);
 
@@ -76,6 +77,7 @@ export function withAdmin(
       if (session.user.tenantId) {
         Sentry.setTag("tenant_id", session.user.tenantId);
       }
+      Sentry.setTag("user_role", (session.user as any).role || "ADMIN");
     }
 
     return await handler(
@@ -86,4 +88,3 @@ export function withAdmin(
     );
   };
 }
-
