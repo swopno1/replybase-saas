@@ -104,6 +104,7 @@ model Tenant {
   webChatSites              WebChatSite[]
   webhookSubscriptions      WebhookSubscription[]
   webhookLogs               WebhookLog[]
+  apiKeys                   ApiKey[]
   executionLogs             ExecutionLog[]
 
   @@map("tenants")
@@ -954,4 +955,21 @@ enum ChannelType {
   facebook
   telegram
   whatsapp
+}
+
+model ApiKey {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  keyHash   String   @unique
+  prefix    String   // e.g., rb_live_
+  lastUsed  DateTime?
+  expiresAt DateTime?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("api_keys")
 }
