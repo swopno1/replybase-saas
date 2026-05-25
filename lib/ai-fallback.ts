@@ -1,10 +1,12 @@
 import { prisma } from "@/lib/prisma";
+import { getTenantPrisma } from "@/lib/prisma-tenant";
 import { streamText, Output, ModelMessage, generateObject } from "ai";
 import { z } from "zod";
 import { getTenantModel } from "@/lib/ai-service";
 import { incrementTenantUsage } from "./subscription";
 import { buildFallbackSystemPrompt } from "@/lib/onboarding-ai";
 import * as Sentry from "@sentry/nextjs";
+import logger from "@/lib/logger";
 
 // ---------------------------------------------------------------------------
 // LLM SECURITY GUARDRAILS
@@ -52,8 +54,6 @@ export interface AiFallbackOptions {
  * and streams an AI fallback response.
  *
  * ALL plan tiers now receive a structured system prompt built from bot context.
- * - Grow/Scale/Business: includes recent conversation history for richer context
- * - Free/Launch: system prompt only (no conversation history)
  */
 export async function aiFallback({
   botId,
@@ -68,7 +68,6 @@ export async function aiFallback({
   // --- MODULE 2, LAYER 1: DETERMINISTIC / REGEX (Cost: $0.00) ---
   const lowerMsg = lastUserMessage?.toLowerCase() || "";
 
-  // --- RUNTIME INJECTION GUARD (Cost: $0.00) ---
   if (containsPromptInjection(lastUserMessage || "")) {
     return "I'm here to help with questions about our business. How can I assist you today?";
   }
@@ -80,7 +79,7 @@ export async function aiFallback({
     return "I understand. I'm loopng in one of our automation specialists to assist you further. In the meantime, feel free to ask me anything about our features!";
   }
 
-  // Fetch bot context
+  // Initial fetch for bot context to get tenantId
   const bot = await prisma.bot.findUnique({
     where: { id: botId },
     select: {
@@ -91,15 +90,14 @@ export async function aiFallback({
   });
 
   if (!bot) throw new Error("Bot not found");
+  const db = getTenantPrisma(bot.tenantId);
 
-  // MODULE 2, LAYER 2: FAST INTENT & EXTRACTION (Cost: Low)
-  // Uses the tenant's configured provider but force fallback (lite) model for speed
-  const fastModel = await getTenantModel(bot.tenantId, { planName, task: "chat", isFallback: true });
+  // --- LATENCY OPTIMIZATION: Parallelize Intent Extraction and History Fetching ---
 
-  // --- MODULE 2, LAYER 2: FAST INTENT & EXTRACTION (Cost: Low) ---
-  const intentData = await Sentry.startSpan(
-    { name: "AI Intent Extraction", op: "ai.generate_object" },
-    async () => {
+  // 1. Start Intent Extraction
+  const intentPromise = (async () => {
+    try {
+      const fastModel = await getTenantModel(bot.tenantId, { planName, task: "chat", isFallback: true });
       const { object } = await generateObject({
         model: fastModel,
         schema: z.object({
@@ -112,94 +110,96 @@ export async function aiFallback({
         }),
         prompt: `Analyze this user message for ReplyBase SaaS: "${lastUserMessage}"`,
         // @ts-ignore
-        maxTokens: 150, // Small limit for structured extraction
+        maxTokens: 100,
       });
       return object;
+    } catch (e) {
+      logger.error({ error: e }, "[AI Fallback] Intent extraction failed");
+      return { intent: "generic", confidence: 0, extractedEntities: {} };
     }
+  })();
+
+  // 2. Start History Fetching
+  const plan = planName.toLowerCase();
+  const historyDepth = plan.includes("scale") || plan.includes("grow") || plan.includes("business") ? 12 : 6;
+
+  const historyPromise = (async () => {
+    if (isSimulation) return "";
+    try {
+      const currentConv = await db.crmConversation.findUnique({
+        where: { id: conversationId },
+        select: { contactId: true },
+      });
+
+      if (currentConv?.contactId) {
+        const allMessages = await db.crmMessage.findMany({
+          where: {
+            conversation: {
+              contactId: currentConv.contactId,
+            },
+          },
+          orderBy: { createdAt: "desc" },
+          take: historyDepth,
+          include: {
+            conversation: {
+              select: { channel: true },
+            },
+          },
+        });
+
+        if (allMessages.length > 0) {
+          return `\n\nRecent Cross-Channel History:\n${allMessages
+            .reverse()
+            .map(
+              (m) => `[${m.conversation.channel.toUpperCase()}] [${m.source}] ${m.content}`,
+            )
+            .join("\n")}`;
+        }
+      }
+    } catch (e) {
+      logger.error({ error: e }, "[AI Fallback] History fetch failed");
+    }
+    return "";
+  })();
+
+  // Wait for parallel tasks
+  const [intentData, historyBlock] = await Sentry.startSpan(
+    { name: "AI Prep Parallel Tasks", op: "ai.prep" },
+    async () => Promise.all([intentPromise, historyPromise])
   );
 
-  // --- MODULE 3.1: CONFIDENCE-BASED EXTRACTION ---
-  if (intentData.confidence > 0.85 && !isSimulation) {
-    // Silent auto-save to CRM (Lead model has businessType, Contact does not)
-    if (intentData.extractedEntities.businessType) {
-      await prisma.lead.updateMany({
-        where: {
-          contact: { conversations: { some: { id: conversationId } } },
-        },
-        data: {
-          businessType: intentData.extractedEntities.businessType,
-        },
-      });
-    }
+  // --- MODULE 3.1: CONFIDENCE-BASED EXTRACTION (Async) ---
+  if ((intentData as any).confidence > 0.85 && !isSimulation && (intentData as any).extractedEntities.businessType) {
+    db.lead.updateMany({
+      where: {
+        contact: { conversations: { some: { id: conversationId } } },
+      },
+      data: {
+        businessType: (intentData as any).extractedEntities.businessType,
+      },
+    }).catch(e => logger.error({ error: e }, "[AI Fallback] Lead update failed"));
   }
 
-  // --- MODULE 2, LAYER 3: GENERATIVE FALLBACK AI (Cost: High) ---
+  // --- BUILD PROMPTS ---
   const systemPrompt = buildFallbackSystemPrompt(
     bot.context as any,
     bot.name || undefined,
   );
 
-  // MODULE 3.2: INTENT-WEIGHTED SALES PRESSURE
   let salesNudge = "";
-  if (intentData.intent === "pricing" || intentData.intent === "demo") {
-    salesNudge =
-      "\n\n(Nudge: Gently encourage them to start a 14-day free trial or book a demo.)";
+  if ((intentData as any).intent === "pricing" || (intentData as any).intent === "demo") {
+    salesNudge = "\n\n(Nudge: Gently encourage them to start a 14-day free trial or book a demo.)";
   }
 
-  // Cross-channel context: ALL plans get history so context is never lost.
-  // Grow/Scale/Business gets a deeper window (12 msgs), Free/Launch gets 6.
-  const plan = planName.toLowerCase();
-  const historyDepth =
-    plan.includes("scale") || plan.includes("grow") || plan.includes("business") ? 12 : 6;
-
-  let historyBlock = "";
-  if (!isSimulation) {
-    const currentConv = await prisma.crmConversation.findUnique({
-      where: { id: conversationId },
-      select: { contactId: true },
-    });
-
-    if (currentConv?.contactId) {
-      const allMessages = await prisma.crmMessage.findMany({
-        where: {
-          conversation: {
-            contactId: currentConv.contactId,
-          },
-        },
-        orderBy: { createdAt: "desc" },
-        take: historyDepth,
-        include: {
-          conversation: {
-            select: { channel: true },
-          },
-        },
-      });
-
-      if (allMessages.length > 0) {
-        historyBlock = `\n\nRecent Cross-Channel History:\n${allMessages
-          .reverse()
-          .map(
-            (m) =>
-              `[${m.conversation.channel.toUpperCase()}] [${m.source}] ${m.content}`,
-          )
-          .join("\n")}`;
-      }
-    }
-  }
+  const finalSystemPrompt = GUARDRAIL_SYSTEM_PREFIX + '\n\n' + systemPrompt + salesNudge + historyBlock;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-  const finalSystemPrompt = GUARDRAIL_SYSTEM_PREFIX + '\n\n' + systemPrompt + salesNudge + historyBlock;
-
   try {
-    // LAYER 3: Primary Generative Attempt
-    const primaryModel = await getTenantModel(bot.tenantId, {
-      planName,
-      task: "chat",
-    });
+    const primaryModel = await getTenantModel(bot.tenantId, { planName, task: "chat" });
 
-    const aiStream = await Sentry.startSpan(
+    return await Sentry.startSpan(
       { name: "AI Stream Text (Primary)", op: "ai.stream_text" },
       async () => {
         return streamText({
@@ -214,26 +214,15 @@ export async function aiFallback({
             }
           },
           // @ts-ignore
-          maxTokens: 800, // Balanced limit for helpful but concise chat
+          maxTokens: 800,
         });
       }
     );
-    return aiStream;
   } catch (primaryError) {
-    console.error(
-      "[AI Fallback] Primary model failed, attempting secondary fallback:",
-      primaryError,
-    );
-
+    logger.error({ error: primaryError }, "[AI Fallback] Primary model failed");
     try {
-      // LAYER 4: Secondary Generative Attempt (Emergency Fallback)
-      const secondaryModel = await getTenantModel(bot.tenantId, {
-        planName,
-        task: "chat",
-        isFallback: true,
-      });
-
-      const secondaryStream = await Sentry.startSpan(
+      const secondaryModel = await getTenantModel(bot.tenantId, { planName, task: "chat", isFallback: true });
+      return await Sentry.startSpan(
         { name: "AI Stream Text (Secondary Fallback)", op: "ai.stream_text" },
         async () => {
           return streamText({
@@ -252,9 +241,8 @@ export async function aiFallback({
           });
         }
       );
-      return secondaryStream;
     } catch (secondaryError) {
-      console.error("[AI Fallback] Secondary model also failed:", secondaryError);
+      logger.error({ error: secondaryError }, "[AI Fallback] Secondary model failed");
       return "I'm having a bit of trouble processing that right now. How else can I help you?";
     }
   } finally {
