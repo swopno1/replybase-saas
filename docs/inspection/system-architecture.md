@@ -46,9 +46,10 @@
 - **Distributed Idempotency (REMEDIATED)**: Moved from in-memory locks to DB-level `IdempotencyKey` tracking.
 - **Waterfall Latency (MEDIUM)**: Sequential (Check Flow) -> (Check AI) processing. **Path**: Explore parallel execution or Edge-based routing for initial handshakes.
 - **Lead Data Siloing (REMEDIATED)**: Closed via the Lead Action Engine (Task 005).
-- **Manual Scoping Risk (LOW)**: Identified manual scoping in legacy `app/api/flows/` routes vs. automated `withAuthAndTenant` pattern.
+- **Manual Scoping Risk (MEDIUM)**: Audit identified 45+ legacy routes still using manual session lookups. Standardizing via Task 043.
 
-## 5. Evolution Roadmap
-- **IAM (Phase 4)**: Transition to granular permissions for enterprise support teams.
+## 5. Evolution Roadmap (Phase 4 Focus)
+- **IAM**: Transition to granular permissions for enterprise support teams.
+- **Observability V2**: Distributed tracing across workers and AI providers.
 - **Mobile Bot Management**: Lightweight "Flow Summary" views for on-the-go adjustments.
 - **Regional Compliance**: Potential for data locality clustering as the platform scales globally.

@@ -15,13 +15,15 @@
 
 ## 📈 Phase 3: Operations & Scale (98% COMPLETE)
 - **Redis Metrics Caching (PENDING - Task 011)**: Reduce DB overhead for dashboard stats.
-- **API Standardization (IN PROGRESS - Task 037/043)**: Refactor remaining manual scoping in routes, workers, and export utilities.
+- **API Standardization (IN PROGRESS - Task 037/043)**: Refactor 45+ remaining manual scoping in routes, workers, and export utilities.
 - **Sequential Write Optimization (PENDING - Task 041)**: Batching webchat engine database operations.
 - **Enhanced Observability (PENDING - Task 039)**: Implement deep health diagnostics for DB/Redis.
 - **Queue Monitoring**: Admin suite visibility into BullMQ performance.
 
 ## 🏢 Phase 4: Growth & Enterprise (ACTIVE)
-- **Real-time CRM (Task 033/042)**: Transition from polling to WebSockets/SSE.
+- **Real-time CRM (Task 033/042)**: Transition from 5s polling to WebSockets/SSE.
+- **CRM Polish (Task 050)**: Implement Skeleton loaders and accessibility hardening.
+- **Observability V2 (Task 051/052)**: Distributed tracing and Sentry quota optimization.
 - **Live Agent Presence (Proposal)**: Real-time coordination and collision prevention in the CRM.
 - **Enterprise IAM (Proposal)**: Granular roles (Owner, Admin, Agent, Viewer) and comprehensive audit logs.
 - **Mobile Flow Management (Task 012)**: Linearized list views for on-the-go bot adjustments.

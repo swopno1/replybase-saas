@@ -21,6 +21,7 @@
 
 ## 5. Product Experience Roadmap
 1. **Mobile Flow Management (HIGH)**: Implement linearized "Flow Summary" to replace complex mobile editor (Task 012).
-2. **Real-time CRM (MEDIUM)**: Transition from 5s polling to WebSockets for a truly "live" feel (Task 033/042).
+- **Real-time CRM (MEDIUM)**: Transition from 5s polling to WebSockets for a truly "live" feel (Task 033/042). August 2026 inspection confirmed a "steppy" UX due to polling.
 3. **Collaboration UX (LOW)**: Implement real-time presence indicators to prevent dual-handling of conversations (See `docs/proposals_live-agent-presence/overview.md`).
-4. **CRM Loading States (LOW)**: Replace current "Loading conversation..." text in `ConversationPage` with skeleton loaders for a more premium feel.
+- **CRM Loading States (LOW)**: Replace current "Loading conversation..." text in `ConversationPage` with skeleton loaders for a more premium feel (Task 050).
+- **Accessibility Hardening**: Icon-only buttons in `ConversationHeader` (Mail, Phone) and `ReplyComposer` (Suggest AI) need consistent `aria-label` auditing to match `ConversationsList` standards.
