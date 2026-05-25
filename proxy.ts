@@ -86,12 +86,19 @@ export async function proxy(req: NextRequest) {
     pathname.startsWith("/api/health") ||
     pathname.startsWith("/api/system-health") ||
     pathname.startsWith("/api/auth") ||
-    pathname.startsWith("/api/cron/")
+    pathname.startsWith("/api/cron/") ||
+    pathname.startsWith("/api/public/") ||
+    pathname.startsWith("/api/data-deletion")
   ) {
     return NextResponse.next();
   }
 
-  const authPaths = ["/auth/login", "/auth/register", "/auth/forgot-password"];
+  const authPaths = [
+    "/auth/login",
+    "/auth/register",
+    "/auth/forgot-password",
+    "/auth/reset-password",
+  ];
   const isAuthPath = authPaths.includes(pathname);
 
   const publicPaths = [
@@ -171,7 +178,7 @@ export async function proxy(req: NextRequest) {
         if (pathname.startsWith("/api/")) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         } else {
-          return NextResponse.redirect(new URL("/", req.url));
+          return NextResponse.redirect(new URL("/conversations", req.url));
         }
       }
     }
@@ -201,8 +208,14 @@ export const config = {
      * Match all request paths except for the ones starting with:
      * - _next/static (static files)
      * - _next/image (image optimization files)
+     * - _next/data (data files)
+     * - monitoring (Sentry tunnel)
      * - favicon.ico (favicon file)
+     * - icon.png
+     * - robots.txt
+     * - sitemap.xml
+     * - public (public assets)
      */
-    "/((?!_next/static|_next/image|_next/data|monitoring|favicon.ico).*)",
+    "/((?!_next/static|_next/image|_next/data|monitoring|favicon.ico|icon.png|robots.txt|sitemap.xml|public).*)",
   ],
 };
