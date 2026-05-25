@@ -2,6 +2,7 @@ import Redis from "ioredis";
 import { APP_CONFIG } from "./config";
 
 const isBuild = APP_CONFIG.meta.isBuild;
+const isProd = APP_CONFIG.meta.isProd;
 
 const getRedisUrl = () => {
   return APP_CONFIG.infra.redisUrl;
@@ -20,9 +21,15 @@ const redisInstance = isBuild
       },
     ) as any)
   : new Redis(getRedisUrl(), {
-      maxRetriesPerRequest: null,
+      maxRetriesPerRequest: isProd ? 3 : null,
       enableReadyCheck: false,
       lazyConnect: true,
+      retryStrategy: (times) => {
+        if (isProd && times > 3) {
+          return null; // Stop retrying in production after 3 attempts
+        }
+        return Math.min(times * 50, 2000);
+      },
     });
 
 let connectionAlerted = false;
@@ -38,9 +45,15 @@ if (!isBuild) {
 
     if (isRefused) {
       if (!connectionAlerted) {
-        console.warn(
-          "⚠️ Redis connection refused. Caching and background jobs will be unavailable locally.",
-        );
+        if (isProd) {
+          console.error(
+            "CRITICAL: Redis connection refused in PRODUCTION. Background jobs (Facebook, WhatsApp, etc.) will NOT work.",
+          );
+        } else {
+          console.warn(
+            "⚠️ Redis connection refused. Caching and background jobs will be unavailable locally.",
+          );
+        }
         connectionAlerted = true;
       }
       return;

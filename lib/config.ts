@@ -22,7 +22,7 @@ export const APP_CONFIG = {
 
   // --- Infrastructure ---
   infra: {
-    redisUrl: process.env.REDIS_URL || "redis://localhost:6379",
+    redisUrl: process.env.REDIS_URL || (process.env.NODE_ENV === "production" ? "" : "redis://localhost:6379"),
     upstash: {
       url: process.env.UPSTASH_REDIS_REST_URL,
       token: process.env.UPSTASH_REDIS_REST_TOKEN,
