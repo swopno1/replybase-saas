@@ -43,10 +43,10 @@
   - Root Cause: Jarring layout shifts during asynchronous data fetching.
   - Business Impact: Perceived slowness and degraded premium feel.
   - Objective: Implement skeleton loading states for Conversation Detail and Settings views.
-  - Detailed Instructions: 1. Create skeleton primitives matching the detail view layouts. 2. In `app/(dashboard)/conversations/[conversationId]/page.tsx`, replace the `Loading conversation...` text with the new skeleton loader.
+  - Detailed Instructions: 1. Create skeleton primitives matching the detail view layouts. 2. In `app/(dashboard)/conversations/[conversationId]/page.tsx`, replace the `Loading conversation...` text with the new skeleton loader (See Task 050).
   - Expected Deliverables: Skeleton components for core detail views.
   - Dependencies: None.
-  - Notes: High impact on perceived speed.
+  - Notes: High impact on perceived speed. Tracked as part of Task 050.
   - Rollout Risk: LOW.
 
 - **Task UX-002**
@@ -145,7 +145,7 @@
 
 - **Task UX-013**
   - Priority: LOW
-  - Status: PENDING
+  - Status: COMPLETED
   - Category: Accessibility
   - Severity: LOW
   - Issue: CRM Accessibility Hardening.
@@ -155,7 +155,7 @@
   - Detailed Instructions: 1. Audit `components/conversation/` (e.g., `ConversationsList` MoreHorizontal trigger). 2. Add `aria-label` or `sr-only` text to each trigger.
   - Expected Deliverables: Accessible CRM interface.
   - Dependencies: None.
-  - Notes: Improves inclusive design. Confirmed missing labels in August 2026 Audit.
+  - Notes: Completed in August 2026. Verified `ConversationsList` and `ReplyComposer` accessibility.
   - Rollout Risk: LOW.
 
 - **Task UX-014**
