@@ -32,13 +32,13 @@
   },
   {
     "order": 3,
-    "type": "message",
+    "type": "input",
     "content": {
       "text": "Excellent choice! 🚀 Setting up takes less than 2 minutes and is free for 14 days. No credit card required to test the features.\n\nWhich plan matches your business scale best?",
-      "buttons": [
-        { "type": "postback", "title": "👤 Starter Trial (£29/mo)", "payload": "👤 Starter Trial (£29/mo)" },
-        { "type": "postback", "title": "👥 Pro Trial (£89/mo) (Recommended)", "payload": "👥 Pro Trial (£89/mo) (Recommended)" },
-        { "type": "postback", "title": "🏢 Enterprise Custom", "payload": "🏢 Enterprise Custom" }
+      "quick_replies": [
+        { "title": "🚀 Launch (£29/mo)", "payload": "Launch (£29/mo)" },
+        { "title": "📈 Scale (£89/mo) (Popular)", "payload": "Scale (£89/mo) (Popular)" },
+        { "title": "🏢 Business (£249/mo)", "payload": "Business (£249/mo)" }
       ],
       "variableName": "checkout_plan_choice",
       "typingEnabled": true,
@@ -51,8 +51,8 @@
     "content": {
       "variableName": "checkout_plan_choice",
       "conditions": [
-        { "variableName": "checkout_plan_choice", "operator": "contains", "value": "starter", "nextNodeOrder": 6 },
-        { "variableName": "checkout_plan_choice", "operator": "contains", "value": "enterprise", "nextNodeOrder": 7 }
+        { "variableName": "checkout_plan_choice", "operator": "contains", "value": "launch", "nextNodeOrder": 6 },
+        { "variableName": "checkout_plan_choice", "operator": "contains", "value": "business", "nextNodeOrder": 7 }
       ],
       "nextNodeOrder": 5
     }
@@ -61,7 +61,7 @@
     "order": 5,
     "type": "message",
     "content": {
-      "text": "Outstanding! The Pro Plan recovered an average of 92% of after-hours leads for our partners by syncing Webchat, WhatsApp, and CRM. Tap here to start your 14-day Pro trial: **[Start Pro Trial](https://app.replybase.co.uk/auth/register?email={{contact_email || lead_email | urlencode}}&name={{contact_name || lead_name | urlencode}}&plan=pro)**",
+      "text": "Outstanding! The Scale Plan recovered an average of 92% of after-hours leads for our partners by syncing Webchat, WhatsApp, and CRM. Tap here to start your 14-day Scale trial: **[Start Scale Trial](https://app.replybase.co.uk/auth/register?email={{contact_email || lead_email | urlencode}}&name={{contact_name || lead_name | urlencode}}&plan=scale)**",
       "nextNodeOrder": 8,
       "typingEnabled": true,
       "delayMs": 1500
@@ -71,7 +71,7 @@
     "order": 6,
     "type": "message",
     "content": {
-      "text": "Perfect! The Starter Plan is ideal for solo founders launching B2B webchat. Tap here to start your 14-day Starter trial: **[Start Starter Trial](https://app.replybase.co.uk/auth/register?email={{contact_email || lead_email | urlencode}}&name={{contact_name || lead_name | urlencode}}&plan=starter)**",
+      "text": "Perfect! The Launch Plan is ideal for solo founders launching B2B webchat. Tap here to start your 14-day Launch trial: **[Start Launch Trial](https://app.replybase.co.uk/auth/register?email={{contact_email || lead_email | urlencode}}&name={{contact_name || lead_name | urlencode}}&plan=launch)**",
       "nextNodeOrder": 8,
       "typingEnabled": true,
       "delayMs": 1500

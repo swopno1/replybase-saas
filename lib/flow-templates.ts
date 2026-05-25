@@ -70,7 +70,7 @@ export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Hi there! 👋 I'm your [Your Company Name] assistant. I noticed you landed on our page—super excited to have you here! 🚀",
+        text: "Hi there! 👋 I'm your ReplyBase assistant. I noticed you landed on our page—super excited to have you here! 🚀",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1000,
@@ -80,7 +80,7 @@ export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "input",
       content: {
-        text: "A quick question before we dive in: Are you here to explore how AI chatbots can transform your support, or are you curious about how [Your Company Name] specifically works for your team?",
+        text: "A quick question before we dive in: Are you here to explore how AI chatbots can transform your support, or are you curious about how ReplyBase specifically works for your team?",
         variableName: "user_intent_raw",
         inputType: "text",
         delayMs: 600,
@@ -143,7 +143,7 @@ export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Smart question. 💰 [Your Company Name] pricing is based on [Your Pricing Metric], not seats, which usually saves teams 30-50%. Before I give you the numbers, what's your rough monthly volume?",
+        text: "Smart question. 💰 ReplyBase pricing is volume-based, starting from £29/mo, which usually saves teams 30-50%. Before I give you the numbers, what's your rough monthly volume?",
         delayMs: 500,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -229,7 +229,7 @@ export const LEAD_GENERATION_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "That makes total sense. [Acknowledge context]. SaaS and E-commerce teams usually find that [Your Product/Service] cuts repetitive support time by 70%.",
+        text: "That makes total sense. SaaS and E-commerce teams usually find that ReplyBase cuts repetitive support time by 70%.",
         delayMs: 400,
         typingEnabled: true,
         typingDurationMs: 800,
@@ -385,7 +385,7 @@ export const OMNICHANNEL_DEMO_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "The best way to understand [Your Product/Service] is to see it work. 🚀 We are chatting here on the website, but our system can sync this conversation to your phone instantly.",
+        text: "The best way to understand ReplyBase is to see it work. 🚀 We are chatting here on the website, but our system can sync this conversation to your phone instantly.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -433,7 +433,7 @@ export const BOOKING_ESCALATION_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "I'd be happy to get a human expert on the line for you. 👨‍💻 They can give you a deep-dive walkthrough of how [Your Product/Service] fits into your specific workflow.",
+        text: "I'd be happy to get a human expert on the line for you. 👨‍💻 They can give you a deep-dive walkthrough of how ReplyBase fits into your specific workflow.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1200,
@@ -1131,7 +1131,7 @@ export const SAAS_TEMPLATE: FlowTemplateDefinition = {
     {
       type: "message",
       content: {
-        text: "Hi there! 🚀 Interested in seeing how [PRODUCT_NAME] can specifically move the needle for your team? I'm here to show you the path to ROI.",
+        text: "Hi there! 🚀 Interested in seeing how ReplyBase can specifically move the needle for your team? I'm here to show you the path to ROI.",
         delayMs: 0,
         typingEnabled: true,
         typingDurationMs: 1100,
