@@ -1,0 +1,283 @@
+diff --git a/docs/templates/ReplyBase_SubFlow_Checkout.json b/docs/templates/ReplyBase_SubFlow_Checkout.json
+index 1e53af9..713725c 100644
+--- a/docs/templates/ReplyBase_SubFlow_Checkout.json
++++ b/docs/templates/ReplyBase_SubFlow_Checkout.json
+@@ -32,13 +32,13 @@
+   },
+   {
+     "order": 3,
+-    "type": "message",
++    "type": "input",
+     "content": {
+       "text": "Excellent choice! 🚀 Setting up takes less than 2 minutes and is free for 14 days. No credit card required to test the features.\n\nWhich plan matches your business scale best?",
+-      "buttons": [
+-        { "type": "postback", "title": "👤 Starter Trial (£29/mo)", "payload": "👤 Starter Trial (£29/mo)" },
+-        { "type": "postback", "title": "👥 Pro Trial (£89/mo) (Recommended)", "payload": "👥 Pro Trial (£89/mo) (Recommended)" },
+-        { "type": "postback", "title": "🏢 Enterprise Custom", "payload": "🏢 Enterprise Custom" }
++      "quick_replies": [
++        { "title": "🚀 Launch (£29/mo)", "payload": "Launch (£29/mo)" },
++        { "title": "📈 Scale (£89/mo) (Popular)", "payload": "Scale (£89/mo) (Popular)" },
++        { "title": "🏢 Business (£249/mo)", "payload": "Business (£249/mo)" }
+       ],
+       "variableName": "checkout_plan_choice",
+       "typingEnabled": true,
+@@ -51,8 +51,8 @@
+     "content": {
+       "variableName": "checkout_plan_choice",
+       "conditions": [
+-        { "variableName": "checkout_plan_choice", "operator": "contains", "value": "starter", "nextNodeOrder": 6 },
+-        { "variableName": "checkout_plan_choice", "operator": "contains", "value": "enterprise", "nextNodeOrder": 7 }
++        { "variableName": "checkout_plan_choice", "operator": "contains", "value": "launch", "nextNodeOrder": 6 },
++        { "variableName": "checkout_plan_choice", "operator": "contains", "value": "business", "nextNodeOrder": 7 }
+       ],
+       "nextNodeOrder": 5
+     }
+@@ -61,7 +61,7 @@
+     "order": 5,
+     "type": "message",
+     "content": {
+-      "text": "Outstanding! The Pro Plan recovered an average of 92% of after-hours leads for our partners by syncing Webchat, WhatsApp, and CRM. Tap here to start your 14-day Pro trial: **[Start Pro Trial](https://app.replybase.co.uk/auth/register?email={{contact_email || lead_email | urlencode}}&name={{contact_name || lead_name | urlencode}}&plan=pro)**",
++      "text": "Outstanding! The Scale Plan recovered an average of 92% of after-hours leads for our partners by syncing Webchat, WhatsApp, and CRM. Tap here to start your 14-day Scale trial: **[Start Scale Trial](https://app.replybase.co.uk/auth/register?email={{contact_email || lead_email | urlencode}}&name={{contact_name || lead_name | urlencode}}&plan=scale)**",
+       "nextNodeOrder": 8,
+       "typingEnabled": true,
+       "delayMs": 1500
+@@ -71,7 +71,7 @@
+     "order": 6,
+     "type": "message",
+     "content": {
+-      "text": "Perfect! The Starter Plan is ideal for solo founders launching B2B webchat. Tap here to start your 14-day Starter trial: **[Start Starter Trial](https://app.replybase.co.uk/auth/register?email={{contact_email || lead_email | urlencode}}&name={{contact_name || lead_name | urlencode}}&plan=starter)**",
++      "text": "Perfect! The Launch Plan is ideal for solo founders launching B2B webchat. Tap here to start your 14-day Launch trial: **[Start Launch Trial](https://app.replybase.co.uk/auth/register?email={{contact_email || lead_email | urlencode}}&name={{contact_name || lead_name | urlencode}}&plan=launch)**",
+       "nextNodeOrder": 8,
+       "typingEnabled": true,
+       "delayMs": 1500
+diff --git a/docs/templates/ReplyBase_SubFlow_Pricing.json b/docs/templates/ReplyBase_SubFlow_Pricing.json
+index f2d16f6..46b8657 100644
+--- a/docs/templates/ReplyBase_SubFlow_Pricing.json
++++ b/docs/templates/ReplyBase_SubFlow_Pricing.json
+@@ -24,7 +24,7 @@
+     "order": 1,
+     "type": "input",
+     "content": {
+-      "text": "What\u2019s the best email address to send your personalised ROI breakdown and free trial setup?",
++      "text": "What’s the best email address to send your personalised ROI breakdown and free trial setup?",
+       "variableName": "lead_email",
+       "inputType": "email",
+       "validationMessage": "That doesn't look like a valid email. Could you double-check your email address?",
+@@ -56,22 +56,19 @@
+   },
+   {
+     "order": 4,
+-    "type": "message",
++    "type": "input",
+     "content": {
+       "text": "ReplyBase is built as the ultimate tool for automated B2B lead generation.\n\nWe offer simple, transparent pricing designed to scale with your volume:\n\n🚀 **Launch (£29/mo):** 1,000 AI responses/mo, CRM access, and web/facebook/whatsapp support.\n\n📈 **Grow (£49/mo):** 3,500 AI responses/mo, 5,000 automations, and web/facebook/whatsapp support.\n\n⚖️ **Scale (£89/mo) (Most Popular):** 7,500 AI responses/mo, 10,000 automations, and full omnichannel support (including Telegram).\n\n🏢 **Business (£249/mo):** 25,000 AI responses/mo, 40,000 automations, and Priority+ Support.\n\nSetting up takes 2 minutes and includes a 14-day free trial. What makes the most sense for your scale?",
+-      "buttons": [
++      "quick_replies": [
+         {
+-          "type": "postback",
+           "title": "🚀 Start 14-Day Free Trial",
+           "payload": "Start 14-Day Free Trial"
+         },
+         {
+-          "type": "postback",
+           "title": "📱 Try Live Demo",
+           "payload": "Try Live Demo"
+         },
+         {
+-          "type": "postback",
+           "title": "📅 Book a Strategy Call",
+           "payload": "Book a Strategy Call"
+         }
+@@ -168,4 +165,4 @@
+       "description": "Handover to AI Fallback Orchestrator"
+     }
+   }
+-]
+\ No newline at end of file
++]
+diff --git a/lib/flow-templates.ts b/lib/flow-templates.ts
+index 06f14fd..74bc045 100644
+--- a/lib/flow-templates.ts
++++ b/lib/flow-templates.ts
+@@ -70,7 +70,7 @@ export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
+     {
+       type: "message",
+       content: {
+-        text: "Hi there! 👋 I'm your [Your Company Name] assistant. I noticed you landed on our page—super excited to have you here! 🚀",
++        text: "Hi there! 👋 I'm your ReplyBase assistant. I noticed you landed on our page—super excited to have you here! 🚀",
+         delayMs: 0,
+         typingEnabled: true,
+         typingDurationMs: 1000,
+@@ -80,7 +80,7 @@ export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
+     {
+       type: "input",
+       content: {
+-        text: "A quick question before we dive in: Are you here to explore how AI chatbots can transform your support, or are you curious about how [Your Company Name] specifically works for your team?",
++        text: "A quick question before we dive in: Are you here to explore how AI chatbots can transform your support, or are you curious about how ReplyBase specifically works for your team?",
+         variableName: "user_intent_raw",
+         inputType: "text",
+         delayMs: 600,
+@@ -143,7 +143,7 @@ export const WELCOME_TEMPLATE: FlowTemplateDefinition = {
+     {
+       type: "message",
+       content: {
+-        text: "Smart question. 💰 [Your Company Name] pricing is based on [Your Pricing Metric], not seats, which usually saves teams 30-50%. Before I give you the numbers, what's your rough monthly volume?",
++        text: "Smart question. 💰 ReplyBase pricing is volume-based, starting from £29/mo, which usually saves teams 30-50%. Before I give you the numbers, what's your rough monthly volume?",
+         delayMs: 500,
+         typingEnabled: true,
+         typingDurationMs: 1200,
+@@ -229,7 +229,7 @@ export const LEAD_GENERATION_TEMPLATE: FlowTemplateDefinition = {
+     {
+       type: "message",
+       content: {
+-        text: "That makes total sense. [Acknowledge context]. SaaS and E-commerce teams usually find that [Your Product/Service] cuts repetitive support time by 70%.",
++        text: "That makes total sense. SaaS and E-commerce teams usually find that ReplyBase cuts repetitive support time by 70%.",
+         delayMs: 400,
+         typingEnabled: true,
+         typingDurationMs: 800,
+@@ -385,7 +385,7 @@ export const OMNICHANNEL_DEMO_TEMPLATE: FlowTemplateDefinition = {
+     {
+       type: "message",
+       content: {
+-        text: "The best way to understand [Your Product/Service] is to see it work. 🚀 We are chatting here on the website, but our system can sync this conversation to your phone instantly.",
++        text: "The best way to understand ReplyBase is to see it work. 🚀 We are chatting here on the website, but our system can sync this conversation to your phone instantly.",
+         delayMs: 0,
+         typingEnabled: true,
+         typingDurationMs: 1200,
+@@ -433,7 +433,7 @@ export const BOOKING_ESCALATION_TEMPLATE: FlowTemplateDefinition = {
+     {
+       type: "message",
+       content: {
+-        text: "I'd be happy to get a human expert on the line for you. 👨‍💻 They can give you a deep-dive walkthrough of how [Your Product/Service] fits into your specific workflow.",
++        text: "I'd be happy to get a human expert on the line for you. 👨‍💻 They can give you a deep-dive walkthrough of how ReplyBase fits into your specific workflow.",
+         delayMs: 0,
+         typingEnabled: true,
+         typingDurationMs: 1200,
+@@ -1131,7 +1131,7 @@ export const SAAS_TEMPLATE: FlowTemplateDefinition = {
+     {
+       type: "message",
+       content: {
+-        text: "Hi there! 🚀 Interested in seeing how [PRODUCT_NAME] can specifically move the needle for your team? I'm here to show you the path to ROI.",
++        text: "Hi there! 🚀 Interested in seeing how ReplyBase can specifically move the needle for your team? I'm here to show you the path to ROI.",
+         delayMs: 0,
+         typingEnabled: true,
+         typingDurationMs: 1100,
+diff --git a/lib/telegram-api.ts b/lib/telegram-api.ts
+index a1af928..c126f37 100644
+--- a/lib/telegram-api.ts
++++ b/lib/telegram-api.ts
+@@ -142,26 +142,29 @@ export async function getTelegramWebhookInfo(
+   return data.result;
+ }
+
+-function formatTelegramText(text: string): string {
++export function formatTelegramText(text: string): string {
+   if (!text) return "";
+
+-  // Escape raw HTML entities to prevent Telegram API parsing failures
+-  let escaped = text
++  // 1. Escape raw HTML entities to prevent Telegram API parsing failures
++  // This must be done first so that our own tags (<b>, <a>) are not escaped.
++  let formatted = text
+     .replace(/&/g, "&amp;")
+     .replace(/</g, "&lt;")
+     .replace(/>/g, "&gt;");
+
+-  // 1. Convert markdown links: [Title](Url) -> <a href="Url">Title</a>
+-  escaped = escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, (_, title, url) => {
++  // 2. Convert markdown links: [Title](Url) -> <a href="Url">Title</a>
++  // We use a non-greedy match for the URL and allow it to contain &amp; (from step 1)
++  formatted = formatted.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+?)\)/g, (_, title, url) => {
+     return `<a href="${url}">${title}</a>`;
+   });
+
+-  // 2. Convert bold markers: **bold** -> <b>bold</b>
+-  escaped = escaped.replace(/\*\*([^*]+)\*\*/g, (_, boldText) => {
++  // 3. Convert bold markers: **bold** -> <b>bold</b>
++  // Use non-greedy match to handle multiple bold sections correctly
++  formatted = formatted.replace(/\*\*(.*?)\*\*/g, (_, boldText) => {
+     return `<b>${boldText}</b>`;
+   });
+
+-  return escaped;
++  return formatted;
+ }
+
+ export async function sendTelegramTextMessage(
+diff --git a/scripts/verify-pricing-flow.ts b/scripts/verify-pricing-flow.ts
+new file mode 100644
+index 0000000..b8a929f
+--- /dev/null
++++ b/scripts/verify-pricing-flow.ts
+@@ -0,0 +1,31 @@
++import { prisma } from "../lib/prisma";
++
++async function main() {
++  const flow = await prisma.flow.findFirst({
++    where: { name: "ReplyBase_SubFlow_Pricing" },
++    include: { nodes: { orderBy: { order: "asc" } } }
++  });
++
++  if (!flow) {
++    console.error("❌ Pricing flow not found");
++    process.exit(1);
++  }
++
++  const pricingNode = flow.nodes.find(n => n.order === 4);
++  if (!pricingNode) {
++    console.error("❌ Pricing node (order 4) not found");
++    process.exit(1);
++  }
++
++  console.log("✅ Pricing Flow found:", flow.name);
++  console.log("✅ Pricing Node type:", pricingNode.type);
++  console.log("✅ Pricing Node content:", JSON.stringify(pricingNode.content, null, 2));
++
++  if (pricingNode.type === "input") {
++    console.log("🚀 SUCCESS: Pricing node is now an 'input' type and will wait for user response.");
++  } else {
++    console.error("❌ FAILURE: Pricing node is still type:", pricingNode.type);
++  }
++}
++
++main().catch(console.error).finally(() => prisma.$disconnect());
+diff --git a/tests/lib/telegram-formatting.test.ts b/tests/lib/telegram-formatting.test.ts
+new file mode 100644
+index 0000000..8f694c8
+--- /dev/null
++++ b/tests/lib/telegram-formatting.test.ts
+@@ -0,0 +1,34 @@
++import { describe, it, expect } from "vitest";
++import { formatTelegramText } from "@/lib/telegram-api";
++
++describe("formatTelegramText", () => {
++  it("should escape HTML entities correctly", () => {
++    const input = "Check out this & that <script>alert(1)</script>";
++    const output = formatTelegramText(input);
++    expect(output).toBe("Check out this &amp; that &lt;script&gt;alert(1)&lt;/script&gt;");
++  });
++
++  it("should format markdown links to Telegram HTML links", () => {
++    const input = "Click [here](https://example.com/a&b)";
++    const output = formatTelegramText(input);
++    expect(output).toBe('Click <a href="https://example.com/a&amp;b">here</a>');
++  });
++
++  it("should format bold markers to Telegram HTML bold tags", () => {
++    const input = "This is **bold** and this is also **bold**";
++    const output = formatTelegramText(input);
++    expect(output).toBe("This is <b>bold</b> and this is also <b>bold</b>");
++  });
++
++  it("should handle mixed formatting correctly", () => {
++    const input = "Visit **[Google](https://google.com)** & search!";
++    const output = formatTelegramText(input);
++    expect(output).toBe('Visit <b><a href="https://google.com">Google</a></b> &amp; search!');
++  });
++
++  it("should handle complex pricing text", () => {
++    const input = "🚀 **Launch (£29/mo):** 1,000 AI responses/mo & more!";
++    const output = formatTelegramText(input);
++    expect(output).toBe("🚀 <b>Launch (£29/mo):</b> 1,000 AI responses/mo &amp; more!");
++  });
++});

@@ -142,26 +142,29 @@ export async function getTelegramWebhookInfo(
   return data.result;
 }
 
-function formatTelegramText(text: string): string {
+export function formatTelegramText(text: string): string {
   if (!text) return "";
 
-  // Escape raw HTML entities to prevent Telegram API parsing failures
-  let escaped = text
+  // 1. Escape raw HTML entities to prevent Telegram API parsing failures
+  // This must be done first so that our own tags (<b>, <a>) are not escaped.
+  let formatted = text
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 
-  // 1. Convert markdown links: [Title](Url) -> <a href="Url">Title</a>
-  escaped = escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, (_, title, url) => {
+  // 2. Convert markdown links: [Title](Url) -> <a href="Url">Title</a>
+  // We use a non-greedy match for the URL and allow it to contain &amp; (from step 1)
+  formatted = formatted.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+?)\)/g, (_, title, url) => {
     return `<a href="${url}">${title}</a>`;
   });
 
-  // 2. Convert bold markers: **bold** -> <b>bold</b>
-  escaped = escaped.replace(/\*\*([^*]+)\*\*/g, (_, boldText) => {
+  // 3. Convert bold markers: **bold** -> <b>bold</b>
+  // Use non-greedy match to handle multiple bold sections correctly
+  formatted = formatted.replace(/\*\*(.*?)\*\*/g, (_, boldText) => {
     return `<b>${boldText}</b>`;
   });
 
-  return escaped;
+  return formatted;
 }
 
 export async function sendTelegramTextMessage(
