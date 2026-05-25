@@ -66,6 +66,7 @@ export async function processFacebookJob(payload: { senderPsid: string, pageId: 
   if (!contact) {
     contact = await db.contact.create({
       data: {
+        tenantId,
         name: userName || senderPsid,
         identities: { create: { type: "facebook_psid", value: senderPsid } },
       },
@@ -100,6 +101,7 @@ export async function processFacebookJob(payload: { senderPsid: string, pageId: 
   if (!conversation) {
     conversation = await db.crmConversation.create({
       data: {
+        tenantId,
         contactId: contact.id,
         channel: "facebook",
         botId: targetBotId,
@@ -110,6 +112,7 @@ export async function processFacebookJob(payload: { senderPsid: string, pageId: 
 
   await db.crmMessage.create({
     data: {
+      tenantId,
       conversationId: conversation.id,
       direction: "inbound",
       content: messageText,
@@ -168,6 +171,7 @@ export async function processFacebookJob(payload: { senderPsid: string, pageId: 
           await sendTextMessage(accessToken, senderPsid, resp.text, (resp as { quickReplies?: any[] }).quickReplies);
           await db.crmMessage.create({
             data: {
+              tenantId,
               conversationId: conversation.id,
               direction: "outbound",
               content: resp.text,
@@ -231,6 +235,7 @@ export async function processFacebookJob(payload: { senderPsid: string, pageId: 
       await sendTextMessage(accessToken, senderPsid, aiText.trim());
       await db.crmMessage.create({
         data: {
+          tenantId,
           conversationId: conversation.id,
           direction: "outbound",
           content: aiText.trim(),
