@@ -310,3 +310,25 @@
   - Objective: Consolidate BullMQ queues.
   - Detailed Instructions: 1. Merge small queues into the primary `message-processing` queue where appropriate. 2. Reduce the number of Redis connections and worker overhead.
   - Expected Deliverables: Simplified infrastructure and lower CPU/RAM usage.
+
+
+
+## Infrastructure & Performance Optimization (Post-Plausible Hardening)
+
+### Phase 1: Resource Hardening (Low Effort)
+- [ ] **Redis Memory Safety:** Set `maxmemory 256mb` and `maxmemory-policy allkeys-lru` in self-hosted Redis container.
+- [ ] **Postgres Pool Optimization:** Reduce `max` connections in `lib/prisma.ts` from 50 to 20 to save ~400MB RAM.
+- [ ] **Queue Retention Tuning:** Update `removeOnComplete` to 100 and `removeOnFail` to 500 for all BullMQ instances (`lib/queue.ts`, `lib/services/webhook-dispatcher.ts`).
+- [ ] **AI Provider Failover Tuning:** Reduce `AbortController` timeout in `lib/ai-fallback.ts` to 8 seconds for faster failover.
+
+### Phase 2: Performance Scalability (Medium Effort)
+- [ ] **CRM Real-time Sync:** Migrate from 5s polling to Server-Sent Events (SSE) in `ConversationPage` to reduce DB load.
+- [ ] **Log Retention Policy:** Create a cron job/script to prune `WebhookLog` and `ExecutionLog` rows older than 30 days.
+- [ ] **Robust L1 Caching:** Replace manual `Map` caches in `lib/subscription.ts` with a bounded `lru-cache` library.
+- [ ] **Usage Buffer Persistence:** Refactor `UsageBuffer` in `lib/subscription.ts` to use Redis `HINCRBY` instead of an in-memory Map for horizontal scalability.
+
+### Phase 3: Reliability & Safety (High Effort)
+- [ ] **AI Credit Circuit-Breaker:** Implement per-tenant daily AI usage caps to prevent cost runaway.
+- [ ] **Analytics Engine Refactor:** Update `lib/analytics.ts` to use Prisma `groupBy` and `_count` instead of client-side JS processing.
+- [ ] **Worker Process Isolation:** (Scaling Threshold: 100 Tenants) Split BullMQ workers into a dedicated service process.
+- [ ] **Dead-Letter Queue Monitoring:** Add alerts (Telegram/Sentry) for failed jobs that exceed retry limits.
