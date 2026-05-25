@@ -1,53 +1,56 @@
 # Redis Usage Audit - ReplyBase
 
 ## Overview
-This document provides a complete audit of Redis usage across the ReplyBase codebase as of August 2026.
+This document provides a complete audit of Redis usage across the ReplyBase codebase as of August 2026. It evaluates the necessity of each dependency for the current startup phase.
 
-## 1. Queue Systems (BullMQ)
-The primary use of Redis in ReplyBase is for background job processing via BullMQ.
+## Redis Workload Audit
 
-### message-processing
-- **Source:** `lib/queue.ts`
-- **Purpose:** Handles inbound messages from social channels (WhatsApp, Facebook, Telegram).
-- **Why it exists:** Social platforms (especially Meta) require a 200 OK response within a few seconds (usually < 5s, but 200ms is best practice). AI processing and Flow execution can take much longer.
-- **Criticality:** **CRITICAL**. Without this, webhooks would time out, causing retries and duplicate processing.
+### 1. BullMQ: Message Processing Queue (`message-processing`)
+- **Location:** `lib/queue.ts`
+- **Usage:** Enqueues incoming messages from Facebook, WhatsApp, and Telegram. Also handles lead enrichment and Stripe jobs.
+- **Why it's used:** Offloads heavy processing (AI intent extraction, Flow Engine execution) from the webhook request-response cycle. Meta and Telegram require webhooks to respond within seconds.
+- **Classification:** **CRITICAL**
+- **Justification:** Essential for reliability. Without background processing, high-latency AI calls would cause webhook timeouts and duplicate message deliveries from providers.
 
-### webhook-delivery
-- **Source:** `lib/services/webhook-dispatcher.ts`
-- **Purpose:** Dispatches outbound webhooks to tenant-configured endpoints.
-- **Why it exists:** Ensures reliable delivery with retries and prevents outbound network latency from blocking application threads.
-- **Criticality:** **IMPORTANT**. Could theoretically be handled by a simpler in-memory queue or deferred DB-based queue at low scale, but BullMQ provides robust retry logic.
+### 2. BullMQ: Outbound Webhooks Queue (`outbound-webhooks`)
+- **Location:** `lib/services/webhook-dispatcher.ts`
+- **Usage:** Manages delivery of webhooks to external URLs configured by tenants (e.g., `lead.created`).
+- **Why it's used:** Ensures webhook delivery doesn't block the core messaging flow and provides built-in retry logic.
+- **Classification:** **IMPORTANT**
+- **Justification:** While critical for a mature SaaS, at a very small scale, this could be handled by simple `setTimeout` or background promises, but BullMQ provides necessary reliability and observability.
 
-## 2. Caching
-### Tenant Subscription Limits
-- **Source:** `lib/subscription.ts`
-- **Key Pattern:** `limits:{tenantId}`
-- **TTL:** 1 hour (3600s)
-- **Purpose:** Prevents redundant database queries to the `Subscription` and `Plan` tables on every message ingestion and flow execution.
-- **Criticality:** **IMPORTANT**. Removal would increase RDS/Postgres load but wouldn't break functionality.
+### 3. Subscription Limit Caching
+- **Location:** `lib/subscription.ts`
+- **Usage:** Caches tenant subscription limits (L2 cache) for 1 hour.
+- **Why it's used:** Reduces database load for frequent limit checks.
+- **Classification:** **OPTIONAL**
+- **Justification:** Database queries for subscription status are fast enough at the current scale. This is a classic "optimization" that is not strictly required yet.
 
-## 3. Rate Limiting
-### Generic API Limiter
-- **Source:** `lib/rate-limit.ts`
-- **Implementation:** Hybrid (Upstash REST -> In-memory).
-- **Criticality:** **OPTIONAL**. Primarily relies on in-memory `Map` when self-hosted Redis is not configured via `UPSTASH_REDIS_REST_URL`.
+### 4. Webchat Rate Limiting
+- **Location:** `lib/webchat-rate-limit.ts`
+- **Usage:** Limits requests to webchat endpoints to prevent abuse.
+- **Why it's used:** Distributed rate limiting.
+- **Classification:** **OPTIONAL**
+- **Justification:** The system already includes a robust in-memory fallback. Redis (via Upstash REST) is only used if configured.
 
-### Webchat Limiter
-- **Source:** `lib/webchat-rate-limit.ts`
-- **Implementation:** Hybrid (Upstash REST -> In-memory).
-- **Criticality:** **OPTIONAL**. Similar to the generic limiter, it falls back to a local `Map`.
+### 5. Health Checks
+- **Location:** `app/api/health/route.ts`
+- **Usage:** Pings Redis to ensure connectivity.
+- **Classification:** **MISSION-CRITICAL (for observability)**
+- **Justification:** Necessary to monitor the health of background job processing.
 
-## 4. Systems NOT Using Redis
-- **Sessions:** NextAuth uses JWT strategy (`strategy: "jwt"`). Sessions are stored in browser cookies, not Redis.
-- **Websockets:** The CRM currently uses 5s polling (`app/(dashboard)/conversations/[conversationId]/page.tsx`), so no Redis Pub/Sub is required for realtime state sync yet.
-- **AI Buffering:** AI responses are streamed or returned directly to the worker; no intermediate Redis buffering was found.
-- **Distributed Locks:** No explicit use of Redlock or similar distributed locking mechanisms found.
+## Summary of Redis Usage
 
-## 5. Summary Table
+| Feature | Dependency | Classification | Alternative |
+|---------|------------|-------------|-------------|
+| Messaging Queue | BullMQ | **CRITICAL** | None (Reliable async processing needed) |
+| Webhook Retries | BullMQ | **IMPORTANT** | Simple background promises (less reliable) |
+| Limit Caching | ioredis | **OPTIONAL** | Direct Database Queries |
+| Rate Limiting | Upstash/REST | **OPTIONAL** | In-memory store (already exists) |
+| Session Store | NextAuth/JWT | **NONE** | Using JWT strategy (no Redis needed) |
+| Realtime Sync | Polling | **NONE** | Currently using 5s polling, no Pub/Sub |
 
-| Feature | Criticality | Alternative | Impact of Removal |
-|---------|-------------|-------------|-------------------|
-| Message Queue | **CRITICAL** | DB-based Queue | High (Webhook timeouts) |
-| Webhook Queue | **IMPORTANT** | DB-based Queue | Medium (Outbound reliability) |
-| Subscription Cache | **IMPORTANT** | In-memory Map | Low (Higher DB load) |
-| Rate Limiting | **OPTIONAL** | In-memory Map | None (Already supported) |
+## Assessment
+Redis is primarily used as a **Job Queue backend (BullMQ)**. This is its most critical function in ReplyBase. The caching and rate-limiting aspects are secondary and can be handled by other means or deferred.
+
+The RAM pressure concerns are valid for a 500MB/1GB droplet, but the architectural need for a reliable queue for social messaging (FB/WA) justifies its presence.

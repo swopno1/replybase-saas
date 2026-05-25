@@ -270,19 +270,43 @@
   - Notes: High impact on perceived quality.
   - Rollout Risk: LOW.
 
-## Infrastructure & Redis Optimization (Startup Scale)
+## 3. Infrastructure & Redis Optimization (Startup Scale)
 
 > **NOTE:** Redis scaling and managed Redis migration are intentionally DEFERRED until ReplyBase reaches meaningful production load (~100+ active concurrent tenants). AI agents should focus on optimizing current resource usage rather than suggesting enterprise-grade migrations.
 
-- [ ] **Redis Memory Hardening**
-  - Set `maxmemory 256mb` and `maxmemory-policy allkeys-lru` in the self-hosted Redis configuration.
-  - Objective: Prevent Redis from exceeding allocated droplet RAM.
-- [ ] **In-Memory Rate Limiting Transition**
-  - Verify that `lib/rate-limit.ts` and `lib/webchat-rate-limit.ts` are primarily using in-memory stores for single-instance deployments.
-  - Objective: Reduce unnecessary network/Redis round-trips for low-risk traffic.
-- [ ] **Subscription Cache Review**
-  - Evaluate the real-world performance impact of removing Redis caching from `lib/subscription.ts`.
-  - Objective: Determine if the 50-100ms saved is worth the 50MB+ Redis memory footprint.
-- [ ] **Queue Simplification**
-  - Consolidate minor background tasks into the existing `message-processing` queue or handle them synchronously if latency allows.
-  - Objective: Reduce the number of BullMQ instances and associated Redis overhead.
+- **Task 051**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Infrastructure
+  - Issue: Potential Redis RAM starvation on low-resource droplets.
+  - Objective: Implement Redis memory hardening.
+  - Detailed Instructions: 1. Set `maxmemory 256mb` and `maxmemory-policy allkeys-lru` in the self-hosted Redis configuration (Coolify/Docker).
+  - Expected Deliverables: Hard-capped Redis memory footprint.
+  - Notes: Prevents OOM kills of the main Next.js application.
+
+- **Task 052**
+  - Priority: LOW
+  - Status: PENDING
+  - Category: Infrastructure
+  - Issue: Unnecessary Redis dependency for rate limiting in single-instance deployments.
+  - Objective: Verify and enforce in-memory rate limiting.
+  - Detailed Instructions: 1. Review `lib/rate-limit.ts` and `lib/webchat-rate-limit.ts`. 2. Ensure default behavior is in-memory unless `REDIS_URL` is explicitly provided and required for multi-node sync.
+  - Expected Deliverables: Reduced Redis load and latency.
+
+- **Task 053**
+  - Priority: LOW
+  - Status: PENDING
+  - Category: Infrastructure
+  - Issue: Redundant L2 subscription caching.
+  - Objective: Evaluate and potentially remove Redis caching from `lib/subscription.ts`.
+  - Detailed Instructions: 1. Benchmark Postgres query performance for subscription checks. 2. If < 50ms, remove Redis L2 cache to save ~50MB RAM.
+  - Expected Deliverables: Leaner Redis memory footprint.
+
+- **Task 054**
+  - Priority: MEDIUM
+  - Status: PENDING
+  - Category: Infrastructure
+  - Issue: Fragmented background job queues.
+  - Objective: Consolidate BullMQ queues.
+  - Detailed Instructions: 1. Merge small queues into the primary `message-processing` queue where appropriate. 2. Reduce the number of Redis connections and worker overhead.
+  - Expected Deliverables: Simplified infrastructure and lower CPU/RAM usage.
