@@ -144,18 +144,18 @@
   - Rollout Risk: LOW.
 
 - **Task UX-013**
-  - Priority: LOW
-  - Status: COMPLETED
+  - Priority: MEDIUM
+  - Status: PENDING
   - Category: Accessibility
   - Severity: LOW
   - Issue: CRM Accessibility Hardening.
   - Root Cause: Icon-only buttons lack `aria-label` or descriptive text in `ConversationsList` and Detail views.
   - Business Impact: Non-compliant with WCAG 2.1; prevents screen reader users from effectively using the CRM.
   - Objective: Add descriptive ARIA labels to all icon-only triggers.
-  - Detailed Instructions: 1. Audit `components/conversation/` (e.g., `ConversationsList` MoreHorizontal trigger). 2. Add `aria-label` or `sr-only` text to each trigger.
+  - Detailed Instructions: 1. Audit `components/conversation/` (e.g., `ConversationsList` MoreHorizontal trigger). 2. Add `aria-label` or `sr-only` text to each trigger in Header and Composer.
   - Expected Deliverables: Accessible CRM interface.
   - Dependencies: None.
-  - Notes: Completed in August 2026. Verified `ConversationsList` and `ReplyComposer` accessibility.
+  - Notes: Identified as incomplete for Header and Composer in August 2026 audit.
   - Rollout Risk: LOW.
 
 - **Task UX-014**
