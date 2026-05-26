@@ -89,7 +89,7 @@
   - Detailed Instructions: 1. Consolidate sequential writes (`idempotencyKey.create`, `crmMessage.create`, and `crmMessage.createMany`) into a `prisma.$transaction`. 2. Ensure `resolveWebchatVisitorSession` and `webChatEvent.create` (for shadow promotions) are also included in transaction context where safe.
   - Expected Deliverables: Streamlined message ingestion pipeline.
   - Dependencies: Prisma.
-  - Notes: Identified during August 2026 inspection. Sequential writes in the webchat API contribute to higher latency and connection holding time.
+  - Notes: Identified during August 2026 inspection. Sequential writes in the webchat API contribute to higher latency and connection holding time. August 2026 Update: Inspection confirms multiple sequential Prisma calls across different modules (Idempotency, CRM Message, Lead Service) still exist. Priority remains on transactionalizing core writes.
   - Rollout Risk: LOW.
 
 - **Task 042**
@@ -122,7 +122,7 @@
     3. Audit and refactor `app/api/flows/`, `app/api/tenant/`, and `app/api/facebook/` routes identified as still using manual `getServerSession`.
   - Expected Deliverables: Hardened tenant isolation for background and data utility layers.
   - Dependencies: `getTenantPrisma`, `withAuthAndTenant`.
-  - Notes: Identified during August 2026 inspection. Facebook worker and Data Export API remain as legacy outliers in the standardized scoping architecture.
+  - Notes: Identified during August 2026 inspection. August 2026 Progress: Facebook worker and Data Export API have been standardized. Residual manual scoping persists in `app/api/tenant/channels/` and `app/api/tenant/lead-notifications/`. Refactoring these specific routes is now the primary goal of this task.
   - Rollout Risk: LOW.
 
 - **Task 044**

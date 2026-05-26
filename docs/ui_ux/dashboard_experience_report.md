@@ -9,5 +9,5 @@
 - **Feedback**: Cards respond to hover with background shifts and cursor changes, reinforcing their status as navigational elements.
 
 ## 3. Experience Roadmap
-- **Real-time Metrics**: Transitioning from static aggregations to Redis-cached, event-updated counts (Task 011).
+- **Real-time Metrics**: Current metrics rely on real-time DB counts, which can be slow. Implementing Redis-based caching (Task 011) is recommended to maintain dashboard snappiness as tenant data grows.
 - **Empty States**: Enhancing secondary dashboards with actionable "Get Started" buttons.

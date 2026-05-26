@@ -16,8 +16,9 @@ ReplyBase has achieved a high level of visual and interactive polish. The platfo
 
 ## 4. Identified Gaps
 - **Mobile Editor**: The Visual Flow Editor remains a "bottleneck" on small screens.
-- **Skeleton Coverage**: Missing loading states in `ConversationPage` and Settings (Task 050).
-- **Real-time Feel**: 5s CRM polling creates a slightly "steppy" experience (Task 042).
+- **Skeleton Coverage**: Missing loading states in `ConversationPage` and Settings. The raw "Loading conversation..." text during initial load and 5s polls detracts from the "premium" feel.
+- **Real-time Feel**: 5s CRM polling creates a slightly "steppy" experience and noticeable delay in message delivery updates (Task 042).
+- **Accessibility**: Missing `aria-label` attributes on icon-only buttons in the CRM Header and Composer.
 
 ## 5. UI/UX Task Roadmap
 - **Task 012**: Mobile-first "Flow Summary" view.
