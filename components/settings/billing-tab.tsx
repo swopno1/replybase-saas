@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -50,6 +51,7 @@ interface Subscription {
   cancelAtPeriodEnd: boolean;
   trialEndsAt: string | null;
   trialDaysRemaining?: number;
+  allowOverage: boolean;
   plan: {
     id: string;
     name: string;
@@ -131,6 +133,31 @@ export default function BillingTabContent() {
     };
     init();
   }, [fetchBillingData]);
+
+  const handleToggleOverage = async (enabled: boolean) => {
+    if (!subscription) return;
+
+    const prevSubscription = { ...subscription };
+    setSubscription({ ...subscription, allowOverage: enabled });
+
+    try {
+      const response = await fetch("/api/billing/subscription", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ allowOverage: enabled })
+      });
+
+      if (!response.ok) throw new Error("Failed to update overage setting");
+
+      const data = await response.json();
+      setSubscription(data.subscription);
+      toast.success(enabled ? "AI Overage enabled" : "AI Overage disabled");
+    } catch (error) {
+      console.error("Overage toggle error:", error);
+      setSubscription(prevSubscription);
+      toast.error("Failed to update overage setting");
+    }
+  };
 
   const handleUpgrade = () => {
     router.push("/pricing");
@@ -503,7 +530,25 @@ export default function BillingTabContent() {
           </Card>
 
           {/* Billing Details */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Card className="shadow-sm border-border/50 rounded-2xl p-5 ring-1 ring-border/5">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary/10 p-2 rounded-lg">
+                    <Zap className="h-4 w-4 text-primary" />
+                  </div>
+                  <h4 className="font-bold text-sm">AI Overage</h4>
+                </div>
+                <Switch
+                  checked={subscription?.allowOverage || false}
+                  onCheckedChange={handleToggleOverage}
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Allow your bots to continue working even after reaching your plan limits.
+                Additional usage will be <span className="font-bold text-foreground">charged manually</span> at the end of the month.
+              </p>
+            </Card>
             <Card className="shadow-sm border-border/50 rounded-2xl p-5 ring-1 ring-border/5">
               <div className="flex items-center gap-3 mb-3">
                 <div className="bg-muted p-2 rounded-lg">
