@@ -7,7 +7,7 @@
 - **Legacy Risk**: Identified ~60 API routes still using manual session lookups and `prisma.user.findUnique` patterns. Task 037 is active to refactor these to the `withAuthAndTenant` middleware.
 - **Worker Isolation**: Standardized. `facebook-worker.ts`, `whatsapp-worker.ts`, and `telegram-worker.ts` all utilize `getTenantPrisma(tenantId)` to ensure isolated database access during background processing.
 - **Data Export**: Standardized. The `/api/user/data-export` route has been refactored to use `withAuthAndTenant` and `withAdmin`, ensuring proper session validation and scoped database access (Task 043 partially completed).
-- **Residual Manual Scoping Risks**: While core workers and export routes are hardened, residual technical debt remains in `app/api/tenant/channels/` and `app/api/tenant/lead-notifications/`, which still utilize legacy `getServerSession` lookups. Task 043 remains open to finalize these edge cases.
+- **Residual Manual Scoping Risks**: While core workers and export routes are hardened, residual technical debt remains in `app/api/tenant/channels/route.ts`, `app/api/tenant/lead-notifications/route.ts`, `app/api/tenant/lead-notifications/test/route.ts`, and `app/api/analytics/onboarding-milestones/route.ts`, which still utilize legacy `getServerSession` lookups. Task 043 remains open to finalize these edge cases.
 
 ## 2. Authentication & Authorization
 - **Provider**: NextAuth.js with JWT Strategy.

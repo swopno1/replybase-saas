@@ -46,7 +46,7 @@
 - **Distributed Idempotency (REMEDIATED)**: Moved from in-memory locks to DB-level `IdempotencyKey` tracking.
 - **Waterfall Latency (MEDIUM)**: Sequential (Check Flow) -> (Check AI) processing. **Path**: Explore parallel execution or Edge-based routing for initial handshakes.
 - **Lead Data Siloing (REMEDIATED)**: Closed via the Lead Action Engine (Task 005).
-- **Manual Scoping Risk (LOW)**: Most high-risk areas including background workers and data export routes have been standardized. Residual technical debt remains in secondary tenant settings routes (Task 043).
+- **Manual Scoping Risk (LOW)**: Most high-risk areas including background workers and data export routes have been standardized. Residual technical debt remains in secondary tenant settings and analytics routes (Tasks 043/055).
 
 ## 5. Evolution Roadmap (Phase 4 Focus)
 - **IAM**: Transition to granular permissions for enterprise support teams.

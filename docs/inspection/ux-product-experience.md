@@ -24,4 +24,4 @@
 - **Real-time CRM (MEDIUM)**: Transition from 5s polling to WebSockets/SSE for a truly "live" feel (Task 033/042). August 2026 inspection confirmed a "steppy" UX and noticeable delays in message appearance.
 3. **Collaboration UX (LOW)**: Implement real-time presence indicators to prevent dual-handling of conversations (See `docs/proposals_live-agent-presence/overview.md`).
 - **CRM Loading States (MEDIUM)**: The `ConversationPage` currently displays raw "Loading conversation..." text during initial load and polling refreshes. Implementing Skeleton loaders is a priority to improve the "premium" feel of the core CRM experience (Task 050).
-- **Accessibility Hardening**: Icon-only buttons in `ConversationHeader` (Mail, Phone) and `ReplyComposer` (Suggest AI) need consistent `aria-label` auditing to match `ConversationsList` standards.
+- **Accessibility Hardening**: Confirmed missing `aria-label` attributes for icon-only components in `ConversationHeader` (Mail, Phone links) and `ReplyComposer` (Suggest AI button). Standardizing to match `ConversationsList` patterns is a priority.

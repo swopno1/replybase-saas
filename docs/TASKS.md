@@ -122,7 +122,7 @@
     3. Audit and refactor `app/api/flows/`, `app/api/tenant/`, and `app/api/facebook/` routes identified as still using manual `getServerSession`.
   - Expected Deliverables: Hardened tenant isolation for background and data utility layers.
   - Dependencies: `getTenantPrisma`, `withAuthAndTenant`.
-  - Notes: Identified during August 2026 inspection. August 2026 Progress: Facebook worker and Data Export API have been standardized. Residual manual scoping persists in `app/api/tenant/channels/` and `app/api/tenant/lead-notifications/`. Refactoring these specific routes is now the primary goal of this task.
+  - Notes: Identified during August 2026 inspection. August 2026 Progress: Facebook worker and Data Export API have been standardized. Residual manual scoping persists in `app/api/tenant/channels/route.ts`, `app/api/tenant/lead-notifications/route.ts`, and `app/api/tenant/lead-notifications/test/route.ts`. Refactoring these specific routes is now the primary goal of this task.
   - Rollout Risk: LOW.
 
 - **Task 044**
@@ -264,10 +264,10 @@
   - Detailed Instructions:
     1. Create `components/conversation/conversation-skeleton.tsx`.
     2. Replace "Loading conversation..." text in `ConversationPage` with the skeleton.
-    3. Audit `ConversationHeader` and `ReplyComposer` for missing `aria-label` on icon-only buttons (e.g., Mail, Phone icons in Header if they were buttons).
+    3. Audit `ConversationHeader` and `ReplyComposer` for missing `aria-label` on icon-only buttons. Specific gaps confirmed: `Mail` and `Phone` links in `ConversationHeader` and `Sparkles` (Suggest AI) button in `ReplyComposer`.
   - Expected Deliverables: Premium-feel CRM loading states and improved accessibility.
   - Dependencies: shadcn/ui.
-  - Notes: High impact on perceived quality.
+  - Notes: High impact on perceived quality. Standardize labels to match `ConversationsList` (e.g., `aria-label="Email contact"`).
   - Rollout Risk: LOW.
 
 ## 3. Infrastructure & Redis Optimization (Startup Scale)
@@ -310,6 +310,24 @@
   - Objective: Consolidate BullMQ queues.
   - Detailed Instructions: 1. Merge small queues into the primary `message-processing` queue where appropriate. 2. Reduce the number of Redis connections and worker overhead.
   - Expected Deliverables: Simplified infrastructure and lower CPU/RAM usage.
+
+- **Task 055**
+  - Priority: HIGH
+  - Status: PENDING
+  - Category: Security
+  - Severity: HIGH
+  - Issue: Residual Manual Auth Scoping in Secondary Routes.
+  - Root Cause: Multiple secondary API routes still use manual `getServerSession` and `prisma` lookups instead of the `withAuthAndTenant` middleware.
+  - Business Impact: Risk of IDOR and cross-tenant data leaks in less-frequented system areas.
+  - Objective: Audit and standardize all remaining routes using manual session management.
+  - Detailed Instructions:
+    1. Systematically audit all routes found via `grep "getServerSession" app/api`.
+    2. Refactor `app/api/analytics/onboarding-milestones/route.ts` to use `withAuthAndTenant`.
+    3. Refactor `app/api/flows/from-template/route.ts` to use `withAuthAndTenant`.
+    4. Ensure all Prisma calls in these routes use the scoped `db` instance from the middleware.
+  - Expected Deliverables: Zero-trust authentication across the entire API surface.
+  - Dependencies: `withAuthAndTenant`.
+  - Rollout Risk: LOW.
 
 
 
