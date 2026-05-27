@@ -219,6 +219,92 @@ export async function invalidateTenantCache(tenantId: string) {
 
 export const invalidateTenantLimitsCache = invalidateTenantCache;
 
+
+export async function getTenantUsage(tenantId: string) {
+  const now = new Date();
+  const today = startOfUtcDay(now);
+  const monthStart = startOfUtcMonth(now);
+  const monthEnd = startOfNextUtcMonth(now);
+
+  const usageLogs = await prisma.usageLog.groupBy({
+    by: ["type", "date"],
+    where: {
+      tenantId,
+      date: {
+        gte: monthStart,
+        lt: monthEnd,
+      },
+    },
+    _sum: {
+      count: true,
+    },
+  });
+
+  let dailyMessages = 0;
+  let monthlyMessages = 0;
+  let monthlyFlowExecutions = 0;
+  const todayTime = today.getTime();
+
+  for (const log of usageLogs) {
+    const count = log._sum.count ?? 0;
+    if (log.type === "message") {
+      monthlyMessages += count;
+      if (log.date.getTime() === todayTime) {
+        dailyMessages = count;
+      }
+    } else if (log.type === "flow_execution") {
+      monthlyFlowExecutions += count;
+    }
+  }
+
+  return {
+    dailyMessages,
+    monthlyMessages,
+    monthlyFlowExecutions,
+  };
+}
+
+export async function handlePlanDowngrade(tenantId: string, newPlanId: string) {
+  const plan = await prisma.plan.findUnique({
+    where: { id: newPlanId },
+  });
+
+  if (!plan) return;
+
+  const bots = await prisma.bot.findMany({
+    where: { tenantId },
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (bots.length > plan.maxBots) {
+    const excessBots = bots.slice(plan.maxBots);
+    await prisma.bot.updateMany({
+      where: {
+        id: { in: excessBots.map((b) => b.id) },
+      },
+      data: { enabled: false },
+    });
+  }
+
+  for (const bot of bots) {
+    const channels = await prisma.channel.findMany({
+      where: { botId: bot.id, isActive: true },
+      orderBy: { createdAt: "asc" },
+    });
+
+    if (channels.length > plan.maxChannelsPerBot) {
+      const excessChannels = channels.slice(plan.maxChannelsPerBot);
+      await prisma.channel.updateMany({
+        where: {
+          id: { in: excessChannels.map((c) => c.id) },
+        },
+        data: { isActive: false },
+      });
+    }
+  }
+}
+
+
 export function getUsageStatus(current: number, limit: number): UsageStatus {
   if (limit <= 0) {
     return {
