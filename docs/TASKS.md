@@ -321,12 +321,27 @@
   - Business Impact: Risk of IDOR and cross-tenant data leaks in less-frequented system areas.
   - Objective: Audit and standardize all remaining routes using manual session management.
   - Detailed Instructions:
-    1. Systematically audit all routes found via `grep "getServerSession" app/api`.
-    2. Refactor `app/api/analytics/onboarding-milestones/route.ts` to use `withAuthAndTenant`.
-    3. Refactor `app/api/flows/from-template/route.ts` to use `withAuthAndTenant`.
+    1. Refactor `app/api/tenant/channels/route.ts`, `app/api/tenant/lead-notifications/route.ts`, and `app/api/tenant/lead-notifications/test/route.ts` to use `withAuthAndTenant`.
+    2. Refactor `app/api/analytics/onboarding-milestones/route.ts` to use `withAdmin`.
+    3. Refactor flow-related routes (`app/api/flows/from-template/`, `app/api/flows/[id]/assign/`, `app/api/flows/[id]/clone/`, `app/api/flows/[id]/duplicate/`) to use `withAuthAndTenant`.
     4. Ensure all Prisma calls in these routes use the scoped `db` instance from the middleware.
   - Expected Deliverables: Zero-trust authentication across the entire API surface.
-  - Dependencies: `withAuthAndTenant`.
+  - Dependencies: `withAuthAndTenant`, `withAdmin`.
+  - Notes: Updated on 2026-08-27. Audit (Step 1 of original instructions) is complete. Specific routes for refactoring have been identified and listed in the refined instructions.
+  - Rollout Risk: LOW.
+
+- **Task 056**
+  - Priority: LOW
+  - Status: PENDING
+  - Category: Performance
+  - Severity: LOW
+  - Issue: N+1 Query in Downgrade Logic.
+  - Root Cause: `lib/subscription.ts` fetches channels sequentially for each bot inside the `handlePlanDowngrade` function.
+  - Business Impact: Slow downgrade processing for tenants with many bots.
+  - Objective: Batch channel fetching and deactivation.
+  - Detailed Instructions: 1. Use `db.channel.findMany` with `botId: { in: botIds }`. 2. Implement in-memory grouping and bulk `updateMany`.
+  - Expected Deliverables: Optimized downgrade handler.
+  - Dependencies: Prisma.
   - Rollout Risk: LOW.
 
 
