@@ -379,6 +379,7 @@ export async function checkBotLimit(tenantId: string) {
     allowed: status.allowed,
     limit: limits.maxBots,
     current: botCount,
+    planName: limits.planName,
   };
 }
 
