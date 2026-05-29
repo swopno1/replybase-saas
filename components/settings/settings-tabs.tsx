@@ -158,7 +158,7 @@ function SettingsTabsInner() {
   const handleDeleteAccount = async () => {
     const confirmed = await confirm({
       title: "Delete Account",
-      message:
+      description:
         "Are you sure you want to delete your account? This action is irreversible and all your data will be permanently removed.",
       confirmText: "Delete Account",
       variant: "destructive",
