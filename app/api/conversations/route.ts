@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { withAuthAndTenant } from "@/lib/route-helpers";
-import { getTenantSubscription } from "@/lib/subscription";
+import { getTenantSubscriptionStatus } from "@/lib/subscription";
 import { successResponse, errorResponse, validationErrorResponse } from "@/lib/api-response";
 
 export const dynamic = 'force-dynamic';
@@ -91,7 +91,7 @@ export const POST: (
     const validated = createConversationSchema.parse(body);
 
     // Check plan limits
-    const subscription = await getTenantSubscription(tenantId);
+    const subscription = await getTenantSubscriptionStatus(tenantId);
     const conversationCount = await db.crmConversation.count({
       where: {}, // tenantId automatically injected
     });
