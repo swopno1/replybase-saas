@@ -138,7 +138,14 @@ export class BillingService {
       } catch (err) { logger.error({ tenantId, error: err }, "[BillingService] Stripe fetch error"); }
     }
     const usage = await getTenantUsage(tenantId);
+    const plan = subscription.plan;
+    const usageWithLimits = {
+      ...usage,
+      monthlyMessageLimit: plan.monthlyMessageLimit,
+      flowExecutionCap: plan.flowExecutionCap,
+      dailyMessageLimit: plan.dailyMessageLimit,
+    };
     const trialDaysRemaining = subscription.trialEndsAt ? Math.ceil((subscription.trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0;
-    return { subscription: { ...subscription, trialDaysRemaining: Math.max(0, trialDaysRemaining) }, usage, invoices, paymentMethod };
+    return { subscription: { ...subscription, trialDaysRemaining: Math.max(0, trialDaysRemaining) }, usage: usageWithLimits, invoices, paymentMethod };
   }
 }
