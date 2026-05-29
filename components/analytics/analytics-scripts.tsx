@@ -3,12 +3,6 @@
 import Script from "next/script";
 import { useEffect, useState } from "react";
 
-const plausibleDomain =
-  process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN || "app.replybase.co.uk";
-const plausibleScriptSrc =
-  process.env.NEXT_PUBLIC_PLAUSIBLE_SCRIPT_SRC ||
-  "https://engine.replybase.co.uk/js/script.js";
-
 export function AnalyticsScripts() {
   const [mounted, setMounted] = useState(false);
 
@@ -30,14 +24,16 @@ export function AnalyticsScripts() {
 
   return (
     <>
+      {/* Google Tag Manager */}
       <Script
-        id="plausible"
+        id="gtm-script"
         strategy="afterInteractive"
-        defer
-        data-domain={plausibleDomain}
-        src={plausibleScriptSrc}
-        onError={(e) => {
-          console.error("Plausible script failed to load", e);
+        dangerouslySetInnerHTML={{
+          __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-PCKHK9XS');`,
         }}
       />
     </>
