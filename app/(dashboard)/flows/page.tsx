@@ -400,7 +400,7 @@ export default function FlowsPage() {
           </div>
           <div className="flex shrink-0 items-center">
             <Button
-              onClick={() => window.open("https://www.vivescriptsolutions.com/en/shop/product/partners", "_blank")}
+              onClick={() => window.open("https://www.vivescriptsolutions.com/en/shop/product/replybase_conversational_flow_integration", "_blank")}
               className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm dark:bg-indigo-500 dark:hover:bg-indigo-600 font-medium"
             >
               Explore Packages
