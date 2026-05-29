@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { redis } from "@/lib/redis";
-import logger from "./logger";
-import { getPlanConfig } from "./plans";
+import { getPlanConfig } from "@/lib/plans";
+import logger from "@/lib/logger";
 
 // Date utilities (inline to avoid import issues)
 export function startOfUtcDay(date: Date = new Date()): Date {
@@ -184,7 +184,7 @@ export async function getTenantLimits(tenantId: string) {
     limits = {
       ...subscription.plan,
       planName: subscription.plan.displayName,
-      allowOverage: subscription.allowOverage,
+      allowOverage: false,
       subscriptionStatus: subscription.status.toLowerCase(),
     };
   }

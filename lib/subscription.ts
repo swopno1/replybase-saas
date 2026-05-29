@@ -184,7 +184,7 @@ export async function getTenantLimits(tenantId: string) {
     limits = {
       ...subscription.plan,
       planName: subscription.plan.displayName,
-      allowOverage: subscription.allowOverage,
+      allowOverage: false,
       subscriptionStatus: subscription.status.toLowerCase(),
     };
   }
@@ -367,7 +367,7 @@ export async function checkChannelLimit(tenantId: string, botId: string) {
   };
 }
 
-export async function checkBotLimit(tenantId: string) {
+export async function checkBotLimit(tenantId: string): Promise<{ allowed: boolean; limit: number; current: number; planName: string }> {
   const limits = await getTenantLimits(tenantId);
   const botCount = await prisma.bot.count({
     where: { tenantId },
@@ -379,7 +379,7 @@ export async function checkBotLimit(tenantId: string) {
     allowed: status.allowed,
     limit: limits.maxBots,
     current: botCount,
-    planName: limits.planName,
+    planName: (limits as { planName?: string }).planName ?? "Free",
   };
 }
 
