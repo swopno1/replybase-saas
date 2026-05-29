@@ -42,6 +42,8 @@
     "tests",
     "scripts",
     "scratch",
+    "test_file.ts",
+    "full_subscription.ts",
     "**/*.test.ts",
     "**/*.test.tsx",
     "**/*.spec.ts",

@@ -364,6 +364,7 @@ export async function checkChannelLimit(tenantId: string, botId: string) {
     allowed: status.allowed,
     limit: limits.maxChannelsPerBot,
     current: channelCount,
+    planName: (limits as { planName?: string }).planName ?? "Free",
   };
 }
 
