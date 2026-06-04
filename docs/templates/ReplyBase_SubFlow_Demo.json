@@ -41,7 +41,7 @@
   },
   {
     "order": 4,
-    "type": "message",
+    "type": "input",
     "content": {
       "text": "Ready to experience omnichannel magic? Click below to switch this chat to your phone. I will remember everything we've talked about so far!\n\nOr if you prefer, we can review plans or start a trial directly.",
       "buttons": [
@@ -97,7 +97,8 @@
     "type": "action",
     "content": {
       "action": "call_flow",
-      "targetFlowName": "ReplyBase_SubFlow_Checkout"
+      "targetFlowName": "ReplyBase_SubFlow_Checkout",
+      "nextNodeOrder": 10
     }
   },
   {
@@ -105,7 +106,8 @@
     "type": "action",
     "content": {
       "action": "call_flow",
-      "targetFlowName": "ReplyBase_SubFlow_Pricing"
+      "targetFlowName": "ReplyBase_SubFlow_Pricing",
+      "nextNodeOrder": 10
     }
   },
   {

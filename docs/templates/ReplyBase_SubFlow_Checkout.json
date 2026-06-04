@@ -85,7 +85,8 @@
     "type": "action",
     "content": {
       "action": "call_flow",
-      "targetFlowName": "ReplyBase_SubFlow_Booking"
+      "targetFlowName": "ReplyBase_SubFlow_Booking",
+      "nextNodeOrder": 11
     }
   },
   {

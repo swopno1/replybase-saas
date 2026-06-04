@@ -14,10 +14,15 @@
     "order": 1,
     "type": "condition",
     "content": {
-      "variableName": "contact_email",
       "conditions": [
         {
           "variableName": "contact_email",
+          "operator": "contains",
+          "value": "@",
+          "nextNodeOrder": 3
+        },
+        {
+          "variableName": "lead_email",
           "operator": "contains",
           "value": "@",
           "nextNodeOrder": 3
@@ -52,7 +57,7 @@
   },
   {
     "order": 4,
-    "type": "message",
+    "type": "input",
     "content": {
       "text": "Perfect, you're all set! \ud83d\ude80 Your Facebook profile is securely linked.\n\n\ud83d\udca1 Businesses often lose leads simply by replying too slowly on Facebook Messenger.\n\nReplyBase helps automate replies, capture enquiries instantly, and sync conversations directly into your CRM \ud83d\ude80\n\nWhat would you like to explore first?",
       "buttons": [

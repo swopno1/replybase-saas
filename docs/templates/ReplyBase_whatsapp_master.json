@@ -14,10 +14,15 @@
     "order": 1,
     "type": "condition",
     "content": {
-      "variableName": "contact_email",
       "conditions": [
         {
           "variableName": "contact_email",
+          "operator": "contains",
+          "value": "@",
+          "nextNodeOrder": 3
+        },
+        {
+          "variableName": "lead_email",
           "operator": "contains",
           "value": "@",
           "nextNodeOrder": 3
@@ -52,7 +57,7 @@
   },
   {
     "order": 4,
-    "type": "message",
+    "type": "input",
     "content": {
       "text": "Awesome, {{contact_name || lead_name}}! Your workspace is synced and ready.\n\n\ud83d\udca1 WhatsApp messages have some of the highest open rates of any communication channel.\n\nReplyBase helps businesses automate FAQs, capture leads instantly, and route important conversations directly to their team \ud83d\ude80\n\nWhat is your main goal today?",
       "buttons": [

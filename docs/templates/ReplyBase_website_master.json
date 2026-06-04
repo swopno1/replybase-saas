@@ -14,10 +14,15 @@
     "order": 1,
     "type": "condition",
     "content": {
-      "variableName": "contact_email",
       "conditions": [
         {
           "variableName": "contact_email",
+          "operator": "contains",
+          "value": "@",
+          "nextNodeOrder": 3
+        },
+        {
+          "variableName": "lead_email",
           "operator": "contains",
           "value": "@",
           "nextNodeOrder": 3
@@ -52,7 +57,7 @@
   },
   {
     "order": 4,
-    "type": "message",
+    "type": "input",
     "content": {
       "text": "Thanks, {{contact_name || lead_name}}! I've pre-configured your digital dashboard.\n\nReplyBase helps continue conversations through WhatsApp and webchat automatically \u2014 helping businesses capture more leads and respond faster \ud83d\ude80\n\nWhat would you like to explore next?",
       "buttons": [
