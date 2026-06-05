@@ -4,6 +4,8 @@ import { decryptWhatsAppCredentialEnvelope } from "@/lib/whatsapp-channel-creden
 import {
   normalizeWhatsAppAddress,
   sendWhatsAppText,
+  sendWhatsAppTemplate,
+  type WhatsAppTemplateComponent,
 } from "@/lib/whatsapp-provider";
 import { sendTextMessage as sendFacebookTextMessage } from "@/lib/facebook-sender";
 import { formatTextForNonMarkdownChannels } from "@/lib/flow-runtime-utils";
@@ -132,18 +134,28 @@ export async function deliverConversationMessage(params: {
   const lastInboundAt = getConversationLastInboundAt(
     params.conversation.metadata,
   );
-  if (lastInboundAt) {
-    const elapsedMs = Date.now() - lastInboundAt.getTime();
-    const windowMs = 24 * 60 * 60 * 1000;
 
-    if (elapsedMs > windowMs) {
-      return {
-        success: false,
-        code: "outside_window",
-        message:
-          "This chat is outside WhatsApp's 24-hour customer service window. Send an approved WhatsApp template message to re-open the conversation.",
-      };
-    }
+  // No inbound ever received = business is initiating first contact.
+  // WhatsApp requires an approved template for business-initiated conversations.
+  if (!lastInboundAt) {
+    return {
+      success: false,
+      code: "outside_window",
+      message:
+        "No message has been received from this contact yet. Use a WhatsApp template message to initiate the conversation.",
+    };
+  }
+
+  const elapsedMs = Date.now() - lastInboundAt.getTime();
+  const windowMs = 24 * 60 * 60 * 1000;
+
+  if (elapsedMs > windowMs) {
+    return {
+      success: false,
+      code: "outside_window",
+      message:
+        "This chat is outside WhatsApp's 24-hour customer service window. Send an approved WhatsApp template message to re-open the conversation.",
+    };
   }
 
   const credentialEnvelope = decryptWhatsAppCredentialEnvelope(
@@ -235,4 +247,85 @@ async function deliverFacebookMessage(params: {
   }
 
   return { success: true, providerMessageId: result.messageId };
+}
+
+// ─── Template Delivery (bypasses 24-hour window) ─────────────────────────────
+
+export async function deliverConversationTemplate(params: {
+  conversation: {
+    id: string;
+    channel: string;
+    botId: string | null;
+    contact: {
+      phone: string | null;
+      identities: Array<{ type: string; value: string }>;
+    };
+  };
+  templateName: string;
+  languageCode: string;
+  components?: WhatsAppTemplateComponent[];
+}): Promise<ConversationDeliveryResult> {
+  if (params.conversation.channel !== "whatsapp") {
+    return {
+      success: false,
+      code: "not_configured",
+      message: "Template messages are only supported on WhatsApp.",
+    };
+  }
+
+  if (!params.conversation.botId) {
+    return {
+      success: false,
+      code: "not_configured",
+      message: "This WhatsApp conversation is not linked to a bot channel.",
+    };
+  }
+
+  const channel = await prisma.channel.findFirst({
+    where: {
+      botId: params.conversation.botId,
+      type: "whatsapp",
+      isActive: true,
+      enabled: true,
+      killSwitch: false,
+    },
+    select: { id: true, accessToken: true },
+  });
+
+  if (!channel?.accessToken) {
+    return {
+      success: false,
+      code: "not_configured",
+      message: "WhatsApp channel credentials are missing. Reconnect in Integrations > WhatsApp.",
+    };
+  }
+
+  const recipient = resolveRecipientAddress(params.conversation.contact);
+  if (!recipient) {
+    return {
+      success: false,
+      code: "not_configured",
+      message: "This contact does not have a WhatsApp number. Add a phone number to the contact first.",
+    };
+  }
+
+  const credentialEnvelope = decryptWhatsAppCredentialEnvelope(channel.accessToken);
+  const sendResult = await sendWhatsAppTemplate({
+    provider: credentialEnvelope.provider,
+    credentials: credentialEnvelope.credentials,
+    to: recipient,
+    templateName: params.templateName,
+    languageCode: params.languageCode,
+    components: params.components,
+  });
+
+  if (!sendResult.success) {
+    return {
+      success: false,
+      code: "send_failed",
+      message: sendResult.error || "Failed to send WhatsApp template message",
+    };
+  }
+
+  return { success: true, providerMessageId: sendResult.providerMessageId };
 }

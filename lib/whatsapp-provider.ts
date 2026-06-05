@@ -388,6 +388,181 @@ export async function sendWhatsAppText(
   };
 }
 
+// ─── WhatsApp Template Types ─────────────────────────────────────────────────
+
+export interface WhatsAppTemplateParameter {
+  type: "text";
+  text: string;
+}
+
+export interface WhatsAppTemplateComponent {
+  type: "header" | "body" | "button";
+  sub_type?: "quick_reply" | "url";
+  index?: number;
+  parameters?: WhatsAppTemplateParameter[];
+}
+
+export interface WhatsAppSendTemplateInput {
+  provider: WhatsAppProvider;
+  credentials: WhatsAppProviderCredentials;
+  to: string;
+  templateName: string;
+  languageCode: string;
+  components?: WhatsAppTemplateComponent[];
+}
+
+export interface WhatsAppTemplateComponentDef {
+  type: string;
+  format?: string;
+  text?: string;
+  buttons?: Array<{ type: string; text: string; url?: string; phone_number?: string }>;
+  example?: { body_text?: string[][]; header_text?: string[] };
+}
+
+export interface WhatsAppTemplate {
+  id: string;
+  name: string;
+  status: "APPROVED" | "PENDING" | "REJECTED" | "PAUSED" | "DISABLED";
+  category: "MARKETING" | "UTILITY" | "AUTHENTICATION";
+  language: string;
+  components: WhatsAppTemplateComponentDef[];
+}
+
+export interface WhatsAppTemplateListResult {
+  success: boolean;
+  templates?: WhatsAppTemplate[];
+  error?: string;
+}
+
+// ─── Send WhatsApp Template Message ──────────────────────────────────────────
+
+export async function sendWhatsAppTemplate(
+  input: WhatsAppSendTemplateInput,
+): Promise<WhatsAppSendResult> {
+  const creds = normalizeCredentials(input.provider, input.credentials);
+
+  if (input.provider === "meta_cloud" || input.provider === "360dialog") {
+    const isMetaCloud = input.provider === "meta_cloud";
+    const meta = creds as MetaCloudCredentials;
+    const d360 = creds as Dialog360Credentials;
+
+    const baseUrl = isMetaCloud
+      ? `${META_GRAPH_BASE}/${encodeURIComponent(meta.phoneNumberId)}/messages`
+      : `${D360_BASE}/messages`;
+
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (isMetaCloud) {
+      headers["Authorization"] = `Bearer ${meta.accessToken}`;
+    } else {
+      headers["D360-API-KEY"] = d360.apiKey;
+    }
+
+    const body: Record<string, unknown> = {
+      messaging_product: "whatsapp",
+      to: normalizeWhatsAppAddress(input.to),
+      type: "template",
+      template: {
+        name: input.templateName,
+        language: { code: input.languageCode },
+        ...(input.components && input.components.length > 0
+          ? { components: input.components }
+          : {}),
+      },
+    };
+
+    const response = await fetch(baseUrl, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    const data = (await parseJsonSafe(response)) as {
+      messages?: Array<{ id?: string }>;
+      error?: { message?: string };
+    } | null;
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: toErrorMessage(data, "Failed to send WhatsApp template message"),
+      };
+    }
+
+    return {
+      success: true,
+      providerMessageId: data?.messages?.[0]?.id,
+    };
+  }
+
+  if (input.provider === "twilio") {
+    const twilio = creds as TwilioCredentials;
+    const auth = Buffer.from(`${twilio.accountSid}:${twilio.authToken}`).toString("base64");
+
+    // Twilio WhatsApp templates require Content SID — only supported via Twilio Content API.
+    // For now, fall back to a text message with the template name so the user knows to configure it there.
+    const body = new URLSearchParams({
+      To: `whatsapp:${normalizeWhatsAppE164(input.to)}`,
+      From: `whatsapp:${normalizeWhatsAppE164(twilio.fromNumber)}`,
+      Body: `[Template: ${input.templateName}] — configure this template in your Twilio Content API.`,
+    });
+
+    const response = await fetch(
+      `${TWILIO_BASE}/Accounts/${encodeURIComponent(twilio.accountSid)}/Messages.json`,
+      {
+        method: "POST",
+        headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/x-www-form-urlencoded" },
+        body: body.toString(),
+      },
+    );
+
+    const data = (await parseJsonSafe(response)) as { sid?: string; message?: string } | null;
+    if (!response.ok) {
+      return { success: false, error: data?.message || "Twilio template send failed" };
+    }
+
+    return { success: true, providerMessageId: data?.sid };
+  }
+
+  return { success: false, error: "Unsupported provider for template sending" };
+}
+
+// ─── List WhatsApp Templates (Meta Cloud only) ────────────────────────────────
+
+export async function listWhatsAppTemplates(
+  credentials: MetaCloudCredentials,
+): Promise<WhatsAppTemplateListResult> {
+  if (!credentials.businessAccountId) {
+    return {
+      success: false,
+      error: "WhatsApp Business Account ID (WABA ID) is required to list templates. Add it in your channel settings.",
+    };
+  }
+
+  const url = `${META_GRAPH_BASE}/${encodeURIComponent(credentials.businessAccountId)}/message_templates?fields=id,name,status,category,language,components&limit=100`;
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${credentials.accessToken}` },
+  });
+
+  const data = (await parseJsonSafe(response)) as {
+    data?: WhatsAppTemplate[];
+    error?: { message?: string };
+  } | null;
+
+  if (!response.ok) {
+    return {
+      success: false,
+      error: toErrorMessage(data, "Failed to fetch WhatsApp templates"),
+    };
+  }
+
+  const approved = (data?.data ?? []).filter((t) => t.status === "APPROVED");
+  return { success: true, templates: approved };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export function verifyTwilioSignature(params: {
   authToken: string;
   signature: string | null;

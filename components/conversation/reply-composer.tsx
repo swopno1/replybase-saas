@@ -4,9 +4,10 @@ import { CrmConversation } from "@prisma/client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Sparkles, Loader2, LayoutTemplate } from "lucide-react";
 import { toast } from "sonner";
 import { trackEvent } from "@/lib/client-analytics";
+import { WhatsAppTemplatePicker } from "@/components/conversation/whatsapp-template-picker";
 
 export function ReplyComposer({
   conversation,
@@ -19,6 +20,10 @@ export function ReplyComposer({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+
+  const isWhatsApp = conversation.channel === "whatsapp";
+  const hasBot = Boolean(conversation.botId);
 
   const submitTo = async (path: string) => {
     const trimmed = content.trim();
@@ -38,6 +43,10 @@ export function ReplyComposer({
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
+        // Auto-open template picker when outside the 24-hour WhatsApp window
+        if (response.status === 409 && isWhatsApp && hasBot) {
+          setShowTemplatePicker(true);
+        }
         throw new Error(data?.error || "Request failed");
       }
 
@@ -99,55 +108,82 @@ export function ReplyComposer({
   };
 
   return (
-    <div className="p-4 border-t">
-      {conversation.channel === "web" ? (
-        <p className="mb-2 text-xs text-muted-foreground">
-          Sending a live reply pauses bot automation for this webchat
-          conversation.
-        </p>
-      ) : null}
-      <Textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder="Type your reply or note… (Enter to send, Shift+Enter for new line)"
-        className="mb-2"
-      />
-      {errorMessage ? (
-        <p className="mb-2 text-sm text-red-600">{errorMessage}</p>
-      ) : null}
-      <div className="flex justify-between items-center">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleSuggestReply}
-          disabled={isSuggesting || isSubmitting}
-          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-        >
-          {isSuggesting ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <Sparkles className="h-4 w-4 mr-2" />
-          )}
-          Suggest AI Reply
-        </Button>
+    <div className="p-4 border-t space-y-3">
+      {showTemplatePicker && isWhatsApp && conversation.botId ? (
+        <WhatsAppTemplatePicker
+          conversationId={conversation.id}
+          botId={conversation.botId}
+          onSent={() => {
+            setShowTemplatePicker(false);
+            setErrorMessage("");
+            onRefresh();
+          }}
+          onCancel={() => setShowTemplatePicker(false)}
+        />
+      ) : (
+        <>
+          {conversation.channel === "web" ? (
+            <p className="text-xs text-muted-foreground">
+              Sending a live reply pauses bot automation for this webchat conversation.
+            </p>
+          ) : null}
+          <Textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Type your reply or note… (Enter to send, Shift+Enter for new line)"
+          />
+          {errorMessage ? (
+            <p className="text-sm text-red-600">{errorMessage}</p>
+          ) : null}
+          <div className="flex justify-between items-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSuggestReply}
+              disabled={isSuggesting || isSubmitting}
+              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+            >
+              {isSuggesting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4 mr-2" />
+              )}
+              Suggest AI Reply
+            </Button>
 
-        <div className="flex justify-end gap-2">
-          <Button
-            onClick={handleNote}
-            variant="outline"
-            disabled={isSubmitting || !content.trim()}
-          >
-            Add Note
-          </Button>
-          <Button
-            onClick={handleReply}
-            disabled={isSubmitting || !content.trim()}
-          >
-            {isSubmitting ? "Sending..." : "Send Reply"}
-          </Button>
-        </div>
-      </div>
+            <div className="flex items-center gap-2">
+              {isWhatsApp && hasBot ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setErrorMessage("");
+                    setShowTemplatePicker(true);
+                  }}
+                  disabled={isSubmitting}
+                >
+                  <LayoutTemplate className="h-4 w-4 mr-2" />
+                  Send Template
+                </Button>
+              ) : null}
+              <Button
+                onClick={handleNote}
+                variant="outline"
+                disabled={isSubmitting || !content.trim()}
+              >
+                Add Note
+              </Button>
+              <Button
+                onClick={handleReply}
+                disabled={isSubmitting || !content.trim()}
+              >
+                {isSubmitting ? "Sending..." : "Send Reply"}
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
