@@ -1,7 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import React, {
+  useCallback,
+  useMemo,
+  useState,
+  useEffect,
+  Suspense,
+} from "react";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import {
   Check,
   X,
@@ -140,7 +146,10 @@ const PLANS: readonly PricingPlan[] = [
   },
 ];
 
-const PRICE_IDS: Record<string, { monthlyPriceId: string; annualPriceId: string }> = {
+const PRICE_IDS: Record<
+  string,
+  { monthlyPriceId: string; annualPriceId: string }
+> = {
   launch: {
     monthlyPriceId: env.NEXT_PUBLIC_STRIPE_LAUNCH_PRICE_ID || "",
     annualPriceId: env.NEXT_PUBLIC_STRIPE_LAUNCH_ANNUAL_PRICE_ID || "",
@@ -164,44 +173,77 @@ type PlanName = (typeof PLANS)[number]["name"];
 function PricingContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
+  const pathname = usePathname();
+  const billingCycle =
+    searchParams.get("cycle") === "annual" ? "annual" : "monthly";
+  const promoCode = searchParams.get("promo");
   const [loading, setLoading] = useState<string | null>(null);
-  const [selectedPlan, setSelectedPlan] = useState<(typeof PLANS)[number] | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<
+    (typeof PLANS)[number] | null
+  >(null);
   const [currentSubscription, setCurrentSubscription] = useState<any>(null);
-  const [promoCode, setPromoCode] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
 
-  const triggerAutoCheckout = async (plan: (typeof PLANS)[number], cycle: "monthly" | "annual", promo: string | null) => {
-    setLoading(plan.name);
-    try {
-      const priceId = cycle === "annual"
-        ? PRICE_IDS[plan.name].annualPriceId
-        : PRICE_IDS[plan.name].monthlyPriceId;
+  const triggerAutoCheckout = useCallback(
+    async (
+      plan: (typeof PLANS)[number],
+      cycle: "monthly" | "annual",
+      promo: string | null,
+    ) => {
+      setLoading(plan.name);
+      try {
+        const priceId =
+          cycle === "annual"
+            ? PRICE_IDS[plan.name].annualPriceId
+            : PRICE_IDS[plan.name].monthlyPriceId;
 
-      const response = await fetch("/api/billing/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          priceId,
-          planName: plan.name,
-          billingCycle: cycle,
-          promoCode: promo || (cycle === "annual" ? "FOUNDING50" : undefined),
-        }),
-      });
+        const response = await fetch("/api/billing/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            priceId,
+            planName: plan.name,
+            billingCycle: cycle,
+            promoCode: promo || (cycle === "annual" ? "FOUNDING50" : undefined),
+          }),
+        });
 
-      const data = await response.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error(data.error || "Failed to start checkout");
+        const data = await response.json();
+        if (data.url) {
+          window.location.assign(data.url);
+        } else {
+          throw new Error(data.error || "Failed to start checkout");
+        }
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Something went wrong. Please try again.";
+        toast.error(message);
+        setLoading(null);
       }
-    } catch (err: any) {
-      toast.error(err.message || "Something went wrong. Please try again.");
-      setLoading(null);
-    }
-  };
+    },
+    [],
+  );
+
+  const autoSelectedPlan = useMemo(() => {
+    const planParam = searchParams.get("plan");
+    if (!planParam) return null;
+
+    let normalized = planParam.trim().toLowerCase();
+    if (normalized === "pro") normalized = "scale";
+    if (normalized === "starter") normalized = "launch";
+
+    return PLANS.find((p) => p.name === normalized) ?? null;
+  }, [searchParams]);
+
+  const currentSelectedPlan = selectedPlan ?? autoSelectedPlan;
 
   useEffect(() => {
+    const cycle = searchParams.get("cycle");
+    const promo = searchParams.get("promo");
+    const checkoutParam = searchParams.get("checkout");
+
     fetch("/api/billing/subscription")
       .then((res) => {
         if (res.status === 401) {
@@ -212,12 +254,16 @@ function PricingContent() {
             const cycleParam = searchParams.get("cycle");
             const sourceParam = searchParams.get("source");
 
-            const registerUrl = new URL("/auth/register", window.location.origin);
+            const registerUrl = new URL(
+              "/auth/register",
+              window.location.origin,
+            );
             registerUrl.searchParams.set("plan", planParam);
             if (promoParam) registerUrl.searchParams.set("promo", promoParam);
             if (cycleParam) registerUrl.searchParams.set("cycle", cycleParam);
-            if (sourceParam) registerUrl.searchParams.set("source", sourceParam);
-            
+            if (sourceParam)
+              registerUrl.searchParams.set("source", sourceParam);
+
             router.push(registerUrl.pathname + registerUrl.search);
             return null;
           }
@@ -238,39 +284,33 @@ function PricingContent() {
       })
       .catch((err) => console.error("Failed to fetch subscription:", err));
 
-    const cycle = searchParams.get("cycle");
-    if (cycle === "annual") setBillingCycle("annual");
-
-    const promo = searchParams.get("promo");
-    if (promo) setPromoCode(promo);
-
     const planParam = searchParams.get("plan");
-    const checkoutParam = searchParams.get("checkout");
     if (planParam) {
-      let normalized = planParam.trim().toLowerCase();
-      if (normalized === "pro") normalized = "scale";
-      if (normalized === "starter") normalized = "launch";
-
-      const matchedPlan = PLANS.find((p) => p.name === normalized);
+      const matchedPlan = autoSelectedPlan;
       if (matchedPlan) {
         if (matchedPlan.name === "free") {
-          router.push("/dashboard");
+          router.push("/");
           return;
         }
-        setSelectedPlan(matchedPlan);
         if (checkoutParam === "true") {
-          triggerAutoCheckout(matchedPlan, cycle === "annual" ? "annual" : "monthly", promo);
+          queueMicrotask(() => {
+            void triggerAutoCheckout(
+              matchedPlan,
+              cycle === "annual" ? "annual" : "monthly",
+              promo,
+            );
+          });
         }
       }
     }
-  }, [searchParams]);
+  }, [autoSelectedPlan, router, searchParams, triggerAutoCheckout]);
 
   const handleSubscribeClick = (planName: string) => {
     const plan = PLANS.find((p) => p.name === planName);
     if (!plan) return;
     if (plan.priceMonthly === 0) {
-        router.push("/dashboard");
-        return;
+      router.push("/");
+      return;
     }
     if (!isAuthenticated) {
       const registerUrl = new URL("/auth/register", window.location.origin);
@@ -283,33 +323,40 @@ function PricingContent() {
   };
 
   const handleConfirmCheckout = async () => {
-    if (!selectedPlan) return;
-    setLoading(selectedPlan.name);
+    const planToCheckout = currentSelectedPlan;
+    if (!planToCheckout) return;
+    setLoading(planToCheckout.name);
 
     try {
-      const priceId = billingCycle === "annual"
-        ? PRICE_IDS[selectedPlan.name].annualPriceId
-        : PRICE_IDS[selectedPlan.name].monthlyPriceId;
+      const priceId =
+        billingCycle === "annual"
+          ? PRICE_IDS[planToCheckout.name].annualPriceId
+          : PRICE_IDS[planToCheckout.name].monthlyPriceId;
 
       const response = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           priceId,
-          planName: selectedPlan.name,
+          planName: planToCheckout.name,
           billingCycle,
-          promoCode: promoCode || (billingCycle === "annual" ? "FOUNDING50" : undefined),
+          promoCode:
+            promoCode || (billingCycle === "annual" ? "FOUNDING50" : undefined),
         }),
       });
 
       const data = await response.json();
       if (data.url) {
-        window.location.href = data.url;
+        window.location.assign(data.url);
       } else {
         throw new Error(data.error || "Failed to start checkout");
       }
-    } catch (err: any) {
-      toast.error(err.message || "Something went wrong. Please try again.");
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Something went wrong. Please try again.";
+      toast.error(message);
       setLoading(null);
     }
   };
@@ -317,28 +364,47 @@ function PricingContent() {
   return (
     <div className="container py-12 px-4 max-w-7xl mx-auto">
       <div className="text-center mb-12 space-y-4">
-        <Badge variant="outline" className="px-4 py-1 border-primary/20 text-primary font-bold animate-pulse">
+        <Badge
+          variant="outline"
+          className="px-4 py-1 border-primary/20 text-primary font-bold animate-pulse"
+        >
           🚀 Founding Offer: 50% OFF Annual Plans with code FOUNDING50
         </Badge>
         <h1 className="text-4xl md:text-5xl font-black tracking-tight text-foreground">
           Scale Your Conversations
         </h1>
         <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-          Choose the perfect plan for your business. Start with a 14-day free trial on any premium plan.
+          Choose the perfect plan for your business. Start with a 14-day free
+          trial on any premium plan.
         </p>
 
         <div className="flex items-center justify-center gap-4 mt-8">
-          <Label htmlFor="billing-toggle" className={`text-sm font-bold ${billingCycle === 'monthly' ? 'text-foreground' : 'text-muted-foreground'}`}>
+          <Label
+            htmlFor="billing-toggle"
+            className={`text-sm font-bold ${billingCycle === "monthly" ? "text-foreground" : "text-muted-foreground"}`}
+          >
             Monthly
           </Label>
           <Switch
             id="billing-toggle"
             checked={billingCycle === "annual"}
-            onCheckedChange={(checked) => setBillingCycle(checked ? "annual" : "monthly")}
+            onCheckedChange={(checked) => {
+              const params = new URLSearchParams(searchParams.toString());
+              params.set("cycle", checked ? "annual" : "monthly");
+              router.replace(`${pathname}?${params.toString()}`, {
+                scroll: false,
+              });
+            }}
           />
-          <Label htmlFor="billing-toggle" className={`text-sm font-bold flex items-center gap-2 ${billingCycle === 'annual' ? 'text-foreground' : 'text-muted-foreground'}`}>
+          <Label
+            htmlFor="billing-toggle"
+            className={`text-sm font-bold flex items-center gap-2 ${billingCycle === "annual" ? "text-foreground" : "text-muted-foreground"}`}
+          >
             Annual
-            <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200 font-bold">
+            <Badge
+              variant="secondary"
+              className="bg-green-100 text-green-700 border-green-200 font-bold"
+            >
               2 Months Free
             </Badge>
           </Label>
@@ -348,17 +414,21 @@ function PricingContent() {
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-20">
         {PLANS.map((plan) => {
           const isCurrent = currentSubscription?.plan?.name === plan.name;
-          const price = billingCycle === "annual" ? plan.priceAnnual : plan.priceMonthly;
+          const price =
+            billingCycle === "annual" ? plan.priceAnnual : plan.priceMonthly;
           const displayPrice = price / 100;
-          const effectiveMonthly = billingCycle === "annual" ? Math.floor(displayPrice / 12) : displayPrice;
+          const effectiveMonthly =
+            billingCycle === "annual"
+              ? Math.floor(displayPrice / 12)
+              : displayPrice;
 
           return (
             <div
               key={plan.name}
               className={`relative flex flex-col rounded-3xl border p-6 transition-all duration-300 hover:shadow-2xl ${
                 plan.highlight
-                ? "border-primary bg-primary/[0.02] shadow-xl scale-105 z-10"
-                : "border-border bg-card hover:border-primary/50"
+                  ? "border-primary bg-primary/[0.02] shadow-xl scale-105 z-10"
+                  : "border-border bg-card hover:border-primary/50"
               }`}
             >
               {plan.featuredLabel && (
@@ -371,43 +441,75 @@ function PricingContent() {
 
               <div className="mb-6">
                 <h3 className="text-xl font-bold mb-1">{plan.displayName}</h3>
-                <p className="text-xs text-muted-foreground font-medium mb-4">{plan.aiLabel}</p>
+                <p className="text-xs text-muted-foreground font-medium mb-4">
+                  {plan.aiLabel}
+                </p>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-black">£{billingCycle === "annual" ? effectiveMonthly : displayPrice}</span>
+                  <span className="text-3xl font-black">
+                    £
+                    {billingCycle === "annual"
+                      ? effectiveMonthly
+                      : displayPrice}
+                  </span>
                   <span className="text-muted-foreground text-sm">/mo</span>
                 </div>
                 {billingCycle === "annual" && price > 0 && (
                   <p className="text-[10px] text-green-600 font-bold mt-1">
-                    Billed £{displayPrice} annually (Save £{(plan.priceMonthly * 12 - plan.priceAnnual) / 100})
+                    Billed £{displayPrice} annually (Save £
+                    {(plan.priceMonthly * 12 - plan.priceAnnual) / 100})
                   </p>
                 )}
               </div>
 
               <div className="space-y-4 mb-8 flex-1">
                 <div className="flex items-center gap-3">
-                  <div className={`p-1 rounded-full ${plan.highlight ? 'bg-primary/20' : 'bg-muted'}`}>
-                    <Check className={`h-3 w-3 ${plan.highlight ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <div
+                    className={`p-1 rounded-full ${plan.highlight ? "bg-primary/20" : "bg-muted"}`}
+                  >
+                    <Check
+                      className={`h-3 w-3 ${plan.highlight ? "text-primary" : "text-muted-foreground"}`}
+                    />
                   </div>
-                  <p className="text-sm font-medium">{plan.aiResponses} AI Responses</p>
+                  <p className="text-sm font-medium">
+                    {plan.aiResponses} AI Responses
+                  </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className={`p-1 rounded-full ${plan.highlight ? 'bg-primary/20' : 'bg-muted'}`}>
-                    <Check className={`h-3 w-3 ${plan.highlight ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <div
+                    className={`p-1 rounded-full ${plan.highlight ? "bg-primary/20" : "bg-muted"}`}
+                  >
+                    <Check
+                      className={`h-3 w-3 ${plan.highlight ? "text-primary" : "text-muted-foreground"}`}
+                    />
                   </div>
-                  <p className="text-sm font-medium">{plan.automations} Automations</p>
+                  <p className="text-sm font-medium">
+                    {plan.automations} Automations
+                  </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className={`p-1 rounded-full ${plan.highlight ? 'bg-primary/20' : 'bg-muted'}`}>
-                    <Check className={`h-3 w-3 ${plan.highlight ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <div
+                    className={`p-1 rounded-full ${plan.highlight ? "bg-primary/20" : "bg-muted"}`}
+                  >
+                    <Check
+                      className={`h-3 w-3 ${plan.highlight ? "text-primary" : "text-muted-foreground"}`}
+                    />
                   </div>
-                  <p className="text-sm font-medium">{plan.bots} Active {parseInt(plan.bots) === 1 ? 'Bot' : 'Bots'}</p>
+                  <p className="text-sm font-medium">
+                    {plan.bots} Active{" "}
+                    {parseInt(plan.bots) === 1 ? "Bot" : "Bots"}
+                  </p>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className={`p-1 rounded-full mt-0.5 ${plan.highlight ? 'bg-primary/20' : 'bg-muted'}`}>
-                    <Globe className={`h-3 w-3 ${plan.highlight ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <div
+                    className={`p-1 rounded-full mt-0.5 ${plan.highlight ? "bg-primary/20" : "bg-muted"}`}
+                  >
+                    <Globe
+                      className={`h-3 w-3 ${plan.highlight ? "text-primary" : "text-muted-foreground"}`}
+                    />
                   </div>
                   <p className="text-xs text-muted-foreground leading-snug">
-                    <span className="font-bold text-foreground">Channels:</span><br/>
+                    <span className="font-bold text-foreground">Channels:</span>
+                    <br />
                     {plan.supportedChannels}
                   </p>
                 </div>
@@ -416,8 +518,8 @@ function PricingContent() {
               <Button
                 className={`w-full rounded-2xl font-bold py-6 ${
                   plan.highlight
-                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30"
-                  : ""
+                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30"
+                    : ""
                 }`}
                 variant={plan.highlight ? "default" : "outline"}
                 onClick={() => handleSubscribeClick(plan.name)}
@@ -448,26 +550,47 @@ function PricingContent() {
             <tr className="bg-muted/50">
               <th className="p-6 text-xl font-bold">Features</th>
               {PLANS.map((plan) => (
-                <th key={plan.name} className={`p-6 text-center ${plan.highlight ? "bg-primary/5" : ""}`}>
-                  <div className="font-bold text-foreground">{plan.displayName}</div>
-                  <div className="text-xs text-muted-foreground font-normal">£{billingCycle === 'annual' ? (plan.priceAnnual/1200).toFixed(0) : (plan.priceMonthly/100)}/mo</div>
+                <th
+                  key={plan.name}
+                  className={`p-6 text-center ${plan.highlight ? "bg-primary/5" : ""}`}
+                >
+                  <div className="font-bold text-foreground">
+                    {plan.displayName}
+                  </div>
+                  <div className="text-xs text-muted-foreground font-normal">
+                    £
+                    {billingCycle === "annual"
+                      ? (plan.priceAnnual / 1200).toFixed(0)
+                      : plan.priceMonthly / 100}
+                    /mo
+                  </div>
                 </th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             <tr>
-              <td className="p-6 font-semibold text-foreground">Monthly AI Responses</td>
+              <td className="p-6 font-semibold text-foreground">
+                Monthly AI Responses
+              </td>
               {PLANS.map((plan) => (
-                <td key={`${plan.name}-ai-responses`} className={`p-6 text-center text-muted-foreground ${plan.highlight ? "bg-primary/5" : ""}`}>
+                <td
+                  key={`${plan.name}-ai-responses`}
+                  className={`p-6 text-center text-muted-foreground ${plan.highlight ? "bg-primary/5" : ""}`}
+                >
                   {plan.aiResponses}
                 </td>
               ))}
             </tr>
             <tr>
-              <td className="p-6 font-semibold text-foreground">Flow Automations</td>
+              <td className="p-6 font-semibold text-foreground">
+                Flow Automations
+              </td>
               {PLANS.map((plan) => (
-                <td key={`${plan.name}-automations`} className={`p-6 text-center text-muted-foreground ${plan.highlight ? "bg-primary/5" : ""}`}>
+                <td
+                  key={`${plan.name}-automations`}
+                  className={`p-6 text-center text-muted-foreground ${plan.highlight ? "bg-primary/5" : ""}`}
+                >
                   {plan.automations}
                 </td>
               ))}
@@ -475,31 +598,55 @@ function PricingContent() {
             <tr>
               <td className="p-6 font-semibold text-foreground">Active Bots</td>
               {PLANS.map((plan) => (
-                <td key={`${plan.name}-bots`} className={`p-6 text-center text-muted-foreground ${plan.highlight ? "bg-primary/5" : ""}`}>
+                <td
+                  key={`${plan.name}-bots`}
+                  className={`p-6 text-center text-muted-foreground ${plan.highlight ? "bg-primary/5" : ""}`}
+                >
                   {plan.bots}
                 </td>
               ))}
             </tr>
             <tr>
-              <td className="p-6 font-semibold text-foreground">CRM & Lead Insights</td>
+              <td className="p-6 font-semibold text-foreground">
+                CRM & Lead Insights
+              </td>
               {PLANS.map((plan) => (
-                <td key={`${plan.name}-crm`} className={`p-6 text-center ${plan.highlight ? "bg-primary/5" : ""}`}>
-                  {plan.crmAccess ? <Check className="mx-auto h-5 w-5 text-green-500" /> : <X className="mx-auto h-5 w-5 text-muted-foreground opacity-30" />}
+                <td
+                  key={`${plan.name}-crm`}
+                  className={`p-6 text-center ${plan.highlight ? "bg-primary/5" : ""}`}
+                >
+                  {plan.crmAccess ? (
+                    <Check className="mx-auto h-5 w-5 text-green-500" />
+                  ) : (
+                    <X className="mx-auto h-5 w-5 text-muted-foreground opacity-30" />
+                  )}
                 </td>
               ))}
             </tr>
             <tr>
               <td className="p-6 font-semibold text-foreground">API Access</td>
               {PLANS.map((plan) => (
-                <td key={`${plan.name}-api`} className={`p-6 text-center ${plan.highlight ? "bg-primary/5" : ""}`}>
-                  {plan.apiAccess ? <Check className="mx-auto h-5 w-5 text-green-500" /> : <X className="mx-auto h-5 w-5 text-muted-foreground opacity-30" />}
+                <td
+                  key={`${plan.name}-api`}
+                  className={`p-6 text-center ${plan.highlight ? "bg-primary/5" : ""}`}
+                >
+                  {plan.apiAccess ? (
+                    <Check className="mx-auto h-5 w-5 text-green-500" />
+                  ) : (
+                    <X className="mx-auto h-5 w-5 text-muted-foreground opacity-30" />
+                  )}
                 </td>
               ))}
             </tr>
             <tr>
-              <td className="p-6 font-semibold text-foreground">Support Level</td>
+              <td className="p-6 font-semibold text-foreground">
+                Support Level
+              </td>
               {PLANS.map((plan) => (
-                <td key={`${plan.name}-support`} className={`p-6 text-center text-xs text-muted-foreground ${plan.highlight ? "bg-primary/5" : ""}`}>
+                <td
+                  key={`${plan.name}-support`}
+                  className={`p-6 text-center text-xs text-muted-foreground ${plan.highlight ? "bg-primary/5" : ""}`}
+                >
                   {plan.support}
                 </td>
               ))}
@@ -509,7 +656,10 @@ function PricingContent() {
       </div>
 
       {/* Confirmation Modal */}
-      <Dialog open={!!selectedPlan} onOpenChange={(open) => !open && setSelectedPlan(null)}>
+      <Dialog
+        open={!!currentSelectedPlan}
+        onOpenChange={(open) => !open && setSelectedPlan(null)}
+      >
         <DialogContent className="sm:max-w-[425px] rounded-3xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold flex items-center gap-2">
@@ -520,55 +670,92 @@ function PricingContent() {
               Review your selection before starting your 14-day free trial.
             </DialogDescription>
           </DialogHeader>
-          {selectedPlan && (
+          {currentSelectedPlan && (
             <div className="space-y-6 py-4">
               <div className="bg-muted/50 rounded-2xl p-6 border border-border/50">
                 <div className="flex justify-between items-center mb-4">
-                  <span className="text-sm text-muted-foreground">Selected Plan</span>
-                  <Badge variant="outline" className="font-bold border-primary/20 text-primary">{selectedPlan.displayName}</Badge>
+                  <span className="text-sm text-muted-foreground">
+                    Selected Plan
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className="font-bold border-primary/20 text-primary"
+                  >
+                    {currentSelectedPlan.displayName}
+                  </Badge>
                 </div>
                 <div className="flex justify-between items-center mb-4">
-                  <span className="text-sm text-muted-foreground">Billing Cycle</span>
-                  <Badge variant="secondary" className="capitalize">{billingCycle}</Badge>
+                  <span className="text-sm text-muted-foreground">
+                    Billing Cycle
+                  </span>
+                  <Badge variant="secondary" className="capitalize">
+                    {billingCycle}
+                  </Badge>
                 </div>
                 <div className="flex justify-between items-center mb-4">
-                  <span className="text-sm text-muted-foreground">Free Trial</span>
+                  <span className="text-sm text-muted-foreground">
+                    Free Trial
+                  </span>
                   <span className="font-semibold text-green-600">14 Days</span>
                 </div>
                 {billingCycle === "annual" && (
-                   <div className="flex justify-between items-center mb-4">
-                    <span className="text-sm text-muted-foreground">Offer Applied</span>
-                    <span className="font-bold text-primary">50% OFF (FOUNDING50)</span>
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-sm text-muted-foreground">
+                      Offer Applied
+                    </span>
+                    <span className="font-bold text-primary">
+                      50% OFF (FOUNDING50)
+                    </span>
                   </div>
                 )}
                 <div className="flex justify-between items-center pt-4 border-t border-border">
-                  <span className="text-sm font-semibold">Total to pay today</span>
-                  <span className="text-lg font-bold text-foreground">£0.00</span>
+                  <span className="text-sm font-semibold">
+                    Total to pay today
+                  </span>
+                  <span className="text-lg font-bold text-foreground">
+                    £0.00
+                  </span>
                 </div>
                 <div className="mt-2 text-[10px] text-muted-foreground text-right">
-                  Then £{billingCycle === 'annual' ? (selectedPlan.priceAnnual/200).toFixed(2) : (selectedPlan.priceMonthly/100).toFixed(2)} / {billingCycle === 'annual' ? 'year' : 'month'} after trial
-                  {billingCycle === 'annual' && " (incl. 50% discount)"}
+                  Then £
+                  {billingCycle === "annual"
+                    ? (currentSelectedPlan.priceAnnual / 200).toFixed(2)
+                    : (currentSelectedPlan.priceMonthly / 100).toFixed(2)}{" "}
+                  / {billingCycle === "annual" ? "year" : "month"} after trial
+                  {billingCycle === "annual" && " (incl. 50% discount)"}
                 </div>
               </div>
 
               <div className="space-y-3 px-1 text-sm">
                 <div className="flex gap-3">
-                  <div className="mt-1 bg-green-100 rounded-full p-0.5"><Check className="h-3 w-3 text-green-600" /></div>
+                  <div className="mt-1 bg-green-100 rounded-full p-0.5">
+                    <Check className="h-3 w-3 text-green-600" />
+                  </div>
                   <p>You won&apos;t be charged until your trial ends.</p>
                 </div>
                 <div className="flex gap-3">
-                  <div className="mt-1 bg-green-100 rounded-full p-0.5"><Check className="h-3 w-3 text-green-600" /></div>
-                  <p>Full access to all {selectedPlan.displayName} features immediately.</p>
+                  <div className="mt-1 bg-green-100 rounded-full p-0.5">
+                    <Check className="h-3 w-3 text-green-600" />
+                  </div>
+                  <p>
+                    Full access to all {currentSelectedPlan.displayName}{" "}
+                    features immediately.
+                  </p>
                 </div>
                 <div className="flex gap-3">
-                  <div className="mt-1 bg-green-100 rounded-full p-0.5"><Check className="h-3 w-3 text-green-600" /></div>
+                  <div className="mt-1 bg-green-100 rounded-full p-0.5">
+                    <Check className="h-3 w-3 text-green-600" />
+                  </div>
                   <p>Cancel anytime before trial ends to avoid charges.</p>
                 </div>
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button onClick={handleConfirmCheckout} className="w-full py-6 rounded-2xl font-bold shadow-xl shadow-primary/20 gap-2">
+            <Button
+              onClick={handleConfirmCheckout}
+              className="w-full py-6 rounded-2xl font-bold shadow-xl shadow-primary/20 gap-2"
+            >
               Start Free Trial
               <ArrowRight className="h-4 w-4" />
             </Button>
@@ -585,7 +772,9 @@ export default function PricingPage() {
       fallback={
         <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground animate-pulse font-medium">Loading premium plans...</p>
+          <p className="text-muted-foreground animate-pulse font-medium">
+            Loading premium plans...
+          </p>
         </div>
       }
     >
