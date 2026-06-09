@@ -8,23 +8,31 @@ export const POST = withAuthAndTenant(async ({ id: userId, tenantId }, request, 
   try {
     const { feedback, type } = await request.json().catch(() => ({ feedback: "", type: "CANCEL" }));
 
+    // DOWNGRADE is feedback-only: record it (if provided) and return — never cancel.
+    if (type === "DOWNGRADE") {
+      if (feedback) {
+        console.log(
+          `[Subscription Feedback] DOWNGRADE from tenant ${tenantId}: ${feedback}`,
+        );
+        await db.churnFeedback.create({
+          data: { tenantId, userId, type: "DOWNGRADE", reason: feedback },
+        });
+      }
+      return NextResponse.json({ message: "Feedback recorded" });
+    }
+
     if (feedback) {
       console.log(
-        `[Subscription Feedback] ${type} from tenant ${tenantId}: ${feedback}`,
+        `[Subscription Feedback] CANCEL from tenant ${tenantId}: ${feedback}`,
       );
       await db.churnFeedback.create({
         data: {
           tenantId,
           userId,
-          type: type || "CANCEL",
+          type: "CANCEL",
           reason: feedback,
         },
       });
-      
-      // If it's just feedback for downgrade, we don't proceed with cancellation logic
-      if (type === "DOWNGRADE") {
-        return NextResponse.json({ message: "Feedback recorded" });
-      }
     }
 
     const subscription = await db.subscription.findUnique({

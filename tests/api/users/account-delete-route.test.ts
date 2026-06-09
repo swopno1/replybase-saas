@@ -34,6 +34,44 @@ describe("DELETE /api/users/account", () => {
     vi.clearAllMocks();
   });
 
+  it("returns 401 when session is missing", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(null);
+
+    const response = await DELETE();
+    const data = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(data.error).toBe("Unauthorized");
+  });
+
+  it("returns 404 when user record not found in DB", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(mockSession as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+
+    const response = await DELETE();
+    const data = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(data.error).toBe("User not found");
+  });
+
+  it("returns 500 when transaction throws", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(mockSession as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      id: "user_1",
+      tenantId: "tenant_1",
+    } as never);
+    vi.mocked(prisma.$transaction).mockRejectedValue(
+      new Error("DB connection lost"),
+    );
+
+    const response = await DELETE();
+    const data = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(data.error).toBe("Internal Server Error");
+  });
+
   it("deletes only user-scoped data when tenant has multiple users", async () => {
     vi.mocked(getServerSession).mockResolvedValue(mockSession as never);
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
