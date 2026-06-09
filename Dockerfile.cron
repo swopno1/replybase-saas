@@ -1,0 +1,14 @@
+# Lightweight cron container for ReplyBase self-hosted deployments.
+# Calls the app's HTTP cron endpoints on a schedule.
+# Requires two env vars at runtime:
+#   APP_URL     — e.g. https://app.replybase.co.uk (no trailing slash)
+#   CRON_SECRET — matches the CRON_SECRET in the app
+
+FROM alpine:3.20
+
+RUN apk add --no-cache curl busybox-suid
+
+COPY docker/cron/crontab /etc/crontabs/root
+
+# crond -f = foreground, -l 8 = log level notice
+CMD ["crond", "-f", "-l", "8"]

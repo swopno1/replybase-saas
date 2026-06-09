@@ -1,0 +1,21 @@
+# ReplyBase Cron Jobs
+# APP_URL and CRON_SECRET are injected as environment variables at runtime.
+# All times are UTC.
+
+# Prune old logs (weekly, Sunday 02:00)
+0 2 * * 0  curl -sf -X GET "$APP_URL/api/cron/prune-logs"         -H "Authorization: Bearer $CRON_SECRET" | logger -t cron-prune-logs
+
+# Prune expired NextAuth sessions (daily 03:00)
+0 3 * * *  curl -sf -X GET "$APP_URL/api/cron/prune-sessions"     -H "Authorization: Bearer $CRON_SECRET" | logger -t cron-prune-sessions
+
+# Reconcile subscriptions against Stripe (daily 04:00)
+0 4 * * *  curl -sf -X GET "$APP_URL/api/cron/reconcile-subscriptions" -H "Authorization: Bearer $CRON_SECRET" | logger -t cron-reconcile-subscriptions
+
+# Trial reminder emails: 10d / 5d / 2d before expiry (daily 08:00)
+0 8 * * *  curl -sf -X GET "$APP_URL/api/cron/trial-reminders"    -H "Authorization: Bearer $CRON_SECRET" | logger -t cron-trial-reminders
+
+# Disable bots on expired free trials (daily 09:00)
+0 9 * * *  curl -sf -X GET "$APP_URL/api/cron/expired-trials"     -H "Authorization: Bearer $CRON_SECRET" | logger -t cron-expired-trials
+
+# Process pending Meta data-deletion requests (daily 10:00)
+0 10 * * * curl -sf -X GET "$APP_URL/api/cron/process-data-deletions" -H "Authorization: Bearer $CRON_SECRET" | logger -t cron-process-data-deletions

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logAdminActivity } from "@/lib/admin-audit";
-import { invalidateTenantCache } from "@/lib/subscription";
+import { handlePlanChange, invalidateTenantCache } from "@/lib/subscription";
 import { withAdmin } from "@/lib/route-helpers";
+import logger from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,9 @@ export const POST = withAdmin(async (session, request, context, db) => {
       });
     }
     
+    // Adjust bots/channels to match new plan limits (handles both upgrade and downgrade)
+    await handlePlanChange(tenantId, planId);
+
     // Invalidate the cache so the user sees the new limits immediately
     await invalidateTenantCache(tenantId);
 
@@ -71,7 +75,7 @@ export const POST = withAdmin(async (session, request, context, db) => {
 
     return NextResponse.json({ subscription });
   } catch (error) {
-    console.error("[Admin API] Error granting subscription:", error);
+    logger.error({ tenantId: (await context.params as any).id, error }, "[Admin] Error granting subscription");
     return NextResponse.json(
       { error: "Failed to grant subscription" },
       { status: 500 },

@@ -97,8 +97,18 @@ export async function syncSubscription(tenantId: string, stripeSubId: string) {
 export async function reconcileSubscriptions() {
   if (!stripe) return;
   logger.info("[Reconciliation] Starting daily sync...");
-  const activeSubs = await prisma.subscription.findMany({ where: { status: { in: ["ACTIVE", "TRIALING", "PAST_DUE"] } } });
-  for (const dbSub of activeSubs) {
+  const activeSubs = await prisma.subscription.findMany({
+    where: { status: { in: ["ACTIVE", "TRIALING", "PAST_DUE"] } },
+  });
+
+  // Only attempt to sync subscriptions that have a real Stripe ID
+  const stripeSubs = activeSubs.filter(
+    (s) => !s.stripeId.startsWith("free_") && !s.stripeId.startsWith("manual_grant_"),
+  );
+
+  logger.info({ total: activeSubs.length, syncing: stripeSubs.length }, "[Reconciliation] Syncing Stripe subscriptions");
+
+  for (const dbSub of stripeSubs) {
     try { await syncSubscription(dbSub.tenantId, dbSub.stripeId); }
     catch (err) { logger.error({ tenantId: dbSub.tenantId, error: err }, "[Reconciliation] Failed to sync tenant"); }
   }
