@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
+
+declare global {
+  interface Window {
+    dataLayer: Record<string, unknown>[];
+  }
+}
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2, AlertCircle, ArrowRight } from "lucide-react";
 import Link from "next/link";
@@ -29,7 +35,22 @@ function SuccessContent() {
         if (data.status === "success") {
           setStatus("success");
           setMessage(`Successfully upgraded to ${data.subscription.plan}!`);
-          
+
+          if (data.pixelData) {
+            window.dataLayer = window.dataLayer || [];
+            window.dataLayer.push({
+              event: "subscription_started",
+              plan_name: data.pixelData.plan_name,
+              value: data.pixelData.value,
+              currency: data.pixelData.currency,
+              transaction_id: data.pixelData.transaction_id,
+              first_name: data.pixelData.first_name,
+              last_name: data.pixelData.last_name,
+              email: data.pixelData.email,
+              phone: data.pixelData.phone,
+            });
+          }
+
           // Small delay before redirecting to dashboard
           setTimeout(() => {
             router.push("/");

@@ -5,7 +5,8 @@ import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = 'force-dynamic';
 
-export const GET = withAuthAndTenant(async ({ tenantId: userTenantId }, request, context, db) => {
+export const GET = withAuthAndTenant(async (user, request, context, db) => {
+  const { tenantId: userTenantId } = user;
   try {
     const { searchParams } = new URL(request.url);
     const sessionId = searchParams.get("session_id");
@@ -20,7 +21,7 @@ export const GET = withAuthAndTenant(async ({ tenantId: userTenantId }, request,
 
     // 1. Retrieve session from Stripe to ensure it's valid
     const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId);
-    
+
     if (checkoutSession.status !== "complete") {
       return NextResponse.json({ status: "pending", message: "Checkout session incomplete" });
     }
@@ -49,12 +50,29 @@ export const GET = withAuthAndTenant(async ({ tenantId: userTenantId }, request,
     });
 
     if (subscription && (subscription.stripeId === subscriptionId || ["ACTIVE", "TRIALING"].includes(subscription.status))) {
-      return NextResponse.json({ 
-        status: "success", 
+      const nameParts = (user.name || "").trim().split(" ");
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ") || "";
+      const value = checkoutSession.amount_total ? checkoutSession.amount_total / 100 : 0;
+      const currency = (checkoutSession.currency || "eur").toUpperCase();
+      const phone = checkoutSession.customer_details?.phone || null;
+
+      return NextResponse.json({
+        status: "success",
         subscription: {
           id: subscription.id,
           status: subscription.status,
           plan: subscription.plan.displayName
+        },
+        pixelData: {
+          plan_name: subscription.plan.displayName,
+          value,
+          currency,
+          transaction_id: sessionId,
+          first_name: firstName,
+          last_name: lastName,
+          email: user.email || checkoutSession.customer_details?.email || "",
+          phone,
         }
       });
     }
