@@ -7,12 +7,16 @@ const stripeSecret = process.env.STRIPE_SECRET_KEY;
 
 async function seed() {
   if (!stripeSecret) {
-    console.warn("⚠️ STRIPE_SECRET_KEY is missing. Skipping Stripe product seeding, only updating DB plans.");
+    console.warn(
+      "⚠️ STRIPE_SECRET_KEY is missing. Skipping Stripe product seeding, only updating DB plans.",
+    );
   }
 
-  const stripe = stripeSecret ? new Stripe(stripeSecret, {
-    apiVersion: "2026-01-28.clover" as Stripe.LatestApiVersion,
-  }) : null;
+  const stripe = stripeSecret
+    ? new Stripe(stripeSecret, {
+        apiVersion: "2026-05-27.dahlia" as Stripe.LatestApiVersion,
+      })
+    : null;
 
   console.log("🌱 Seeding products and plans...");
 
@@ -48,12 +52,13 @@ async function seed() {
 
       // Find monthly price
       let monthlyPrice = pricesList.data.find(
-        (p) => p.recurring?.interval === "month" && p.unit_amount === plan.price
+        (p) =>
+          p.recurring?.interval === "month" && p.unit_amount === plan.price,
       );
 
       if (!monthlyPrice) {
         console.log(
-          `   Creating monthly price for ${plan.displayName}: £${plan.price / 100}`
+          `   Creating monthly price for ${plan.displayName}: £${plan.price / 100}`,
         );
         monthlyPrice = await stripe.prices.create({
           product: product.id,
@@ -73,12 +78,13 @@ async function seed() {
       // Find annual price (10 months rate)
       const annualAmount = plan.price * 10;
       let annualPrice = pricesList.data.find(
-        (p) => p.recurring?.interval === "year" && p.unit_amount === annualAmount
+        (p) =>
+          p.recurring?.interval === "year" && p.unit_amount === annualAmount,
       );
 
       if (!annualPrice) {
         console.log(
-          `   Creating annual price for ${plan.displayName}: £${annualAmount / 100}`
+          `   Creating annual price for ${plan.displayName}: £${annualAmount / 100}`,
         );
         annualPrice = await stripe.prices.create({
           product: product.id,
@@ -96,7 +102,9 @@ async function seed() {
       }
 
       priceId = monthlyPrice.id;
-      console.log(`   --> Stripe Annual Price ID for ${plan.name}: ${annualPrice.id}`);
+      console.log(
+        `   --> Stripe Annual Price ID for ${plan.name}: ${annualPrice.id}`,
+      );
     }
 
     console.log(`   Upserting DB Plan: ${plan.name}`);
