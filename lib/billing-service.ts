@@ -1,7 +1,7 @@
 import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
-import { handlePlanDowngrade, getTenantUsage, invalidateTenantCache } from "./subscription";
+import { handlePlanChange, getTenantUsage, invalidateTenantCache } from "./subscription";
 import { Invoice, PaymentMethodInfo } from "@/types/shared/billing";
 import logger from "./logger";
 
@@ -29,7 +29,14 @@ export async function syncSubscription(tenantId: string, stripeSubId: string) {
       else if (nameLower.includes("scale")) planName = "scale";
       else if (nameLower.includes("grow")) planName = "grow";
       else if (nameLower.includes("launch")) planName = "launch";
-      else planName = "free";
+      else {
+        // Fail loudly — silently defaulting to "free" would downgrade the customer
+        throw new Error(
+          `[Billing] Cannot resolve plan name for Stripe subscription ${sub.id}. ` +
+          `Product "${product.name}" (${product.id}) has no app_plan_id metadata and no recognisable name. ` +
+          `Set metadata.app_plan_id on the Stripe product to fix this.`
+        );
+      }
     }
   }
   let dbPlan = await prisma.plan.findUnique({ where: { name: planName } });
@@ -54,8 +61,10 @@ export async function syncSubscription(tenantId: string, stripeSubId: string) {
     });
   }
   let status = sub.status.toUpperCase();
-  if (status === "UNPAID" || status === "INCOMPLETE_EXPIRED") status = "CANCELED";
-  if (status === "INCOMPLETE") status = "PAST_DUE";
+  // INCOMPLETE_EXPIRED = payment window elapsed, genuinely canceled
+  if (status === "INCOMPLETE_EXPIRED") status = "CANCELED";
+  // UNPAID and INCOMPLETE = payment failed/pending, customer may still recover
+  if (status === "UNPAID" || status === "INCOMPLETE") status = "PAST_DUE";
   const isDowngradeScheduled = sub.cancel_at_period_end;
   return await prisma.$transaction(async (tx) => {
     const existingSub = await tx.subscription.findUnique({ where: { tenantId } });
@@ -80,7 +89,7 @@ export async function syncSubscription(tenantId: string, stripeSubId: string) {
       },
     });
     if (status === "TRIALING") await tx.tenant.update({ where: { id: tenantId }, data: { trialUsed: true } });
-    if (existingSub && existingSub.planId !== dbPlan!.id) await handlePlanDowngrade(tenantId, dbPlan!.id);
+    if (existingSub && existingSub.planId !== dbPlan!.id) await handlePlanChange(tenantId, dbPlan!.id);
     await invalidateTenantCache(tenantId);
     return updatedSub;
   });

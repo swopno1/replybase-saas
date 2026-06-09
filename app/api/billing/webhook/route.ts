@@ -29,12 +29,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Webhook Error" }, { status: 400 });
   }
 
-  // Idempotency & Audit Check (Rule #8)
+  // Idempotency & Audit Check
   const existingEvent = await prisma.stripeEvent.findUnique({
     where: { stripeEventId: event.id },
   });
 
-  if (existingEvent && existingEvent.status === "PROCESSED") {
+  // Skip if already processed OR already queued (prevents double-processing on duplicate delivery)
+  if (existingEvent && ["PROCESSED", "PENDING"].includes(existingEvent.status)) {
     return NextResponse.json({ received: true, duplicate: true });
   }
 

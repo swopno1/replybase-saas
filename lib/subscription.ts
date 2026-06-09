@@ -195,9 +195,15 @@ export async function getTenantLimits(tenantId: string) {
       expires: now + CACHE_TTL_MS,
     });
 
-    if (TENANT_LIMITS_CACHE.size > 1000) {
-      const firstKey = TENANT_LIMITS_CACHE.keys().next().value;
-      if (firstKey) TENANT_LIMITS_CACHE.delete(firstKey);
+    // Evict oldest 20% of entries when the cache exceeds 500 to prevent unbounded growth
+    if (TENANT_LIMITS_CACHE.size > 500) {
+      const evictCount = Math.ceil(TENANT_LIMITS_CACHE.size * 0.2);
+      const keys = TENANT_LIMITS_CACHE.keys();
+      for (let i = 0; i < evictCount; i++) {
+        const next = keys.next();
+        if (next.done) break;
+        TENANT_LIMITS_CACHE.delete(next.value);
+      }
     }
 
     await redis.set(cacheKey, JSON.stringify(limits), "EX", 3600);
@@ -265,39 +271,73 @@ export async function getTenantUsage(tenantId: string) {
 }
 
 export async function handlePlanDowngrade(tenantId: string, newPlanId: string) {
+  return handlePlanChange(tenantId, newPlanId);
+}
+
+export async function handlePlanChange(tenantId: string, newPlanId: string) {
   const plan = await prisma.plan.findUnique({
     where: { id: newPlanId },
   });
 
   if (!plan) return;
 
-  const bots = await prisma.bot.findMany({
+  // Re-enable disabled bots up to the new plan's limit (covers upgrade path)
+  const allBots = await prisma.bot.findMany({
     where: { tenantId },
     orderBy: { createdAt: "asc" },
   });
 
-  if (bots.length > plan.maxBots) {
-    const excessBots = bots.slice(plan.maxBots);
+  const enabledBots = allBots.filter((b) => b.enabled);
+  const disabledBots = allBots.filter((b) => !b.enabled);
+
+  if (enabledBots.length < plan.maxBots && disabledBots.length > 0) {
+    const slotsAvailable = plan.maxBots - enabledBots.length;
+    const botsToReEnable = disabledBots.slice(0, slotsAvailable);
     await prisma.bot.updateMany({
-      where: {
-        id: { in: excessBots.map((b) => b.id) },
-      },
+      where: { id: { in: botsToReEnable.map((b) => b.id) } },
+      data: { enabled: true },
+    });
+  }
+
+  // Disable excess bots beyond the new plan's limit (covers downgrade path)
+  if (enabledBots.length > plan.maxBots) {
+    const excessBots = enabledBots.slice(plan.maxBots);
+    await prisma.bot.updateMany({
+      where: { id: { in: excessBots.map((b) => b.id) } },
       data: { enabled: false },
     });
   }
 
-  for (const bot of bots) {
-    const channels = await prisma.channel.findMany({
-      where: { botId: bot.id, isActive: true },
+  // Re-read bots after adjustments to handle channels correctly
+  const activeBots = await prisma.bot.findMany({
+    where: { tenantId, enabled: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  for (const bot of activeBots) {
+    const allChannels = await prisma.channel.findMany({
+      where: { botId: bot.id },
       orderBy: { createdAt: "asc" },
     });
 
-    if (channels.length > plan.maxChannelsPerBot) {
-      const excessChannels = channels.slice(plan.maxChannelsPerBot);
+    const activeChannels = allChannels.filter((c) => c.isActive);
+    const inactiveChannels = allChannels.filter((c) => !c.isActive);
+
+    // Re-enable inactive channels up to the new limit
+    if (activeChannels.length < plan.maxChannelsPerBot && inactiveChannels.length > 0) {
+      const slotsAvailable = plan.maxChannelsPerBot - activeChannels.length;
+      const channelsToReEnable = inactiveChannels.slice(0, slotsAvailable);
       await prisma.channel.updateMany({
-        where: {
-          id: { in: excessChannels.map((c) => c.id) },
-        },
+        where: { id: { in: channelsToReEnable.map((c) => c.id) } },
+        data: { isActive: true },
+      });
+    }
+
+    // Disable excess channels beyond the new limit
+    if (activeChannels.length > plan.maxChannelsPerBot) {
+      const excessChannels = activeChannels.slice(plan.maxChannelsPerBot);
+      await prisma.channel.updateMany({
+        where: { id: { in: excessChannels.map((c) => c.id) } },
         data: { isActive: false },
       });
     }

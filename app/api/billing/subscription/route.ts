@@ -163,24 +163,30 @@ export const PATCH = withAuthAndTenant(async ({ tenantId }, request, context, db
     }
 
     const stripeSubscription = await stripe.subscriptions.retrieve(subscription.stripeId);
-    
+
     await stripe.subscriptions.update(subscription.stripeId, {
       items: [{
         id: stripeSubscription.items.data[0].id,
         price: priceId,
       }],
-      proration_behavior: "always_invoice", // Charge/credit immediately
+      proration_behavior: "always_invoice",
     });
 
-    // Update DB
-    const updated = await db.subscription.update({
-      where: { tenantId },
-      data: {
-        planId: plan.id,
-        updatedAt: new Date(),
-      },
-      include: { plan: true },
-    });
+    // Update DB — if this fails, the webhook from Stripe will correct it shortly
+    let updated;
+    try {
+      updated = await db.subscription.update({
+        where: { tenantId },
+        data: { planId: plan.id, updatedAt: new Date() },
+        include: { plan: true },
+      });
+    } catch (dbErr: any) {
+      console.error("[Subscription PATCH] Stripe updated but DB write failed. Webhook will reconcile.", dbErr);
+      return NextResponse.json(
+        { error: "Subscription updated in Stripe but DB sync failed. Your plan will reflect correctly within a few minutes." },
+        { status: 500 },
+      );
+    }
 
     // Invalidate Cache
     const { invalidateTenantCache } = await import("@/lib/subscription");

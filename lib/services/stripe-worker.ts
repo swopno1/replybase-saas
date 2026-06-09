@@ -44,6 +44,10 @@ export async function processStripeJob(payload: { stripeEventId: string }) {
 
         if (dbSub) {
           await syncSubscription(dbSub.tenantId, subscription.id);
+        } else {
+          logger.warn(
+            `[Stripe Worker] No DB subscription found for Stripe customer ${subscription.customer} on event ${eventType}`,
+          );
         }
         break;
       }
@@ -96,11 +100,84 @@ export async function processStripeJob(payload: { stripeEventId: string }) {
             data: { status: "PAST_DUE" },
           });
           await invalidateTenantCache(dbSub.tenantId);
-          logger.warn(`[Stripe Worker] Payment failed for tenant ${dbSub.tenantId}. PAST_DUE.`);
+          logger.warn(`[Stripe Worker] Payment failed for tenant ${dbSub.tenantId}. Status → PAST_DUE.`);
         }
         break;
       }
 
+      // 3D Secure / SCA — invoice requires customer action (e.g. bank auth)
+      case "invoice.payment_action_required": {
+        const invoice = eventData;
+        const dbSub = await prisma.subscription.findUnique({
+          where: { stripeCustomerId: invoice.customer },
+        });
+
+        if (dbSub) {
+          await prisma.subscription.update({
+            where: { id: dbSub.id },
+            data: { status: "PAST_DUE" },
+          });
+          await invalidateTenantCache(dbSub.tenantId);
+          logger.warn(
+            `[Stripe Worker] Payment action required for tenant ${dbSub.tenantId}. Status → PAST_DUE.`,
+          );
+        }
+        break;
+      }
+
+      // Trial ending in 3 days — log; wire up email in a dedicated notification service
+      case "customer.subscription.trial_will_end": {
+        const subscription = eventData;
+        const dbSub = await prisma.subscription.findUnique({
+          where: { stripeCustomerId: subscription.customer },
+        });
+
+        if (dbSub) {
+          const trialEnd = subscription.trial_end
+            ? new Date(subscription.trial_end * 1000).toISOString()
+            : "unknown";
+          logger.info(
+            `[Stripe Worker] Trial ending for tenant ${dbSub.tenantId} at ${trialEnd}. TODO: send reminder email.`,
+          );
+          await prisma.activityLog.create({
+            data: {
+              tenantId: dbSub.tenantId,
+              type: "TRIAL_ENDING_SOON",
+              title: "Trial Ending Soon",
+              description: `Your free trial ends on ${trialEnd}. Add a payment method to continue.`,
+              metadata: { trialEnd },
+            },
+          });
+        }
+        break;
+      }
+
+      // Chargeback filed — mark for ops review, do NOT auto-cancel
+      case "charge.dispute.created": {
+        const dispute = eventData;
+        const dbSub = await prisma.subscription.findUnique({
+          where: { stripeCustomerId: dispute.customer },
+        });
+
+        if (dbSub) {
+          logger.error(
+            { tenantId: dbSub.tenantId, disputeId: dispute.id, amount: dispute.amount },
+            `[Stripe Worker] Chargeback dispute created for tenant ${dbSub.tenantId}. Manual review required.`,
+          );
+          await prisma.activityLog.create({
+            data: {
+              tenantId: dbSub.tenantId,
+              type: "DISPUTE_CREATED",
+              title: "Chargeback Dispute Filed",
+              description: `Stripe dispute ${dispute.id} for ${dispute.amount / 100} ${dispute.currency?.toUpperCase()} requires review.`,
+              metadata: { disputeId: dispute.id, amount: dispute.amount, reason: dispute.reason },
+            },
+          });
+        }
+        break;
+      }
+
+      // A charge refund is NOT a subscription cancellation — log only
       case "charge.refunded": {
         const charge = eventData;
         const dbSub = await prisma.subscription.findUnique({
@@ -108,18 +185,16 @@ export async function processStripeJob(payload: { stripeEventId: string }) {
         });
 
         if (dbSub) {
-          await prisma.subscription.update({
-            where: { id: dbSub.id },
-            data: { status: "CANCELED" },
-          });
-          await invalidateTenantCache(dbSub.tenantId);
-          logger.info(`[Stripe Worker] Charge refunded for tenant ${dbSub.tenantId}. CANCELED.`);
+          logger.info(
+            { tenantId: dbSub.tenantId, chargeId: charge.id, amountRefunded: charge.amount_refunded },
+            `[Stripe Worker] Charge refunded for tenant ${dbSub.tenantId}. Subscription NOT modified.`,
+          );
         }
         break;
       }
 
       default:
-        logger.info(`[Stripe Worker] Unhandled event type ${eventType}`);
+        logger.info(`[Stripe Worker] Unhandled event type: ${eventType}`);
     }
 
     await prisma.stripeEvent.update({
@@ -128,11 +203,12 @@ export async function processStripeJob(payload: { stripeEventId: string }) {
     });
   } catch (error: any) {
     logger.error({ error }, `[Stripe Worker] Processing failed for ${stripeEventId}`);
-    
+
     await prisma.stripeEvent.update({
       where: { id: auditLog.id },
       data: { status: "FAILED", error: error.message || "Unknown error" },
     });
+    // Throw so BullMQ retries (queue: attempts=3, exponential backoff)
     throw error;
   }
 }

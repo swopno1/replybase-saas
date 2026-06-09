@@ -52,7 +52,20 @@ export const POST = withAuthAndTenant(async (user, request, context, db) => {
       return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
     }
 
-    let stripeCustomerId = (tenant as any).subscriptions?.stripeCustomerId;
+    // Guard: block duplicate checkout if already on an active paid subscription
+    const existingSub = (tenant as any).subscriptions;
+    if (
+      existingSub &&
+      !existingSub.stripeId?.startsWith("free_") &&
+      ["ACTIVE", "TRIALING"].includes(existingSub.status)
+    ) {
+      return NextResponse.json(
+        { error: "An active subscription already exists. Use the billing portal to make changes." },
+        { status: 409 },
+      );
+    }
+
+    let stripeCustomerId = existingSub?.stripeCustomerId;
 
     if (!stripeCustomerId && email) {
       const existingCustomers = await stripe.customers.list({
