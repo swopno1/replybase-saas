@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { withAuthAndTenant } from "@/lib/route-helpers";
+import logger from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +32,7 @@ export const POST = withAuthAndTenant(async ({ tenantId }, request, context, db)
 
     return NextResponse.json({ url: stripeSession.url });
   } catch (error: unknown) {
-    console.error("[Billing Portal] Error:", error);
+    logger.error({ error }, "[Billing Portal] Failed to create portal session");
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 },

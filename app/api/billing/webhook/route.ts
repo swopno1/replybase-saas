@@ -4,6 +4,7 @@ import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import Stripe from "stripe";
 import { messageQueue } from "@/lib/queue";
+import logger from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
     );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error(`[Webhook] Signature verification failed: ${errorMessage}`);
+    logger.error({ error: errorMessage }, "[Webhook] Signature verification failed");
     return NextResponse.json({ error: "Webhook Error" }, { status: 400 });
   }
 
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Enqueue failed";
-    console.error(`[Webhook] Error enqueueing ${event.type}:`, errorMessage);
+    logger.error({ eventType: event.type, error: errorMessage }, "[Webhook] Failed to enqueue event");
     
     await prisma.stripeEvent.update({
       where: { id: auditLog.id },

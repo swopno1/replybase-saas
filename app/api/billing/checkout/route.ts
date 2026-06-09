@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { z } from "zod";
 import { withAuthAndTenant } from "@/lib/route-helpers";
+import logger from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
 
@@ -42,7 +43,7 @@ export const POST = withAuthAndTenant(async (user, request, context, db) => {
       );
     }
 
-    // 1. Resolve Stripe Customer
+    // 1. Resolve tenant and guard against duplicate active subscriptions
     const tenant = await db.tenant.findUnique({
       where: { id: tenantId },
       include: { subscriptions: true },
@@ -52,7 +53,6 @@ export const POST = withAuthAndTenant(async (user, request, context, db) => {
       return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
     }
 
-    // Guard: block duplicate checkout if already on an active paid subscription
     const existingSub = (tenant as any).subscriptions;
     if (
       existingSub &&
@@ -65,7 +65,20 @@ export const POST = withAuthAndTenant(async (user, request, context, db) => {
       );
     }
 
+    // 2. Resolve Stripe Customer — verify any cached customer ID is not deleted
     let stripeCustomerId = existingSub?.stripeCustomerId;
+
+    if (stripeCustomerId) {
+      try {
+        const existing = await stripe.customers.retrieve(stripeCustomerId);
+        if ((existing as any).deleted) {
+          logger.warn({ tenantId, stripeCustomerId }, "[Checkout] Cached Stripe customer is deleted — creating a new one");
+          stripeCustomerId = null;
+        }
+      } catch {
+        stripeCustomerId = null;
+      }
+    }
 
     if (!stripeCustomerId && email) {
       const existingCustomers = await stripe.customers.list({
@@ -74,7 +87,8 @@ export const POST = withAuthAndTenant(async (user, request, context, db) => {
       });
 
       if (existingCustomers.data.length > 0) {
-        stripeCustomerId = existingCustomers.data[0].id;
+        const candidate = existingCustomers.data[0];
+        stripeCustomerId = (candidate as any).deleted ? null : candidate.id;
       }
     }
 
@@ -82,15 +96,12 @@ export const POST = withAuthAndTenant(async (user, request, context, db) => {
       const customer = await stripe.customers.create({
         email: email || undefined,
         name: userName || undefined,
-        metadata: {
-          userId,
-          tenantId,
-        },
+        metadata: { userId, tenantId },
       });
       stripeCustomerId = customer.id;
     }
 
-    // 2. Prevent Trial Abuse
+    // 3. Prevent Trial Abuse
     const hasUsedTrial = (tenant as any).trialUsed;
     const trialDays = hasUsedTrial ? undefined : 14;
 
@@ -98,34 +109,15 @@ export const POST = withAuthAndTenant(async (user, request, context, db) => {
       userId,
       tenantId,
       billingCycle,
+      planName: planName || "",
     };
 
-    if (planName) {
-      metadata.planName = planName;
-    }
-
-    // 3. Create Checkout Session
-    const checkoutOptions: any = {
-      customer: stripeCustomerId,
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
-      mode: "subscription",
-      success_url: `${appUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl}/pricing?canceled=true`,
-      metadata,
-      subscription_data: {
-        metadata,
-        trial_period_days: trialDays,
-      },
-      allow_promotion_codes: true, // Always allow manual entry
-    };
-
-    // 4. Handle Founding Offer & Coupons
+    // 4. Resolve promo code
+    // Stripe does not allow allow_promotion_codes and discounts together —
+    // if a discount is pre-applied, promotion code field is removed from the session.
+    let appliedDiscount: { promotion_code: string } | null = null;
     const activePromo = promoCode || (billingCycle === "annual" ? "FOUNDING50" : undefined);
+
     if (activePromo) {
       try {
         const promoCodes = await stripe.promotionCodes.list({
@@ -135,24 +127,39 @@ export const POST = withAuthAndTenant(async (user, request, context, db) => {
         });
 
         if (promoCodes.data.length > 0) {
-          checkoutOptions.discounts = [
-            {
-              promotion_code: promoCodes.data[0].id,
-            },
-          ];
+          appliedDiscount = { promotion_code: promoCodes.data[0].id };
         } else {
-          console.warn(`[Stripe Checkout] Active promotion code '${activePromo}' not found in Stripe`);
+          logger.warn({ tenantId, promoCode: activePromo }, "[Checkout] Promo code not found or inactive — checkout proceeds without discount");
         }
       } catch (err) {
-        console.error(`[Stripe Checkout] Failed to fetch/apply promo code '${activePromo}':`, err);
+        logger.error({ tenantId, promoCode: activePromo, err }, "[Checkout] Failed to look up promo code — proceeding without discount");
       }
+    }
+
+    // 5. Create Checkout Session
+    const checkoutOptions: any = {
+      customer: stripeCustomerId,
+      line_items: [{ price: priceId, quantity: 1 }],
+      mode: "subscription",
+      success_url: `${appUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${appUrl}/pricing?canceled=true`,
+      metadata,
+      subscription_data: { metadata, trial_period_days: trialDays },
+    };
+
+    if (appliedDiscount) {
+      // Pre-applied discount: customer sees it locked in, cannot enter another code
+      checkoutOptions.discounts = [appliedDiscount];
+    } else {
+      // No pre-applied discount: let customer enter any code manually
+      checkoutOptions.allow_promotion_codes = true;
     }
 
     const checkoutSession = await stripe.checkout.sessions.create(checkoutOptions);
 
     return NextResponse.json({ url: checkoutSession.url });
   } catch (error) {
-    console.error("[Stripe Checkout] Error:", error);
+    logger.error({ error }, "[Checkout] Unhandled error creating checkout session");
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 },

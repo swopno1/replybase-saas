@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { syncSubscription } from "@/lib/billing-service";
 import { withAuthAndTenant } from "@/lib/route-helpers";
+import logger from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
 
@@ -37,10 +38,10 @@ export const GET = withAuthAndTenant(async (user, request, context, db) => {
     try {
       if (subscriptionId) {
         await syncSubscription(tenantId, subscriptionId);
-        console.log(`[Verify Session] Proactive sync successful for tenant ${tenantId}`);
+        logger.info({ tenantId }, "[Verify Session] Proactive sync successful");
       }
     } catch (syncErr) {
-      console.error("[Verify Session] Proactive sync failed:", syncErr);
+      logger.error({ tenantId, error: syncErr }, "[Verify Session] Proactive sync failed");
     }
 
     // 3. Check finalized state in DB
@@ -80,7 +81,7 @@ export const GET = withAuthAndTenant(async (user, request, context, db) => {
     return NextResponse.json({ status: "syncing", message: "Finalizing your subscription..." });
 
   } catch (error) {
-    console.error("[Verify Session] Error:", error);
+    logger.error({ error }, "[Verify Session] Unhandled error");
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 });

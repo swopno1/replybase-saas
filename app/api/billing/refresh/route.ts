@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { invalidateTenantCache } from "@/lib/subscription";
 import { withAuthAndTenant } from "@/lib/route-helpers";
+import logger from "@/lib/logger";
 
 export const POST = withAuthAndTenant(async ({ tenantId }) => {
   try {
@@ -13,7 +14,7 @@ export const POST = withAuthAndTenant(async ({ tenantId }) => {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("[Billing Refresh] Error:", error);
+    logger.error({ error }, "[Billing Refresh] Failed to invalidate cache");
     return NextResponse.json(
       { error: "Failed to refresh billing cache" },
       { status: 500 }

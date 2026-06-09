@@ -215,12 +215,14 @@ export async function getTenantLimits(tenantId: string) {
 }
 
 export async function invalidateTenantCache(tenantId: string) {
-  TENANT_LIMITS_CACHE.delete(tenantId);
+  // Delete Redis first — if we deleted in-memory first, a concurrent request could
+  // repopulate in-memory from stale Redis before we get to delete it.
   try {
     await redis.del(`limits:${tenantId}`);
   } catch (err) {
     logger.error({ error: err, tenantId }, "[Subscription] Redis cache invalidate failed");
   }
+  TENANT_LIMITS_CACHE.delete(tenantId);
 }
 
 export const invalidateTenantLimitsCache = invalidateTenantCache;

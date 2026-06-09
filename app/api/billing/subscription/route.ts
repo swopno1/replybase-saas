@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { withAuthAndTenant } from "@/lib/route-helpers";
+import logger from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
 
@@ -118,7 +119,7 @@ export const GET = withAuthAndTenant(async ({ tenantId }, request, context, db) 
       invoices,
     });
   } catch (error) {
-    console.error("Subscription fetch error:", error);
+    logger.error({ error }, "[Subscription GET] Failed to fetch subscription");
     return NextResponse.json(
       { error: "Failed to fetch subscription" },
       { status: 500 },
@@ -181,7 +182,7 @@ export const PATCH = withAuthAndTenant(async ({ tenantId }, request, context, db
         include: { plan: true },
       });
     } catch (dbErr: any) {
-      console.error("[Subscription PATCH] Stripe updated but DB write failed. Webhook will reconcile.", dbErr);
+      logger.error({ tenantId, error: dbErr }, "[Subscription PATCH] Stripe updated but DB write failed — webhook will reconcile");
       return NextResponse.json(
         { error: "Subscription updated in Stripe but DB sync failed. Your plan will reflect correctly within a few minutes." },
         { status: 500 },
@@ -194,7 +195,7 @@ export const PATCH = withAuthAndTenant(async ({ tenantId }, request, context, db
 
     return NextResponse.json({ subscription: updated });
   } catch (error: any) {
-    console.error("Subscription update error:", error);
+    logger.error({ error }, "[Subscription PATCH] Failed to update subscription");
     return NextResponse.json(
       { error: error.message || "Failed to update subscription" },
       { status: 500 },

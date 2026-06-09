@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { invalidateTenantCache } from "@/lib/subscription";
 import { withAuthAndTenant } from "@/lib/route-helpers";
+import logger from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,7 @@ export const DELETE = withAuthAndTenant(async ({ tenantId }, request, context, d
     }
 
     if (feedback) {
-      console.log(`[Subscription Cancel] Feedback from user: ${feedback}`);
+      logger.info({ tenantId }, "[Subscription Cancel] Feedback received");
     }
 
     const { id } = (await context.params) as { id: string };
@@ -44,10 +45,11 @@ export const DELETE = withAuthAndTenant(async ({ tenantId }, request, context, d
       const updated = await db.subscription.update({
         where: { id: subscription.id },
         data: {
-          status: "canceled",
+          status: "CANCELED",
           cancelAtPeriodEnd: true,
         },
       });
+      await invalidateTenantCache(tenantId);
       return NextResponse.json({ subscription: updated });
     }
 
@@ -60,7 +62,7 @@ export const DELETE = withAuthAndTenant(async ({ tenantId }, request, context, d
     const updated = await db.subscription.update({
       where: { id: subscription.id },
       data: {
-        status: sub.status,
+        status: sub.status.toUpperCase(),
         cancelAtPeriodEnd: sub.cancel_at_period_end,
         currentPeriodEnd: new Date(sub.current_period_end * 1000),
       },
@@ -71,7 +73,7 @@ export const DELETE = withAuthAndTenant(async ({ tenantId }, request, context, d
     return NextResponse.json({ subscription: updated });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[Subscription Cancel] Error:", error);
+    logger.error({ error }, "[Subscription Cancel] Unhandled error");
     return NextResponse.json(
       { error: "Internal Server Error", details: message },
       { status: 500 },

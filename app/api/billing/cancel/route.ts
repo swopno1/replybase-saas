@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { withAuthAndTenant } from "@/lib/route-helpers";
+import logger from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
 
@@ -11,9 +12,7 @@ export const POST = withAuthAndTenant(async ({ id: userId, tenantId }, request, 
     // DOWNGRADE is feedback-only: record it (if provided) and return — never cancel.
     if (type === "DOWNGRADE") {
       if (feedback) {
-        console.log(
-          `[Subscription Feedback] DOWNGRADE from tenant ${tenantId}: ${feedback}`,
-        );
+        logger.info({ tenantId }, "[Cancel] DOWNGRADE feedback recorded");
         await db.churnFeedback.create({
           data: { tenantId, userId, type: "DOWNGRADE", reason: feedback },
         });
@@ -22,9 +21,7 @@ export const POST = withAuthAndTenant(async ({ id: userId, tenantId }, request, 
     }
 
     if (feedback) {
-      console.log(
-        `[Subscription Feedback] CANCEL from tenant ${tenantId}: ${feedback}`,
-      );
+      logger.info({ tenantId }, "[Cancel] CANCEL feedback recorded");
       await db.churnFeedback.create({
         data: {
           tenantId,
@@ -85,7 +82,7 @@ export const POST = withAuthAndTenant(async ({ id: userId, tenantId }, request, 
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[Subscription Cancel] Error:", error);
+    logger.error({ error }, "[Cancel] Unhandled error cancelling subscription");
     return NextResponse.json(
       { error: "Internal Server Error", details: message },
       { status: 500 },
