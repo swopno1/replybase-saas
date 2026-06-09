@@ -14,6 +14,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isCronAuthorized } from "@/lib/cron-auth";
+import logger from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +39,7 @@ async function runPruneSessions(): Promise<NextResponse> {
     where: { expires: { lt: now } },
   });
 
-  console.log(`[prune-sessions] deleted=${count}`);
+  logger.info({ deleted: count }, "[prune-sessions] Completed");
 
   return NextResponse.json({ ok: true, deleted: count });
 }

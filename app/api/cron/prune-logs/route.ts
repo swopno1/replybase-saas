@@ -14,6 +14,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isCronAuthorized } from "@/lib/cron-auth";
+import logger from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -82,7 +83,7 @@ async function runPruneLogs(): Promise<NextResponse> {
     webchatEvents: webchatEvent.count,
   };
 
-  console.log("[prune-logs]", JSON.stringify(summary));
+  logger.info({ deleted: summary }, "[prune-logs] Completed");
 
   return NextResponse.json({ ok: true, deleted: summary });
 }

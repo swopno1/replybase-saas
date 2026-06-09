@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { DataDeletionStatus } from "@prisma/client";
 import { recordActivity } from "@/lib/activity-log";
+import logger from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -75,7 +76,7 @@ export async function GET(req: Request) {
 
         results.push({ id: request.id, status: "success" });
       } catch (error) {
-        console.error(`Failed to process deletion request ${request.id}:`, error);
+        logger.error({ requestId: request.id, error }, "[process-data-deletions] Failed to process request");
         await prisma.dataDeletionRequest.update({
           where: { id: request.id },
           data: {
@@ -92,7 +93,7 @@ export async function GET(req: Request) {
       results,
     });
   } catch (error) {
-    console.error("[Cron: Process Data Deletions] Error:", error);
+    logger.error({ error }, "[process-data-deletions] Unhandled error");
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 },
@@ -122,7 +123,7 @@ async function checkAndAlertStuckRequests() {
   });
 
   for (const request of stuckRequests) {
-    console.warn(`Alert: Data deletion request ${request.id} is stuck or failed:`, request);
+    logger.warn({ requestId: request.id, status: request.status }, "[process-data-deletions] Data deletion request stuck or failed");
 
     // Log a system event for admin visibility
     // We use a generic system tenant ID or the request's tenantId if available

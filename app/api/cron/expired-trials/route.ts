@@ -13,6 +13,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isCronAuthorized } from "@/lib/cron-auth";
+import logger from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -104,9 +105,7 @@ async function runExpiredTrials(): Promise<NextResponse> {
     processed++;
   }
 
-  console.log(
-    `[expired-trials] processed=${processed} disabled=${disabled} skipped=${skipped}`,
-  );
+  logger.info({ processed, disabled, skipped }, "[expired-trials] Completed");
 
   return NextResponse.json({ ok: true, processed, disabled, skipped });
 }

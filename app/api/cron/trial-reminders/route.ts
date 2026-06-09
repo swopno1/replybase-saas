@@ -16,6 +16,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendTrialReminderEmail } from "@/lib/trial-reminder-email";
 import { isCronAuthorized } from "@/lib/cron-auth";
+import logger from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -207,9 +208,7 @@ async function runReminders(): Promise<NextResponse> {
   const skipped = results.filter((r) => r.skipped).length;
   const failed = results.filter((r) => !r.sent && !r.skipped).length;
 
-  console.log(
-    `[trial-reminders] processed=${results.length} sent=${sent} skipped=${skipped} failed=${failed}`,
-  );
+  logger.info({ processed: results.length, sent, skipped, failed }, "[trial-reminders] Completed");
 
   return NextResponse.json({
     ok: true,

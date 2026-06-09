@@ -39,3 +39,18 @@ export const PLANS = {
 };
 
 export const TRIAL_DAYS = 14;
+
+// Warn at module load time in production if any price ID is missing.
+// A missing ID means that plan's checkout button will silently fail.
+if (typeof window === "undefined" && process.env.NODE_ENV === "production") {
+  const missing: string[] = [];
+  for (const [key, plan] of Object.entries(PLANS)) {
+    if (!plan.monthlyPriceId) missing.push(`NEXT_PUBLIC_STRIPE_${key.toUpperCase()}_PRICE_ID`);
+    if (!plan.annualPriceId) missing.push(`NEXT_PUBLIC_STRIPE_${key.toUpperCase()}_ANNUAL_PRICE_ID`);
+  }
+  if (missing.length > 0) {
+    console.warn(
+      `[Stripe] Missing price ID env vars — checkout will fail for these plans:\n  ${missing.join("\n  ")}`,
+    );
+  }
+}
