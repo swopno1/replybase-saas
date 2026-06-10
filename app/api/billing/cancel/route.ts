@@ -44,11 +44,19 @@ export const POST = withAuthAndTenant(async ({ id: userId, tenantId }, request, 
       );
     }
 
-    // Handle FREE plans or no stripe ID
+    // Subscriptions in these states are already terminal — Stripe rejects any
+    // update attempt with invalid_request_error. Just mark the DB record and return.
+    const TERMINAL_STATUSES = ["INCOMPLETE_EXPIRED", "CANCELED"];
+    const isTerminal = TERMINAL_STATUSES.includes(
+      subscription.status?.toUpperCase() ?? "",
+    );
+
+    // Handle FREE plans, no stripe ID, or terminal Stripe states
     if (
       !stripe ||
       !subscription.stripeId ||
-      subscription.stripeId.startsWith("free_")
+      subscription.stripeId.startsWith("free_") ||
+      isTerminal
     ) {
       const updated = await db.subscription.update({
         where: { id: subscription.id },
@@ -57,7 +65,10 @@ export const POST = withAuthAndTenant(async ({ id: userId, tenantId }, request, 
           cancelAtPeriodEnd: true,
         },
       });
-      return NextResponse.json({ subscription: updated });
+      return NextResponse.json({
+        message: "Subscription set to cancel at period end",
+        subscription: updated,
+      });
     }
 
     // Set cancel_at_period_end = true in Stripe

@@ -184,6 +184,26 @@ describe("POST /api/billing/cancel", () => {
     expect(data.error).toBe("Subscription not found");
   });
 
+  // ── Terminal Stripe states (incomplete_expired / canceled) ──────────────────
+  it.each(["INCOMPLETE_EXPIRED", "CANCELED"])(
+    "cancels locally without calling Stripe when status is %s",
+    async (terminalStatus) => {
+      const terminalSub = { ...stripeSubscription, status: terminalStatus };
+      mockFindUnique.mockResolvedValue(terminalSub);
+      mockSubUpdate.mockResolvedValue({ ...terminalSub, status: "CANCELED", cancelAtPeriodEnd: true });
+
+      const response = await POST(makeRequest({ feedback: "", type: "CANCEL" }), {
+        params: Promise.resolve({}),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.subscription.status).toBe("CANCELED");
+      // Stripe must not be called — it would throw for these states
+      expect(mockStripeUpdate).not.toHaveBeenCalled();
+    },
+  );
+
   // ── Stripe error ─────────────────────────────────────────────────────────────
   it("returns 500 when Stripe throws", async () => {
     mockFindUnique.mockResolvedValue(stripeSubscription);
