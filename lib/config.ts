@@ -39,7 +39,7 @@ export const APP_CONFIG = {
   ai: {
     providers: {
       chat: process.env.DEFAULT_CHAT_PROVIDER || "digitalocean",
-      onboarding: process.env.DEFAULT_ONBOARDING_PROVIDER || "anthropic",
+      onboarding: process.env.DEFAULT_ONBOARDING_PROVIDER || "digitalocean",
       analysis: process.env.DEFAULT_ANALYSIS_PROVIDER || "digitalocean",
       summary: process.env.DEFAULT_SUMMARY_PROVIDER || "digitalocean",
       default: process.env.DEFAULT_AI_PROVIDER || "digitalocean",
@@ -52,16 +52,16 @@ export const APP_CONFIG = {
         analysis: process.env.AI_MODEL_OPENAI_ANALYSIS || "openai-o3-mini",
       },
       anthropic: {
-        main: process.env.AI_MODEL_ANTHROPIC_MAIN || "claude-sonnet-4-6",
-        utility: process.env.AI_MODEL_ANTHROPIC_UTILITY || "claude-haiku-4-5-20251001",
-        premium: process.env.AI_MODEL_ANTHROPIC_PREMIUM || "claude-sonnet-4-6",
-        analysis: process.env.AI_MODEL_ANTHROPIC_ANALYSIS || "claude-sonnet-4-6",
+        main: process.env.AI_MODEL_ANTHROPIC_MAIN || "claude-3-5-sonnet-latest",
+        utility: process.env.AI_MODEL_ANTHROPIC_UTILITY || "claude-3-haiku-latest",
+        premium: process.env.AI_MODEL_ANTHROPIC_PREMIUM || "claude-3-5-sonnet-latest",
+        analysis: process.env.AI_MODEL_ANTHROPIC_ANALYSIS || "claude-3-5-sonnet-latest",
       },
       digitalocean: {
         // FIXED: Using exact IDs from DO documentation examples
         main: process.env.AI_MODEL_DO_MAIN || "openai-gpt-oss-120b",
         utility: process.env.AI_MODEL_DO_UTILITY || "openai-gpt-oss-20b",
-        premium: process.env.AI_MODEL_DO_PREMIUM || "llama3.3-70b-instruct",
+        premium: process.env.AI_MODEL_DO_PREMIUM || "openai-o3-mini",
         analysis: process.env.AI_MODEL_DO_ANALYSIS || "gemma-4-31B-it",
       },
       gemini: {
