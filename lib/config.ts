@@ -61,7 +61,7 @@ export const APP_CONFIG = {
         // FIXED: Using exact IDs from DO documentation examples
         main: process.env.AI_MODEL_DO_MAIN || "openai-gpt-oss-120b",
         utility: process.env.AI_MODEL_DO_UTILITY || "openai-gpt-oss-20b",
-        premium: process.env.AI_MODEL_DO_PREMIUM || "openai-o3-mini",
+        premium: process.env.AI_MODEL_DO_PREMIUM || "openai-gpt-5-mini",
         analysis: process.env.AI_MODEL_DO_ANALYSIS || "gemma-4-31B-it",
       },
       gemini: {
