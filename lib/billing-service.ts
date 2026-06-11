@@ -151,13 +151,13 @@ export class BillingService {
 
     if (isExternalStripeId) {
       try {
-        const stripeSub = await stripe.subscriptions.retrieve(subscription.stripeId, { expand: ["default_payment_method"] });
+        const stripeSub = await stripe!.subscriptions.retrieve(subscription.stripeId, { expand: ["default_payment_method"] });
         if (stripeSub.default_payment_method && typeof stripeSub.default_payment_method !== "string") {
           const pm = stripeSub.default_payment_method as Stripe.PaymentMethod;
           if (pm.card) paymentMethod = { brand: pm.card.brand, last4: pm.card.last4, expMonth: pm.card.exp_month, expYear: pm.card.exp_year };
         }
         if (subscription.stripeCustomerId) {
-          const stripeInvoices = await stripe.invoices.list({ customer: subscription.stripeCustomerId, limit: 10 });
+          const stripeInvoices = await stripe!.invoices.list({ customer: subscription.stripeCustomerId, limit: 10 });
           invoices = stripeInvoices.data.map((invoice: any): Invoice => ({ id: invoice.id, invoiceNumber: invoice.number || invoice.id, amount: invoice.amount_due, status: invoice.status || "unknown", paidAt: invoice.status_transitions.paid_at ? new Date(invoice.status_transitions.paid_at * 1000).toISOString() : null, dueDate: invoice.due_date ? new Date(invoice.due_date * 1000).toISOString() : new Date(invoice.created * 1000).toISOString(), downloadUrl: invoice.invoice_pdf || undefined }));
         }
       } catch (err) { logger.error({ tenantId, error: err }, "[BillingService] Stripe fetch error"); }
