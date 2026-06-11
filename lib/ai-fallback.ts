@@ -97,7 +97,7 @@ export async function aiFallback({
   // 1. Start Intent Extraction
   const intentPromise = (async () => {
     try {
-      const fastModel = await getTenantModel(bot.tenantId, { planName, task: "chat", isFallback: true });
+      const fastModel = await getTenantModel(bot.tenantId, { planName, task: "intent" });
       const { object } = await generateObject({
         model: fastModel,
         schema: z.object({

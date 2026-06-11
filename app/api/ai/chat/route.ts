@@ -60,6 +60,7 @@ export const POST = withAuthAndTenant(async ({ id, tenantId }, request, context,
 
     const model = await getTenantModel(tenantId, {
       planName,
+      task: "chat",
     });
 
     const body = await request.json();

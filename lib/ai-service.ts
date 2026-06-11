@@ -88,22 +88,6 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
   let modelInstance: LanguageModel;
 
   switch (effectiveProvider) {
-    case "digitalocean": {
-      const client = createOpenAI({
-        baseURL: APP_CONFIG.ai.baseUrl,
-        apiKey: apiKey || process.env.DIGITALOCEAN_AI_KEY || process.env.DIGITALOCEAN_TOKEN,
-      } as any);
-
-      let defaultModel = models.digitalocean.main;
-      if (isFallback) defaultModel = models.digitalocean.main;
-      else if (isAnalysisTask) defaultModel = models.digitalocean.analysis;
-      else if (isHighPriority) defaultModel = models.digitalocean.premium;
-      else if (isUtilityTask) defaultModel = models.digitalocean.utility;
-
-      modelInstance = client.chat(effectiveModel || defaultModel);
-      break;
-    }
-
     case "openai": {
       const client = createOpenAI({ apiKey: apiKey || process.env.OPENAI_API_KEY });
       let defaultModel = models.openai.main;
@@ -123,14 +107,30 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
       break;
     }
 
-    case "gemini":
-    default: {
+    case "gemini": {
       const client = createGoogleGenerativeAI({ apiKey: apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY });
       let defaultModel = models.gemini.main;
       if (isAnalysisTask) defaultModel = models.gemini.analysis;
       else if (isUtilityTask) defaultModel = models.gemini.utility;
       else if (isHighPriority) defaultModel = models.gemini.premium;
       modelInstance = client(effectiveModel || defaultModel);
+      break;
+    }
+
+    case "digitalocean":
+    default: {
+      const client = createOpenAI({
+        baseURL: APP_CONFIG.ai.baseUrl,
+        apiKey: apiKey || process.env.DIGITALOCEAN_AI_KEY || process.env.DIGITALOCEAN_TOKEN,
+      } as any);
+
+      let defaultModel = models.digitalocean.main;
+      if (isFallback) defaultModel = models.digitalocean.main;
+      else if (isAnalysisTask) defaultModel = models.digitalocean.analysis;
+      else if (isHighPriority) defaultModel = models.digitalocean.premium;
+      else if (isUtilityTask) defaultModel = models.digitalocean.utility;
+
+      modelInstance = client.chat(effectiveModel || defaultModel);
       break;
     }
   }
