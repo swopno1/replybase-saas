@@ -60,6 +60,8 @@ import {
   RefreshCw,
   AlertTriangle,
   CheckCircle2,
+  Gift,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
@@ -180,6 +182,14 @@ export default function SubscriberDetailPage({
   const [syncingStripe, setSyncingStripe] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Grant special access dialog
+  const [grantDialogOpen, setGrantDialogOpen] = useState(false);
+  const [grantPlanId, setGrantPlanId] = useState("");
+  const [grantPeriodEnd, setGrantPeriodEnd] = useState("");
+  const [grantReason, setGrantReason] = useState("");
+  const [grantIndefinite, setGrantIndefinite] = useState(false);
+  const [granting, setGranting] = useState(false);
+
   // Form states
   const [status, setStatus] = useState("");
   const [planId, setPlanId] = useState("");
@@ -253,6 +263,56 @@ export default function SubscriberDetailPage({
       toast.error("Error syncing from Stripe");
     } finally {
       setSyncingStripe(false);
+    }
+  };
+
+  const handleGrantSpecialAccess = async () => {
+    if (!grantPlanId) {
+      toast.error("Please select a plan");
+      return;
+    }
+    if (!grantIndefinite && !grantPeriodEnd) {
+      toast.error("Please set an expiry date or mark as indefinite");
+      return;
+    }
+
+    setGranting(true);
+    try {
+      // Build a manual_grant_ stripeId so Stripe reconciliation never overwrites it
+      const grantId = `manual_grant_${Date.now()}`;
+      const periodEnd = grantIndefinite
+        ? new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString() // 10 years
+        : new Date(grantPeriodEnd).toISOString();
+
+      const response = await fetch(`/api/admin/subscribers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planId: grantPlanId,
+          status: "ACTIVE",
+          currentPeriodEnd: periodEnd,
+          stripeId: grantId,
+          grantReason,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success("Special access granted successfully");
+        setGrantDialogOpen(false);
+        setGrantPlanId("");
+        setGrantPeriodEnd("");
+        setGrantReason("");
+        setGrantIndefinite(false);
+        await fetchData();
+      } else {
+        const err = await response.json();
+        toast.error(err.error || "Failed to grant special access");
+      }
+    } catch (error) {
+      console.error("Error granting special access:", error);
+      toast.error("Error granting special access");
+    } finally {
+      setGranting(false);
     }
   };
 
@@ -697,7 +757,7 @@ export default function SubscriberDetailPage({
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Admin User:</span>
-                  <span className="font-medium truncate max-w-[150px]">{subscription.tenant.users[0]?.email || "N/A"}</span>
+                  <span className="font-medium truncate max-w-37.5">{subscription.tenant.users[0]?.email || "N/A"}</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Created:</span>
@@ -753,6 +813,22 @@ export default function SubscriberDetailPage({
 
         <TabsContent value="subscription">
           <div className="space-y-4">
+            {/* Manual grant banner */}
+            {subscription.stripeId?.startsWith("manual_grant_") && (
+              <div className="flex items-center gap-3 rounded-lg border border-indigo-200 bg-indigo-50 p-3">
+                <Gift className="h-4 w-4 text-indigo-600 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-indigo-900">Manual Admin Grant</p>
+                  <p className="text-xs text-indigo-700 mt-0.5">
+                    This subscription was manually granted by an admin and is not linked to Stripe. It will not be synced or overwritten by webhooks.
+                    {subscription.currentPeriodEnd && (
+                      <> Expires: <span className="font-medium">{new Date(subscription.currentPeriodEnd).toLocaleDateString()}</span>.</>
+                    )}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Live status alerts */}
             {subscription.cancelAtPeriodEnd && (
               <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
@@ -825,6 +901,17 @@ export default function SubscriberDetailPage({
                       <RefreshCw className="mr-2 h-3.5 w-3.5" />
                     )}
                     Refresh
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                    onClick={() => {
+                      setGrantPlanId(subscription.plan.id);
+                      setGrantDialogOpen(true);
+                    }}
+                  >
+                    <Gift className="mr-2 h-3.5 w-3.5" />
+                    Grant Special Access
                   </Button>
                 </div>
               </CardHeader>
@@ -934,17 +1021,13 @@ export default function SubscriberDetailPage({
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="ACTIVE">ACTIVE</SelectItem>
-                        <SelectItem value="trialing">Trialing</SelectItem>
-                        <SelectItem value="TRIALING">TRIALING</SelectItem>
-                        <SelectItem value="canceled">Canceled</SelectItem>
-                        <SelectItem value="CANCELED">CANCELED</SelectItem>
-                        <SelectItem value="past_due">Past Due</SelectItem>
-                        <SelectItem value="PAST_DUE">PAST_DUE</SelectItem>
-                        <SelectItem value="incomplete">Incomplete</SelectItem>
-                        <SelectItem value="free">Free</SelectItem>
-                        <SelectItem value="FREE">FREE</SelectItem>
+                        <SelectItem value="ACTIVE">Active</SelectItem>
+                        <SelectItem value="TRIALING">Trialing</SelectItem>
+                        <SelectItem value="CANCELED">Canceled</SelectItem>
+                        <SelectItem value="PAST_DUE">Past Due</SelectItem>
+                        <SelectItem value="INCOMPLETE">Incomplete</SelectItem>
+                        <SelectItem value="FREE">Free</SelectItem>
+                        <SelectItem value="INACTIVE">Inactive</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1379,6 +1462,100 @@ export default function SubscriberDetailPage({
           <SimulationLab subscriberId={id} />
         </TabsContent>
       </Tabs>
+
+      {/* Grant Special Access Dialog */}
+      <Dialog open={grantDialogOpen} onOpenChange={setGrantDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gift className="h-5 w-5 text-indigo-600" />
+              Grant Special Access
+            </DialogTitle>
+            <DialogDescription>
+              Manually grant a plan to this tenant. This creates a <code className="text-xs bg-muted px-1 rounded">manual_grant_</code> subscription that Stripe webhooks will never overwrite.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-amber-600" />
+            <span>
+              The tenant will immediately see the new plan limits. Bots and channels will be adjusted automatically to fit the new plan.
+            </span>
+          </div>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Plan to Grant</Label>
+              <Select value={grantPlanId} onValueChange={setGrantPlanId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a plan" />
+                </SelectTrigger>
+                <SelectContent>
+                  {plans.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name} — £{p.price}/mo
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="grantPeriodEnd">Access Expires</Label>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="grantIndefinite"
+                    checked={grantIndefinite}
+                    onCheckedChange={setGrantIndefinite}
+                  />
+                  <Label htmlFor="grantIndefinite" className="text-xs text-muted-foreground cursor-pointer">
+                    Indefinite
+                  </Label>
+                </div>
+              </div>
+              {!grantIndefinite && (
+                <Input
+                  id="grantPeriodEnd"
+                  type="date"
+                  value={grantPeriodEnd}
+                  onChange={(e) => setGrantPeriodEnd(e.target.value)}
+                  min={new Date().toISOString().split("T")[0]}
+                />
+              )}
+              {grantIndefinite && (
+                <p className="text-xs text-muted-foreground">Access will be set to expire in 10 years (effectively permanent).</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="grantReason">Reason / Notes <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Input
+                id="grantReason"
+                placeholder="e.g. Partner deal, beta tester, internal team"
+                value={grantReason}
+                onChange={(e) => setGrantReason(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Saved in the audit log for traceability.</p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGrantDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleGrantSpecialAccess}
+              disabled={granting || !grantPlanId || (!grantIndefinite && !grantPeriodEnd)}
+              className="bg-indigo-600 hover:bg-indigo-700"
+            >
+              {granting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Gift className="mr-2 h-4 w-4" />
+              Grant Access
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

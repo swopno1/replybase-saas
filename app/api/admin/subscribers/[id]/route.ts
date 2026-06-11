@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logAdminActivity } from "@/lib/admin-audit";
-import { invalidateTenantCache } from "@/lib/subscription";
+import { invalidateTenantCache, handlePlanChange } from "@/lib/subscription";
 import { withAdmin } from "@/lib/route-helpers";
 
 export const dynamic = "force-dynamic";
@@ -138,7 +138,10 @@ export const PATCH = withAdmin(async (session, request, context, db) => {
   try {
     const { id } = (await context.params) as { id: string };
     const body = await request.json();
-    const { planId, status, currentPeriodEnd } = body;
+    const { planId, status, currentPeriodEnd, grantReason, stripeId } = body;
+
+    // Normalize status to uppercase so getActiveSubscriptionWithPlan always finds it
+    const normalizedStatus = status ? status.toUpperCase() : undefined;
 
     const oldSubscription = await db.subscription.findUnique({
       where: { id },
@@ -153,27 +156,37 @@ export const PATCH = withAdmin(async (session, request, context, db) => {
       where: { id },
       data: {
         ...(planId && { planId }),
-        ...(status && { status }),
+        ...(normalizedStatus && { status: normalizedStatus }),
         ...(currentPeriodEnd !== undefined && {
           currentPeriodEnd: currentPeriodEnd ? new Date(currentPeriodEnd) : null,
         }),
+        ...(stripeId !== undefined && { stripeId }),
         updatedAt: new Date(),
       },
       include: { plan: true },
     });
-    
+
+    // If the plan changed, re-enable/disable bots and channels to match the new limits
+    if (planId && planId !== oldSubscription.planId) {
+      await handlePlanChange(subscription.tenantId, planId);
+    }
+
     // Invalidate the cache so the user sees the new limits immediately
     await invalidateTenantCache(subscription.tenantId);
     
     // Audit Log
+    const isSpecialGrant = subscription.stripeId?.startsWith("manual_grant_");
     await logAdminActivity({
       adminId: session.user.id,
-      action: "SUBSCRIPTION_UPDATED",
+      action: isSpecialGrant ? "SUBSCRIPTION_SPECIAL_GRANT" : "SUBSCRIPTION_UPDATED",
       entityType: "SUBSCRIPTION",
       entityId: subscription.id,
-      description: `Admin updated subscription for tenant ${subscription.tenantId}: Plan ${oldSubscription.plan.name} -> ${subscription.plan.name}, Status ${oldSubscription.status} -> ${subscription.status}`,
+      description: isSpecialGrant
+        ? `Admin granted special access to tenant ${subscription.tenantId}: Plan ${subscription.plan.name}${grantReason ? ` — Reason: ${grantReason}` : ""}`
+        : `Admin updated subscription for tenant ${subscription.tenantId}: Plan ${oldSubscription.plan.name} -> ${subscription.plan.name}, Status ${oldSubscription.status} -> ${subscription.status}`,
       metadata: {
         tenantId: subscription.tenantId,
+        ...(grantReason && { grantReason }),
         previous: {
           planId: oldSubscription.planId,
           status: oldSubscription.status,
