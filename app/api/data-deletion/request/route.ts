@@ -22,7 +22,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { email, source } = await req.json();
+    let email: string | undefined;
+    let source: string | undefined;
+    try {
+      const body = await req.json();
+      email = body.email;
+      source = body.source;
+    } catch {
+      // Body is empty or not JSON — session-based callers don't need to send one
+    }
 
     const targetEmail = email || session?.user?.email;
     if (!targetEmail || !emailRegex.test(targetEmail)) {

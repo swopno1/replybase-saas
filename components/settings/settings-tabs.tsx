@@ -183,10 +183,24 @@ function SettingsTabsInner() {
   };
 
   const handleDataDeletionRequest = async () => {
+    const confirmed = await confirm({
+      title: "Request Data Deletion",
+      description:
+        "This will schedule all your personal data for removal. You have a 7-day grace period to cancel before deletion is permanent.",
+      confirmText: "Submit Request",
+      variant: "destructive",
+    });
+
+    if (!confirmed) return;
+
     try {
-      const res = await fetch("/api/data-deletion/request", { method: "POST" });
+      const res = await fetch("/api/data-deletion/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: "settings" }),
+      });
       if (res.ok) {
-        toast.success("Data deletion request submitted");
+        toast.success("Data deletion request submitted. You will receive a confirmation email.");
       } else {
         toast.error("Failed to submit request");
       }
