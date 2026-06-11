@@ -1,14 +1,25 @@
 import { google, createGoogleGenerativeAI } from "@ai-sdk/google";
-import { openai, createOpenAI } from "@ai-sdk/openai";
-import { anthropic, createAnthropic } from "@ai-sdk/anthropic";
+import { createOpenAI } from "@ai-sdk/openai";
+import { createAnthropic } from "@ai-sdk/anthropic";
 import { LanguageModel } from "ai";
 import { prisma } from "./prisma";
-import logger from "./logger";
 import { APP_CONFIG } from "./config";
 import * as Sentry from "@sentry/nextjs";
 
-export type AiProvider = "default" | "gemini" | "openai" | "anthropic" | "digitalocean";
-export type AiTask = "onboarding" | "chat" | "general" | "summary" | "tagging" | "intent" | "analysis";
+export type AiProvider =
+  | "default"
+  | "gemini"
+  | "openai"
+  | "anthropic"
+  | "digitalocean";
+export type AiTask =
+  | "onboarding"
+  | "chat"
+  | "general"
+  | "summary"
+  | "tagging"
+  | "intent"
+  | "analysis";
 
 export interface GetAiModelOptions {
   provider: AiProvider;
@@ -52,7 +63,10 @@ export function getModelDirectory() {
   };
 }
 
-export function getTaskRouting(): Record<AiTask, { provider: AiProvider; modelId?: string }> {
+export function getTaskRouting(): Record<
+  AiTask,
+  { provider: AiProvider; modelId?: string }
+> {
   const providers = APP_CONFIG.ai.providers;
   return {
     chat: { provider: providers.chat as AiProvider },
@@ -61,18 +75,30 @@ export function getTaskRouting(): Record<AiTask, { provider: AiProvider; modelId
     tagging: { provider: providers.summary as AiProvider },
     intent: { provider: providers.summary as AiProvider },
     analysis: { provider: providers.analysis as AiProvider },
-    general: { provider: providers.default as AiProvider }
+    general: { provider: providers.default as AiProvider },
   };
 }
 
 export function getAiModel(options: GetAiModelOptions): LanguageModel {
-  const { provider, apiKey, model: manualModel, planName = "free", task = "general", isFallback = false } = options;
+  const {
+    provider,
+    apiKey,
+    model: manualModel,
+    planName = "free",
+    task = "general",
+    isFallback = false,
+  } = options;
   const plan = planName.toLowerCase();
-  const isPro = plan.includes("scale") || plan.includes("pro") || plan.includes("grow") || plan.includes("business");
+  const isPro =
+    plan.includes("scale") ||
+    plan.includes("pro") ||
+    plan.includes("grow") ||
+    plan.includes("business");
   const isHighPriority = task === "onboarding" || isPro;
-  const isUtilityTask = task === "intent" || task === "tagging" || task === "summary";
+  const isUtilityTask =
+    task === "intent" || task === "tagging" || task === "summary";
   const isAnalysisTask = task === "analysis";
-  
+
   const models = getModelDirectory();
   const routing = getTaskRouting();
 
@@ -89,7 +115,9 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
 
   switch (effectiveProvider) {
     case "openai": {
-      const client = createOpenAI({ apiKey: apiKey || process.env.OPENAI_API_KEY });
+      const client = createOpenAI({
+        apiKey: apiKey || process.env.OPENAI_API_KEY,
+      });
       let defaultModel = models.openai.main;
       if (isAnalysisTask) defaultModel = models.openai.analysis;
       else if (isUtilityTask) defaultModel = models.openai.utility;
@@ -98,7 +126,9 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
     }
 
     case "anthropic": {
-      const client = createAnthropic({ apiKey: apiKey || process.env.ANTHROPIC_API_KEY });
+      const client = createAnthropic({
+        apiKey: apiKey || process.env.ANTHROPIC_API_KEY,
+      });
       let defaultModel = models.anthropic.main;
       if (isAnalysisTask) defaultModel = models.anthropic.analysis;
       else if (isUtilityTask) defaultModel = models.anthropic.utility;
@@ -108,7 +138,9 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
     }
 
     case "gemini": {
-      const client = createGoogleGenerativeAI({ apiKey: apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY });
+      const client = createGoogleGenerativeAI({
+        apiKey: apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+      });
       let defaultModel = models.gemini.main;
       if (isAnalysisTask) defaultModel = models.gemini.analysis;
       else if (isUtilityTask) defaultModel = models.gemini.utility;
@@ -121,7 +153,10 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
     default: {
       const client = createOpenAI({
         baseURL: APP_CONFIG.ai.baseUrl,
-        apiKey: apiKey || process.env.DIGITALOCEAN_AI_KEY || process.env.DIGITALOCEAN_TOKEN,
+        apiKey:
+          apiKey ||
+          process.env.DIGITALOCEAN_AI_KEY ||
+          process.env.DIGITALOCEAN_TOKEN,
       } as any);
 
       let defaultModel = models.digitalocean.main;
@@ -135,32 +170,50 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
     }
   }
 
-  return Sentry.withActiveSpan(Sentry.startInactiveSpan({
-    name: `AI Invocation - ${task}`,
-    op: "ai.invocation",
-    attributes: {
-      "ai.provider": effectiveProvider,
-      "ai.model": effectiveModel || "auto",
-      "ai.task": task,
-      "ai.is_fallback": isFallback,
-      "ai.is_pro": isPro,
-    }
-  }), () => {
-    Sentry.setTag("ai.provider", effectiveProvider);
-    Sentry.setTag("ai.model", effectiveModel || "auto");
-    Sentry.setTag("ai.task", task);
-    Sentry.setTag("ai.is_fallback", isFallback);
-    return modelInstance;
+  return Sentry.withActiveSpan(
+    Sentry.startInactiveSpan({
+      name: `AI Invocation - ${task}`,
+      op: "ai.invocation",
+      attributes: {
+        "ai.provider": effectiveProvider,
+        "ai.model": effectiveModel || "auto",
+        "ai.task": task,
+        "ai.is_fallback": isFallback,
+        "ai.is_pro": isPro,
+      },
+    }),
+    () => {
+      Sentry.setTag("ai.provider", effectiveProvider);
+      Sentry.setTag("ai.model", effectiveModel || "auto");
+      Sentry.setTag("ai.task", task);
+      Sentry.setTag("ai.is_fallback", isFallback);
+      return modelInstance;
+    },
+  );
+}
+
+export async function getTenantModel(
+  tenantId: string,
+  options: Omit<GetAiModelOptions, "provider" | "apiKey" | "model">,
+): Promise<LanguageModel> {
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { aiProvider: true, aiApiKey: true, aiModel: true },
+  });
+  return getAiModel({
+    ...options,
+    provider: (tenant?.aiProvider as AiProvider) || "default",
+    apiKey: tenant?.aiApiKey || undefined,
+    model: tenant?.aiModel || undefined,
   });
 }
 
-export async function getTenantModel(tenantId: string, options: Omit<GetAiModelOptions, "provider" | "apiKey" | "model">): Promise<LanguageModel> {
-  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { aiProvider: true, aiApiKey: true, aiModel: true } });
-  return getAiModel({ ...options, provider: (tenant?.aiProvider as AiProvider) || "default", apiKey: tenant?.aiApiKey || undefined, model: tenant?.aiModel || undefined });
-}
-
-export function getSystemModel(options: Omit<GetAiModelOptions, "provider" | "apiKey" | "model">): LanguageModel {
+export function getSystemModel(
+  options: Omit<GetAiModelOptions, "provider" | "apiKey" | "model">,
+): LanguageModel {
   return getAiModel({ ...options, provider: "default" });
 }
 
-export const embedModel = google.embeddingModel(getModelDirectory().gemini.embedding);
+export const embedModel = google.embeddingModel(
+  getModelDirectory().gemini.embedding,
+);
