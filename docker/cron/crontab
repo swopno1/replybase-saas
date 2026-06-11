@@ -17,5 +17,5 @@
 # Disable bots on expired free trials (daily 09:00)
 0 9 * * *  curl -sf -X GET "$APP_URL/api/cron/expired-trials"     -H "Authorization: Bearer $CRON_SECRET" | logger -t cron-expired-trials
 
-# Process pending Meta data-deletion requests (daily 10:00)
+# Process pending data-deletion requests past their 7-day grace period (daily 10:00)
 0 10 * * * curl -sf -X GET "$APP_URL/api/cron/process-data-deletions" -H "Authorization: Bearer $CRON_SECRET" | logger -t cron-process-data-deletions

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { validateApiKey } from "@/lib/api-auth";
+import { sendDataDeletionEmails } from "@/lib/data-deletion-email";
 import crypto from "node:crypto";
 
 export const dynamic = "force-dynamic";
@@ -65,8 +66,18 @@ export async function POST(req: NextRequest) {
         cancelToken: true,
         scheduledDeletionAt: true,
         status: true,
+        requestedAt: true,
       },
     });
+
+    if (request.cancelToken && request.scheduledDeletionAt) {
+      await sendDataDeletionEmails.requested(
+        request.email,
+        request.confirmationCode,
+        request.cancelToken,
+        request.scheduledDeletionAt,
+      );
+    }
 
     const appUrl =
       process.env.NEXT_PUBLIC_APP_URL || "https://app.replybase.co.uk";

@@ -14,6 +14,7 @@ import {
   Monitor,
   Rocket,
   ShieldCheck,
+  ShieldAlert,
   History,
   Menu,
   X,
@@ -40,6 +41,7 @@ const navItems = [
   },
   { name: "Webchat Rollout", href: "/admin/webchat-rollout", icon: Rocket },
   { name: "Webhook Logs", href: "/admin/webhook-logs", icon: History },
+  { name: "Data Deletions", href: "/admin/data-deletions", icon: ShieldAlert },
   { name: "System Tests", href: "/admin/tests", icon: ShieldCheck },
   { name: "User Management", href: "/admin/users", icon: Users },
 ];

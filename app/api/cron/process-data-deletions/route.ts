@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { DataDeletionStatus } from "@prisma/client";
 import { recordActivity } from "@/lib/activity-log";
+import { sendDataDeletionEmails } from "@/lib/data-deletion-email";
 import logger from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +28,7 @@ export async function GET(req: Request) {
     const pendingRequests = await prisma.dataDeletionRequest.findMany({
       where: {
         status: DataDeletionStatus.PENDING,
+        scheduledDeletionAt: { lte: new Date() },
       },
       take: 10, // Process in small batches
     });
@@ -57,6 +59,8 @@ export async function GET(req: Request) {
             processedAt: new Date(),
           },
         });
+
+        await sendDataDeletionEmails.completed(request.email, request.confirmationCode);
 
         // Audit log
         if (request.tenantId) {
