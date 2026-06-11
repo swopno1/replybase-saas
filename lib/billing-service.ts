@@ -7,7 +7,23 @@ import logger from "./logger";
 
 export async function syncSubscription(tenantId: string, stripeSubId: string) {
   if (!stripe) throw new Error("Stripe not initialized");
-  const sub = await stripe.subscriptions.retrieve(stripeSubId);
+
+  let sub: Stripe.Subscription;
+  try {
+    sub = await stripe.subscriptions.retrieve(stripeSubId);
+  } catch (err: any) {
+    if (err?.code === "resource_missing") {
+      // Subscription no longer exists in Stripe — mark local record as canceled
+      logger.warn({ tenantId, stripeSubId }, "[Billing] Stripe subscription not found. Marking as CANCELED.");
+      await prisma.subscription.updateMany({
+        where: { stripeId: stripeSubId },
+        data: { status: "CANCELED", cancelAtPeriodEnd: false },
+      });
+      return { canceled: true, stripeSubId };
+    }
+    throw err;
+  }
+
   const stripeCustomerId = sub.customer as string;
   let tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
   if (!tenant) {

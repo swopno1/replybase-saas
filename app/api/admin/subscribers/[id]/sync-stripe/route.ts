@@ -27,7 +27,24 @@ export const POST = withAdmin(async (session, request, context, db) => {
       return NextResponse.json({ error: "No real Stripe subscription to sync" }, { status: 400 });
     }
 
-    await syncSubscription(subscription.tenantId, subscription.stripeId);
+    const syncResult = await syncSubscription(subscription.tenantId, subscription.stripeId);
+
+    if (syncResult && (syncResult as any).canceled) {
+      await logAdminActivity({
+        adminId: session.user.id,
+        action: "SUBSCRIPTION_STRIPE_SYNC",
+        entityType: "SUBSCRIPTION",
+        entityId: id,
+        description: `Stripe sync for ${id}: subscription ${subscription.stripeId} not found in Stripe, marked CANCELED`,
+        metadata: { tenantId: subscription.tenantId, stripeId: subscription.stripeId, autoResolved: true },
+        ipAddress: request.headers.get("x-forwarded-for") || undefined,
+        userAgent: request.headers.get("user-agent") || undefined,
+      });
+      return NextResponse.json(
+        { error: `Stripe subscription ${subscription.stripeId} no longer exists. Local record marked as CANCELED.` },
+        { status: 404 },
+      );
+    }
 
     const updated = await db.subscription.findUnique({
       where: { id },
