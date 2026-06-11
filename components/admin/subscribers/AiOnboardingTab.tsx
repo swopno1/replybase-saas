@@ -191,19 +191,27 @@ export function AiOnboardingTab({ subscriberId, tenantData }: AiOnboardingTabPro
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Business Model</Label>
-                  <Select
-                    value={data.business.businessModel}
-                    onValueChange={(val) => handleUpdateData("business", "businessModel", val)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {BUSINESS_MODELS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Label>Sub-Industry</Label>
+                  <Input
+                    value={data.business.subIndustry || ""}
+                    onChange={(e) => handleUpdateData("business", "subIndustry", e.target.value)}
+                    placeholder="e.g. SaaS, Cleaning, Dental..."
+                  />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Business Model</Label>
+                <Select
+                  value={data.business.businessModel}
+                  onValueChange={(val) => handleUpdateData("business", "businessModel", val)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BUSINESS_MODELS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Website</Label>

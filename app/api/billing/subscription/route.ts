@@ -154,7 +154,12 @@ export const PATCH = withAuthAndTenant(async ({ tenantId }, request, context, db
       include: { plan: true },
     });
 
-    if (!subscription || !subscription.stripeId || subscription.stripeId.startsWith("free_")) {
+    if (
+      !subscription ||
+      !subscription.stripeId ||
+      subscription.stripeId.startsWith("free_") ||
+      subscription.stripeId.startsWith("manual_grant_")
+    ) {
       return NextResponse.json({ error: "No active paid subscription found to update" }, { status: 400 });
     }
 

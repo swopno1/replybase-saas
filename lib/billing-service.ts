@@ -143,7 +143,13 @@ export class BillingService {
     }
     let paymentMethod: PaymentMethodInfo | null = null;
     let invoices: Invoice[] = [];
-    if (stripe && subscription.stripeId && !subscription.stripeId.startsWith("free_")) {
+    const isExternalStripeId =
+      stripe &&
+      subscription.stripeId &&
+      !subscription.stripeId.startsWith("free_") &&
+      !subscription.stripeId.startsWith("manual_grant_");
+
+    if (isExternalStripeId) {
       try {
         const stripeSub = await stripe.subscriptions.retrieve(subscription.stripeId, { expand: ["default_payment_method"] });
         if (stripeSub.default_payment_method && typeof stripeSub.default_payment_method !== "string") {
