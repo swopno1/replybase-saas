@@ -115,7 +115,11 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
 
     case "anthropic": {
       const client = createAnthropic({ apiKey: apiKey || process.env.ANTHROPIC_API_KEY });
-      modelInstance = client(effectiveModel || models.anthropic.main);
+      let defaultModel = models.anthropic.main;
+      if (isAnalysisTask) defaultModel = models.anthropic.analysis;
+      else if (isUtilityTask) defaultModel = models.anthropic.utility;
+      else if (isHighPriority) defaultModel = models.anthropic.premium;
+      modelInstance = client(effectiveModel || defaultModel);
       break;
     }
 
