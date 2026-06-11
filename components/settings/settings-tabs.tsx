@@ -167,7 +167,7 @@ function SettingsTabsInner() {
     if (confirmed) {
       setIsDeletingAccount(true);
       try {
-        const res = await fetch("/api/user/delete", { method: "DELETE" });
+        const res = await fetch("/api/users/account", { method: "DELETE" });
         if (res.ok) {
           toast.success("Account deleted");
           signOut({ callbackUrl: "/" });
@@ -184,7 +184,7 @@ function SettingsTabsInner() {
 
   const handleDataDeletionRequest = async () => {
     try {
-      const res = await fetch("/api/data-deletion", { method: "POST" });
+      const res = await fetch("/api/data-deletion/request", { method: "POST" });
       if (res.ok) {
         toast.success("Data deletion request submitted");
       } else {
