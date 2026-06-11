@@ -48,7 +48,7 @@ function logResolution(task, plan, isFallback = false) {
   const taskConfig = routing[task] || routing.general;
   const provider = taskConfig.provider;
 
-  const isPro = plan.includes("scale") || plan.includes("pro") || plan.includes("grow") || plan.includes("business");
+  const isPro = plan.includes("scale") || plan.includes("grow") || plan.includes("business");
   const isHighPriority = task === "onboarding" || isPro;
   const isUtilityTask = task === "intent" || task === "tagging" || task === "summary";
 

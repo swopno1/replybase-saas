@@ -164,8 +164,8 @@ async function runReminders(): Promise<NextResponse> {
     const rawPlan = intentMeta?.plan;
     const recommendedPlan =
       typeof rawPlan === "string" &&
-      ["launch", "grow", "scale", "business", "starter", "pro"].includes(rawPlan)
-        ? (rawPlan === "starter" ? "launch" : rawPlan === "pro" ? "scale" : rawPlan)
+      ["launch", "grow", "scale", "business"].includes(rawPlan)
+        ? rawPlan
         : "scale";
 
     const sendResult = await sendTrialReminderEmail({

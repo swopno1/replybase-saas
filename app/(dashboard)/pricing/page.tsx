@@ -230,9 +230,7 @@ function PricingContent() {
     const planParam = searchParams.get("plan");
     if (!planParam) return null;
 
-    let normalized = planParam.trim().toLowerCase();
-    if (normalized === "pro") normalized = "scale";
-    if (normalized === "starter") normalized = "launch";
+    const normalized = planParam.trim().toLowerCase();
 
     return PLANS.find((p) => p.name === normalized) ?? null;
   }, [searchParams]);

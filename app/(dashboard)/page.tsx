@@ -31,12 +31,8 @@ function parseSignupPlanIntent(value: unknown): SignupPlanIntent | null {
     normalized === "launch" ||
     normalized === "grow" ||
     normalized === "scale" ||
-    normalized === "business" ||
-    normalized === "starter" ||
-    normalized === "pro"
+    normalized === "business"
   ) {
-    if (normalized === "starter") return "launch";
-    if (normalized === "pro") return "scale";
     return normalized as SignupPlanIntent;
   }
 

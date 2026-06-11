@@ -859,194 +859,149 @@ export default function SubscriberDetailPage({
               </div>
             )}
 
-            {/* Read-only live info */}
+            {/* Single unified subscription card */}
             <Card>
-              <CardHeader className="pb-3 flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-row items-start justify-between gap-4 pb-4">
                 <div>
-                  <CardTitle className="text-sm font-semibold">Live Subscription Data</CardTitle>
-                  <CardDescription className="text-xs">
-                    Current values from the database.{" "}
-                    {subscription.updatedAt && (
-                      <span>Last synced: {new Date(subscription.updatedAt).toLocaleString()}</span>
-                    )}
+                  <CardTitle>Subscription</CardTitle>
+                  <CardDescription>
+                    {subscription.updatedAt
+                      ? `Last synced: ${new Date(subscription.updatedAt).toLocaleString()}`
+                      : "Manage plan, status, and billing details"}
                   </CardDescription>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   {subscription.stripeId &&
                     !subscription.stripeId.startsWith("free_") &&
                     !subscription.stripeId.startsWith("manual_grant_") && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleSyncStripe}
-                        disabled={syncingStripe || refreshing}
-                      >
-                        {syncingStripe ? (
-                          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <RefreshCw className="mr-2 h-3.5 w-3.5" />
-                        )}
+                      <Button variant="outline" size="sm" onClick={handleSyncStripe} disabled={syncingStripe || refreshing}>
+                        {syncingStripe ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-2 h-3.5 w-3.5" />}
                         Sync from Stripe
                       </Button>
                     )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRefresh}
-                    disabled={refreshing || syncingStripe}
-                  >
-                    {refreshing ? (
-                      <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <RefreshCw className="mr-2 h-3.5 w-3.5" />
-                    )}
+                  <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing || syncingStripe}>
+                    {refreshing ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-2 h-3.5 w-3.5" />}
                     Refresh
                   </Button>
                   <Button
                     size="sm"
                     className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                    onClick={() => {
-                      setGrantPlanId(subscription.plan.id);
-                      setGrantDialogOpen(true);
-                    }}
+                    onClick={() => { setGrantPlanId(subscription.plan.id); setGrantDialogOpen(true); }}
                   >
                     <Gift className="mr-2 h-3.5 w-3.5" />
                     Grant Special Access
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 text-sm">
-                  <div className="space-y-0.5">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Plan</p>
-                    <p className="font-semibold">{subscription.plan.name} <span className="text-muted-foreground font-normal">— £{subscription.plan.price}/mo</span></p>
-                  </div>
-                  <div className="space-y-0.5">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</p>
-                    <Badge variant={["active", "ACTIVE", "trialing", "TRIALING"].includes(subscription.status) ? "default" : "secondary"} className="capitalize">
-                      {subscription.status.toLowerCase()}
-                    </Badge>
-                  </div>
-                  <div className="space-y-0.5">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Period</p>
-                    <p>
-                      {subscription.currentPeriodStart ? new Date(subscription.currentPeriodStart).toLocaleDateString() : "—"}
-                      {" → "}
-                      {subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : "—"}
-                    </p>
-                  </div>
-                  <div className="space-y-0.5">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cancel at Period End</p>
-                    <Badge variant={subscription.cancelAtPeriodEnd ? "destructive" : "outline"}>
-                      {subscription.cancelAtPeriodEnd ? "Yes" : "No"}
-                    </Badge>
-                  </div>
-                  <div className="space-y-0.5">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Trial Ends</p>
-                    <p>{subscription.trialEndsAt ? new Date(subscription.trialEndsAt).toLocaleDateString() : "—"}</p>
-                  </div>
-                  <div className="space-y-0.5">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Downgrade Scheduled</p>
-                    <Badge variant={subscription.downgradeScheduled ? "secondary" : "outline"}>
-                      {subscription.downgradeScheduled
-                        ? subscription.downgradeEffectiveAt
-                          ? `Yes — ${new Date(subscription.downgradeEffectiveAt).toLocaleDateString()}`
-                          : "Yes"
-                        : "No"}
-                    </Badge>
-                  </div>
-                  <div className="space-y-0.5 sm:col-span-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Stripe Subscription ID</p>
-                    <div className="flex items-center gap-2">
-                      <code className="text-xs bg-muted px-2 py-1 rounded break-all">{subscription.stripeId || "—"}</code>
-                      {subscription.stripeId && !subscription.stripeId.startsWith("free_") && (
-                        <a
-                          href={`https://dashboard.stripe.com/subscriptions/${subscription.stripeId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="shrink-0"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                  <div className="space-y-0.5">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Stripe Customer ID</p>
-                    <div className="flex items-center gap-2">
-                      <code className="text-xs bg-muted px-2 py-1 rounded break-all">{subscription.stripeCustomerId || "—"}</code>
-                      {subscription.stripeCustomerId && (
-                        <a
-                          href={`https://dashboard.stripe.com/customers/${subscription.stripeCustomerId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="shrink-0"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
 
-            {/* Editable fields */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Manual Override</CardTitle>
-                <CardDescription>Force-update plan, status, or period end. Use this to correct data not yet synced from Stripe.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="plan">Plan</Label>
-                    <Select value={planId} onValueChange={setPlanId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a plan" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {plans.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name} - £{p.price}/mo
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+              <CardContent>
+                <div className="grid gap-6 lg:grid-cols-2">
+                  {/* Left: editable fields */}
+                  <div className="space-y-4">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Edit</p>
+                    <div className="space-y-2">
+                      <Label htmlFor="plan">Plan</Label>
+                      <Select value={planId} onValueChange={setPlanId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a plan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {plans.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.name} — £{p.price}/mo
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="status">Status</Label>
+                      <Select value={status} onValueChange={setStatus}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ACTIVE">Active</SelectItem>
+                          <SelectItem value="TRIALING">Trialing</SelectItem>
+                          <SelectItem value="CANCELED">Canceled</SelectItem>
+                          <SelectItem value="PAST_DUE">Past Due</SelectItem>
+                          <SelectItem value="INCOMPLETE">Incomplete</SelectItem>
+                          <SelectItem value="FREE">Free</SelectItem>
+                          <SelectItem value="INACTIVE">Inactive</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="periodEnd">Period End</Label>
+                      <Input
+                        id="periodEnd"
+                        type="date"
+                        value={periodEnd}
+                        onChange={(e) => setPeriodEnd(e.target.value)}
+                      />
+                    </div>
+                    <Button onClick={handleUpdateSubscription} disabled={saving} className="w-full">
+                      {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      <Save className="mr-2 h-4 w-4" />
+                      Save Changes
+                    </Button>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="status">Status</Label>
-                    <Select value={status} onValueChange={setStatus}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ACTIVE">Active</SelectItem>
-                        <SelectItem value="TRIALING">Trialing</SelectItem>
-                        <SelectItem value="CANCELED">Canceled</SelectItem>
-                        <SelectItem value="PAST_DUE">Past Due</SelectItem>
-                        <SelectItem value="INCOMPLETE">Incomplete</SelectItem>
-                        <SelectItem value="FREE">Free</SelectItem>
-                        <SelectItem value="INACTIVE">Inactive</SelectItem>
-                      </SelectContent>
-                    </Select>
+
+                  {/* Right: read-only Stripe metadata */}
+                  <div className="space-y-4">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Billing Info</p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-0.5">Period Start</p>
+                        <p className="font-medium">{subscription.currentPeriodStart ? new Date(subscription.currentPeriodStart).toLocaleDateString() : "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-0.5">Cancel at Period End</p>
+                        <Badge variant={subscription.cancelAtPeriodEnd ? "destructive" : "outline"} className="text-xs">
+                          {subscription.cancelAtPeriodEnd ? "Yes" : "No"}
+                        </Badge>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-0.5">Trial Ends</p>
+                        <p className="font-medium">{subscription.trialEndsAt ? new Date(subscription.trialEndsAt).toLocaleDateString() : "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-0.5">Downgrade Scheduled</p>
+                        <Badge variant={subscription.downgradeScheduled ? "secondary" : "outline"} className="text-xs">
+                          {subscription.downgradeScheduled
+                            ? subscription.downgradeEffectiveAt
+                              ? `Yes — ${new Date(subscription.downgradeEffectiveAt).toLocaleDateString()}`
+                              : "Yes"
+                            : "No"}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 pt-1">
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Stripe Subscription ID</p>
+                        <div className="flex items-center gap-2">
+                          <code className="text-xs bg-muted px-2 py-1 rounded break-all flex-1">{subscription.stripeId || "—"}</code>
+                          {subscription.stripeId && !subscription.stripeId.startsWith("free_") && !subscription.stripeId.startsWith("manual_grant_") && (
+                            <a href={`https://dashboard.stripe.com/subscriptions/${subscription.stripeId}`} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground shrink-0" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Stripe Customer ID</p>
+                        <div className="flex items-center gap-2">
+                          <code className="text-xs bg-muted px-2 py-1 rounded break-all flex-1">{subscription.stripeCustomerId || "—"}</code>
+                          {subscription.stripeCustomerId && (
+                            <a href={`https://dashboard.stripe.com/customers/${subscription.stripeCustomerId}`} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground shrink-0" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="periodEnd">Current Period End</Label>
-                    <Input
-                      id="periodEnd"
-                      type="date"
-                      value={periodEnd}
-                      onChange={(e) => setPeriodEnd(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end">
-                  <Button onClick={handleUpdateSubscription} disabled={saving}>
-                    {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    <Save className="mr-2 h-4 w-4" />
-                    Save Changes
-                  </Button>
                 </div>
               </CardContent>
             </Card>
