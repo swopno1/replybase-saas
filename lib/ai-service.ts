@@ -162,8 +162,8 @@ export function getAiModel(options: GetAiModelOptions): LanguageModel {
       let defaultModel = models.digitalocean.main;
       if (isFallback) defaultModel = models.digitalocean.main;
       else if (isAnalysisTask) defaultModel = models.digitalocean.analysis;
-      else if (isHighPriority) defaultModel = models.digitalocean.premium;
       else if (isUtilityTask) defaultModel = models.digitalocean.utility;
+      else if (isHighPriority) defaultModel = models.digitalocean.premium;
 
       modelInstance = client.chat(effectiveModel || defaultModel);
       break;
