@@ -16,6 +16,8 @@ export const PLAN_CONFIGS = {
     maxConversations: 100,
     allowedChannels: ["web"],
     apiAccess: false,
+    maxApiKeys: 0,
+    whiteLabelBranding: false,
   },
   launch: {
     name: "launch",
@@ -29,6 +31,8 @@ export const PLAN_CONFIGS = {
     maxConversations: 1500,
     allowedChannels: ["web", "facebook", "whatsapp"],
     apiAccess: false,
+    maxApiKeys: 0,
+    whiteLabelBranding: false,
   },
   grow: {
     name: "grow",
@@ -42,6 +46,8 @@ export const PLAN_CONFIGS = {
     maxConversations: 5000,
     allowedChannels: ["web", "facebook", "whatsapp"],
     apiAccess: false,
+    maxApiKeys: 0,
+    whiteLabelBranding: false,
   },
   scale: {
     name: "scale",
@@ -55,6 +61,8 @@ export const PLAN_CONFIGS = {
     maxConversations: 10000,
     allowedChannels: ["web", "facebook", "whatsapp", "telegram"],
     apiAccess: true,
+    maxApiKeys: 5,
+    whiteLabelBranding: false,
   },
   business: {
     name: "business",
@@ -68,6 +76,8 @@ export const PLAN_CONFIGS = {
     maxConversations: 40000,
     allowedChannels: ["web", "facebook", "whatsapp", "telegram"],
     apiAccess: true,
+    maxApiKeys: 20,
+    whiteLabelBranding: true,
   },
 } as const;
 

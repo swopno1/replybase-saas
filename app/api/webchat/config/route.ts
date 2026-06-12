@@ -15,6 +15,21 @@ import { recordWebchatErrorEvent } from "@/lib/webchat-diagnostics";
 import { createWebchatInitChallenge } from "@/lib/webchat-init-challenge";
 import { getWebchatTelemetryConfig } from "@/lib/webchat-telemetry";
 import { getWebchatRolloutDecision } from "@/lib/webchat-rollout";
+import { prisma } from "@/lib/prisma";
+
+async function getTenantBranding(tenantId: string) {
+  const branding = await prisma.tenantBranding.findUnique({
+    where: { tenantId },
+    select: {
+      companyName: true,
+      logoUrl: true,
+      botAvatarUrl: true,
+      primaryColor: true,
+      accentColor: true,
+    },
+  });
+  return branding ?? null;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -84,6 +99,7 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      const brandingFromKey = await getTenantBranding(siteFromKey.bot.tenantId);
       return NextResponse.json(
         {
           channelId: siteFromKey.channelId,
@@ -97,6 +113,7 @@ export async function GET(request: NextRequest) {
           }),
           telemetry: getWebchatTelemetryConfig(),
           config: (siteFromKey.themeConfig as Prisma.JsonObject | null) || {},
+          branding: brandingFromKey,
         },
         { headers: createWebchatCorsHeaders(request) },
       );
@@ -151,6 +168,7 @@ export async function GET(request: NextRequest) {
     }
 
     const config = (site.themeConfig as Prisma.JsonObject | null) || {};
+    const brandingFromChannel = await getTenantBranding(channel.bot.tenantId);
 
     return NextResponse.json(
       {
@@ -165,6 +183,7 @@ export async function GET(request: NextRequest) {
         }),
         telemetry: getWebchatTelemetryConfig(),
         config,
+        branding: brandingFromChannel,
       },
       { headers: createWebchatCorsHeaders(request) },
     );

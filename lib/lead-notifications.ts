@@ -39,6 +39,15 @@ function asStringList(value: unknown): string[] {
 const REPLYBASE_SITE_URL = "https://replybase.co.uk";
 const REPLYBASE_LOGO_URL = `${REPLYBASE_SITE_URL}/image/replybase-logo.jpg`;
 
+type BrandingOverride = {
+  companyName?: string | null;
+  logoUrl?: string | null;
+  primaryColor?: string | null;
+  accentColor?: string | null;
+  emailFromName?: string | null;
+  emailFromAddress?: string | null;
+};
+
 function escapeHtml(value: string) {
   if (!value) return "";
   return value
@@ -66,12 +75,24 @@ function buildLeadSummaryMessage(input: NewLeadNotificationInput): string {
   return lines.join("\n");
 }
 
-function buildLeadSummaryHtml(input: NewLeadNotificationInput): string {
+function buildLeadSummaryHtml(
+  input: NewLeadNotificationInput,
+  branding?: BrandingOverride | null,
+): string {
+  const logoUrl = branding?.logoUrl || REPLYBASE_LOGO_URL;
+  const logoAlt = branding?.companyName || "ReplyBase";
+  const primaryColor = branding?.primaryColor || "#1d4ed8";
+  const headerGradient = `linear-gradient(135deg, #0f172a 0%, ${primaryColor} 100%)`;
+  const teamName = branding?.companyName ? `The ${escapeHtml(branding.companyName)} Team` : "The ReplyBase Team";
+  const footerTagline = branding?.companyName
+    ? `Powered by AI-driven conversations.`
+    : "AI-powered conversations for teams that do not want to miss a lead.";
+
   return `
     <div style="margin:0; padding:32px 16px; background:linear-gradient(180deg, #f4efe7 0%, #ffffff 100%); font-family:Arial, Helvetica, sans-serif; color:#1f2937;">
       <div style="max-width:640px; margin:0 auto; background:#ffffff; border:1px solid #eadfce; border-radius:24px; overflow:hidden; box-shadow:0 18px 45px rgba(15, 23, 42, 0.08);">
-        <div style="padding:28px 32px; background:linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%); color:#ffffff;">
-          <img src="${REPLYBASE_LOGO_URL}" alt="ReplyBase" width="160" style="display:block; max-width:160px; height:auto; margin:0 0 20px;" />
+        <div style="padding:28px 32px; background:${headerGradient}; color:#ffffff;">
+          <img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(logoAlt)}" width="160" style="display:block; max-width:160px; height:auto; margin:0 0 20px;" />
           <div style="font-size:12px; letter-spacing:0.12em; text-transform:uppercase; opacity:0.76; margin-bottom:10px;">New Lead Captured</div>
           <h1 style="margin:0; font-size:28px; line-height:1.25; font-weight:700;">A new lead just engaged with your chatbot.</h1>
           <p style="margin:14px 0 0; font-size:15px; line-height:1.7; color:rgba(255,255,255,0.88);">Great news! We've captured a new inquiry from ${escapeHtml(input.name)}. Details are below.</p>
@@ -108,8 +129,8 @@ function buildLeadSummaryHtml(input: NewLeadNotificationInput): string {
         </div>
 
         <div style="padding:24px 32px 32px; border-top:1px solid #e5e7eb; background:#fcfcfd;">
-          <p style="margin:0 0 6px; font-size:15px; font-weight:700; color:#0f172a;">The ReplyBase Team</p>
-          <p style="margin:0 0 6px; font-size:14px; color:#475569;">AI-powered conversations for teams that do not want to miss a lead.</p>
+          <p style="margin:0 0 6px; font-size:15px; font-weight:700; color:#0f172a;">${teamName}</p>
+          <p style="margin:0 0 6px; font-size:14px; color:#475569;">${footerTagline}</p>
         </div>
       </div>
     </div>
@@ -193,6 +214,7 @@ import { sendEmail } from "./email";
 async function sendEmailLeadNotification(
   input: NewLeadNotificationInput,
   recipients: string[],
+  branding?: BrandingOverride | null,
 ): Promise<DeliveryResult> {
   if (recipients.length === 0) {
     return {
@@ -206,13 +228,22 @@ async function sendEmailLeadNotification(
 
   const subject = `New Lead - ${input.name}`;
   const text = buildLeadSummaryMessage(input);
-  const html = buildLeadSummaryHtml(input);
+  const html = buildLeadSummaryHtml(input, branding);
+
+  const fromAddress = branding?.emailFromAddress || undefined;
+  const fromName = branding?.emailFromName || undefined;
+  const from = fromAddress
+    ? fromName
+      ? `${fromName} <${fromAddress}>`
+      : fromAddress
+    : undefined;
 
   const result = await sendEmail({
     to: recipients,
     subject,
     text,
     html,
+    from,
   });
 
   if (!result.ok) {
@@ -237,22 +268,30 @@ async function sendEmailLeadNotification(
 export async function sendNewLeadNotifications(
   input: NewLeadNotificationInput,
 ) {
-  const settings = await prisma.tenantLeadNotificationSettings.findUnique({
-    where: {
-      tenantId: input.tenantId,
-    },
-    select: {
-      emailRecipients: true,
-      telegramChatIds: true,
-    },
-  });
+  const [settings, branding] = await Promise.all([
+    prisma.tenantLeadNotificationSettings.findUnique({
+      where: { tenantId: input.tenantId },
+      select: { emailRecipients: true, telegramChatIds: true },
+    }),
+    prisma.tenantBranding.findUnique({
+      where: { tenantId: input.tenantId },
+      select: {
+        companyName: true,
+        logoUrl: true,
+        primaryColor: true,
+        accentColor: true,
+        emailFromName: true,
+        emailFromAddress: true,
+      },
+    }),
+  ]);
 
   const emailRecipients = asStringList(settings?.emailRecipients);
   const telegramChatIds = asStringList(settings?.telegramChatIds);
 
   const [telegram, email] = await Promise.allSettled([
     sendTelegramLeadNotification(input, telegramChatIds),
-    sendEmailLeadNotification(input, emailRecipients),
+    sendEmailLeadNotification(input, emailRecipients, branding),
   ]);
 
   const telegramResult: DeliveryResult =

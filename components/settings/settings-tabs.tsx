@@ -26,9 +26,11 @@ import {
   Brain,
   ExternalLink,
   Key,
+  Palette,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ApiKeyManager } from "@/components/settings/api-key-manager";
+import { BrandingManager } from "@/components/settings/branding-manager";
 import BillingTabContent from "@/components/settings/billing-tab";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
 import { trackEvent } from "@/lib/client-analytics";
@@ -41,6 +43,7 @@ const VALID_TABS = [
   "billing",
   "ai",
   "developers",
+  "branding",
 ] as const;
 
 type SettingsTab = (typeof VALID_TABS)[number];
@@ -211,7 +214,7 @@ function SettingsTabsInner() {
 
   return (
     <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-      <TabsList className="grid w-full grid-cols-3 md:grid-cols-7 mb-8 h-auto p-1 bg-muted/50 rounded-xl">
+      <TabsList className="grid w-full grid-cols-4 md:grid-cols-8 mb-8 h-auto p-1 bg-muted/50 rounded-xl">
         <TabsTrigger value="profile">
           <User className="h-4 w-4 mr-2" />
           Profile
@@ -239,6 +242,10 @@ function SettingsTabsInner() {
         <TabsTrigger value="developers">
           <Key className="h-4 w-4 mr-2" />
           Developers
+        </TabsTrigger>
+        <TabsTrigger value="branding">
+          <Palette className="h-4 w-4 mr-2" />
+          Branding
         </TabsTrigger>
       </TabsList>
 
@@ -570,6 +577,11 @@ function SettingsTabsInner() {
       {/* DEVELOPERS TAB */}
       <TabsContent value="developers">
         <ApiKeyManager />
+      </TabsContent>
+
+      {/* BRANDING TAB */}
+      <TabsContent value="branding">
+        <BrandingManager />
       </TabsContent>
     </Tabs>
   );

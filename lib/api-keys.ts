@@ -5,10 +5,12 @@ import { randomBytes, createHash } from "crypto";
  * Example: rb_live_3f7a1b...
  */
 export function generateApiKey(): { key: string; hash: string; prefix: string } {
-  const prefix = "rb_live_";
+  const basePrefix = "rb_live_";
   const randomPart = randomBytes(32).toString("hex");
-  const key = `${prefix}${randomPart}`;
+  const key = `${basePrefix}${randomPart}`;
   const hash = hashApiKey(key);
+  // Store enough chars to identify the key in the UI without exposing the full secret
+  const prefix = `${basePrefix}${randomPart.slice(0, 8)}`;
 
   return { key, hash, prefix };
 }

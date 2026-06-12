@@ -36,6 +36,18 @@ export const POST = withAuthAndTenant(async (user, req, ctx, db) => {
     );
   }
 
+  const maxApiKeys = (planConfig as any).maxApiKeys as number;
+  const currentCount = await db.apiKey.count({ where: { isActive: true } });
+
+  if (currentCount >= maxApiKeys) {
+    return NextResponse.json(
+      {
+        error: `API key limit reached. Your ${planConfig.displayName} plan allows up to ${maxApiKeys} active API keys.`,
+      },
+      { status: 403 }
+    );
+  }
+
   try {
     const body = await req.json();
     const { name } = createKeySchema.parse(body);
@@ -51,13 +63,16 @@ export const POST = withAuthAndTenant(async (user, req, ctx, db) => {
       },
     });
 
-    return NextResponse.json({
-      id: apiKey.id,
-      name: apiKey.name,
-      key: key, // Only returned once on creation
-      prefix: apiKey.prefix,
-      createdAt: apiKey.createdAt,
-    });
+    return NextResponse.json(
+      {
+        id: apiKey.id,
+        name: apiKey.name,
+        key, // Only returned once on creation
+        prefix: apiKey.prefix,
+        createdAt: apiKey.createdAt,
+      },
+      { status: 201 }
+    );
   } catch (error) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }

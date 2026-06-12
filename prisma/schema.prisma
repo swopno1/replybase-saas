@@ -106,6 +106,7 @@ model Tenant {
   webhookLogs               WebhookLog[]
   apiKeys                   ApiKey[]
   executionLogs             ExecutionLog[]
+  branding                  TenantBranding?
 
   @@map("tenants")
 }
@@ -972,4 +973,22 @@ model ApiKey {
 
   @@index([tenantId])
   @@map("api_keys")
+}
+
+model TenantBranding {
+  id               String   @id @default(cuid())
+  tenantId         String   @unique
+  companyName      String?
+  logoUrl          String?
+  botAvatarUrl     String?
+  primaryColor     String?
+  accentColor      String?
+  emailFromName    String?
+  emailFromAddress String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("tenant_branding")
 }

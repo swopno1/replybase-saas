@@ -84,7 +84,7 @@ Before reading the task list, here is the confirmed production state of the plat
 ## P1 — Business Tier Feature Expansion
 
 ### Task 057 — API Key Management (Business Plan)
-- **Status:** PENDING
+- **Status:** COMPLETED
 - **Category:** Feature / Business Tier
 - **Severity:** HIGH
 - **Issue:** Business plan subscribers have no programmatic API access. This is a key differentiator for enterprise buyers and integration-heavy SMBs.
@@ -117,7 +117,7 @@ Before reading the task list, here is the confirmed production state of the plat
 - **Risk:** MEDIUM (BullMQ queue changes)
 
 ### Task 059 — White-Label Branding (Business Plan)
-- **Status:** PENDING
+- **Status:** COMPLETED
 - **Category:** Feature / Business Tier
 - **Severity:** MEDIUM
 - **Issue:** Business plan buyers (agencies, resellers) need to present the webchat widget and notification emails under their own brand identity.
@@ -229,6 +229,8 @@ Before reading the task list, here is the confirmed production state of the plat
 | **045** | AI provider Sentry instrumentation (provider/model/task tags + spans) | Jun 2026 |
 | **046** | Sentry PII hardening — sendDefaultPii: false, scrub credentials from events/transactions, remove email from setUser | Jun 2026 |
 | **055** | Residual manual auth scoping — migrated 8 routes from raw getServerSession to withAuthAndTenant/withAdmin | Jun 2026 |
+| **057** | API Key Management — full lifecycle (create, list, revoke) with withApiKey middleware, plan gating, per-plan maxApiKeys limits, and Settings Developers tab UI | Jun 2026 |
+| **059** | White-Label Branding — TenantBranding table, branding API, webchat config injection, branded lead emails, BrandingManager UI with live preview, Business-plan gate | Jun 2026 |
 | **049** | Pricing migration: Free/Launch/Grow/Scale/Business, FOUNDING50 promo, channel type gating | May 2026 |
 | Phase 1 infra | Redis memory cap, Postgres pool tuning, BullMQ retention tuning, AI timeout reduction | Aug 2026 |
 

@@ -4,6 +4,8 @@ import { NextRequest } from "next/server";
 import { getTenantLimits } from "@/lib/subscription";
 import { getPlanConfig } from "@/lib/plans";
 
+const mockCount = vi.fn().mockResolvedValue(0);
+
 vi.mock("@/lib/route-helpers", () => ({
   withAuthAndTenant: (handler: any) => async (req: any, ctx: any) => {
     const user = { id: "user_1", tenantId: "tenant_1", isAdmin: true };
@@ -11,6 +13,7 @@ vi.mock("@/lib/route-helpers", () => ({
       apiKey: {
         findMany: vi.fn().mockResolvedValue([{ id: "key_1", name: "Test Key" }]),
         create: vi.fn().mockImplementation(({ data }: any) => Promise.resolve({ ...data, id: "new_key_id", createdAt: new Date() })),
+        count: mockCount,
       }
     };
     return handler(user, req, ctx, db);
@@ -56,9 +59,10 @@ describe("Settings API Keys Route", () => {
     expect(data.error).toContain("requires Scale or Business");
   });
 
-  it("POST should create key if plan has apiAccess", async () => {
+  it("POST should create key if plan has apiAccess and limit not reached", async () => {
     (getTenantLimits as any).mockResolvedValue({ name: "business" });
-    (getPlanConfig as any).mockReturnValue({ apiAccess: true, displayName: "Business" });
+    (getPlanConfig as any).mockReturnValue({ apiAccess: true, displayName: "Business", maxApiKeys: 20 });
+    mockCount.mockResolvedValue(3);
 
     const req = new NextRequest("http://localhost/api/settings/api-keys", {
       method: "POST",
@@ -68,9 +72,26 @@ describe("Settings API Keys Route", () => {
     const res = await POST(req, { params: Promise.resolve({}) });
     const data = await res.json();
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(201);
     expect(data.name).toBe("New Key");
     expect(data.key).toBeDefined();
     expect(data.key).toContain("rb_live_");
+  });
+
+  it("POST should block creation when maxApiKeys limit is reached", async () => {
+    (getTenantLimits as any).mockResolvedValue({ name: "scale" });
+    (getPlanConfig as any).mockReturnValue({ apiAccess: true, displayName: "Scale", maxApiKeys: 5 });
+    mockCount.mockResolvedValue(5);
+
+    const req = new NextRequest("http://localhost/api/settings/api-keys", {
+      method: "POST",
+      body: JSON.stringify({ name: "One Too Many" })
+    });
+
+    const res = await POST(req, { params: Promise.resolve({}) });
+    const data = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(data.error).toContain("API key limit reached");
   });
 });
