@@ -72,7 +72,7 @@ Before reading the task list, here is the confirmed production state of the plat
 - **Risk:** LOW
 
 ### Task 046 — Sentry PII Hardening
-- **Status:** PENDING
+- **Status:** COMPLETED
 - **Category:** Security
 - **Issue:** `sendDefaultPii: true` and `includeLocalVariables: true` risk leaking API keys and user data into Sentry.
 - **Scope:** Set `sendDefaultPii: false` across all Sentry config files. Add `beforeSend` hook to scrub Stripe and AI keys from breadcrumbs.
@@ -227,6 +227,7 @@ Before reading the task list, here is the confirmed production state of the plat
 | **039** | Deep health checks (`/api/health` with Prisma + Redis pings) | Aug 2026 |
 | **044** | Multi-tenant Sentry tagging — tenantId/userId on all routes + BullMQ workers | Jun 2026 |
 | **045** | AI provider Sentry instrumentation (provider/model/task tags + spans) | Jun 2026 |
+| **046** | Sentry PII hardening — sendDefaultPii: false, scrub credentials from events/transactions, remove email from setUser | Jun 2026 |
 | **055** | Residual manual auth scoping — migrated 8 routes from raw getServerSession to withAuthAndTenant/withAdmin | Jun 2026 |
 | **049** | Pricing migration: Free/Launch/Grow/Scale/Business, FOUNDING50 promo, channel type gating | May 2026 |
 | Phase 1 infra | Redis memory cap, Postgres pool tuning, BullMQ retention tuning, AI timeout reduction | Aug 2026 |

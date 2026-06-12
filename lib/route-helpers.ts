@@ -27,10 +27,7 @@ export function withAuthAndTenant(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    Sentry.setUser({
-      id: session.user.id,
-      email: session.user.email || undefined,
-    });
+    Sentry.setUser({ id: session.user.id });
     Sentry.setTag("tenant_id", session.user.tenantId);
     Sentry.setTag("user_role", (session.user as any).role || "USER");
 
@@ -73,10 +70,7 @@ export function withAdmin(
     }
 
     if (session.user) {
-      Sentry.setUser({
-        id: session.user.id,
-        email: session.user.email || undefined,
-      });
+      Sentry.setUser({ id: session.user.id });
       if (session.user.tenantId) {
         Sentry.setTag("tenant_id", session.user.tenantId);
       }

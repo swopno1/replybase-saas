@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/nextjs";
 
-const SECRET_REGEX = /(?:sk_(?:live|test)_[a-zA-Z0-9]{24,})|(?:sk-[a-zA-Z0-9]{20,})|(?:EAA[a-zA-Z0-9]{40,})|(?:bearer\s+[a-zA-Z0-9\-._~+/]+=*)/gi;
+const SECRET_REGEX = /(?:sk_(?:live|test)_[a-zA-Z0-9]{24,})|(?:sk-[a-zA-Z0-9]{20,})|(?:EAA[a-zA-Z0-9]{40,})|(?:bearer\s+[a-zA-Z0-9\-._~+/]+=*)|(?:re_[a-zA-Z0-9]{32,})|(?:rb_(?:live|test)_[a-zA-Z0-9]+)|(?:dop_v1_[a-zA-Z0-9]+)/gi;
 
 function scrub(value: any, seen = new WeakSet()): any {
   if (typeof value === "string") {
@@ -69,19 +69,26 @@ Sentry.init({
   beforeSend(event) {
     if (event.request) event.request = scrub(event.request);
     if (event.extra) event.extra = scrub(event.extra);
-    
     if (event.breadcrumbs) {
       event.breadcrumbs = event.breadcrumbs.map((breadcrumb) => {
-        if (breadcrumb.data) {
-          breadcrumb.data = scrub(breadcrumb.data);
-        }
-        if (breadcrumb.message) {
-          breadcrumb.message = scrub(breadcrumb.message);
-        }
+        if (breadcrumb.data) breadcrumb.data = scrub(breadcrumb.data);
+        if (breadcrumb.message) breadcrumb.message = scrub(breadcrumb.message);
         return breadcrumb;
       });
     }
+    return event;
+  },
 
+  beforeSendTransaction(event) {
+    if (event.request) event.request = scrub(event.request);
+    if (event.extra) event.extra = scrub(event.extra);
+    if (event.breadcrumbs) {
+      event.breadcrumbs = event.breadcrumbs.map((breadcrumb) => {
+        if (breadcrumb.data) breadcrumb.data = scrub(breadcrumb.data);
+        if (breadcrumb.message) breadcrumb.message = scrub(breadcrumb.message);
+        return breadcrumb;
+      });
+    }
     return event;
   },
 });
