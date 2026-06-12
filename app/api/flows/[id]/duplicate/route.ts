@@ -1,36 +1,15 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = 'force-dynamic';
 
-
-
-
-// POST /api/flows/:id/duplicate - Duplicate a flow
-export async function POST(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> },
-) {
+export const POST = withAuthAndTenant(async (user, _request, context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const params = await context.params;
+    const id = params.id as string;
 
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { tenantId: true },
-    });
-
-    if (!user?.tenantId) {
-      return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
-    }
-
-    const { id } = await context.params;
-
-    // Get the flow to duplicate
+    // Use global prisma — OR clause includes isGlobal flows which the scoped client would exclude
     const sourceFlow = await prisma.flow.findFirst({
       where: {
         id,
@@ -38,9 +17,7 @@ export async function POST(
       },
       include: {
         nodes: {
-          orderBy: {
-            order: "asc",
-          },
+          orderBy: { order: "asc" },
         },
       },
     });
@@ -49,12 +26,9 @@ export async function POST(
       return NextResponse.json({ error: "Flow not found" }, { status: 404 });
     }
 
-    // Check plan limits
-    const subscription = await prisma.subscription.findUnique({
+    const subscription = await db.subscription.findUnique({
       where: { tenantId: user.tenantId },
-      include: {
-        plan: true,
-      },
+      include: { plan: true },
     });
 
     if (!subscription) {
@@ -64,11 +38,9 @@ export async function POST(
       );
     }
 
-    // Count user's existing flows
-    const existingFlowCount = await prisma.flow.count({
+    const existingFlowCount = await db.flow.count({
       where: {
-        tenantId: user.tenantId,
-        ownerId: session.user.id,
+        ownerId: user.id,
         isGlobal: false,
       },
     });
@@ -83,33 +55,28 @@ export async function POST(
       );
     }
 
-    // Create duplicate flow
-    const duplicatedFlow = await prisma.flow.create({
+    const duplicatedFlow = await db.flow.create({
       data: {
         name: `${sourceFlow.name} (Copy)`,
         description: sourceFlow.description,
         tenantId: user.tenantId,
-        ownerId: session.user.id,
+        ownerId: user.id,
         isGlobal: false,
-        isActive: false, // Start as inactive
+        isActive: false,
         language: sourceFlow.language,
         fallbackMessage: sourceFlow.fallbackMessage,
         maxTimeout: sourceFlow.maxTimeout,
         nodes: {
-          create: sourceFlow.nodes.map((node) => {
-            return {
-              type: node.type,
-              content: JSON.parse(JSON.stringify(node.content)),
-              order: node.order,
-            };
-          }),
+          create: sourceFlow.nodes.map((node) => ({
+            type: node.type,
+            content: JSON.parse(JSON.stringify(node.content)),
+            order: node.order,
+          })),
         },
       },
       include: {
         nodes: {
-          orderBy: {
-            order: "asc",
-          },
+          orderBy: { order: "asc" },
         },
       },
     });
@@ -122,4 +89,4 @@ export async function POST(
       { status: 500 },
     );
   }
-}
+});

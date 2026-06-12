@@ -1,91 +1,102 @@
 # Product Overview: ReplyBase
 
+> Last updated: June 2026. Reflects confirmed production state.
+
+---
+
 ## Product Positioning
 
-ReplyBase is a Unified Business Inbox for small and mid-size businesses.
+ReplyBase is a **multi-channel chatbot automation platform** for small and mid-size businesses.
 
-It helps teams:
+It lets teams:
+- Connect customer messaging across 5 channels in one workspace
+- Build automated bot flows without writing code
+- Capture and qualify leads from every conversation
+- Use AI fallback to handle messages that flows don't cover
 
-- see all customer messages in one place
-- reply faster from one dashboard
-- manage leads without switching tools
-
-Current focus channels:
-
-- Website chat
-- Telegram
-- Email intake (roadmap)
-- Contact form intake (roadmap)
-
-Facebook is intentionally out of active product focus for now.
+---
 
 ## Vision and Mission
 
-- Vision: become the simplest day-to-day customer messaging workspace for SMEs.
-- Mission: make response operations and lead capture practical for non-technical teams.
+- **Vision:** become the go-to automation-first inbox for SME customer communication
+- **Mission:** make multi-channel chatbot deployment practical and affordable for non-technical teams — without enterprise pricing or complexity
 
-## Canonical Product Model (Single Source of Truth)
+---
 
-1. Workspace (Tenant): isolated business account boundary.
-2. Inbox Source: where messages come from (webchat, telegram, email, form).
-3. Bot: response container that owns automation settings.
-4. Responder: Flow and/or AI engine.
-5. Lead Record: structured customer and conversation outcome data.
+## Live Channels (All Five Active)
 
-## Runtime Promise
+| Channel | Status |
+|---|---|
+| Webchat (embeddable widget) | Live |
+| Facebook Messenger | Live |
+| WhatsApp Cloud API | Live |
+| Telegram Bot | Live |
+| Website Forms | Live |
 
-For each inbox source, operators should always understand:
+Channel access is plan-gated. Free subscribers get Webchat only. Business subscribers get all five.
 
-- what will respond
-- in which order (Flow, AI, or fallback)
-- where the result appears in inbox and lead records
+---
+
+## Canonical Product Model
+
+1. **Workspace (Tenant):** isolated business account boundary
+2. **Bot:** automation container, scoped to one or more channels, owns flow and AI settings
+3. **Flow:** drag-and-drop conversation tree (7 node types, 8 action types)
+4. **AI Fallback:** auto-response engine using business context when no flow node matches
+5. **Lead Record:** structured contact + conversation outcome, enriched by AI scoring
+6. **Unified Inbox:** all channel conversations surfaced in one CRM-style view
+
+---
 
 ## Core Problems We Solve
 
-1. Customer messages scattered across tools.
-2. Slow or inconsistent replies.
-3. Leads captured in chat but lost operationally.
+1. Customer messages arriving on multiple channels with no unified handling
+2. Teams spending time on repetitive, low-complexity conversations
+3. Leads captured in chat then lost because there's no structured handoff
+4. AI tools too generic — no business context in the system prompt
 
-## Product Outcome We Promise
+---
 
-- One place to read and reply to customer messages.
-- Simple automation setup for Flow and AI.
-- Lead and contact records created from live conversations.
-- Tenant-safe and subscription-aware operations.
+## Plan Structure
 
-## Strategic Clarification for 2026
+| Plan | Price | Channels | Key Unlock |
+|---|---|---|---|
+| Free | £0 | Webchat | Get started |
+| Launch | £29/mo | + Facebook or WhatsApp | First paid automation |
+| Grow | £49/mo | + Facebook and WhatsApp | Full omnichannel core |
+| Scale | £89/mo | + Telegram + Webhooks | Integration-ready |
+| Business | £249/mo | All + API + White-Label + SLA | Enterprise buyers, agencies |
 
-Priority is product clarity and reliable operations, not rapid channel expansion.
+Annual billing available. FOUNDING50 promo (50% off annual, first 20 customers) is live.
 
-Near-term focus:
+---
 
-- Unified inbox behavior across active sources.
-- Clear and simple Flow, Bot, AI setup model.
-- Better diagnostics and deployment reliability.
-- Practical growth tooling for activation and retention.
+## Strategic Direction — 2026
 
-## Channel Scope Decision
+Current focus is expanding the Business tier with developer-facing features and enterprise trust signals:
 
-- In scope now: Website chat, Telegram, Inbox unification, Lead operations.
-- In planning: Email and Contact form adapters.
-- Parked: Facebook-first workflows and TikTok expansion until core inbox model is fully stable.
+- **API Key Access** — REST API for integration-heavy SMBs and agencies (Q3 2026)
+- **Outgoing Webhooks** — push live events to Zapier, Make, custom CRMs (Q3 2026)
+- **White-Label Branding** — agencies and resellers present under their own brand (Q3 2026)
+- **SLA Support Tiers** — defined response commitments per plan, priority routing for Business (Q3 2026)
 
-## Production Deployment Strategy
+Secondary focus: security hardening (auth scoping, Sentry PII), and observability (distributed tracing across BullMQ workers).
 
-Production deployment is part of product quality.
+---
 
-Core requirements:
+## Runtime Promise
 
-- Environment parity between staging and production.
-- Migration safety checks and rollback plans.
-- Source-specific health checks and alerting.
-- Release checklist with go/no-go criteria.
-- Post-release verification for receive, route, and reply delivery.
+For every bot connected to a channel, operators see:
+- what mode it's running (Flow / AI / Flow→AI fallback / AI→Flow fallback)
+- which flow last ran and what it resolved to
+- where the result landed in the lead and conversation record
+
+---
 
 ## Document Map
 
-- Product details and capabilities: [Features.md](Features.md)
+- Feature details and plan comparison: [Features.md](Features.md)
 - Technical system and data model: [Architecture_and_DB.md](Architecture_and_DB.md)
 - UI and navigation strategy: [UI_UX_Strategy.md](UI_UX_Strategy.md)
 - GTM and commercial strategy: [Business_and_Marketing.md](Business_and_Marketing.md)
-- Execution tasks and milestones: [todo/README.md](todo/README.md)
+- Task list and priorities: [../TASKS.md](../TASKS.md)

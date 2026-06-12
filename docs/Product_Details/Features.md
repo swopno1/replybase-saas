@@ -1,89 +1,107 @@
 # Features and Capabilities: ReplyBase
 
-## 1. Available Now (Core Product)
+> Last updated: June 2026. Reflects confirmed production state.
 
-### 1.1 Unified Inbox Foundations
+---
 
-- Webchat message intake and session handling.
-- Telegram bot intake and webhook-backed operations.
-- Unified conversation storage for active sources.
+## 1. Live Channels
 
-### 1.2 Conversation and Lead Operations
+All five channels are fully live and production-gated by plan tier:
 
-- Conversation and message timeline views.
-- Contact identity linking.
-- Lead status tracking and enrichment workflow.
+| Channel | Plan Availability |
+|---|---|
+| Webchat (embeddable widget) | All plans (Free and above) |
+| Facebook Messenger | Launch, Grow, Scale, Business |
+| WhatsApp Cloud API | Grow, Scale, Business |
+| Telegram Bot | Scale, Business |
+| Website Forms (lead capture) | All plans |
 
-### 1.3 Automation Layer
+Channel gating is enforced at bot creation and enforced in subscription middleware. Downgrade handling disables out-of-plan bots automatically.
 
-- Flow-based response handling.
-- AI response handling with fallback logic.
-- Bot-scoped automation ownership model.
+---
 
-### 1.4 Workspace and Plan Controls
+## 2. Flow Builder & Automation
 
-- Tenant isolation and tenant-scoped resources.
-- Usage limits and plan-based gating.
-- Integration-level operational controls and diagnostics.
+- **7 node types:** `message`, `input`, `condition`, `action`, `wait`, `typing`, `end`
+- **8 action types:** `tag_user`, `update_status`, `call_flow`, `end_flow`, `schedule`, `checkout`, `booking`, `trigger_webhook`
+- **Sub-flows:** flows can call other flows via `call_flow` action
+- **30+ industry templates** (e-commerce, restaurants, real estate, SaaS, legal, etc.)
+- **Live simulation lab** in admin panel for testing flows without deploying
+- Response mode per bot: Flow only · AI only · Flow → AI fallback · AI → Flow fallback
 
-### 1.5 Security and Compliance Baseline
+---
 
-- Credentials and tokens protected at rest.
-- Webhook authenticity controls for supported channels.
-- Controlled builder access path.
-- GDPR-aligned data deletion workflows.
+## 3. AI Engine
 
-## 2. Clarification: Current Functional Gaps
+- **AI fallback:** When a message doesn't match a flow, AI responds using a business-context system prompt generated during onboarding
+- **Guardrails:** Injection protection, topic restriction, competitor mention filtering
+- **Cross-channel context:** AI carries conversation history across channels when contact identity is stitched
+- **AI onboarding:** Structured business summarization (`generateObject`) → auto-generates bot system prompt
+- **Multi-provider routing:**
+  - DigitalOcean AI is the platform default for all system tasks
+  - Tenants can configure their own provider/API key/model for full override
+  - Google embeddings used for semantic search and lead enrichment
+- **Model tier selection by task:** utility tasks (intent, tagging) use lightweight models; onboarding and Pro+ chat use premium models
 
-These are active product-shape gaps under improvement:
+---
 
-1. Inbox behavior is not fully unified across all planned sources.
-2. Email and contact-form adapters are not yet fully productized.
-3. Runtime controls and labels still need simplification in some areas.
-4. Product terms (Bot, Flow, AI) still need tighter consistency in all UX surfaces.
+## 4. CRM & Lead Management
 
-## 3. Next Capability Targets
+- **Unified inbox** across all connected channels per tenant
+- **Contact identity stitching:** messages from the same user across channels are linked to one contact record
+- **Lead status pipeline:** new → qualified → contacted → closed/lost
+- **Tagging:** manual and AI-suggested tags on lead records
+- **Lead enrichment:** AI scoring for urgency, category, and inferred needs
+- **Instant notifications:** new leads pushed via Telegram bot or email (configurable)
 
-### 3.1 Source Parity for Unified Inbox
+---
 
-- Standardize behavior across webchat, telegram, email intake, and contact-form intake.
+## 5. Plan Tiers
 
-### 3.2 Simple Runtime Controls
+| Plan | Price | Channels | Notable Limits |
+|---|---|---|---|
+| Free | £0 | Webchat only | 1 bot, 100 conversations/mo |
+| Launch | £29/mo | Webchat + Facebook OR WhatsApp | 3 bots |
+| Grow | £49/mo | Webchat + Facebook + WhatsApp | 10 bots |
+| Scale | £89/mo | All above + Telegram | Unlimited bots, outgoing webhooks |
+| Business | £249/mo | All channels | API key access, white-label branding, SLA |
 
-- Show one explicit response mode per source:
-  - Flow only
-  - AI only
-  - Flow then AI fallback
-  - AI then Flow fallback
+Annual billing available at ~20% discount. **FOUNDING50** promo: 50% off annual plans for first 20 customers (12-month duration).
 
-### 3.3 Better Operator Observability
+---
 
-- Single runtime decision view per source.
-- Clear visibility of what replied and why.
+## 6. Admin Panel
 
-### 3.4 Growth and Packaging
+- Subscriber management with Stripe sync and audit trail
+- AI onboarding editor (business details, industry, sub-industry, AI context preview)
+- Simulation lab for per-tenant flow and AI testing
+- Sentry observability: every AI call tagged with provider, model, task, and tenant
 
-- Industry templates and onboarding packs.
-- Activation-focused guidance for first connected source and first automated reply.
+---
 
-### 3.5 Production Deployment Excellence
+## 7. Security & Compliance
 
-- Staging-to-production release gates.
-- Migration safety checks and rollback rehearsal.
-- Source-level smoke tests after release.
-- Alerting for webhook failures, delivery errors, and sustained 429/5xx spikes.
+- `withAuthAndTenant` middleware enforcing tenant isolation on all routes
+- Webhook signature verification for all inbound channels
+- GDPR-aligned data deletion and export workflows
+- Sentry PII hardening (in progress — Task 046)
 
-## 4. Feature Priorities (Current)
+---
 
-- P0: Product clarity and runtime simplification.
-- P1: Source parity for unified inbox behavior.
-- P1: Unified status and diagnostics UX.
-- P2: Growth enablement and packaging.
-- P0 ongoing: production deployment reliability.
+## 8. Infrastructure
 
-## 5. Scope Guardrails
+- Next.js 14 App Router, Prisma + PostgreSQL, Redis
+- BullMQ background workers for message processing and webhook dispatch
+- Deep health checks at `/api/health` (Prisma + Redis pings)
+- Rate limiting via Redis (falls back to in-memory)
 
-- No Facebook-focused delivery scope in current product cycle.
-- TikTok remains parked until unified inbox and operational maturity goals are complete.
+---
 
-See implementation tasks in [todo/README.md](todo/README.md).
+## 9. Coming Soon (Business Tier — Q3 2026)
+
+- **API Key Access** (Task 057): REST API with Bearer token auth, scoped keys, rate limits
+- **Outgoing Webhooks** (Task 058): Push live events to external systems with HMAC signing and retry logic
+- **White-Label Branding** (Task 059): Custom logo, colors, and email sender identity on webchat and notifications
+- **SLA Support Tiers** (Task 060): Defined response SLAs per plan, priority support routing for Business subscribers
+
+See full task list in [../TASKS.md](../TASKS.md).

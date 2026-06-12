@@ -1,9 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { NextResponse } from "next/server";
 import { z } from "zod";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { recordMilestoneEvent } from "@/lib/milestone-events";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -26,31 +24,12 @@ function asStringArray(value: unknown): string[] {
   return value.filter((entry): entry is string => typeof entry === "string");
 }
 
-async function getTenantIdFromSession() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return null;
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { tenantId: true },
-  });
-
-  return user?.tenantId || null;
-}
-
-export async function GET() {
+export const GET = withAuthAndTenant(async (user, _request, _context, db) => {
   try {
-    const tenantId = await getTenantIdFromSession();
-    if (!tenantId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const settings = await prisma.tenantLeadNotificationSettings.upsert({
-      where: { tenantId },
+    const settings = await db.tenantLeadNotificationSettings.upsert({
+      where: { tenantId: user.tenantId },
       update: {},
-      create: { tenantId },
+      create: { tenantId: user.tenantId },
       select: {
         emailRecipients: true,
         telegramChatIds: true,
@@ -72,15 +51,10 @@ export async function GET() {
       { status: 500 },
     );
   }
-}
+});
 
-export async function PATCH(request: NextRequest) {
+export const PATCH = withAuthAndTenant(async (user, request, _context, db) => {
   try {
-    const tenantId = await getTenantIdFromSession();
-    if (!tenantId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const body = await request.json();
     const parsed = updateSchema.safeParse(body);
 
@@ -96,14 +70,14 @@ export async function PATCH(request: NextRequest) {
     );
     const telegramChatIds = normalizeStringList(parsed.data.telegramChatIds);
 
-    const settings = await prisma.tenantLeadNotificationSettings.upsert({
-      where: { tenantId },
+    const settings = await db.tenantLeadNotificationSettings.upsert({
+      where: { tenantId: user.tenantId },
       update: {
         emailRecipients,
         telegramChatIds,
       },
       create: {
-        tenantId,
+        tenantId: user.tenantId,
         emailRecipients,
         telegramChatIds,
       },
@@ -114,7 +88,7 @@ export async function PATCH(request: NextRequest) {
     });
 
     if (emailRecipients.length > 0 || telegramChatIds.length > 0) {
-      void recordMilestoneEvent(tenantId, "lead-notifications", {
+      void recordMilestoneEvent(user.tenantId, "lead-notifications", {
         emailRecipientCount: emailRecipients.length,
         telegramChatIdCount: telegramChatIds.length,
       });
@@ -136,4 +110,4 @@ export async function PATCH(request: NextRequest) {
       { status: 500 },
     );
   }
-}
+});

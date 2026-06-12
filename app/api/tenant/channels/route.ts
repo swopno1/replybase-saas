@@ -1,38 +1,20 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { NextResponse } from "next/server";
 import { getChannelConfig } from "@/lib/channel-config";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = 'force-dynamic';
 
-
-
-
-/**
- * GET /api/tenant/channels
- * Get current channel settings for the authenticated tenant
- */
-export async function GET() {
+export const GET = withAuthAndTenant(async (user, _request, _context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id || !session.user.tenantId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const tenantId = session.user.tenantId;
-
-    // Get or create tenant channel status
-    let channelStatus = await prisma.tenantChannelStatus.findUnique({
-      where: { tenantId },
+    let channelStatus = await db.tenantChannelStatus.findUnique({
+      where: { tenantId: user.tenantId },
     });
 
     if (!channelStatus) {
-      // Create default channel status for new tenants
-      channelStatus = await prisma.tenantChannelStatus.create({
+      channelStatus = await db.tenantChannelStatus.create({
         data: {
-          tenantId,
-          facebook: false, // Facebook disabled by default
+          tenantId: user.tenantId,
+          facebook: false,
           telegram: true,
           webchat: true,
           whatsapp: false,
@@ -40,7 +22,6 @@ export async function GET() {
       });
     }
 
-    // Get system-level configuration
     const systemChannels = [
       getChannelConfig("facebook"),
       getChannelConfig("telegram"),
@@ -48,7 +29,6 @@ export async function GET() {
       getChannelConfig("whatsapp"),
     ];
 
-    // Return combined configuration
     return NextResponse.json({
       tenant: {
         facebook: channelStatus.facebook && systemChannels[0].enabled,
@@ -77,32 +57,20 @@ export async function GET() {
       { status: 500 },
     );
   }
-}
+});
 
-/**
- * PATCH /api/tenant/channels
- * Update channel settings for the authenticated tenant
- * (only applies if system-level channel is enabled)
- */
-export async function PATCH(req: NextRequest) {
+export const PATCH = withAuthAndTenant(async (user, request, _context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id || !session.user.tenantId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const body = await request.json();
 
-    const tenantId = session.user.tenantId;
-    const body = await req.json();
-
-    // Get or create tenant channel status
-    let channelStatus = await prisma.tenantChannelStatus.findUnique({
-      where: { tenantId },
+    let channelStatus = await db.tenantChannelStatus.findUnique({
+      where: { tenantId: user.tenantId },
     });
 
     if (!channelStatus) {
-      channelStatus = await prisma.tenantChannelStatus.create({
+      channelStatus = await db.tenantChannelStatus.create({
         data: {
-          tenantId,
+          tenantId: user.tenantId,
           facebook: false,
           telegram: true,
           webchat: true,
@@ -111,25 +79,17 @@ export async function PATCH(req: NextRequest) {
       });
     }
 
-    // Only update fields that are provided and allowed
     const updateData: Record<string, boolean> = {};
 
-    // Facebook: can disable at tenant level only if system level is enabled
     if (body.facebook !== undefined && getChannelConfig("facebook").enabled) {
       updateData.facebook = body.facebook;
     }
-
-    // Telegram
     if (body.telegram !== undefined && getChannelConfig("telegram").enabled) {
       updateData.telegram = body.telegram;
     }
-
-    // WebChat
     if (body.webchat !== undefined && getChannelConfig("webchat").enabled) {
       updateData.webchat = body.webchat;
     }
-
-    // WhatsApp
     if (body.whatsapp !== undefined && getChannelConfig("whatsapp").enabled) {
       updateData.whatsapp = body.whatsapp;
     }
@@ -144,12 +104,11 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    channelStatus = await prisma.tenantChannelStatus.update({
-      where: { tenantId },
+    channelStatus = await db.tenantChannelStatus.update({
+      where: { tenantId: user.tenantId },
       data: updateData,
     });
 
-    // Get system-level configuration
     const systemChannels = [
       getChannelConfig("facebook"),
       getChannelConfig("telegram"),
@@ -185,4 +144,4 @@ export async function PATCH(req: NextRequest) {
       { status: 500 },
     );
   }
-}
+});

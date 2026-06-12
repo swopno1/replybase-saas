@@ -1,42 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { isPlatformAdmin } from "@/lib/admin";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
 import { Prisma } from "@prisma/client";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = "force-dynamic";
 
-/**
- * POST /api/flows/[id]/clone
- * Clone an existing flow
- */
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export const POST = withAuthAndTenant(async (user, request, context, db) => {
   try {
-    const { id } = await params;
+    const params = await context.params;
+    const id = params.id as string;
 
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      include: { tenant: true },
-    });
-
-    if (!user?.tenantId) {
-      return NextResponse.json(
-        { error: "User not associated with a tenant" },
-        { status: 400 },
-      );
-    }
-
-    // Fetch the source flow
+    // Use global prisma — admins may clone flows from any tenant or global flows
     const sourceFlow = await prisma.flow.findUnique({
       where: { id },
       include: {
@@ -53,13 +27,10 @@ export async function POST(
       );
     }
 
-    // Check if user has access to clone this flow
-    // - Owner of the flow can clone it
-    // - Admins can clone any flow
     const canClone =
-      (sourceFlow.ownerId === session.user.id &&
+      (sourceFlow.ownerId === user.id &&
         sourceFlow.tenantId === user.tenantId) ||
-      isPlatformAdmin(session);
+      user.isAdmin;
 
     if (!canClone) {
       return NextResponse.json(
@@ -68,19 +39,17 @@ export async function POST(
       );
     }
 
-    // Get clone name from body (default: "Copy of ...")
-    const body = await req.json();
+    const body = await request.json();
     const cloneName = body.name || `Copy of ${sourceFlow.name}`;
 
-    // Clone the flow and its nodes
-    const clonedFlow = await prisma.flow.create({
+    const clonedFlow = await db.flow.create({
       data: {
         name: cloneName,
         description: sourceFlow.description,
         tenantId: user.tenantId,
-        ownerId: session.user.id,
-        isGlobal: false, // Cloned flows are always private to tenant
-        isActive: false, // Start inactive
+        ownerId: user.id,
+        isGlobal: false,
+        isActive: false,
         version: 1,
         language: sourceFlow.language,
         fallbackMessage: sourceFlow.fallbackMessage,
@@ -117,4 +86,4 @@ export async function POST(
       { status: 500 },
     );
   }
-}
+});

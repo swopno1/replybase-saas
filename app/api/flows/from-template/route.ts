@@ -1,45 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { isPlatformAdmin } from "@/lib/admin";
-import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
+import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import {
   getAvailableTemplates,
   getTemplateByCategory,
 } from "@/lib/flow-templates";
+import { withAuthAndTenant } from "@/lib/route-helpers";
 
 export const dynamic = "force-dynamic";
 
-/**
- * POST /api/flows/from-template
- * Create a new flow from a template
- */
-export async function POST(req: NextRequest) {
+export const POST = withAuthAndTenant(async (user, request, _context, db) => {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      include: { tenant: true },
-    });
-
-    if (!user?.tenantId) {
-      return NextResponse.json(
-        { error: "User not associated with a tenant" },
-        { status: 400 },
-      );
-    }
-
-    const body = await req.json();
+    const body = await request.json();
     const { templateCategory, flowName, flowDescription, isGlobal } = body;
 
-    // Only admins can create global flows
-    if (isGlobal && !isPlatformAdmin(session)) {
+    if (isGlobal && !user.isAdmin) {
       return NextResponse.json(
         { error: "Only admins can create global flows" },
         { status: 403 },
@@ -54,20 +28,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create the flow
-    const flow = await prisma.flow.create({
+    const flow = await db.flow.create({
       data: {
         name: flowName || template.name,
         description: flowDescription || template.description,
         tenantId: user.tenantId,
-        ownerId: session.user.id,
+        ownerId: user.id,
         isGlobal: isGlobal ?? false,
-        isActive: false, // Start inactive so user can customize
+        isActive: false,
         version: 1,
         language: "en",
         fallbackMessage: "Sorry, I didn't understand that. Please try again.",
         maxTimeout: 300,
-        // Create nodes from template
         nodes: {
           create: template.nodes.map(
             (node) =>
@@ -100,12 +72,8 @@ export async function POST(req: NextRequest) {
       { status: 500 },
     );
   }
-}
+});
 
-/**
- * GET /api/flows/templates
- * Retrieve available flow templates
- */
 export async function GET() {
   try {
     const templates = getAvailableTemplates();
