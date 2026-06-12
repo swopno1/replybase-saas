@@ -26,16 +26,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  Loader2, 
-  Search, 
-  Trash2, 
-  Calendar, 
-  Eye, 
-  ChevronLeft, 
+import {
+  Loader2,
+  Search,
+  Trash2,
+  Calendar,
+  Eye,
+  ChevronLeft,
   ChevronRight,
-  Filter
+  Filter,
+  Headphones,
 } from "lucide-react";
+import { isPriorityPlusPlan } from "@/lib/plans";
 import { toast } from "sonner";
 import Link from "next/link";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
@@ -267,8 +269,16 @@ export default function SubscribersPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-medium capitalize">{sub.plan.name}</span>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium capitalize">{sub.plan.name}</span>
+                          {isPriorityPlusPlan(sub.plan.name) && (
+                            <span className="inline-flex items-center gap-1 text-[10px] bg-primary/10 text-primary border border-primary/20 rounded-full px-1.5 py-0.5 font-bold">
+                              <Headphones className="h-2.5 w-2.5" />
+                              Priority+
+                            </span>
+                          )}
+                        </div>
                         <span className="text-xs text-muted-foreground">£{sub.plan.price}/mo</span>
                       </div>
                     </TableCell>

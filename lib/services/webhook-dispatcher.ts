@@ -6,6 +6,7 @@ import crypto from "crypto";
 import * as Sentry from "@sentry/nextjs";
 
 const WEBHOOK_QUEUE_NAME = "outbound-webhooks";
+const MAX_CONSECUTIVE_FAILURES = 10;
 const isBuild = process.env.NEXT_PHASE === "phase-production-build";
 
 const getQueueConnection = () => {
@@ -18,7 +19,7 @@ export const webhookQueue = isBuild
   : new Queue(WEBHOOK_QUEUE_NAME, {
       connection: getQueueConnection(),
       defaultJobOptions: {
-        attempts: 5,
+        attempts: 3,
         backoff: { type: "exponential", delay: 2000 },
         removeOnComplete: 100,
         removeOnFail: 500,
@@ -102,20 +103,74 @@ export const setupWebhookWorker = () => {
                 .createHmac("sha256", subscription.secret)
                 .update(body)
                 .digest("hex");
-              headers["X-ReplyBase-Signature"] = signature;
+              headers["X-ReplyBase-Signature"] = `sha256=${signature}`;
             }
 
-            const response = await fetch(subscription.url, {
-              method: "POST",
-              headers,
-              body,
-            });
+            let statusCode: number | undefined;
+            let success = false;
+            let errorMessage: string | undefined;
 
-            if (!response.ok) {
-              throw new Error(`Webhook delivery failed with status ${response.status}`);
+            try {
+              const response = await fetch(subscription.url, {
+                method: "POST",
+                headers,
+                body,
+                signal: AbortSignal.timeout(10_000),
+              });
+
+              statusCode = response.status;
+              success = response.ok;
+
+              if (!response.ok) {
+                errorMessage = `HTTP ${response.status}`;
+                throw new Error(`Webhook delivery failed with status ${response.status}`);
+              }
+
+              logger.info({ subscriptionId, eventType }, "[WebhookWorker] Webhook delivered successfully");
+            } catch (err) {
+              if (!errorMessage) {
+                errorMessage = err instanceof Error ? err.message : "Unknown error";
+              }
+              throw err;
+            } finally {
+              // Always record the delivery attempt
+              await prisma.webhookDeliveryLog.create({
+                data: {
+                  subscriptionId,
+                  tenantId: subscription.tenantId,
+                  eventType,
+                  url: subscription.url,
+                  statusCode,
+                  success,
+                  errorMessage,
+                },
+              });
+
+              if (success) {
+                await prisma.webhookSubscription.update({
+                  where: { id: subscriptionId },
+                  data: { failureCount: 0, lastDeliveredAt: new Date() },
+                });
+              } else {
+                const newFailureCount = (subscription.failureCount ?? 0) + 1;
+                const shouldDisable = newFailureCount >= MAX_CONSECUTIVE_FAILURES;
+
+                await prisma.webhookSubscription.update({
+                  where: { id: subscriptionId },
+                  data: {
+                    failureCount: newFailureCount,
+                    ...(shouldDisable && { isActive: false }),
+                  },
+                });
+
+                if (shouldDisable) {
+                  logger.warn(
+                    { subscriptionId, tenantId: subscription.tenantId },
+                    "[WebhookWorker] Subscription disabled after 10 consecutive failures"
+                  );
+                }
+              }
             }
-
-            logger.info({ subscriptionId, eventType }, "[WebhookWorker] Webhook delivered successfully");
           }
         );
       });
@@ -128,6 +183,8 @@ export const setupWebhookWorker = () => {
 
   return worker;
 };
+
+export { SUPPORTED_WEBHOOK_EVENTS, type WebhookEventType } from "@/lib/webhook-events";
 
 export async function dispatchWebhook(tenantId: string, eventType: string, payload: any) {
   if (isBuild) return;

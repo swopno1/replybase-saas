@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { withAuthAndTenant } from "@/lib/route-helpers";
+import { getTenantLimits } from "@/lib/subscription";
+import { getPlanConfig } from "@/lib/plans";
+import { SUPPORTED_WEBHOOK_EVENTS } from "@/lib/webhook-events";
 
 const webhookSubscriptionSchema = z.object({
   name: z.string().min(1).max(100),
   url: z.string().url(),
-  eventTypes: z.array(z.string()).min(1),
+  eventTypes: z.array(z.enum(SUPPORTED_WEBHOOK_EVENTS)).min(1),
   secret: z.string().optional().nullable(),
   isActive: z.boolean().default(true),
 });
@@ -25,6 +28,16 @@ export const GET = withAuthAndTenant(async ({ tenantId }, request, context, db) 
 });
 
 export const POST = withAuthAndTenant(async ({ tenantId }, request, context, db) => {
+  const limits = await getTenantLimits(tenantId);
+  const planConfig = getPlanConfig(limits.name);
+
+  if (!(planConfig as any).apiAccess) {
+    return NextResponse.json(
+      { error: "Outgoing webhooks require Scale or Business plan." },
+      { status: 403 }
+    );
+  }
+
   try {
     const body = await request.json();
     const parsed = webhookSubscriptionSchema.safeParse(body);

@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { ApiKeyManager } from "@/components/settings/api-key-manager";
+import { WebhookManager } from "@/components/settings/webhook-manager";
 import { BrandingManager } from "@/components/settings/branding-manager";
 import BillingTabContent from "@/components/settings/billing-tab";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
@@ -575,8 +576,9 @@ function SettingsTabsInner() {
       </TabsContent>
 
       {/* DEVELOPERS TAB */}
-      <TabsContent value="developers">
+      <TabsContent value="developers" className="space-y-8">
         <ApiKeyManager />
+        <WebhookManager />
       </TabsContent>
 
       {/* BRANDING TAB */}

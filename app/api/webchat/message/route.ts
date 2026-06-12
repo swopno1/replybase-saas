@@ -46,13 +46,40 @@ export async function POST(request: NextRequest) {
         },
       });
     }
-    try { await prisma.idempotencyKey.create({ data: { key: lockKey, expiresAt: new Date(Date.now() + 1000 * 60 * 5) } }); }
-    catch (e: unknown) { if (typeof e === "object" && e !== null && "code" in e && (e as any).code === "P2002") { const existing = await prisma.idempotencyKey.findUnique({ where: { key: lockKey } }); if (existing && existing.expiresAt > new Date()) { logger.warn({ conversationId }, "[Webchat Message] Concurrent duplicate blocked"); return NextResponse.json({ status: "duplicate_ignored" }, { status: 200, headers: createWebchatCorsHeaders(request) }); } else { await prisma.idempotencyKey.update({ where: { key: lockKey }, data: { createdAt: new Date(), expiresAt: new Date(Date.now() + 1000 * 60 * 5) } }); } } else throw e; }
-    const [_, conversation, channel] = await Promise.all([
-      prisma.crmMessage.create({ data: { tenantId, conversationId, direction: "inbound", content: message.trim(), source: "human" } }),
-      prisma.crmConversation.findUnique({ where: { id: conversationId }, select: { contactId: true, metadata: true } }),
-      findActiveWebChannel({ botId })
-    ]);
+    const idempotencyExpiry = new Date(Date.now() + 1000 * 60 * 5);
+    let conversation: { contactId: string; metadata: unknown } | null = null;
+    let channel: Awaited<ReturnType<typeof findActiveWebChannel>> = null;
+
+    try {
+      const [txResult, ch] = await Promise.all([
+        prisma.$transaction([
+          prisma.idempotencyKey.create({ data: { key: lockKey, expiresAt: idempotencyExpiry } }),
+          prisma.crmMessage.create({ data: { tenantId, conversationId, direction: "inbound", content: message.trim(), source: "human" } }),
+          prisma.crmConversation.findUnique({ where: { id: conversationId }, select: { contactId: true, metadata: true } }),
+        ]),
+        findActiveWebChannel({ botId }),
+      ]);
+      conversation = txResult[2];
+      channel = ch;
+    } catch (e: unknown) {
+      if (typeof e === "object" && e !== null && "code" in e && (e as any).code === "P2002") {
+        const existing = await prisma.idempotencyKey.findUnique({ where: { key: lockKey } });
+        if (existing && existing.expiresAt > new Date()) {
+          logger.warn({ conversationId }, "[Webchat Message] Concurrent duplicate blocked");
+          return NextResponse.json({ status: "duplicate_ignored" }, { status: 200, headers: createWebchatCorsHeaders(request) });
+        }
+        await prisma.idempotencyKey.update({ where: { key: lockKey }, data: { createdAt: new Date(), expiresAt: idempotencyExpiry } });
+        const [txResult, ch] = await Promise.all([
+          prisma.$transaction([
+            prisma.crmMessage.create({ data: { tenantId, conversationId, direction: "inbound", content: message.trim(), source: "human" } }),
+            prisma.crmConversation.findUnique({ where: { id: conversationId }, select: { contactId: true, metadata: true } }),
+          ]),
+          findActiveWebChannel({ botId }),
+        ]);
+        conversation = txResult[1];
+        channel = ch;
+      } else throw e;
+    }
     
     // --- LEAD EXTRACTION ---
     // Automatically capture email/phone from any inbound message

@@ -130,18 +130,20 @@ export function ConversationHeader({
           {conversation.contact.email ? (
             <a
               href={`mailto:${conversation.contact.email}`}
+              aria-label={`Email ${conversation.contact.email}`}
               className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline"
             >
-              <Mail className="h-3.5 w-3.5" />
+              <Mail className="h-3.5 w-3.5" aria-hidden="true" />
               <span>{conversation.contact.email}</span>
             </a>
           ) : null}
           {conversation.contact.phone ? (
             <a
               href={`tel:${conversation.contact.phone}`}
+              aria-label={`Call ${conversation.contact.phone}`}
               className="inline-flex items-center gap-1 text-gray-600 hover:text-gray-900 hover:underline"
             >
-              <Phone className="h-3.5 w-3.5" />
+              <Phone className="h-3.5 w-3.5" aria-hidden="true" />
               <span>{conversation.contact.phone}</span>
             </a>
           ) : null}

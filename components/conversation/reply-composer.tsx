@@ -142,12 +142,13 @@ export function ReplyComposer({
               size="sm"
               onClick={handleSuggestReply}
               disabled={isSuggesting || isSubmitting}
+              aria-label="Suggest AI reply"
               className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
             >
               {isSuggesting ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
               ) : (
-                <Sparkles className="h-4 w-4 mr-2" />
+                <Sparkles className="h-4 w-4 mr-2" aria-hidden="true" />
               )}
               Suggest AI Reply
             </Button>

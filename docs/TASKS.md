@@ -102,7 +102,7 @@ Before reading the task list, here is the confirmed production state of the plat
 - **Risk:** LOW
 
 ### Task 058 — Outgoing Webhooks (Business Plan)
-- **Status:** PENDING
+- **Status:** COMPLETED
 - **Category:** Feature / Business Tier
 - **Severity:** HIGH
 - **Issue:** No way for Business subscribers to push live events (new lead, new message, status change) to external systems (Zapier, Make, custom CRMs). This blocks enterprise integrations.
@@ -148,7 +148,7 @@ Before reading the task list, here is the confirmed production state of the plat
 - **Risk:** LOW
 
 ### Task 041 — Webchat Sequential DB Writes
-- **Status:** PENDING
+- **Status:** COMPLETED
 - **Category:** Performance / Engineering
 - **Issue:** `app/api/webchat/message/route.ts` performs sequential Prisma writes (`idempotencyKey.create`, `crmMessage.create`, `crmMessage.createMany`) instead of batching in a `prisma.$transaction`.
 - **Deliverable:** Transactional write path for webchat message ingestion.
@@ -159,7 +159,7 @@ Before reading the task list, here is the confirmed production state of the plat
 ## P2 — Product Quality & UX
 
 ### Task 050 — CRM Skeleton Loaders & Accessibility
-- **Status:** PENDING
+- **Status:** COMPLETED
 - **Category:** UI/UX
 - **Issue:** `ConversationPage` shows plain "Loading..." text during polls and initial load.
 - **Scope:**
@@ -225,12 +225,15 @@ Before reading the task list, here is the confirmed production state of the plat
 | Task | Description | Date |
 |------|-------------|------|
 | **039** | Deep health checks (`/api/health` with Prisma + Redis pings) | Aug 2026 |
+| **041** | Webchat sequential DB writes — idempotency key + inbound message in prisma.$transaction, channel fetch in parallel | Jun 2026 |
 | **044** | Multi-tenant Sentry tagging — tenantId/userId on all routes + BullMQ workers | Jun 2026 |
 | **045** | AI provider Sentry instrumentation (provider/model/task tags + spans) | Jun 2026 |
 | **046** | Sentry PII hardening — sendDefaultPii: false, scrub credentials from events/transactions, remove email from setUser | Jun 2026 |
 | **055** | Residual manual auth scoping — migrated 8 routes from raw getServerSession to withAuthAndTenant/withAdmin | Jun 2026 |
 | **057** | API Key Management — full lifecycle (create, list, revoke) with withApiKey middleware, plan gating, per-plan maxApiKeys limits, and Settings Developers tab UI | Jun 2026 |
+| **058** | Outgoing Webhooks — delivery tracking (WebhookDeliveryLog), failure counting, auto-disable after 10 failures, plan gating, lead.updated + conversation.new_message dispatch, WebhookManager UI | Jun 2026 |
 | **059** | White-Label Branding — TenantBranding table, branding API, webchat config injection, branded lead emails, BrandingManager UI with live preview, Business-plan gate | Jun 2026 |
+| **050** | CRM Skeleton Loaders & Accessibility — ConversationSkeleton component, aria-labels on Mail/Phone/Sparkles | Jun 2026 |
 | **049** | Pricing migration: Free/Launch/Grow/Scale/Business, FOUNDING50 promo, channel type gating | May 2026 |
 | Phase 1 infra | Redis memory cap, Postgres pool tuning, BullMQ retention tuning, AI timeout reduction | Aug 2026 |
 

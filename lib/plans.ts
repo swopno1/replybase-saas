@@ -3,6 +3,44 @@
  * This is the single source of truth for all plan-related limits and pricing.
  */
 
+export const SLA_TIERS = {
+  community: {
+    name: "Community",
+    responseTarget: null,
+    channels: ["Community forum"],
+    features: [],
+    badge: null,
+  },
+  standard: {
+    name: "Standard Email",
+    responseTarget: "48h",
+    channels: ["Email"],
+    features: ["Best-effort response", "Email support"],
+    badge: null,
+  },
+  priority: {
+    name: "Priority Email",
+    responseTarget: "24h",
+    channels: ["Email"],
+    features: ["Priority queue", "Email support", "24h response target"],
+    badge: null,
+  },
+  priorityPlus: {
+    name: "Priority+",
+    responseTarget: "4h",
+    channels: ["Email", "Dedicated Slack/WhatsApp channel option"],
+    features: [
+      "Priority+ queue",
+      "4h response target",
+      "Dedicated Slack/WhatsApp channel (optional)",
+      "Quarterly review call",
+    ],
+    badge: "Priority+",
+  },
+} as const;
+
+export type SlaTierKey = keyof typeof SLA_TIERS;
+
 export const PLAN_CONFIGS = {
   free: {
     name: "free",
@@ -18,6 +56,7 @@ export const PLAN_CONFIGS = {
     apiAccess: false,
     maxApiKeys: 0,
     whiteLabelBranding: false,
+    slaTier: "community" as SlaTierKey,
   },
   launch: {
     name: "launch",
@@ -33,6 +72,7 @@ export const PLAN_CONFIGS = {
     apiAccess: false,
     maxApiKeys: 0,
     whiteLabelBranding: false,
+    slaTier: "standard" as SlaTierKey,
   },
   grow: {
     name: "grow",
@@ -48,6 +88,7 @@ export const PLAN_CONFIGS = {
     apiAccess: false,
     maxApiKeys: 0,
     whiteLabelBranding: false,
+    slaTier: "standard" as SlaTierKey,
   },
   scale: {
     name: "scale",
@@ -63,6 +104,7 @@ export const PLAN_CONFIGS = {
     apiAccess: true,
     maxApiKeys: 5,
     whiteLabelBranding: false,
+    slaTier: "priority" as SlaTierKey,
   },
   business: {
     name: "business",
@@ -78,6 +120,7 @@ export const PLAN_CONFIGS = {
     apiAccess: true,
     maxApiKeys: 20,
     whiteLabelBranding: true,
+    slaTier: "priorityPlus" as SlaTierKey,
   },
 } as const;
 
@@ -86,4 +129,18 @@ export type PlanName = keyof typeof PLAN_CONFIGS;
 export function getPlanConfig(name: string) {
   const normalized = name.toLowerCase();
   return PLAN_CONFIGS[normalized as PlanName] || PLAN_CONFIGS.free;
+}
+
+export function getPlanSla(name: string) {
+  const plan = getPlanConfig(name);
+  return SLA_TIERS[plan.slaTier];
+}
+
+export function isBusinessPlan(name: string) {
+  return name.toLowerCase() === "business";
+}
+
+export function isPriorityPlusPlan(name: string) {
+  const plan = getPlanConfig(name);
+  return plan.slaTier === "priorityPlus";
 }

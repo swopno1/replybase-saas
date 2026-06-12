@@ -13,6 +13,7 @@ import {
 import { ConversationHeader } from "@/components/conversation/conversation-header";
 import { MessageFeed } from "@/components/conversation/message-feed";
 import { ReplyComposer } from "@/components/conversation/reply-composer";
+import { ConversationSkeleton } from "@/components/conversation/conversation-skeleton";
 
 export const dynamic = "force-dynamic";
 
@@ -74,7 +75,7 @@ export default function ConversationPage() {
   }, [conversationId, refreshConversation]);
 
   if (loading) {
-    return <div className="p-4">Loading conversation...</div>;
+    return <ConversationSkeleton />;
   }
 
   if (!conversation) {

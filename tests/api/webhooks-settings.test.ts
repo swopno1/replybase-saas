@@ -22,6 +22,14 @@ vi.mock('@/lib/route-helpers', () => ({
   },
 }));
 
+vi.mock('@/lib/subscription', () => ({
+  getTenantLimits: vi.fn().mockResolvedValue({ name: 'business' }),
+}));
+
+vi.mock('@/lib/plans', () => ({
+  getPlanConfig: vi.fn().mockReturnValue({ apiAccess: true, displayName: 'Business' }),
+}));
+
 describe('Webhooks Settings API', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -41,7 +49,12 @@ describe('Webhooks Settings API', () => {
     }));
   });
 
-  it('POST should create a new webhook', async () => {
+  it('POST should create a new webhook for eligible plan', async () => {
+    const { getTenantLimits } = await import('@/lib/subscription');
+    const { getPlanConfig } = await import('@/lib/plans');
+    (getTenantLimits as any).mockResolvedValue({ name: 'business' });
+    (getPlanConfig as any).mockReturnValue({ apiAccess: true, displayName: 'Business' });
+
     const payload = {
       name: 'New Webhook',
       url: 'https://example.com/hook',
@@ -60,5 +73,37 @@ describe('Webhooks Settings API', () => {
     expect(res.status).toBe(201);
     expect(data.id).toBe('2');
     expect(prisma.webhookSubscription.create).toHaveBeenCalled();
+  });
+
+  it('POST should block creation on ineligible plan', async () => {
+    const { getTenantLimits } = await import('@/lib/subscription');
+    const { getPlanConfig } = await import('@/lib/plans');
+    (getTenantLimits as any).mockResolvedValue({ name: 'free' });
+    (getPlanConfig as any).mockReturnValue({ apiAccess: false, displayName: 'Free' });
+
+    const req = new NextRequest('http://localhost/api/settings/webhooks', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'Test', url: 'https://example.com', eventTypes: ['lead.created'] })
+    });
+    const res = await route.POST(req, { params: Promise.resolve({}) });
+    const data = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(data.error).toContain('Scale or Business');
+  });
+
+  it('POST should reject unsupported event types', async () => {
+    const { getTenantLimits } = await import('@/lib/subscription');
+    const { getPlanConfig } = await import('@/lib/plans');
+    (getTenantLimits as any).mockResolvedValue({ name: 'business' });
+    (getPlanConfig as any).mockReturnValue({ apiAccess: true, displayName: 'Business' });
+
+    const req = new NextRequest('http://localhost/api/settings/webhooks', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'Test', url: 'https://example.com', eventTypes: ['fake.event'] })
+    });
+    const res = await route.POST(req, { params: Promise.resolve({}) });
+
+    expect(res.status).toBe(400);
   });
 });

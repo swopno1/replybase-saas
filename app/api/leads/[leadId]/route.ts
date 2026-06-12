@@ -22,6 +22,14 @@ export const PATCH = withAuthAndTenant(
         data: { status: validated.status },
       });
 
+      import("@/lib/services/webhook-dispatcher").then(({ dispatchWebhook }) =>
+        dispatchWebhook(tenantId, "lead.updated", {
+          id: updatedLead.id,
+          status: updatedLead.status,
+          name: updatedLead.name,
+        })
+      ).catch(() => {});
+
       return NextResponse.json({ lead: updatedLead });
     } catch (error) {
       if (error instanceof z.ZodError) {

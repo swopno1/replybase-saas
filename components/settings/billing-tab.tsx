@@ -28,7 +28,9 @@ import {
   X,
   Calendar,
   ExternalLink,
+  Headphones,
 } from "lucide-react";
+import { getPlanSla, isPriorityPlusPlan } from "@/lib/plans";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
@@ -403,12 +405,42 @@ export default function BillingTabContent() {
               </div>
               <div className="flex items-center gap-3 text-sm font-medium">
                 <CheckCircle2 className="h-4 w-4 text-primary" />
-                <span>Priority Support</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm font-medium">
-                <CheckCircle2 className="h-4 w-4 text-primary" />
                 <span>Unlimited Lead Capture</span>
               </div>
+              {(() => {
+                const sla = getPlanSla(subscription?.plan.name || "free");
+                const isPP = isPriorityPlusPlan(subscription?.plan.name || "free");
+                return (
+                  <div className="rounded-xl border border-border/50 bg-muted/30 p-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Headphones className="h-4 w-4 text-primary shrink-0" />
+                      <span className="text-sm font-bold">
+                        {sla.name}
+                        {isPP && (
+                          <span className="ml-2 text-[10px] bg-primary/10 text-primary border border-primary/20 rounded-full px-2 py-0.5 font-bold align-middle">
+                            Priority+
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    {sla.responseTarget ? (
+                      <p className="text-xs text-muted-foreground pl-6">
+                        Response target: <span className="font-bold text-foreground">{sla.responseTarget}</span>
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground pl-6">Community forum support</p>
+                    )}
+                    {isPP && (
+                      <p className="text-xs text-muted-foreground pl-6">
+                        Includes dedicated Slack/WhatsApp channel option &amp; quarterly review call.{" "}
+                        <a href="/api/support/priority" className="text-primary hover:underline font-semibold">
+                          Submit a priority ticket →
+                        </a>
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
             
             <Separator className="bg-border/50" />

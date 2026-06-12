@@ -52,6 +52,7 @@ interface PricingPlan {
   readonly crmAccess: boolean;
   readonly apiAccess: boolean;
   readonly support: string;
+  readonly slaResponseTarget: string | null;
   readonly cta: string;
   readonly highlight: boolean;
   readonly featuredLabel?: string;
@@ -72,6 +73,7 @@ const PLANS: readonly PricingPlan[] = [
     crmAccess: false,
     apiAccess: false,
     support: "Community",
+    slaResponseTarget: null,
     cta: "Get Started",
     highlight: false,
   },
@@ -89,6 +91,7 @@ const PLANS: readonly PricingPlan[] = [
     crmAccess: true,
     apiAccess: false,
     support: "Standard Email",
+    slaResponseTarget: "48h",
     cta: "Start Free Trial",
     highlight: false,
   },
@@ -105,7 +108,8 @@ const PLANS: readonly PricingPlan[] = [
     supportedChannels: "Webchat, Facebook + WhatsApp",
     crmAccess: true,
     apiAccess: false,
-    support: "Priority Email",
+    support: "Standard Email",
+    slaResponseTarget: "48h",
     cta: "Start Free Trial",
     highlight: true,
     featuredLabel: "Most Popular",
@@ -123,7 +127,8 @@ const PLANS: readonly PricingPlan[] = [
     supportedChannels: "Webchat, Facebook, WhatsApp, Telegram",
     crmAccess: true,
     apiAccess: true,
-    support: "Priority Live-Chat",
+    support: "Priority Email",
+    slaResponseTarget: "24h",
     cta: "Start Free Trial",
     highlight: false,
     featuredLabel: "Best for Teams",
@@ -140,7 +145,8 @@ const PLANS: readonly PricingPlan[] = [
     supportedChannels: "All channels + API/Custom Integrations",
     crmAccess: true,
     apiAccess: true,
-    support: "Dedicated SLA",
+    support: "Priority+",
+    slaResponseTarget: "4h",
     cta: "Start Free Trial",
     highlight: false,
   },
@@ -643,9 +649,37 @@ function PricingContent() {
               {PLANS.map((plan) => (
                 <td
                   key={`${plan.name}-support`}
-                  className={`p-6 text-center text-xs text-muted-foreground ${plan.highlight ? "bg-primary/5" : ""}`}
+                  className={`p-6 text-center ${plan.highlight ? "bg-primary/5" : ""}`}
                 >
-                  {plan.support}
+                  <div className="flex flex-col items-center gap-1">
+                    <span className={`text-xs font-semibold ${plan.name === "business" ? "text-primary" : "text-muted-foreground"}`}>
+                      {plan.support}
+                    </span>
+                    {plan.name === "business" && (
+                      <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 rounded-full px-2 py-0.5 font-bold">
+                        Priority+
+                      </span>
+                    )}
+                  </div>
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className="p-6 font-semibold text-foreground">
+                Response Target
+              </td>
+              {PLANS.map((plan) => (
+                <td
+                  key={`${plan.name}-sla`}
+                  className={`p-6 text-center text-xs ${plan.highlight ? "bg-primary/5" : ""}`}
+                >
+                  {plan.slaResponseTarget ? (
+                    <span className={`font-bold ${plan.name === "business" ? "text-primary" : "text-muted-foreground"}`}>
+                      {plan.slaResponseTarget}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground opacity-40">—</span>
+                  )}
                 </td>
               ))}
             </tr>

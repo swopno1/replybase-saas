@@ -874,19 +874,40 @@ model IdempotencyKey {
 }
 
 model WebhookSubscription {
-  id         String   @id @default(cuid())
-  tenantId   String
-  name       String
-  url        String
-  eventTypes Json // ["lead.created", "lead.updated", "flow.action"]
-  secret     String? // For HMAC signing
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id              String               @id @default(cuid())
+  tenantId        String
+  name            String
+  url             String
+  eventTypes      Json                 // ["lead.created", "lead.updated", "bot.flow_completed", ...]
+  secret          String?              // For HMAC signing
+  isActive        Boolean              @default(true)
+  failureCount    Int                  @default(0)
+  lastDeliveredAt DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  tenant          Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  deliveryLogs    WebhookDeliveryLog[]
 
   @@index([tenantId])
   @@map("webhook_subscriptions")
+}
+
+model WebhookDeliveryLog {
+  id             String              @id @default(cuid())
+  subscriptionId String
+  tenantId       String
+  eventType      String
+  url            String
+  statusCode     Int?
+  success        Boolean
+  errorMessage   String?
+  createdAt      DateTime            @default(now())
+  subscription   WebhookSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+  @@index([tenantId])
+  @@index([createdAt])
+  @@map("webhook_delivery_logs")
 }
 
 enum ConversationStatus {

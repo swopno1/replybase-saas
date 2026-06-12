@@ -62,7 +62,9 @@ import {
   CheckCircle2,
   Gift,
   Info,
+  Headphones,
 } from "lucide-react";
+import { getPlanSla, isPriorityPlusPlan } from "@/lib/plans";
 import { toast } from "sonner";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
 
@@ -667,9 +669,17 @@ export default function SubscriberDetailPage({
                 <CreditCard className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{subscription.plan.name}</div>
+                <div className="flex items-center gap-2">
+                  <div className="text-2xl font-bold capitalize">{subscription.plan.name}</div>
+                  {isPriorityPlusPlan(subscription.plan.name) && (
+                    <span className="inline-flex items-center gap-1 text-[10px] bg-primary/10 text-primary border border-primary/20 rounded-full px-1.5 py-0.5 font-bold">
+                      <Headphones className="h-2.5 w-2.5" />
+                      Priority+
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  ${subscription.plan.price}/month
+                  £{(subscription.plan.price / 100).toFixed(0)}/month
                 </p>
               </CardContent>
             </Card>
@@ -683,6 +693,53 @@ export default function SubscriberDetailPage({
               </CardContent>
             </Card>
           </div>
+
+          {/* SLA Support Tier Card */}
+          {(() => {
+            const sla = getPlanSla(subscription.plan.name);
+            const isPP = isPriorityPlusPlan(subscription.plan.name);
+            return (
+              <Card className={`mt-4 ${isPP ? "border-primary/30 bg-primary/[0.02]" : ""}`}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Headphones className="h-4 w-4 text-primary" />
+                    Support SLA Tier
+                    {isPP && (
+                      <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 rounded-full px-2 py-0.5 font-bold">
+                        Priority+
+                      </span>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-6 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-0.5">Tier</p>
+                      <p className="font-bold">{sla.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-0.5">Response Target</p>
+                      <p className="font-bold">{sla.responseTarget ?? "No SLA"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-0.5">Support Channels</p>
+                      <p className="font-bold">{sla.channels.join(", ")}</p>
+                    </div>
+                  </div>
+                  {isPP && sla.features.length > 0 && (
+                    <ul className="mt-3 space-y-1">
+                      {sla.features.map((f) => (
+                        <li key={f} className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <CheckCircle2 className="h-3 w-3 text-primary shrink-0" />
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })()}
           
           <div className="grid gap-4 md:grid-cols-2 mt-4">
             <Card className="border-indigo-100 bg-indigo-50/30 shadow-sm">

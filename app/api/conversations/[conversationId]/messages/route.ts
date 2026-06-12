@@ -103,6 +103,16 @@ export const POST: (
         }),
       ]);
 
+      import("@/lib/services/webhook-dispatcher").then(({ dispatchWebhook }) =>
+        dispatchWebhook(tenantId, "conversation.new_message", {
+          conversationId: conversationId as string,
+          messageId: message.id,
+          direction: "outbound",
+          content: validated.content,
+          channel: conversation.channel,
+        })
+      ).catch(() => {});
+
       return NextResponse.json({ message }, { status: 201 });
     } catch (error) {
       if (error instanceof z.ZodError) {
