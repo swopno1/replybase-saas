@@ -142,6 +142,7 @@ async function handleMessagingEvent(event: FacebookMessagingEvent) {
     await messageQueue.add("facebook-message", {
       type: "facebook",
       botId: pageRecord.botId,
+      tenantId: pageRecord.tenantId,
       payload: { senderPsid, pageId, messageText },
     });
   } catch (error) {

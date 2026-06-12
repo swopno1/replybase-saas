@@ -47,6 +47,7 @@ if (!isBuild && messageQueue) {
 export interface MessageJobData {
   type: "whatsapp" | "facebook" | "telegram" | "lead_enrichment" | "stripe";
   botId: string;
+  tenantId?: string;
   payload: any;
   _sentry?: {
     sentryTrace?: string;
@@ -60,7 +61,7 @@ export const setupWorker = () => {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job<MessageJobData>) => {
-      const { type, botId, payload, _sentry } = job.data;
+      const { type, botId, tenantId: jobTenantId, payload, _sentry } = job.data;
       logger.info({ jobId: job.id, type, botId }, "[Worker] Processing message job");
 
       const traceContext = {
@@ -69,7 +70,7 @@ export const setupWorker = () => {
       };
 
       return Sentry.continueTrace(traceContext, async () => {
-        const tenantId = payload?.tenantId || payload?.channel?.bot?.tenantId;
+        const tenantId = jobTenantId || payload?.tenantId || payload?.channel?.bot?.tenantId;
         return Sentry.startSpan(
           {
             name: `Queue Process - ${type}`,

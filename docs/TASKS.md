@@ -64,7 +64,7 @@ Before reading the task list, here is the confirmed production state of the plat
 - **Risk:** LOW
 
 ### Task 044 — Multi-Tenant Sentry Tagging
-- **Status:** PENDING
+- **Status:** COMPLETED
 - **Category:** Observability
 - **Issue:** Sentry errors are not enriched with `tenant_id` or `user_id`, making cross-tenant debugging slow.
 - **Scope:** Update `withAuthAndTenant` in `lib/route-helpers.ts` to call `Sentry.setUser()` and `Sentry.setTag("tenant_id", ...)`. Propagate tenant tag to BullMQ worker jobs in `lib/queue.ts`.
@@ -225,6 +225,7 @@ Before reading the task list, here is the confirmed production state of the plat
 | Task | Description | Date |
 |------|-------------|------|
 | **039** | Deep health checks (`/api/health` with Prisma + Redis pings) | Aug 2026 |
+| **044** | Multi-tenant Sentry tagging — tenantId/userId on all routes + BullMQ workers | Jun 2026 |
 | **045** | AI provider Sentry instrumentation (provider/model/task tags + spans) | Jun 2026 |
 | **055** | Residual manual auth scoping — migrated 8 routes from raw getServerSession to withAuthAndTenant/withAdmin | Jun 2026 |
 | **049** | Pricing migration: Free/Launch/Grow/Scale/Business, FOUNDING50 promo, channel type gating | May 2026 |

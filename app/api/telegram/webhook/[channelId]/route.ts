@@ -146,6 +146,7 @@ export async function POST(
     await messageQueue.add("telegram-message", {
       type: "telegram",
       botId: channel.botId,
+      tenantId: channel.bot.tenantId,
       payload: { channel, update, chatId, userId, messageText, userName },
     });
 

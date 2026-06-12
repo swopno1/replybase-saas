@@ -187,6 +187,7 @@ async function ensureContactAndConversation(params: {
     {
       type: "whatsapp",
       botId: params.channel.botId,
+      tenantId: params.channel.bot.tenantId,
       payload: params,
     } as MessageJobData,
     { jobId: `whatsapp-${params.messageId}` },
