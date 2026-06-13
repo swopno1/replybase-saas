@@ -131,7 +131,7 @@ Before reading the task list, here is the confirmed production state of the plat
 - **Risk:** LOW
 
 ### Task 060 — SLA Support Tiers
-- **Status:** PENDING
+- **Status:** COMPLETED
 - **Category:** Feature / Business Tier
 - **Severity:** MEDIUM
 - **Issue:** Business plan buyers expect a defined support SLA. Currently all plans get the same community/email support with no commitment.
@@ -169,7 +169,7 @@ Before reading the task list, here is the confirmed production state of the plat
 - **Risk:** LOW
 
 ### Task 047 — Distributed Tracing for BullMQ Workers
-- **Status:** PENDING
+- **Status:** COMPLETED
 - **Category:** Observability
 - **Issue:** BullMQ workers don't inherit Sentry trace context from the originating webhook. Impossible to trace a message from ingress → AI → delivery as a single trace.
 - **Scope:** Capture `sentry-trace` and `baggage` headers in webhook routes. Pass to BullMQ job data. Use `Sentry.continueTrace` in worker loops.
@@ -177,7 +177,7 @@ Before reading the task list, here is the confirmed production state of the plat
 - **Risk:** MEDIUM
 
 ### Task 056 — N+1 Query in Plan Downgrade Logic
-- **Status:** PENDING
+- **Status:** COMPLETED
 - **Category:** Performance
 - **Issue:** `lib/subscription.ts` `handlePlanDowngrade` fetches channels sequentially per bot.
 - **Scope:** Use `channel.findMany({ botId: { in: botIds } })` + in-memory grouping + `updateMany`.
@@ -185,7 +185,7 @@ Before reading the task list, here is the confirmed production state of the plat
 - **Risk:** LOW
 
 ### Task 062 — Frontend API Docs Pages
-- **Status:** PENDING
+- **Status:** COMPLETED
 - **Category:** Docs / Frontend
 - **Issue:** `/docs/api/reference` and `/docs/api/webhooks` return 404. Business plan buyers expect API documentation.
 - **Scope:**
@@ -203,19 +203,19 @@ Before reading the task list, here is the confirmed production state of the plat
 > Redis scaling and managed Redis migration are intentionally deferred until ~100+ concurrent active tenants.
 
 ### Task 051 — Redis Memory Safety
-- **Status:** PENDING
+- **Status:** COMPLETED
 - **Scope:** Set `maxmemory 256mb` + `maxmemory-policy allkeys-lru` in self-hosted Redis container (Coolify/Docker).
 
 ### Task 052 — In-Memory Rate Limit Default
-- **Status:** PENDING
+- **Status:** COMPLETED
 - **Scope:** Confirm `lib/rate-limit.ts` defaults to in-memory when `REDIS_URL` is absent. No Redis dependency in single-instance deployments.
 
 ### Task 053 — Subscription Cache Evaluation
-- **Status:** PENDING
+- **Status:** COMPLETED
 - **Scope:** Benchmark Postgres subscription query latency. If < 50ms, remove Redis L2 cache from `lib/subscription.ts` to free ~50MB RAM.
 
 ### Task 054 — BullMQ Queue Consolidation
-- **Status:** PENDING
+- **Status:** COMPLETED
 - **Scope:** Merge low-volume queues into `message-processing` queue. Reduce Redis connections and worker overhead.
 
 ---
@@ -229,10 +229,18 @@ Before reading the task list, here is the confirmed production state of the plat
 | **044** | Multi-tenant Sentry tagging — tenantId/userId on all routes + BullMQ workers | Jun 2026 |
 | **045** | AI provider Sentry instrumentation (provider/model/task tags + spans) | Jun 2026 |
 | **046** | Sentry PII hardening — sendDefaultPii: false, scrub credentials from events/transactions, remove email from setUser | Jun 2026 |
+| **047** | Distributed tracing for BullMQ workers — explicit trace capture in FB/WA webhooks, continueTrace in worker, captureException on failure | Jun 2026 |
+| **051** | Redis memory safety — docker/redis/redis.conf (maxmemory 256mb, allkeys-lru, AOF) + docker-compose.redis.yml for Coolify | Jun 2026 |
+| **052** | In-memory rate limit default — added 60s pruning interval + 9-test suite confirming no Redis dependency | Jun 2026 |
+| **053** | Subscription cache evaluation — removed Redis L2 (get/set/del + import); L1 in-memory (5 min TTL) is sufficient; benchmark script added | Jun 2026 |
+| **054** | BullMQ queue consolidation — merged `outbound-webhooks` into `message-processing`; extracted `executeWebhookDelivery`; single worker (concurrency 10); 1 fewer Redis connection | Jun 2026 |
 | **055** | Residual manual auth scoping — migrated 8 routes from raw getServerSession to withAuthAndTenant/withAdmin | Jun 2026 |
 | **057** | API Key Management — full lifecycle (create, list, revoke) with withApiKey middleware, plan gating, per-plan maxApiKeys limits, and Settings Developers tab UI | Jun 2026 |
 | **058** | Outgoing Webhooks — delivery tracking (WebhookDeliveryLog), failure counting, auto-disable after 10 failures, plan gating, lead.updated + conversation.new_message dispatch, WebhookManager UI | Jun 2026 |
 | **059** | White-Label Branding — TenantBranding table, branding API, webchat config injection, branded lead emails, BrandingManager UI with live preview, Business-plan gate | Jun 2026 |
+| **060** | SLA Support Tiers — SLA_TIERS config in plans.ts, Priority+ badge in admin, SLA card in billing tab, Response Target row in pricing, /api/support/priority fast-track route, docs/features + docs/faq updated | Jun 2026 |
+| **062** | Frontend API Docs Pages — `/docs/api/reference` + `/docs/api/webhooks` pages, "Developer API" sidebar section | Jun 2026 |
+| **056** | N+1 Query in Plan Downgrade — batch `channel.findMany` across all bots + two `updateMany` calls, 7 new tests | Jun 2026 |
 | **050** | CRM Skeleton Loaders & Accessibility — ConversationSkeleton component, aria-labels on Mail/Phone/Sparkles | Jun 2026 |
 | **049** | Pricing migration: Free/Launch/Grow/Scale/Business, FOUNDING50 promo, channel type gating | May 2026 |
 | Phase 1 infra | Redis memory cap, Postgres pool tuning, BullMQ retention tuning, AI timeout reduction | Aug 2026 |

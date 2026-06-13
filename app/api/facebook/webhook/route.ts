@@ -6,6 +6,7 @@ import { messageQueue } from "@/lib/queue";
 import { verifyWebhookSignature } from "@/lib/server/facebook-utils";
 import { isChannelEnabled } from "@/lib/channel-config";
 import { z } from "zod";
+import * as Sentry from "@sentry/nextjs";
 
 const FacebookMessagingEventSchema = z.object({
   sender: z.object({ id: z.string() }).optional(),
@@ -81,12 +82,16 @@ export async function POST(req: NextRequest) {
     const body = parsedBody.data;
 
     if (body.object === "page" && body.entry) {
+      // Capture trace context synchronously before the fire-and-forget calls —
+      // the request span may end before handleMessagingEvent awaits its first DB query.
+      const sentryCtx = Sentry.getTraceData();
+
       for (const entry of body.entry) {
         const messaging = entry.messaging;
         if (!messaging) continue;
 
         for (const event of messaging) {
-          handleMessagingEvent(event).catch((err) =>
+          handleMessagingEvent(event, sentryCtx).catch((err) =>
             logger.error({ error: err }, "[Facebook Webhook] Async processing error")
           );
         }
@@ -98,7 +103,10 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function handleMessagingEvent(event: FacebookMessagingEvent) {
+async function handleMessagingEvent(
+  event: FacebookMessagingEvent,
+  sentryCtx: ReturnType<typeof Sentry.getTraceData>,
+) {
   try {
     if (event.delivery || event.read || event.message?.is_echo) return;
 
@@ -144,6 +152,10 @@ async function handleMessagingEvent(event: FacebookMessagingEvent) {
       botId: pageRecord.botId,
       tenantId: pageRecord.tenantId,
       payload: { senderPsid, pageId, messageText },
+      _sentry: {
+        sentryTrace: sentryCtx["sentry-trace"],
+        baggage: sentryCtx["baggage"],
+      },
     });
   } catch (error) {
     logger.error({ error }, "[Facebook Webhook] handleMessagingEvent error");

@@ -11,6 +11,7 @@ import {
 } from "@/lib/whatsapp-provider";
 import { messageQueue, MessageJobData } from "@/lib/queue";
 import logger from "@/lib/logger";
+import * as Sentry from "@sentry/nextjs";
 
 export const dynamic = "force-dynamic";
 
@@ -181,6 +182,7 @@ async function ensureContactAndConversation(params: {
   inboundText: string;
   messageId: string;
   timestamp?: string;
+  sentryCtx: ReturnType<typeof Sentry.getTraceData>;
 }) {
   await messageQueue.add(
     "whatsapp-message",
@@ -189,6 +191,10 @@ async function ensureContactAndConversation(params: {
       botId: params.channel.botId,
       tenantId: params.channel.bot.tenantId,
       payload: params,
+      _sentry: {
+        sentryTrace: params.sentryCtx["sentry-trace"],
+        baggage: params.sentryCtx["baggage"],
+      },
     } as MessageJobData,
     { jobId: `whatsapp-${params.messageId}` },
   );
@@ -214,6 +220,7 @@ async function processMetaPayload(params: {
   payload: MetaWebhookPayload;
   bodyText: string;
   signature: string | null;
+  sentryCtx: ReturnType<typeof Sentry.getTraceData>;
 }) {
   if (params.payload.object !== "whatsapp_business_account") {
     return NextResponse.json({ received: true, ignored: true }, { status: 200 });
@@ -330,6 +337,7 @@ async function processMetaPayload(params: {
           inboundText,
           messageId: message.id,
           timestamp: message.timestamp,
+          sentryCtx: params.sentryCtx,
         }).catch((err) => {
           logger.error(err, "[WhatsApp Webhook] Async processing error");
         });
@@ -344,6 +352,7 @@ async function processTwilioPayload(
   params: URLSearchParams,
   requestUrl: string,
   signature: string | null,
+  sentryCtx: ReturnType<typeof Sentry.getTraceData>,
 ) {
   const to = params.get("To");
   const from = params.get("From");
@@ -410,6 +419,7 @@ async function processTwilioPayload(
     rawPhone: from,
     inboundText: body,
     messageId: messageSid,
+    sentryCtx,
   }).catch((err) => {
     logger.error(
       err,
@@ -445,6 +455,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    // Capture trace context synchronously before any async work — fire-and-forget
+    // calls inside processMetaPayload/processTwilioPayload happen after the first
+    // await, by which point the request span may have already closed.
+    const sentryCtx = Sentry.getTraceData();
+
     const contentType = req.headers.get("content-type") || "";
     const bodyText = await req.text();
 
@@ -454,6 +469,7 @@ export async function POST(req: NextRequest) {
         params,
         req.url,
         req.headers.get("x-twilio-signature"),
+        sentryCtx,
       );
     }
 
@@ -468,6 +484,7 @@ export async function POST(req: NextRequest) {
       payload,
       bodyText,
       signature: req.headers.get("x-hub-signature-256"),
+      sentryCtx,
     });
   } catch (error) {
     logger.error(error, "[WhatsApp Webhook] Error");

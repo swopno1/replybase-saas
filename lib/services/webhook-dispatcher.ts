@@ -1,199 +1,135 @@
-import { Queue, Worker, Job } from "bullmq";
-import { redis } from "@/lib/redis";
 import { prisma } from "@/lib/prisma";
 import logger from "@/lib/logger";
 import crypto from "crypto";
 import * as Sentry from "@sentry/nextjs";
 
-const WEBHOOK_QUEUE_NAME = "outbound-webhooks";
 const MAX_CONSECUTIVE_FAILURES = 10;
 const isBuild = process.env.NEXT_PHASE === "phase-production-build";
 
-const getQueueConnection = () => {
-  if (isBuild || !redis) return undefined;
-  return redis.duplicate ? redis.duplicate() : redis;
-};
-
-export const webhookQueue = isBuild
-  ? (null as any)
-  : new Queue(WEBHOOK_QUEUE_NAME, {
-      connection: getQueueConnection(),
-      defaultJobOptions: {
-        attempts: 3,
-        backoff: { type: "exponential", delay: 2000 },
-        removeOnComplete: 100,
-        removeOnFail: 500,
+/**
+ * Executes a single webhook delivery attempt for a given subscription.
+ * Called by the message-processing worker under the "webhook_delivery" job type.
+ */
+export async function executeWebhookDelivery(
+  subscriptionId: string,
+  eventType: string,
+  payload: any,
+  jobId: string | undefined
+) {
+  return Sentry.startSpan(
+    {
+      name: `Webhook Delivery - ${eventType}`,
+      op: "webhook.deliver",
+      attributes: {
+        "webhook.subscription.id": subscriptionId,
+        "webhook.event_type": eventType,
       },
-    });
+    },
+    async () => {
+      const subscription = await prisma.webhookSubscription.findUnique({
+        where: { id: subscriptionId },
+      });
 
-if (!isBuild && webhookQueue) {
-  const originalAdd = webhookQueue.add.bind(webhookQueue);
-  webhookQueue.add = async function (name: string, data: any, opts?: any) {
-    const traceData = Sentry.getTraceData();
-    const enrichedData = {
-      ...data,
-      _sentry: {
-        sentryTrace: traceData["sentry-trace"] || data?._sentry?.sentryTrace,
-        baggage: traceData["baggage"] || data?._sentry?.baggage,
-      },
-    };
-    return originalAdd(name, enrichedData, opts);
-  } as any;
-}
+      if (!subscription || !subscription.isActive) {
+        logger.info({ subscriptionId }, "[WebhookWorker] Subscription not found or inactive, skipping");
+        return;
+      }
 
-export interface WebhookJobData {
-  subscriptionId: string;
-  eventType: string;
-  payload: any;
-  _sentry?: {
-    sentryTrace?: string;
-    baggage?: string;
-  };
-}
+      Sentry.setTag("tenant_id", subscription.tenantId);
 
-export const setupWebhookWorker = () => {
-  if (isBuild) return;
+      const body = JSON.stringify({
+        event: eventType,
+        timestamp: new Date().toISOString(),
+        data: payload,
+      });
 
-  const worker = new Worker(
-    WEBHOOK_QUEUE_NAME,
-    async (job: Job<WebhookJobData>) => {
-      const { subscriptionId, eventType, payload, _sentry } = job.data;
-
-      const traceContext = {
-        sentryTrace: _sentry?.sentryTrace,
-        baggage: _sentry?.baggage,
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "X-ReplyBase-Event": eventType,
+        "X-ReplyBase-Delivery": jobId || "",
       };
 
-      return Sentry.continueTrace(traceContext, async () => {
-        return Sentry.startSpan(
-          {
-            name: `Webhook Delivery - ${eventType}`,
-            op: "webhook.deliver",
-            attributes: {
-              "webhook.subscription.id": subscriptionId,
-              "webhook.event_type": eventType,
-            },
+      if (subscription.secret) {
+        const signature = crypto
+          .createHmac("sha256", subscription.secret)
+          .update(body)
+          .digest("hex");
+        headers["X-ReplyBase-Signature"] = `sha256=${signature}`;
+      }
+
+      let statusCode: number | undefined;
+      let success = false;
+      let errorMessage: string | undefined;
+
+      try {
+        const response = await fetch(subscription.url, {
+          method: "POST",
+          headers,
+          body,
+          signal: AbortSignal.timeout(10_000),
+        });
+
+        statusCode = response.status;
+        success = response.ok;
+
+        if (!response.ok) {
+          errorMessage = `HTTP ${response.status}`;
+          throw new Error(`Webhook delivery failed with status ${response.status}`);
+        }
+
+        logger.info({ subscriptionId, eventType }, "[WebhookWorker] Webhook delivered successfully");
+      } catch (err) {
+        if (!errorMessage) {
+          errorMessage = err instanceof Error ? err.message : "Unknown error";
+        }
+        throw err;
+      } finally {
+        await prisma.webhookDeliveryLog.create({
+          data: {
+            subscriptionId,
+            tenantId: subscription.tenantId,
+            eventType,
+            url: subscription.url,
+            statusCode,
+            success,
+            errorMessage,
           },
-          async () => {
-            const subscription = await prisma.webhookSubscription.findUnique({
-              where: { id: subscriptionId },
-            });
+        });
 
-            if (!subscription || !subscription.isActive) {
-              logger.info({ subscriptionId }, "[WebhookWorker] Subscription not found or inactive, skipping");
-              return;
-            }
+        if (success) {
+          await prisma.webhookSubscription.update({
+            where: { id: subscriptionId },
+            data: { failureCount: 0, lastDeliveredAt: new Date() },
+          });
+        } else {
+          const newFailureCount = (subscription.failureCount ?? 0) + 1;
+          const shouldDisable = newFailureCount >= MAX_CONSECUTIVE_FAILURES;
 
-            Sentry.setTag("tenant_id", subscription.tenantId);
+          await prisma.webhookSubscription.update({
+            where: { id: subscriptionId },
+            data: {
+              failureCount: newFailureCount,
+              ...(shouldDisable && { isActive: false }),
+            },
+          });
 
-            const body = JSON.stringify({
-              event: eventType,
-              timestamp: new Date().toISOString(),
-              data: payload,
-            });
-
-            const headers: Record<string, string> = {
-              "Content-Type": "application/json",
-              "X-ReplyBase-Event": eventType,
-              "X-ReplyBase-Delivery": job.id || "",
-            };
-
-            if (subscription.secret) {
-              const signature = crypto
-                .createHmac("sha256", subscription.secret)
-                .update(body)
-                .digest("hex");
-              headers["X-ReplyBase-Signature"] = `sha256=${signature}`;
-            }
-
-            let statusCode: number | undefined;
-            let success = false;
-            let errorMessage: string | undefined;
-
-            try {
-              const response = await fetch(subscription.url, {
-                method: "POST",
-                headers,
-                body,
-                signal: AbortSignal.timeout(10_000),
-              });
-
-              statusCode = response.status;
-              success = response.ok;
-
-              if (!response.ok) {
-                errorMessage = `HTTP ${response.status}`;
-                throw new Error(`Webhook delivery failed with status ${response.status}`);
-              }
-
-              logger.info({ subscriptionId, eventType }, "[WebhookWorker] Webhook delivered successfully");
-            } catch (err) {
-              if (!errorMessage) {
-                errorMessage = err instanceof Error ? err.message : "Unknown error";
-              }
-              throw err;
-            } finally {
-              // Always record the delivery attempt
-              await prisma.webhookDeliveryLog.create({
-                data: {
-                  subscriptionId,
-                  tenantId: subscription.tenantId,
-                  eventType,
-                  url: subscription.url,
-                  statusCode,
-                  success,
-                  errorMessage,
-                },
-              });
-
-              if (success) {
-                await prisma.webhookSubscription.update({
-                  where: { id: subscriptionId },
-                  data: { failureCount: 0, lastDeliveredAt: new Date() },
-                });
-              } else {
-                const newFailureCount = (subscription.failureCount ?? 0) + 1;
-                const shouldDisable = newFailureCount >= MAX_CONSECUTIVE_FAILURES;
-
-                await prisma.webhookSubscription.update({
-                  where: { id: subscriptionId },
-                  data: {
-                    failureCount: newFailureCount,
-                    ...(shouldDisable && { isActive: false }),
-                  },
-                });
-
-                if (shouldDisable) {
-                  logger.warn(
-                    { subscriptionId, tenantId: subscription.tenantId },
-                    "[WebhookWorker] Subscription disabled after 10 consecutive failures"
-                  );
-                }
-              }
-            }
+          if (shouldDisable) {
+            logger.warn(
+              { subscriptionId, tenantId: subscription.tenantId },
+              "[WebhookWorker] Subscription disabled after 10 consecutive failures"
+            );
           }
-        );
-      });
-    },
-    {
-      connection: getQueueConnection(),
-      concurrency: 10,
-    },
+        }
+      }
+    }
   );
-
-  return worker;
-};
-
-export { SUPPORTED_WEBHOOK_EVENTS, type WebhookEventType } from "@/lib/webhook-events";
+}
 
 export async function dispatchWebhook(tenantId: string, eventType: string, payload: any) {
   if (isBuild) return;
 
   const subscriptions = await prisma.webhookSubscription.findMany({
-    where: {
-      tenantId,
-      isActive: true,
-    },
+    where: { tenantId, isActive: true },
   });
 
   const matchingSubscriptions = subscriptions.filter((sub) => {
@@ -201,11 +137,28 @@ export async function dispatchWebhook(tenantId: string, eventType: string, paylo
     return eventTypes.includes(eventType);
   });
 
+  if (matchingSubscriptions.length === 0) return;
+
+  const { messageQueue } = await import("@/lib/queue");
+
   for (const sub of matchingSubscriptions) {
-    await webhookQueue.add(`webhook-${sub.id}-${eventType}`, {
-      subscriptionId: sub.id,
-      eventType,
-      payload,
-    });
+    await messageQueue.add(
+      `webhook-${sub.id}-${eventType}`,
+      {
+        type: "webhook_delivery",
+        tenantId,
+        payload: {
+          subscriptionId: sub.id,
+          eventType,
+          data: payload,
+        },
+      },
+      {
+        attempts: 3,
+        backoff: { type: "exponential", delay: 2000 },
+      }
+    );
   }
 }
+
+export { SUPPORTED_WEBHOOK_EVENTS, type WebhookEventType } from "@/lib/webhook-events";

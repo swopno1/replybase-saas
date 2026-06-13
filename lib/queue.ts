@@ -45,8 +45,8 @@ if (!isBuild && messageQueue) {
 }
 
 export interface MessageJobData {
-  type: "whatsapp" | "facebook" | "telegram" | "lead_enrichment" | "stripe";
-  botId: string;
+  type: "whatsapp" | "facebook" | "telegram" | "lead_enrichment" | "stripe" | "webhook_delivery";
+  botId?: string;
   tenantId?: string;
   payload: any;
   _sentry?: {
@@ -113,9 +113,20 @@ export const setupWorker = () => {
               } else if (type === "stripe") {
                 const { processStripeJob } = await import("@/lib/services/stripe-worker");
                 await processStripeJob(payload);
+              } else if (type === "webhook_delivery") {
+                const { executeWebhookDelivery } = await import("@/lib/services/webhook-dispatcher");
+                await executeWebhookDelivery(
+                  payload.subscriptionId,
+                  payload.eventType,
+                  payload.data,
+                  job.id
+                );
               }
             } catch (error) {
               logger.error({ jobId: job.id, error }, "[Worker] Job failed");
+              Sentry.captureException(error, {
+                tags: { job_type: type, job_id: job.id || undefined },
+              });
               throw error;
             }
           }
@@ -124,7 +135,7 @@ export const setupWorker = () => {
     },
     {
       connection: getQueueConnection(),
-      concurrency: 5,
+      concurrency: 10,
     },
   );
 

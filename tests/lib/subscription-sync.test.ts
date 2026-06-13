@@ -13,13 +13,6 @@ vi.mock('@/lib/prisma', () => ({
   },
 }));
 
-vi.mock('@/lib/redis', () => ({
-  redis: {
-    get: vi.fn().mockResolvedValue(null),
-    set: vi.fn().mockResolvedValue('OK'),
-    del: vi.fn().mockResolvedValue(1),
-  },
-}));
 
 describe('Subscription Sync Logic', () => {
   const PLAN_SCALE = { id: 'scale', name: 'scale', displayName: 'Scale', monthlyMessageLimit: 7500 };

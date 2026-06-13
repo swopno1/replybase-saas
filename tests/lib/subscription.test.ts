@@ -10,6 +10,8 @@ import {
   invalidateTenantCache,
   getUsageStatus,
   UsageZone,
+  handlePlanChange,
+  handlePlanDowngrade,
 } from '@/lib/subscription';
 import { prisma } from '@/lib/prisma';
 
@@ -36,12 +38,16 @@ vi.mock('@/lib/prisma', () => ({
     },
     bot: {
       count: vi.fn(),
+      findMany: vi.fn(),
+      updateMany: vi.fn(),
     },
     contact: {
       count: vi.fn(),
     },
     channel: {
       count: vi.fn(),
+      findMany: vi.fn(),
+      updateMany: vi.fn(),
     },
     crmConversation: {
       count: vi.fn(),
@@ -55,13 +61,6 @@ vi.mock('@/lib/prisma', () => ({
   },
 }));
 
-vi.mock('@/lib/redis', () => ({
-  redis: {
-    get: vi.fn().mockResolvedValue(null),
-    set: vi.fn().mockResolvedValue('OK'),
-    del: vi.fn().mockResolvedValue(1),
-  },
-}));
 
 // ─── Plan fixtures (must match pricing table exactly) ────────────────────────
 
@@ -451,5 +450,173 @@ describe('checkChannelLimit', () => {
     const result = await checkChannelLimit('tenant_1', 'bot_1');
     expect(result.allowed).toBe(false);
     expect(result.current).toBe(2);
+  });
+});
+
+// ─── helpers for handlePlanChange tests ──────────────────────────────────────
+
+function makePlan(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'plan_grow',
+    name: 'grow',
+    displayName: 'Grow',
+    maxBots: 5,
+    maxChannelsPerBot: 3,
+    ...overrides,
+  };
+}
+
+function makeBot(id: string, enabled = true) {
+  return { id, tenantId: 'tenant_1', enabled, createdAt: new Date() };
+}
+
+function makeChannel(id: string, botId: string, isActive = true) {
+  return { id, botId, isActive, createdAt: new Date() };
+}
+
+describe('handlePlanChange — batch channel query (Task 056)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    invalidateTenantCache('tenant_1');
+    vi.mocked(prisma.bot.updateMany).mockResolvedValue({ count: 0 } as any);
+    vi.mocked(prisma.channel.updateMany).mockResolvedValue({ count: 0 } as any);
+  });
+
+  it('returns early when plan is not found', async () => {
+    vi.mocked(prisma.plan.findUnique).mockResolvedValue(null);
+    await handlePlanChange('tenant_1', 'plan_missing');
+    expect(prisma.bot.findMany).not.toHaveBeenCalled();
+    expect(prisma.channel.findMany).not.toHaveBeenCalled();
+  });
+
+  it('fetches all channels in a SINGLE query regardless of bot count', async () => {
+    const plan = makePlan({ maxChannelsPerBot: 2 });
+    vi.mocked(prisma.plan.findUnique).mockResolvedValue(plan as any);
+
+    const bots = [makeBot('bot_1'), makeBot('bot_2'), makeBot('bot_3')];
+    vi.mocked(prisma.bot.findMany)
+      .mockResolvedValueOnce(bots as any)   // allBots
+      .mockResolvedValueOnce(bots as any);  // activeBots
+
+    // All channels across all bots in one call
+    vi.mocked(prisma.channel.findMany).mockResolvedValue([
+      makeChannel('ch_1', 'bot_1'),
+      makeChannel('ch_2', 'bot_1'),
+      makeChannel('ch_3', 'bot_2'),
+      makeChannel('ch_4', 'bot_3'),
+    ] as any);
+
+    await handlePlanChange('tenant_1', 'plan_grow');
+
+    // Must be called exactly once (not once per bot)
+    expect(prisma.channel.findMany).toHaveBeenCalledTimes(1);
+    expect(prisma.channel.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { botId: { in: ['bot_1', 'bot_2', 'bot_3'] } },
+      }),
+    );
+  });
+
+  it('disables excess channels in a single updateMany on downgrade', async () => {
+    // Downgrade to maxChannelsPerBot=1 — each bot has 2 active channels → 1 excess per bot
+    const plan = makePlan({ maxChannelsPerBot: 1 });
+    vi.mocked(prisma.plan.findUnique).mockResolvedValue(plan as any);
+
+    const bots = [makeBot('bot_1'), makeBot('bot_2')];
+    vi.mocked(prisma.bot.findMany)
+      .mockResolvedValueOnce(bots as any)
+      .mockResolvedValueOnce(bots as any);
+
+    vi.mocked(prisma.channel.findMany).mockResolvedValue([
+      makeChannel('ch_a1', 'bot_1', true),
+      makeChannel('ch_a2', 'bot_1', true),  // excess
+      makeChannel('ch_b1', 'bot_2', true),
+      makeChannel('ch_b2', 'bot_2', true),  // excess
+    ] as any);
+
+    await handlePlanChange('tenant_1', 'plan_grow');
+
+    // Only one updateMany call for disabling (none to enable)
+    expect(prisma.channel.updateMany).toHaveBeenCalledTimes(1);
+    expect(prisma.channel.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: { in: expect.arrayContaining(['ch_a2', 'ch_b2']) } },
+        data: { isActive: false },
+      }),
+    );
+  });
+
+  it('re-enables inactive channels in a single updateMany on upgrade', async () => {
+    // Upgrade to maxChannelsPerBot=3 — bot_1 has 1 active + 2 inactive → both should be re-enabled
+    const plan = makePlan({ maxChannelsPerBot: 3 });
+    vi.mocked(prisma.plan.findUnique).mockResolvedValue(plan as any);
+
+    const bots = [makeBot('bot_1')];
+    vi.mocked(prisma.bot.findMany)
+      .mockResolvedValueOnce(bots as any)
+      .mockResolvedValueOnce(bots as any);
+
+    vi.mocked(prisma.channel.findMany).mockResolvedValue([
+      makeChannel('ch_1', 'bot_1', true),
+      makeChannel('ch_2', 'bot_1', false),
+      makeChannel('ch_3', 'bot_1', false),
+    ] as any);
+
+    await handlePlanChange('tenant_1', 'plan_grow');
+
+    expect(prisma.channel.updateMany).toHaveBeenCalledTimes(1);
+    expect(prisma.channel.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: { in: expect.arrayContaining(['ch_2', 'ch_3']) } },
+        data: { isActive: true },
+      }),
+    );
+  });
+
+  it('skips channel queries entirely when no active bots remain', async () => {
+    const plan = makePlan();
+    vi.mocked(prisma.plan.findUnique).mockResolvedValue(plan as any);
+
+    // All bots are disabled
+    vi.mocked(prisma.bot.findMany)
+      .mockResolvedValueOnce([makeBot('bot_1', false)] as any) // allBots
+      .mockResolvedValueOnce([] as any);                       // activeBots (empty)
+
+    await handlePlanChange('tenant_1', 'plan_grow');
+
+    expect(prisma.channel.findMany).not.toHaveBeenCalled();
+    expect(prisma.channel.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('disables excess bots on downgrade', async () => {
+    // Downgrade to maxBots=1 — 3 enabled bots → 2 must be disabled
+    const plan = makePlan({ maxBots: 1, maxChannelsPerBot: 5 });
+    vi.mocked(prisma.plan.findUnique).mockResolvedValue(plan as any);
+
+    const allBots = [makeBot('bot_1'), makeBot('bot_2'), makeBot('bot_3')];
+    vi.mocked(prisma.bot.findMany)
+      .mockResolvedValueOnce(allBots as any)     // allBots
+      .mockResolvedValueOnce([allBots[0]] as any); // activeBots after adjustment
+
+    vi.mocked(prisma.channel.findMany).mockResolvedValue([] as any);
+
+    await handlePlanChange('tenant_1', 'plan_grow');
+
+    expect(prisma.bot.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: { in: ['bot_2', 'bot_3'] } },
+        data: { enabled: false },
+      }),
+    );
+  });
+
+  it('handlePlanDowngrade delegates to handlePlanChange', async () => {
+    const plan = makePlan();
+    vi.mocked(prisma.plan.findUnique).mockResolvedValue(plan as any);
+    vi.mocked(prisma.bot.findMany).mockResolvedValue([] as any);
+
+    await handlePlanDowngrade('tenant_1', 'plan_grow');
+
+    expect(prisma.plan.findUnique).toHaveBeenCalledWith({ where: { id: 'plan_grow' } });
   });
 });

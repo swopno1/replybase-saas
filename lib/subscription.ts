@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { redis } from "@/lib/redis";
 import logger from "./logger";
 import { getPlanConfig } from "./plans";
 
@@ -129,18 +128,6 @@ export async function getTenantLimits(tenantId: string) {
     return cachedL1.data;
   }
 
-  const cacheKey = `limits:${tenantId}`;
-  try {
-    const cachedL2 = await redis.get(cacheKey);
-    if (cachedL2) {
-      const data = JSON.parse(cachedL2);
-      TENANT_LIMITS_CACHE.set(tenantId, { data, expires: now + CACHE_TTL_MS });
-      return data;
-    }
-  } catch (err) {
-    logger.error({ error: err, tenantId }, "[Subscription] Redis cache get failed");
-  }
-
   const subscription = await getActiveSubscriptionWithPlan(tenantId);
 
   let limits;
@@ -189,39 +176,26 @@ export async function getTenantLimits(tenantId: string) {
     };
   }
 
-  try {
-    TENANT_LIMITS_CACHE.set(tenantId, {
-      data: limits,
-      expires: now + CACHE_TTL_MS,
-    });
+  TENANT_LIMITS_CACHE.set(tenantId, {
+    data: limits,
+    expires: now + CACHE_TTL_MS,
+  });
 
-    // Evict oldest 20% of entries when the cache exceeds 500 to prevent unbounded growth
-    if (TENANT_LIMITS_CACHE.size > 500) {
-      const evictCount = Math.ceil(TENANT_LIMITS_CACHE.size * 0.2);
-      const keys = TENANT_LIMITS_CACHE.keys();
-      for (let i = 0; i < evictCount; i++) {
-        const next = keys.next();
-        if (next.done) break;
-        TENANT_LIMITS_CACHE.delete(next.value);
-      }
+  // Evict oldest 20% of entries when the cache exceeds 500 to prevent unbounded growth
+  if (TENANT_LIMITS_CACHE.size > 500) {
+    const evictCount = Math.ceil(TENANT_LIMITS_CACHE.size * 0.2);
+    const keys = TENANT_LIMITS_CACHE.keys();
+    for (let i = 0; i < evictCount; i++) {
+      const next = keys.next();
+      if (next.done) break;
+      TENANT_LIMITS_CACHE.delete(next.value);
     }
-
-    await redis.set(cacheKey, JSON.stringify(limits), "EX", 3600);
-  } catch (err) {
-    logger.error({ error: err, tenantId }, "[Subscription] Cache update failed");
   }
 
   return limits;
 }
 
-export async function invalidateTenantCache(tenantId: string) {
-  // Delete Redis first — if we deleted in-memory first, a concurrent request could
-  // repopulate in-memory from stale Redis before we get to delete it.
-  try {
-    await redis.del(`limits:${tenantId}`);
-  } catch (err) {
-    logger.error({ error: err, tenantId }, "[Subscription] Redis cache invalidate failed");
-  }
+export function invalidateTenantCache(tenantId: string) {
   TENANT_LIMITS_CACHE.delete(tenantId);
 }
 
@@ -316,33 +290,53 @@ export async function handlePlanChange(tenantId: string, newPlanId: string) {
     orderBy: { createdAt: "asc" },
   });
 
+  const activeBotIds = activeBots.map((b) => b.id);
+  if (activeBotIds.length === 0) return;
+
+  // Single query for all channels across all active bots (eliminates N+1)
+  const allChannels = await prisma.channel.findMany({
+    where: { botId: { in: activeBotIds } },
+    orderBy: { createdAt: "asc" },
+  });
+
+  // Group by botId in memory
+  const channelsByBot = new Map<string, typeof allChannels>();
+  for (const channel of allChannels) {
+    const list = channelsByBot.get(channel.botId) ?? [];
+    list.push(channel);
+    channelsByBot.set(channel.botId, list);
+  }
+
+  const channelIdsToEnable: string[] = [];
+  const channelIdsToDisable: string[] = [];
+
   for (const bot of activeBots) {
-    const allChannels = await prisma.channel.findMany({
-      where: { botId: bot.id },
-      orderBy: { createdAt: "asc" },
-    });
+    const botChannels = channelsByBot.get(bot.id) ?? [];
+    const activeChannels = botChannels.filter((c) => c.isActive);
+    const inactiveChannels = botChannels.filter((c) => !c.isActive);
 
-    const activeChannels = allChannels.filter((c) => c.isActive);
-    const inactiveChannels = allChannels.filter((c) => !c.isActive);
-
-    // Re-enable inactive channels up to the new limit
     if (activeChannels.length < plan.maxChannelsPerBot && inactiveChannels.length > 0) {
       const slotsAvailable = plan.maxChannelsPerBot - activeChannels.length;
-      const channelsToReEnable = inactiveChannels.slice(0, slotsAvailable);
-      await prisma.channel.updateMany({
-        where: { id: { in: channelsToReEnable.map((c) => c.id) } },
-        data: { isActive: true },
-      });
+      channelIdsToEnable.push(...inactiveChannels.slice(0, slotsAvailable).map((c) => c.id));
     }
 
-    // Disable excess channels beyond the new limit
     if (activeChannels.length > plan.maxChannelsPerBot) {
-      const excessChannels = activeChannels.slice(plan.maxChannelsPerBot);
-      await prisma.channel.updateMany({
-        where: { id: { in: excessChannels.map((c) => c.id) } },
-        data: { isActive: false },
-      });
+      channelIdsToDisable.push(...activeChannels.slice(plan.maxChannelsPerBot).map((c) => c.id));
     }
+  }
+
+  // Two batch writes instead of 2×N sequential queries
+  if (channelIdsToEnable.length > 0) {
+    await prisma.channel.updateMany({
+      where: { id: { in: channelIdsToEnable } },
+      data: { isActive: true },
+    });
+  }
+  if (channelIdsToDisable.length > 0) {
+    await prisma.channel.updateMany({
+      where: { id: { in: channelIdsToDisable } },
+      data: { isActive: false },
+    });
   }
 }
 

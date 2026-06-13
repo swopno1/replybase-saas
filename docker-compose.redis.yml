@@ -1,0 +1,34 @@
+# Standalone Redis service for ReplyBase self-hosted deployments.
+#
+# Usage — Coolify:
+#   Import this file as a "Docker Compose" resource in Coolify.
+#   Set SERVICE_FQDN_REDIS and any other variables in the Coolify UI.
+#   The Redis URL exposed to the app is:  redis://redis:6379
+#
+# Usage — standalone Docker:
+#   docker compose -f docker-compose.redis.yml up -d
+
+services:
+  redis:
+    image: redis:7.2-alpine
+    restart: unless-stopped
+    command: redis-server /usr/local/etc/redis/redis.conf
+    volumes:
+      # Config file — memory cap + eviction policy defined here.
+      - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      # Persistent data volume so AOF and RDB survive container restarts.
+      - redis_data:/data
+    ports:
+      # Expose on 127.0.0.1 only; Coolify network isolation handles service
+      # discovery between containers via the internal DNS name "redis".
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  redis_data:
+    driver: local

@@ -19,8 +19,20 @@ type ScopePolicy = {
   windowMs: number;
 };
 
-// Internal memory store
+// Internal memory store — used when Upstash is not configured (single-instance deployments).
 const counters = new Map<string, CounterState>();
+
+// Prune expired entries every 60 s so the Map doesn't grow unboundedly in
+// long-running processes.  .unref() prevents this from keeping Node.js alive
+// after all real work is done.
+if (typeof setInterval !== "undefined") {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, state] of counters) {
+      if (state.resetAt <= now) counters.delete(key);
+    }
+  }, 60_000).unref();
+}
 
 const isDev = APP_CONFIG.meta.isDev;
 
