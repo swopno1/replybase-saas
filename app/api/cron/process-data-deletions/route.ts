@@ -115,8 +115,10 @@ async function checkAndAlertStuckRequests() {
     where: {
       OR: [
         {
+          // Only alert when the scheduled deletion date has passed but it's still PENDING.
+          // Requests with a future scheduledDeletionAt are legitimately queued, not stuck.
           status: DataDeletionStatus.PENDING,
-          requestedAt: { lt: twentyFourHoursAgo },
+          scheduledDeletionAt: { lt: twentyFourHoursAgo },
         },
         {
           status: DataDeletionStatus.ERROR,
