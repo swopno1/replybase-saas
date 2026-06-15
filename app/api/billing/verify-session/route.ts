@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { syncSubscription } from "@/lib/billing-service";
 import { withAuthAndTenant } from "@/lib/route-helpers";
 import logger from "@/lib/logger";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export const GET = withAuthAndTenant(async (user, request, context, db) => {
   const { tenantId: userTenantId } = user;
@@ -13,23 +13,35 @@ export const GET = withAuthAndTenant(async (user, request, context, db) => {
     const sessionId = searchParams.get("session_id");
 
     if (!sessionId) {
-      return NextResponse.json({ error: "Session ID missing" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Session ID missing" },
+        { status: 400 },
+      );
     }
 
     if (!stripe) {
-      return NextResponse.json({ error: "Billing service unavailable" }, { status: 503 });
+      return NextResponse.json(
+        { error: "Billing service unavailable" },
+        { status: 503 },
+      );
     }
 
     // 1. Retrieve session from Stripe to ensure it's valid
     const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId);
 
     if (checkoutSession.status !== "complete") {
-      return NextResponse.json({ status: "pending", message: "Checkout session incomplete" });
+      return NextResponse.json({
+        status: "pending",
+        message: "Checkout session incomplete",
+      });
     }
 
     const tenantId = checkoutSession.metadata?.tenantId;
     if (!tenantId || tenantId !== userTenantId) {
-      return NextResponse.json({ error: "Session tenant mismatch" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Session tenant mismatch" },
+        { status: 403 },
+      );
     }
 
     const subscriptionId = checkoutSession.subscription as string;
@@ -41,29 +53,40 @@ export const GET = withAuthAndTenant(async (user, request, context, db) => {
         logger.info({ tenantId }, "[Verify Session] Proactive sync successful");
       }
     } catch (syncErr) {
-      logger.error({ tenantId, error: syncErr }, "[Verify Session] Proactive sync failed");
+      logger.error(
+        { tenantId, error: syncErr },
+        "[Verify Session] Proactive sync failed",
+      );
     }
 
     // 3. Check finalized state in DB
     const subscription = await db.subscription.findUnique({
       where: { tenantId },
-      include: { plan: true }
+      include: { plan: true },
     });
 
-    if (subscription && (subscription.stripeId === subscriptionId || ["ACTIVE", "TRIALING"].includes(subscription.status))) {
+    if (
+      subscription &&
+      (subscription.stripeId === subscriptionId ||
+        ["ACTIVE", "TRIALING"].includes(subscription.status))
+    ) {
       const nameParts = (user.name || "").trim().split(" ");
       const firstName = nameParts[0] || "";
       const lastName = nameParts.slice(1).join(" ") || "";
-      const value = checkoutSession.amount_total ? checkoutSession.amount_total / 100 : 0;
-      const currency = (checkoutSession.currency || "eur").toUpperCase();
-      const phone = checkoutSession.customer_details?.phone || null;
+      const value = checkoutSession.amount_total
+        ? checkoutSession.amount_total / 100
+        : 0;
+      const currency = (checkoutSession.currency || "gbp").toUpperCase();
+      const phone = checkoutSession.customer_details?.phone || undefined;
+      const subscriptionTier =
+        subscription.status === "TRIALING" ? "free_trial" : "paid";
 
       return NextResponse.json({
         status: "success",
         subscription: {
           id: subscription.id,
           status: subscription.status,
-          plan: subscription.plan.displayName
+          plan: subscription.plan.displayName,
         },
         pixelData: {
           plan_name: subscription.plan.displayName,
@@ -73,15 +96,21 @@ export const GET = withAuthAndTenant(async (user, request, context, db) => {
           first_name: firstName,
           last_name: lastName,
           email: user.email || checkoutSession.customer_details?.email || "",
-          phone,
-        }
+          ...(phone && { phone }),
+          subscriptionTier,
+        },
       });
     }
 
-    return NextResponse.json({ status: "syncing", message: "Finalizing your subscription..." });
-
+    return NextResponse.json({
+      status: "syncing",
+      message: "Finalizing your subscription...",
+    });
   } catch (error) {
     logger.error({ error }, "[Verify Session] Unhandled error");
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 },
+    );
   }
 });

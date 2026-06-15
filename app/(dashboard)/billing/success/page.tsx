@@ -2,12 +2,33 @@
 
 import { useEffect, useState, Suspense } from "react";
 
+import { useRouter, useSearchParams } from "next/navigation";
+
 declare global {
   interface Window {
     dataLayer: Record<string, unknown>[];
   }
 }
-import { useRouter, useSearchParams } from "next/navigation";
+
+interface PixelData {
+  plan_name: string;
+  value: number;
+  currency: string;
+  transaction_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone?: string;
+  subscriptionTier: "free_trial" | "paid";
+}
+
+interface VerifySessionResponse {
+  status: "success" | "syncing" | "pending" | "error";
+  subscription?: { id: string; status: string; plan: string };
+  pixelData?: PixelData;
+  error?: string;
+  message?: string;
+}
 import { CheckCircle2, Loader2, AlertCircle, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
@@ -16,25 +37,27 @@ function SuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
   
-  const [status, setStatus] = useState<"loading" | "syncing" | "success" | "error">("loading");
-  const [message, setMessage] = useState("Confirming your subscription...");
+  const [status, setStatus] = useState<"loading" | "syncing" | "success" | "error">(
+    sessionId ? "loading" : "error"
+  );
+  const [message, setMessage] = useState(
+    sessionId
+      ? "Confirming your subscription..."
+      : "Missing session information. Please contact support if you were charged."
+  );
   const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
-    if (!sessionId) {
-      setStatus("error");
-      setMessage("Missing session information. Please contact support if you were charged.");
-      return;
-    }
+    if (!sessionId) return;
 
     const verifySession = async () => {
       try {
         const response = await fetch(`/api/billing/verify-session?session_id=${sessionId}`);
-        const data = await response.json();
+        const data: VerifySessionResponse = await response.json();
 
         if (data.status === "success") {
           setStatus("success");
-          setMessage(`Successfully upgraded to ${data.subscription.plan}!`);
+          setMessage(`Successfully upgraded to ${data.subscription?.plan}!`);
 
           if (data.pixelData) {
             window.dataLayer = window.dataLayer || [];
@@ -47,7 +70,8 @@ function SuccessContent() {
               first_name: data.pixelData.first_name,
               last_name: data.pixelData.last_name,
               email: data.pixelData.email,
-              phone: data.pixelData.phone,
+              ...(data.pixelData.phone && { phone: data.pixelData.phone }),
+              subscriptionTier: data.pixelData.subscriptionTier,
             });
           }
 
