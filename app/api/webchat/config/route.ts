@@ -31,6 +31,21 @@ async function getTenantBranding(tenantId: string) {
   return branding ?? null;
 }
 
+async function getTenantPlanName(tenantId: string): Promise<string> {
+  const subscription = await prisma.subscription.findUnique({
+    where: { tenantId },
+    select: { plan: { select: { name: true } } },
+  });
+  return subscription?.plan?.name?.toLowerCase() ?? "free";
+}
+
+const POWERED_BY_URL =
+  "https://replybase.co.uk?utm_source=widget&utm_medium=powered_by&utm_campaign=freemium";
+
+function shouldShowPoweredBy(planName: string): boolean {
+  return planName === "free" || planName === "launch" || planName === "starter";
+}
+
 export const dynamic = 'force-dynamic';
 
 
@@ -99,7 +114,11 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      const brandingFromKey = await getTenantBranding(siteFromKey.bot.tenantId);
+      const [brandingFromKey, planNameFromKey] = await Promise.all([
+        getTenantBranding(siteFromKey.bot.tenantId),
+        getTenantPlanName(siteFromKey.bot.tenantId),
+      ]);
+      const poweredByFromKey = shouldShowPoweredBy(planNameFromKey);
       return NextResponse.json(
         {
           channelId: siteFromKey.channelId,
@@ -114,6 +133,8 @@ export async function GET(request: NextRequest) {
           telemetry: getWebchatTelemetryConfig(),
           config: (siteFromKey.themeConfig as Prisma.JsonObject | null) || {},
           branding: brandingFromKey,
+          showPoweredBy: poweredByFromKey,
+          poweredByUrl: poweredByFromKey ? POWERED_BY_URL : undefined,
         },
         { headers: createWebchatCorsHeaders(request) },
       );
@@ -168,7 +189,11 @@ export async function GET(request: NextRequest) {
     }
 
     const config = (site.themeConfig as Prisma.JsonObject | null) || {};
-    const brandingFromChannel = await getTenantBranding(channel.bot.tenantId);
+    const [brandingFromChannel, planNameFromChannel] = await Promise.all([
+      getTenantBranding(channel.bot.tenantId),
+      getTenantPlanName(channel.bot.tenantId),
+    ]);
+    const poweredByFromChannel = shouldShowPoweredBy(planNameFromChannel);
 
     return NextResponse.json(
       {
@@ -184,6 +209,8 @@ export async function GET(request: NextRequest) {
         telemetry: getWebchatTelemetryConfig(),
         config,
         branding: brandingFromChannel,
+        showPoweredBy: poweredByFromChannel,
+        poweredByUrl: poweredByFromChannel ? POWERED_BY_URL : undefined,
       },
       { headers: createWebchatCorsHeaders(request) },
     );

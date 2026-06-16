@@ -87,6 +87,8 @@
   var lastHumanReplyCursor = "";
   var seenHumanMessageIds = Object.create(null);
   var pendingMessages = [];
+  var showPoweredBy = false;
+  var poweredByUrl = "https://replybase.co.uk";
 
   var addMessage = function (kind, text, quickReplies) {
     pendingMessages.push({
@@ -231,6 +233,9 @@
       ":host([data-open='true'][data-mobile-fullscreen='true']) .rb-container { height: 100%; }",
       ":host([data-open='true'][data-mobile-fullscreen='true']) .rb-panel { display: flex; width: 100%; height: 100%; margin-bottom: 0; border-radius: 0; border: none; box-shadow: none; }",
       ":host([data-open='true'][data-mobile-fullscreen='true']) .rb-button { display: none; }",
+      ".rb-powered-by { display: flex; align-items: center; justify-content: center; padding: 5px 10px; background: #f8fafc; border-top: 1px solid #e2e8f0; }",
+      ".rb-powered-by-link { font-size: 11px; color: #94a3b8; text-decoration: none; letter-spacing: 0.01em; }",
+      ".rb-powered-by-link:hover { color: #0f766e; text-decoration: underline; }",
     ].join("\n");
 
     root.setAttribute("data-position", position === "left" ? "left" : "right");
@@ -250,6 +255,20 @@
     panel.appendChild(panelHeader);
     panel.appendChild(messages);
     panel.appendChild(composer);
+
+    if (showPoweredBy) {
+      var poweredByBar = document.createElement("div");
+      poweredByBar.className = "rb-powered-by";
+      var poweredByLink = document.createElement("a");
+      poweredByLink.href = poweredByUrl;
+      poweredByLink.target = "_blank";
+      poweredByLink.rel = "noopener noreferrer";
+      poweredByLink.textContent = "Powered by ReplyBase";
+      poweredByLink.className = "rb-powered-by-link";
+      poweredByBar.appendChild(poweredByLink);
+      panel.appendChild(poweredByBar);
+    }
+
     container.appendChild(panel);
     container.appendChild(button);
 
@@ -1129,6 +1148,12 @@
       }
       if (typeof cfg.welcomeMessage === "string" && cfg.welcomeMessage.trim()) {
         addMessage("bot", cfg.welcomeMessage.trim());
+      }
+      if (data.showPoweredBy === true) {
+        showPoweredBy = true;
+        if (typeof data.poweredByUrl === "string" && data.poweredByUrl) {
+          poweredByUrl = data.poweredByUrl;
+        }
       }
     });
   }
