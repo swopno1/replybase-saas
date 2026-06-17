@@ -1,4 +1,4 @@
-import { generateText, generateObject } from "ai";
+import { generateText } from "ai";
 import { z } from "zod";
 import { getSystemModel } from "./ai-service";
 import { OnboardingData, OnboardingSummary } from "@/types/shared/onboarding";
@@ -122,21 +122,32 @@ BUSINESS DATA:
 - Chatbot goal: ${data.chatbotGoals.conversionGoal}
 - Preferred CTA: ${data.chatbotGoals.preferredCta}
 - Bot personality: ${data.chatbotGoals.botPersonality}
-${data.context.otherInfo ? `- Additional context: ${data.context.otherInfo}` : ""}`;
+${data.context.otherInfo ? `- Additional context: ${data.context.otherInfo}` : ""}
+
+Return ONLY a valid JSON object with exactly these fields (no markdown, no explanation, no prefix):
+{
+  "companyProfile": "2-sentence summary of what the company does and its value proposition",
+  "targetAudience": "1-sentence description of their ideal customer",
+  "keyOfferings": "comma-separated list of main products/services",
+  "commonQueries": "top 5 questions the chatbot should answer as a numbered list",
+  "toneAndVoice": "1-sentence description of the recommended chatbot tone"
+}`;
 
   try {
-    const { object: parsed } = await Sentry.startSpan(
+    const { text } = await Sentry.startSpan(
       { name: "AI Summarize Onboarding", op: "ai.generate_object" },
       async () => {
-        return generateObject({
+        return generateText({
           model,
-          schema: onboardingSummarySchema,
           prompt,
           // @ts-ignore
           maxTokens: 1000,
         });
       }
     );
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON object in model response");
+    const parsed = onboardingSummarySchema.parse(JSON.parse(jsonMatch[0]));
     return {
       ...parsed,
       conversionGoal: data.chatbotGoals.conversionGoal,

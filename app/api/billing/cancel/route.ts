@@ -72,17 +72,33 @@ export const POST = withAuthAndTenant(async ({ id: userId, tenantId }, request, 
     }
 
     // Set cancel_at_period_end = true in Stripe
-    const stripeSub = await stripe.subscriptions.update(subscription.stripeId, {
-      cancel_at_period_end: true,
-    });
+    let stripeSub: Awaited<ReturnType<typeof stripe.subscriptions.update>>;
+    try {
+      stripeSub = await stripe.subscriptions.update(subscription.stripeId, {
+        cancel_at_period_end: true,
+      });
+    } catch (stripeErr: any) {
+      if (stripeErr.code === "resource_missing") {
+        // Subscription no longer exists in Stripe — mark DB record as canceled
+        const updated = await db.subscription.update({
+          where: { id: subscription.id },
+          data: { status: "CANCELED", cancelAtPeriodEnd: true },
+        });
+        return NextResponse.json({
+          message: "Subscription set to cancel at period end",
+          subscription: updated,
+        });
+      }
+      throw stripeErr;
+    }
 
     const updated = await db.subscription.update({
       where: { id: subscription.id },
       data: {
         status: (stripeSub as any).status.toUpperCase(),
         cancelAtPeriodEnd: (stripeSub as any).cancel_at_period_end,
-        currentPeriodEnd: (stripeSub as any).current_period_end 
-          ? new Date((stripeSub as any).current_period_end * 1000) 
+        currentPeriodEnd: (stripeSub as any).current_period_end
+          ? new Date((stripeSub as any).current_period_end * 1000)
           : new Date(),
       },
     });
