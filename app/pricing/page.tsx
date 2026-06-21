@@ -153,6 +153,7 @@ function PricingContent() {
   const billingCycle =
     searchParams.get("cycle") === "annual" ? "annual" : "monthly";
   const promoCode = searchParams.get("promo");
+  const source = searchParams.get("source") ?? "pricing_page";
   const [loading, setLoading] = useState<string | null>(null);
   const [currentSubscription, setCurrentSubscription] = useState<any>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
@@ -162,6 +163,7 @@ function PricingContent() {
       plan: (typeof PLANS)[number],
       cycle: "monthly" | "annual",
       promo: string | null,
+      checkoutSource: string,
     ) => {
       setLoading(plan.name);
       try {
@@ -178,6 +180,7 @@ function PricingContent() {
             planName: plan.name,
             billingCycle: cycle,
             promoCode: promo || (cycle === "annual" ? "FOUNDING50" : undefined),
+            source: checkoutSource,
           }),
         });
 
@@ -261,6 +264,7 @@ function PricingContent() {
               matchedPlan,
               cycle === "annual" ? "annual" : "monthly",
               promo,
+              searchParams.get("source") ?? "pricing_page",
             );
           });
         }
@@ -283,7 +287,7 @@ function PricingContent() {
       router.push(claimUrl.pathname + claimUrl.search);
       return;
     }
-    await triggerAutoCheckout(plan, billingCycle, promoCode);
+    await triggerAutoCheckout(plan, billingCycle, promoCode, source);
   };
 
   return (

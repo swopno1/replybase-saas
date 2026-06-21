@@ -11,6 +11,7 @@ const checkoutRequestSchema = z.object({
   planName: z.string().optional(),
   promoCode: z.string().optional(),
   billingCycle: z.enum(["monthly", "annual"]).default("monthly"),
+  source: z.string().max(100).optional(),
 });
 
 export const POST = withAuthAndTenant(async (user, request, context, db) => {
@@ -31,7 +32,7 @@ export const POST = withAuthAndTenant(async (user, request, context, db) => {
       );
     }
 
-    const { priceId, planName, promoCode, billingCycle } = parsedBody.data;
+    const { priceId, planName, promoCode, billingCycle, source } = parsedBody.data;
 
     const { id: userId, tenantId, email, name: userName } = user;
     const appUrl = process.env.NEXT_PUBLIC_APP_URL;
@@ -110,6 +111,7 @@ export const POST = withAuthAndTenant(async (user, request, context, db) => {
       tenantId,
       billingCycle,
       planName: planName || "",
+      ...(source ? { source } : {}),
     };
 
     // 4. Resolve promo code
