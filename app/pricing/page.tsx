@@ -10,6 +10,50 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { env } from "@/lib/env";
 
+interface SubscriptionPlan {
+  id: string;
+  name: string;
+  displayName: string;
+  price: number;
+  currency: string;
+}
+
+interface SubscriptionRecord {
+  id: string;
+  tenantId: string;
+  planId: string;
+  stripeId: string;
+  stripeCustomerId: string | null;
+  status: "FREE" | "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED";
+  currentPeriodStart: string;
+  currentPeriodEnd: string;
+  trialEndsAt: string | null;
+  trialDaysRemaining: number;
+  plan: SubscriptionPlan;
+}
+
+interface SubscriptionUsage {
+  dailyMessages: number;
+  monthlyMessages: number;
+  monthlyFlowExecutions: number;
+}
+
+interface SubscriptionInvoice {
+  id: string;
+  invoiceNumber: string;
+  amount: number;
+  status: string;
+  paidAt: string | null;
+  dueDate: string;
+  downloadUrl?: string;
+}
+
+interface SubscriptionApiResponse {
+  subscription: SubscriptionRecord;
+  usage: SubscriptionUsage;
+  invoices: SubscriptionInvoice[];
+}
+
 interface PricingPlan {
   readonly name: "free" | "launch" | "grow" | "scale" | "business";
   readonly displayName: string;
@@ -155,7 +199,7 @@ function PricingContent() {
   const promoCode = searchParams.get("promo");
   const source = searchParams.get("source") ?? "pricing_page";
   const [loading, setLoading] = useState<string | null>(null);
-  const [currentSubscription, setCurrentSubscription] = useState<any>(null);
+  const [currentSubscription, setCurrentSubscription] = useState<SubscriptionApiResponse | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
 
   const triggerAutoCheckout = useCallback(
@@ -276,6 +320,13 @@ function PricingContent() {
     const plan = PLANS.find((p) => p.name === planName);
     if (!plan) return;
     if (plan.priceMonthly === 0) {
+      if (!isAuthenticated) {
+        const registerUrl = new URL("/auth/register", window.location.origin);
+        registerUrl.searchParams.set("plan", "free");
+        if (source) registerUrl.searchParams.set("source", source);
+        router.push(registerUrl.pathname + registerUrl.search);
+        return;
+      }
       router.push("/");
       return;
     }
@@ -284,6 +335,7 @@ function PricingContent() {
       claimUrl.searchParams.set("plan", plan.name);
       claimUrl.searchParams.set("cycle", billingCycle);
       if (promoCode) claimUrl.searchParams.set("promo", promoCode);
+      if (source) claimUrl.searchParams.set("source", source);
       router.push(claimUrl.pathname + claimUrl.search);
       return;
     }
@@ -342,7 +394,7 @@ function PricingContent() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-20">
         {PLANS.map((plan) => {
-          const isCurrent = currentSubscription?.plan?.name === plan.name;
+          const isCurrent = currentSubscription?.subscription?.plan?.name === plan.name;
           const price =
             billingCycle === "annual" ? plan.priceAnnual : plan.priceMonthly;
           const displayPrice = price / 100;
