@@ -12,7 +12,7 @@ export async function proxy(req: NextRequest) {
     if (!rl.allowed) {
       return NextResponse.json(
         { error: "Too many requests" },
-        { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+        { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
       );
     }
   }
@@ -20,7 +20,8 @@ export async function proxy(req: NextRequest) {
   // 2. Webhook Rate Limiting
   if (pathname.includes("/webhook")) {
     const rl = await checkRateLimit(req, "webhook");
-    if (!rl.allowed) return new NextResponse("Too Many Requests", { status: 429 });
+    if (!rl.allowed)
+      return new NextResponse("Too Many Requests", { status: 429 });
   }
 
   // 3. Request Size Limits
@@ -39,17 +40,20 @@ export async function proxy(req: NextRequest) {
 
   // Redirect /privacy and /terms to external URLs
   if (pathname === "/privacy") {
-    return NextResponse.redirect(new URL("https://replybase.co.uk/privacy", req.url));
+    return NextResponse.redirect(
+      new URL("https://replybase.co.uk/privacy", req.url),
+    );
   }
   if (pathname === "/terms") {
-    return NextResponse.redirect(new URL("https://replybase.co.uk/terms", req.url));
+    return NextResponse.redirect(
+      new URL("https://replybase.co.uk/terms", req.url),
+    );
   }
 
   // Allow chat routes to be public
   if (pathname.startsWith("/chat/")) {
     return NextResponse.next();
   }
-
 
   // Allow webhook routes to be public
   if (pathname.startsWith("/api/billing/webhook")) {
@@ -103,7 +107,6 @@ export async function proxy(req: NextRequest) {
 
   const publicPaths = [
     "/pricing",
-    "/faq",
     "/webchat-e2e",
     "/data-deletion-status",
     "/data-deletion-request",
@@ -147,7 +150,9 @@ export async function proxy(req: NextRequest) {
   if (token) {
     // SUBSCRIPTION CHECK
     // If not on billing page/pricing and subscription is inactive, redirect to pricing
-    const subscriptionStatus = (token.subscriptionStatus as string || "active").toLowerCase();
+    const subscriptionStatus = (
+      (token.subscriptionStatus as string) || "active"
+    ).toLowerCase();
     const isBillingPath =
       pathname.startsWith("/settings/billing") ||
       pathname.startsWith("/settings/account") ||
