@@ -1,38 +1,10 @@
 "use client";
 
-import React, {
-  useCallback,
-  useMemo,
-  useState,
-  useEffect,
-  Suspense,
-} from "react";
+import { useCallback, useMemo, useState, useEffect, Suspense } from "react";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
-import {
-  Check,
-  X,
-  Loader2,
-  Sparkles,
-  ArrowRight,
-  Shield,
-  Zap,
-  TrendingUp,
-  Globe,
-  MessageSquare,
-  Lock,
-  ChevronRight,
-} from "lucide-react";
+import { Check, X, Loader2, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -174,8 +146,6 @@ const PRICE_IDS: Record<
   },
 };
 
-type PlanName = (typeof PLANS)[number]["name"];
-
 function PricingContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -184,9 +154,6 @@ function PricingContent() {
     searchParams.get("cycle") === "annual" ? "annual" : "monthly";
   const promoCode = searchParams.get("promo");
   const [loading, setLoading] = useState<string | null>(null);
-  const [selectedPlan, setSelectedPlan] = useState<
-    (typeof PLANS)[number] | null
-  >(null);
   const [currentSubscription, setCurrentSubscription] = useState<any>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
 
@@ -235,13 +202,9 @@ function PricingContent() {
   const autoSelectedPlan = useMemo(() => {
     const planParam = searchParams.get("plan");
     if (!planParam) return null;
-
     const normalized = planParam.trim().toLowerCase();
-
     return PLANS.find((p) => p.name === normalized) ?? null;
   }, [searchParams]);
-
-  const currentSelectedPlan = selectedPlan ?? autoSelectedPlan;
 
   useEffect(() => {
     const cycle = searchParams.get("cycle");
@@ -258,17 +221,13 @@ function PricingContent() {
             const cycleParam = searchParams.get("cycle");
             const sourceParam = searchParams.get("source");
 
-            const registerUrl = new URL(
-              "/auth/register",
-              window.location.origin,
-            );
-            registerUrl.searchParams.set("plan", planParam);
-            if (promoParam) registerUrl.searchParams.set("promo", promoParam);
-            if (cycleParam) registerUrl.searchParams.set("cycle", cycleParam);
-            if (sourceParam)
-              registerUrl.searchParams.set("source", sourceParam);
+            const claimUrl = new URL("/auth/claim", window.location.origin);
+            claimUrl.searchParams.set("plan", planParam);
+            if (promoParam) claimUrl.searchParams.set("promo", promoParam);
+            if (cycleParam) claimUrl.searchParams.set("cycle", cycleParam);
+            if (sourceParam) claimUrl.searchParams.set("source", sourceParam);
 
-            router.push(registerUrl.pathname + registerUrl.search);
+            router.push(claimUrl.pathname + claimUrl.search);
             return null;
           }
           setIsAuthenticated(false);
@@ -309,7 +268,7 @@ function PricingContent() {
     }
   }, [autoSelectedPlan, router, searchParams, triggerAutoCheckout]);
 
-  const handleSubscribeClick = (planName: string) => {
+  const handleSubscribeClick = async (planName: string) => {
     const plan = PLANS.find((p) => p.name === planName);
     if (!plan) return;
     if (plan.priceMonthly === 0) {
@@ -317,52 +276,14 @@ function PricingContent() {
       return;
     }
     if (!isAuthenticated) {
-      const registerUrl = new URL("/auth/register", window.location.origin);
-      registerUrl.searchParams.set("plan", plan.name);
-      if (promoCode) registerUrl.searchParams.set("promo", promoCode);
-      router.push(registerUrl.pathname + registerUrl.search);
+      const claimUrl = new URL("/auth/claim", window.location.origin);
+      claimUrl.searchParams.set("plan", plan.name);
+      claimUrl.searchParams.set("cycle", billingCycle);
+      if (promoCode) claimUrl.searchParams.set("promo", promoCode);
+      router.push(claimUrl.pathname + claimUrl.search);
       return;
     }
-    setSelectedPlan(plan);
-  };
-
-  const handleConfirmCheckout = async () => {
-    const planToCheckout = currentSelectedPlan;
-    if (!planToCheckout) return;
-    setLoading(planToCheckout.name);
-
-    try {
-      const priceId =
-        billingCycle === "annual"
-          ? PRICE_IDS[planToCheckout.name].annualPriceId
-          : PRICE_IDS[planToCheckout.name].monthlyPriceId;
-
-      const response = await fetch("/api/billing/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          priceId,
-          planName: planToCheckout.name,
-          billingCycle,
-          promoCode:
-            promoCode || (billingCycle === "annual" ? "FOUNDING50" : undefined),
-        }),
-      });
-
-      const data = await response.json();
-      if (data.url) {
-        window.location.assign(data.url);
-      } else {
-        throw new Error(data.error || "Failed to start checkout");
-      }
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Something went wrong. Please try again.";
-      toast.error(message);
-      setLoading(null);
-    }
+    await triggerAutoCheckout(plan, billingCycle, promoCode);
   };
 
   return (
@@ -526,7 +447,7 @@ function PricingContent() {
                     : ""
                 }`}
                 variant={plan.highlight ? "default" : "outline"}
-                onClick={() => handleSubscribeClick(plan.name)}
+                onClick={() => void handleSubscribeClick(plan.name)}
                 disabled={loading !== null || isCurrent}
               >
                 {loading === plan.name ? (
@@ -652,7 +573,9 @@ function PricingContent() {
                   className={`p-6 text-center ${plan.highlight ? "bg-primary/5" : ""}`}
                 >
                   <div className="flex flex-col items-center gap-1">
-                    <span className={`text-xs font-semibold ${plan.name === "business" ? "text-primary" : "text-muted-foreground"}`}>
+                    <span
+                      className={`text-xs font-semibold ${plan.name === "business" ? "text-primary" : "text-muted-foreground"}`}
+                    >
                       {plan.support}
                     </span>
                     {plan.name === "business" && (
@@ -674,7 +597,9 @@ function PricingContent() {
                   className={`p-6 text-center text-xs ${plan.highlight ? "bg-primary/5" : ""}`}
                 >
                   {plan.slaResponseTarget ? (
-                    <span className={`font-bold ${plan.name === "business" ? "text-primary" : "text-muted-foreground"}`}>
+                    <span
+                      className={`font-bold ${plan.name === "business" ? "text-primary" : "text-muted-foreground"}`}
+                    >
                       {plan.slaResponseTarget}
                     </span>
                   ) : (
@@ -686,114 +611,6 @@ function PricingContent() {
           </tbody>
         </table>
       </div>
-
-      {/* Confirmation Modal */}
-      <Dialog
-        open={!!currentSelectedPlan}
-        onOpenChange={(open) => !open && setSelectedPlan(null)}
-      >
-        <DialogContent className="sm:max-w-[425px] rounded-3xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              Plan Summary
-            </DialogTitle>
-            <DialogDescription>
-              Review your selection before starting your 14-day free trial.
-            </DialogDescription>
-          </DialogHeader>
-          {currentSelectedPlan && (
-            <div className="space-y-6 py-4">
-              <div className="bg-muted/50 rounded-2xl p-6 border border-border/50">
-                <div className="flex justify-between items-center mb-4">
-                  <span className="text-sm text-muted-foreground">
-                    Selected Plan
-                  </span>
-                  <Badge
-                    variant="outline"
-                    className="font-bold border-primary/20 text-primary"
-                  >
-                    {currentSelectedPlan.displayName}
-                  </Badge>
-                </div>
-                <div className="flex justify-between items-center mb-4">
-                  <span className="text-sm text-muted-foreground">
-                    Billing Cycle
-                  </span>
-                  <Badge variant="secondary" className="capitalize">
-                    {billingCycle}
-                  </Badge>
-                </div>
-                <div className="flex justify-between items-center mb-4">
-                  <span className="text-sm text-muted-foreground">
-                    Free Trial
-                  </span>
-                  <span className="font-semibold text-green-600">14 Days</span>
-                </div>
-                {billingCycle === "annual" && (
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-sm text-muted-foreground">
-                      Offer Applied
-                    </span>
-                    <span className="font-bold text-primary">
-                      50% OFF (FOUNDING50)
-                    </span>
-                  </div>
-                )}
-                <div className="flex justify-between items-center pt-4 border-t border-border">
-                  <span className="text-sm font-semibold">
-                    Total to pay today
-                  </span>
-                  <span className="text-lg font-bold text-foreground">
-                    £0.00
-                  </span>
-                </div>
-                <div className="mt-2 text-[10px] text-muted-foreground text-right">
-                  Then £
-                  {billingCycle === "annual"
-                    ? (currentSelectedPlan.priceAnnual / 200).toFixed(2)
-                    : (currentSelectedPlan.priceMonthly / 100).toFixed(2)}{" "}
-                  / {billingCycle === "annual" ? "year" : "month"} after trial
-                  {billingCycle === "annual" && " (incl. 50% discount)"}
-                </div>
-              </div>
-
-              <div className="space-y-3 px-1 text-sm">
-                <div className="flex gap-3">
-                  <div className="mt-1 bg-green-100 rounded-full p-0.5">
-                    <Check className="h-3 w-3 text-green-600" />
-                  </div>
-                  <p>You won&apos;t be charged until your trial ends.</p>
-                </div>
-                <div className="flex gap-3">
-                  <div className="mt-1 bg-green-100 rounded-full p-0.5">
-                    <Check className="h-3 w-3 text-green-600" />
-                  </div>
-                  <p>
-                    Full access to all {currentSelectedPlan.displayName}{" "}
-                    features immediately.
-                  </p>
-                </div>
-                <div className="flex gap-3">
-                  <div className="mt-1 bg-green-100 rounded-full p-0.5">
-                    <Check className="h-3 w-3 text-green-600" />
-                  </div>
-                  <p>Cancel anytime before trial ends to avoid charges.</p>
-                </div>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button
-              onClick={handleConfirmCheckout}
-              className="w-full py-6 rounded-2xl font-bold shadow-xl shadow-primary/20 gap-2"
-            >
-              Start Free Trial
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
