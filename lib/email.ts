@@ -51,6 +51,30 @@ export async function sendEmail({ to, subject, text, html, from }: SendEmailPara
 }
 
 /**
+ * Sent after Stripe payment for claim-flow users who have no password yet.
+ * Also serves as email verification (clicking the link proves ownership).
+ */
+export async function sendAccountActivationEmail(email: string, token: string) {
+  const activateUrl = `${APP_CONFIG.meta.baseUrl}/auth/activate?token=${token}`;
+
+  const subject = "Activate your ReplyBase account";
+  const text = `
+Hi there,
+
+Your ReplyBase subscription is confirmed! One last step — set a password to access your dashboard.
+
+Activate your account here:
+${activateUrl}
+
+This link expires in 24 hours. If you didn't sign up for ReplyBase, you can safely ignore this email.
+
+— The ReplyBase Team
+  `.trim();
+
+  return sendEmail({ to: email, subject, text });
+}
+
+/**
  * Specifically for password resets.
  */
 export async function sendResetEmail(email: string, token: string) {

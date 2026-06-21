@@ -46,6 +46,7 @@ model User {
   updatedAt               DateTime               @updatedAt
   tenantId                String
   passwordHash            String?
+  accountClaimed          Boolean                @default(true)
   isAdmin                 Boolean                @default(false)
   role                    UserRole               @default(USER)
   accounts                Account[]
@@ -61,6 +62,7 @@ model User {
   passwordResetTokens     PasswordResetToken[]
   sessions                Session[]
   usageLogs               UsageLog[]
+  userTokens              UserToken[]
   tenant                  Tenant                 @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
@@ -156,6 +158,20 @@ model PasswordResetToken {
 
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+model UserToken {
+  id        String        @id @default(cuid())
+  userId    String
+  token     String        @unique
+  type      UserTokenType
+  expiresAt DateTime
+  createdAt DateTime      @default(now())
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+  @@index([type])
+  @@map("user_tokens")
 }
 
 model FacebookPage {
@@ -977,6 +993,11 @@ enum ChannelType {
   facebook
   telegram
   whatsapp
+}
+
+enum UserTokenType {
+  CLAIM
+  EMAIL_VERIFY
 }
 
 model ApiKey {
