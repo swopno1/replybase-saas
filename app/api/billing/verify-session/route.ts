@@ -60,10 +60,16 @@ export const GET = withAuthAndTenant(async (user, request, context, db) => {
     }
 
     // 3. Check finalized state in DB
-    const subscription = await db.subscription.findUnique({
-      where: { tenantId },
-      include: { plan: true },
-    });
+    const [subscription, tenant] = await Promise.all([
+      db.subscription.findUnique({
+        where: { tenantId },
+        include: { plan: true },
+      }),
+      db.tenant.findUnique({
+        where: { id: tenantId },
+        select: { isOnboarded: true },
+      }),
+    ]);
 
     if (
       subscription &&
@@ -83,6 +89,7 @@ export const GET = withAuthAndTenant(async (user, request, context, db) => {
 
       return NextResponse.json({
         status: "success",
+        isNewUser: !tenant?.isOnboarded,
         subscription: {
           id: subscription.id,
           status: subscription.status,

@@ -24,6 +24,7 @@ interface PixelData {
 
 interface VerifySessionResponse {
   status: "success" | "syncing" | "pending" | "error";
+  isNewUser?: boolean;
   subscription?: { id: string; status: string; plan: string };
   pixelData?: PixelData;
   error?: string;
@@ -45,6 +46,7 @@ function SuccessContent() {
       ? "Confirming your subscription..."
       : "Missing session information. Please contact support if you were charged."
   );
+  const [isNewUser, setIsNewUser] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
@@ -57,7 +59,12 @@ function SuccessContent() {
 
         if (data.status === "success") {
           setStatus("success");
-          setMessage(`Successfully upgraded to ${data.subscription?.plan}!`);
+          setIsNewUser(!!data.isNewUser);
+          setMessage(
+            data.isNewUser
+              ? "Your trial is active. Let's get your account set up!"
+              : `Successfully upgraded to ${data.subscription?.plan}!`
+          );
 
           if (data.pixelData) {
             window.dataLayer = window.dataLayer || [];
@@ -75,7 +82,8 @@ function SuccessContent() {
             });
           }
 
-          // Small delay before redirecting to dashboard
+          // Small delay before redirecting — new users land on dashboard where
+          // OnboardingWrapper automatically opens the setup modal
           setTimeout(() => {
             router.push("/");
           }, 2000);
@@ -123,13 +131,15 @@ function SuccessContent() {
             <div className="mb-6 bg-green-100 p-4 rounded-full">
               <CheckCircle2 className="w-16 h-16 text-green-600" />
             </div>
-            <h1 className="text-2xl font-bold text-slate-900 mb-2">Checkout Successful!</h1>
+            <h1 className="text-2xl font-bold text-slate-900 mb-2">
+              {isNewUser ? "Welcome to ReplyBase!" : "Checkout Successful!"}
+            </h1>
             <p className="text-slate-600 mb-8">{message}</p>
-            <button 
+            <button
               onClick={() => router.push("/")}
               className="w-full py-3 px-6 bg-slate-900 text-white rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors shadow-lg shadow-slate-200"
             >
-              Go to Dashboard <ArrowRight className="w-4 h-4" />
+              {isNewUser ? "Set up my account" : "Go to Dashboard"} <ArrowRight className="w-4 h-4" />
             </button>
           </>
         ) : (
