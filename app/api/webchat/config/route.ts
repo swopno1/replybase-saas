@@ -224,15 +224,22 @@ export async function GET(request: NextRequest) {
 }
 
 export async function OPTIONS(request: NextRequest) {
-  if (!(await isWebchatOriginAllowed(request))) {
+  try {
+    if (!(await isWebchatOriginAllowed(request))) {
+      return new NextResponse(null, {
+        status: 403,
+        headers: createWebchatCorsHeaders(request),
+      });
+    }
+
     return new NextResponse(null, {
-      status: 403,
+      status: 204,
+      headers: createWebchatCorsHeaders(request),
+    });
+  } catch {
+    return new NextResponse(null, {
+      status: 204,
       headers: createWebchatCorsHeaders(request),
     });
   }
-
-  return new NextResponse(null, {
-    status: 204,
-    headers: createWebchatCorsHeaders(request),
-  });
 }

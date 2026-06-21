@@ -262,19 +262,26 @@ export async function POST(request: NextRequest) {
 }
 
 export async function OPTIONS(request: NextRequest) {
-  if (!(await isWebchatOriginAllowed(request))) {
-    const reason = await getWebchatOriginRejectionReason(request);
-    return NextResponse.json(
-      { error: "Origin not allowed", reason },
-      {
-        status: 403,
-        headers: createWebchatCorsHeaders(request),
-      },
-    );
-  }
+  try {
+    if (!(await isWebchatOriginAllowed(request))) {
+      const reason = await getWebchatOriginRejectionReason(request);
+      return NextResponse.json(
+        { error: "Origin not allowed", reason },
+        {
+          status: 403,
+          headers: createWebchatCorsHeaders(request),
+        },
+      );
+    }
 
-  return new NextResponse(null, {
-    status: 204,
-    headers: createWebchatCorsHeaders(request),
-  });
+    return new NextResponse(null, {
+      status: 204,
+      headers: createWebchatCorsHeaders(request),
+    });
+  } catch {
+    return new NextResponse(null, {
+      status: 204,
+      headers: createWebchatCorsHeaders(request),
+    });
+  }
 }
