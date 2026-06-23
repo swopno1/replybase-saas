@@ -506,7 +506,13 @@ export default function FlowSettingsPage() {
                   </p>
                   <Button
                     variant="outline"
-                    onClick={() => router.push("/integrations/facebook")}
+                    onClick={() =>
+                      router.push(
+                        currentChannelAssignment?.channel.bot.id
+                          ? `/bots/${currentChannelAssignment.channel.bot.id}?tab=channels&channel=facebook`
+                          : "/bots",
+                      )
+                    }
                   >
                     Connect Facebook Page
                   </Button>

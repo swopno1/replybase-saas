@@ -16,7 +16,7 @@ import { FacebookLogo } from "@/components/icons/MetaIcons";
 const CHANNEL_ROUTES: Record<ChannelId, string> = {
   webchat: "/integrations/webchat",
   telegram: "/integrations/telegram",
-  facebook: "/integrations/facebook",
+  facebook: "/bots",
   whatsapp: "/integrations/whatsapp",
 };
 

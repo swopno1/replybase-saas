@@ -70,7 +70,7 @@ const items = [
   },
   {
     title: "Facebook Messenger",
-    url: "/integrations/facebook",
+    url: "/bots",
     icon: FacebookLogo,
     channelId: "facebook" as ChannelId,
   },

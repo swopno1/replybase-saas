@@ -144,9 +144,9 @@ export function ChannelActivationDialog({
         toast.success("Webchat activated! Redirecting...");
         router.push(`/integrations/webchat?botId=${botId}`);
       } else if (selectedChannel === "facebook") {
-        // Facebook requires OAuth, so we redirect to the connect page with botId context
+        // Facebook requires OAuth — redirect to the bot's channels tab to trigger the connect flow
         toast.success("Bot ready! Redirecting to Facebook connection...");
-        router.push(`/integrations/facebook?botId=${botId}`);
+        router.push(`/bots/${botId}?tab=channels&channel=facebook`);
       } else {
         router.push("/integrations");
       }
