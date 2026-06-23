@@ -1,7 +1,9 @@
+import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/server/password";
+import { sendEmailVerificationEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -86,6 +88,8 @@ export async function POST(request: Request) {
     }
 
     const passwordHash = await hashPassword(password);
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     await prisma.$transaction(async (tx) => {
       const tenant = await tx.tenant.create({
@@ -110,6 +114,15 @@ export async function POST(request: Request) {
         select: { id: true },
       });
 
+      await tx.userToken.create({
+        data: {
+          userId: createdUser.id,
+          token: verificationToken,
+          type: "EMAIL_VERIFY",
+          expiresAt: tokenExpiresAt,
+        },
+      });
+
       if (signupPlanIntent || signupSourceIntent) {
         await tx.activityLog.create({
           data: {
@@ -130,7 +143,15 @@ export async function POST(request: Request) {
       }
     });
 
-    return NextResponse.json({ success: true }, { status: 201 });
+    // Send verification email outside the transaction
+    sendEmailVerificationEmail(email, verificationToken).catch((err) => {
+      console.error("[Register] Failed to send verification email:", err);
+    });
+
+    return NextResponse.json(
+      { success: true, requiresVerification: true },
+      { status: 201 },
+    );
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&

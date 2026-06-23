@@ -157,6 +157,7 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState(() => sanitizePrefilledEmail(searchParams.get("email")));
+  const verified = searchParams.get("verified");
 
   const registerUrl = useMemo(() => {
     const params = new URLSearchParams();
@@ -208,6 +209,12 @@ export function LoginForm() {
       });
 
       if (res?.error) {
+        if (res.error === "AccessDenied") {
+          router.push(
+            `/auth/verify-email?email=${encodeURIComponent(email)}&blocked=true`,
+          );
+          return;
+        }
         setFeedback(mapNextAuthError(res.error));
         return;
       }
@@ -282,6 +289,30 @@ export function LoginForm() {
 
       <CardContent>
         <FieldGroup>
+          {verified === "true" && !feedback && (
+            <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+              <p className="font-medium">Email verified!</p>
+              <p>Your account is ready. Sign in to get started.</p>
+            </div>
+          )}
+          {verified === "expired" && !feedback && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              <p className="font-medium">Verification link expired</p>
+              <p>
+                Request a new one from the{" "}
+                <Link href="/auth/verify-email" className="underline">
+                  verification page
+                </Link>
+                .
+              </p>
+            </div>
+          )}
+          {verified === "error" && !feedback && (
+            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+              <p className="font-medium">Invalid verification link</p>
+              <p>The link may have already been used or is invalid.</p>
+            </div>
+          )}
           {feedback ? <FeedbackBanner feedback={feedback} /> : null}
           {!feedback && sessionFeedback ? (
             <FeedbackBanner feedback={sessionFeedback} />
@@ -496,6 +527,23 @@ export function RegisterForm() {
         return;
       }
 
+      trackEvent("signup_completed", {
+        onceKey: `signup_completed:${email.trim().toLowerCase() || "unknown"}`,
+        onceScope: "local",
+        properties: {
+          method: "credentials",
+          source: signupSourceIntent || "direct",
+          plan: signupPlanIntent || "unknown",
+        },
+      });
+
+      // Email verification required — redirect to verify page instead of auto sign-in
+      if (registerData.requiresVerification) {
+        router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`);
+        return;
+      }
+
+      // Fallback: auto sign-in if verification is not required
       setFeedback({
         tone: "info",
         title: "Account created",
@@ -515,40 +563,11 @@ export function RegisterForm() {
         return;
       }
 
-      setFeedback({
-        tone: "info",
-        title: "Checking session",
-        message: "Verifying your new session before redirect...",
-      });
-
       const session = await getSession();
       if (!session?.user) {
-        setFeedback({
-          tone: "error",
-          title: "Session not available",
-          message: "Account was created, but we could not load your session.",
-          instruction:
-            "Try login manually. If this persists, check AUTH_SECRET/NEXTAUTH_URL and browser cookies.",
-        });
         router.push("/auth/login");
         return;
       }
-
-      setFeedback({
-        tone: "success",
-        title: "Registration successful",
-        message: "Your account is ready. Redirecting to dashboard...",
-      });
-
-      trackEvent("signup_completed", {
-        onceKey: `signup_completed:${email.trim().toLowerCase() || "unknown"}`,
-        onceScope: "local",
-        properties: {
-          method: "credentials",
-          source: signupSourceIntent || "direct",
-          plan: signupPlanIntent || "unknown",
-        },
-      });
 
       if (signupPlanIntent) {
         let redirectUrl = `/pricing?plan=${signupPlanIntent}&checkout=true`;

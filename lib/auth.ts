@@ -152,16 +152,38 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
   },
   callbacks: {
-    async signIn({ user }) {
+    async signIn({ user, account }) {
       if (APP_CONFIG.meta.strictDevLogin) {
         const allowedEmails = ["replybase1@gmail.com", "amirhossain.limon@gmail.com"];
         const userEmail = user?.email?.toLowerCase().trim();
-        
+
         if (!userEmail || !allowedEmails.includes(userEmail)) {
           console.warn(`[STRICT LOGIN] Blocked login attempt from: ${userEmail}`);
           return false;
         }
       }
+
+      // Block credential sign-ins for users who haven't verified their email yet.
+      // Only applies to accounts that went through the credential registration flow
+      // (identified by a pending EMAIL_VERIFY token). Existing users without a token
+      // are grandfathered through regardless of emailVerified state.
+      if (account?.provider === "credentials" && user?.id) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: {
+            emailVerified: true,
+            userTokens: {
+              where: { type: "EMAIL_VERIFY" },
+              select: { id: true },
+            },
+          },
+        });
+
+        if (!dbUser?.emailVerified && (dbUser?.userTokens.length ?? 0) > 0) {
+          return false;
+        }
+      }
+
       return true;
     },
     async jwt({ token, user, account }) {
