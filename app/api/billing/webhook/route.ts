@@ -19,6 +19,10 @@ export async function POST(req: NextRequest) {
     if (!process.env.STRIPE_WEBHOOK_SECRET) {
       throw new Error("STRIPE_WEBHOOK_SECRET not configured");
     }
+    if (!signature) {
+      logger.warn("[Webhook] Missing Stripe-Signature header — request rejected");
+      return NextResponse.json({ error: "Missing signature" }, { status: 400 });
+    }
     event = stripe!.webhooks.constructEvent(
       body,
       signature,
