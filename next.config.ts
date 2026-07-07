@@ -2,9 +2,13 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   allowedDevOrigins: ["127.0.0.1", "localhost"],
   output: "standalone",
+  experimental: {
+    serverActions: {
+      allowedOrigins: ["app.replybase.co.uk"],
+    },
+  },
   async headers() {
     return [
       {

@@ -4,8 +4,30 @@ import { checkRateLimit } from "./lib/rate-limit";
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const { method } = req;
 
   // --- RATE LIMITING & PROTECTION ---
+  // 0. Block Server Action injection attacks targeting /_not-found.
+  //    No legitimate browser traffic ever POSTs to this route.
+  if (method === "POST" && pathname.startsWith("/_not-found")) {
+    return new NextResponse(null, { status: 403 });
+  }
+
+  // Block cross-origin Server Action requests. The Next-Action header is only
+  // present on direct action invocations; reject any whose Origin is not our own domain.
+  const nextAction = req.headers.get("Next-Action");
+  if (method === "POST" && nextAction !== null) {
+    const origin = req.headers.get("Origin");
+    if (
+      origin &&
+      !origin.endsWith("replybase.co.uk") &&
+      !origin.startsWith("http://localhost") &&
+      !origin.startsWith("http://127.0.0.1")
+    ) {
+      return new NextResponse(null, { status: 403 });
+    }
+  }
+
   // 1. Auth Rate Limiting
   if (pathname.startsWith("/api/auth")) {
     const rl = await checkRateLimit(req, "auth");
