@@ -219,7 +219,7 @@ function SettingsTabsInner() {
         const res = await fetch("/api/users/account", { method: "DELETE" });
         if (res.ok) {
           toast.success("Account deleted");
-          signOut({ callbackUrl: "/" });
+          signOut({ callbackUrl: "/auth/login" });
         } else {
           toast.error("Failed to delete account");
         }
