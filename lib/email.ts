@@ -115,7 +115,7 @@ This link expires in 24 hours. If you didn't create a ReplyBase account, you can
  */
 export async function sendResetEmail(email: string, token: string) {
   const resetUrl = `${APP_CONFIG.meta.baseUrl}/auth/reset-password?token=${token}`;
-  
+
   const subject = "Reset your ReplyBase password";
   const text = `
 Hi there,
@@ -125,10 +125,23 @@ Click the link below to set a new password:
 
 ${resetUrl}
 
-If you didn't request this, you can safely ignore this email.
+This link expires in 1 hour. If you didn't request this, you can safely ignore this email — your password won't change.
 
 — The ReplyBase Team
   `.trim();
 
-  return sendEmail({ to: email, subject, text });
+  const html = `
+<!DOCTYPE html>
+<html>
+<body style="font-family: sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #1e293b;">
+  <h2 style="margin-bottom: 8px;">Reset your password</h2>
+  <p style="color: #475569; margin-bottom: 24px;">We received a request to reset the password for your ReplyBase account. Click the button below to set a new password.</p>
+  <a href="${resetUrl}" style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600;">Reset my password</a>
+  <p style="margin-top: 24px; color: #64748b; font-size: 14px;">Or copy and paste this link into your browser:<br/><span style="color: #2563eb;">${resetUrl}</span></p>
+  <p style="color: #94a3b8; font-size: 12px; margin-top: 32px;">This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email — your password won't change.</p>
+</body>
+</html>
+  `.trim();
+
+  return sendEmail({ to: email, subject, text, html });
 }
