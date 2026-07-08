@@ -657,18 +657,47 @@ export async function executeWebchatFlowFirst(params: {
         const quickReplies = content.quick_replies || content.buttons;
 
         if (pendingMessage && quickReplies && quickReplies.length > 0) {
-          // If we have a pending message and this node has quick replies,
-          // we treat it as the response to those quick replies.
-          const variableName = content.variableName || `msg_${currentNode.order}`;
-          variables[variableName] = pendingMessage;
-          pendingMessage = ""; // Consume it
-          
-          await applyDelayWithOptionalTyping(content, responses);
-          currentNode = getNextNode(
-            activeFlow.nodes,
-            currentNode.order,
-            content.nextNodeOrder,
+          // Try to match user's free text against button titles/payloads
+          // (case-insensitive). This handles both widget button clicks (which
+          // send the payload) and users typing the option by hand.
+          const normalized = pendingMessage.trim().toLowerCase();
+          const matched = quickReplies.find(
+            (qr) =>
+              qr.title.toLowerCase() === normalized ||
+              ((qr as { payload?: string }).payload || qr.title).toLowerCase() ===
+                normalized,
           );
+
+          if (matched) {
+            const variableName = content.variableName || `msg_${currentNode.order}`;
+            variables[variableName] =
+              (matched as { payload?: string }).payload || matched.title;
+            pendingMessage = "";
+            await applyDelayWithOptionalTyping(content, responses);
+            currentNode = getNextNode(
+              activeFlow.nodes,
+              currentNode.order,
+              content.nextNodeOrder,
+            );
+            break;
+          }
+
+          // Free text doesn't match any option — re-ask the same question so
+          // the flow doesn't silently advance with an invalid value.
+          const quickRepliesMapped = quickReplies.map((qr) => ({
+            content_type: "text" as const,
+            title: qr.title,
+            payload: (qr as { payload?: string }).payload || qr.title,
+          }));
+          if (text.trim()) {
+            responses.push({
+              type: "text",
+              text: text.trim(),
+              quickReplies: quickRepliesMapped,
+            });
+          }
+          pendingMessage = "";
+          safetyCounter = 99;
           break;
         }
 
@@ -677,7 +706,7 @@ export async function executeWebchatFlowFirst(params: {
             ? quickReplies.map((qr) => ({
                 content_type: "text" as const,
                 title: qr.title,
-                payload: qr.payload || qr.title,
+                payload: (qr as { payload?: string }).payload || qr.title,
               }))
             : undefined;
 
@@ -687,13 +716,12 @@ export async function executeWebchatFlowFirst(params: {
             quickReplies: quickRepliesMapped,
           });
         }
-        
+
         await applyDelayWithOptionalTyping(content, responses);
 
-        // If it has quick replies and we haven't consumed a pending message yet,
-        // we must STOP and wait for the user to click one.
+        // Stop and wait for user input when quick replies are present.
         if (quickReplies && quickReplies.length > 0 && !pendingMessage) {
-          safetyCounter = 99; // Stop execution
+          safetyCounter = 99;
           break;
         }
 
@@ -734,11 +762,21 @@ export async function executeWebchatFlowFirst(params: {
           break;
         }
 
-        const prompt = content.text || `Please provide your ${variableName}`;
-        responses.push({
-          type: "text",
-          text: interpolateText(prompt, variables),
-        });
+        if (content.text) {
+          // Node has an explicit prompt — always show it.
+          responses.push({
+            type: "text",
+            text: interpolateText(content.text, variables),
+          });
+        } else if (!responses.some((r) => r.type === "text")) {
+          // No text has been queued this turn, so push a generic fallback.
+          // When a message node already asked the question, this branch is
+          // skipped — preventing the "email asked twice" double-prompt bug.
+          responses.push({
+            type: "text",
+            text: `Please provide your ${variableName}`,
+          });
+        }
         safetyCounter = 99;
         break;
       }
