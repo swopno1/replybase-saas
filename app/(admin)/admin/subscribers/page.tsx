@@ -129,9 +129,10 @@ export default function SubscribersPage() {
 
   const handleDelete = async (subscriberId: string) => {
     const confirmed = await confirm({
-      title: "Delete Subscription",
-      description: "Are you sure you want to delete this subscription? This action cannot be undone.",
-      confirmText: "Delete",
+      title: "Delete & Cancel Subscription",
+      description:
+        "This will immediately cancel the Stripe subscription (stopping all future billing) and remove the local record. This cannot be undone.",
+      confirmText: "Cancel & Delete",
       variant: "destructive",
     });
 
@@ -145,7 +146,12 @@ export default function SubscribersPage() {
       });
 
       if (response.ok) {
-        toast.success("Subscription deleted successfully");
+        const result = await response.json();
+        toast.success(
+          result.stripeCanceled
+            ? "Subscription canceled in Stripe and removed"
+            : "Subscription removed",
+        );
         fetchSubscribers();
       } else {
         const data = await response.json();

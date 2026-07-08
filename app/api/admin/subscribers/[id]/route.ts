@@ -2,6 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { logAdminActivity } from "@/lib/admin-audit";
 import { invalidateTenantCache, handlePlanChange } from "@/lib/subscription";
 import { withAdmin } from "@/lib/route-helpers";
+import { stripe } from "@/lib/stripe";
+
+function isRealStripeId(stripeId: string | null): stripeId is string {
+  return (
+    !!stripeId &&
+    !stripeId.startsWith("free_") &&
+    !stripeId.startsWith("manual_grant_")
+  );
+}
+
+async function cancelInStripe(stripeId: string): Promise<{ ok: boolean; alreadyGone?: boolean; error?: string }> {
+  if (!stripe) return { ok: false, error: "Stripe not configured" };
+  try {
+    await stripe.subscriptions.cancel(stripeId);
+    return { ok: true };
+  } catch (err: any) {
+    if (err?.code === "resource_missing") return { ok: true, alreadyGone: true };
+    return { ok: false, error: err?.message ?? "Stripe error" };
+  }
+}
 
 export const dynamic = "force-dynamic";
 
@@ -171,6 +191,21 @@ export const PATCH = withAdmin(async (session, request, context, db) => {
       await handlePlanChange(subscription.tenantId, planId);
     }
 
+    // Cancel in Stripe if admin is setting status to CANCELED and the sub has a real Stripe ID
+    if (
+      normalizedStatus === "CANCELED" &&
+      oldSubscription.status !== "CANCELED" &&
+      isRealStripeId(oldSubscription.stripeId)
+    ) {
+      const result = await cancelInStripe(oldSubscription.stripeId);
+      if (!result.ok) {
+        return NextResponse.json(
+          { error: `Failed to cancel Stripe subscription: ${result.error}` },
+          { status: 502 },
+        );
+      }
+    }
+
     // Invalidate the cache so the user sees the new limits immediately
     await invalidateTenantCache(subscription.tenantId);
     
@@ -220,25 +255,38 @@ export const DELETE = withAdmin(async (session, request, context, db) => {
     if (!subscription) {
       return NextResponse.json({ error: "Subscription not found" }, { status: 404 });
     }
- 
-    await db.subscription.delete({
-      where: { id },
-    });
- 
+
+    // Cancel in Stripe immediately before removing the local record
+    let stripeCanceled = false;
+    if (isRealStripeId(subscription.stripeId)) {
+      const result = await cancelInStripe(subscription.stripeId);
+      if (!result.ok) {
+        return NextResponse.json(
+          { error: `Failed to cancel Stripe subscription: ${result.error}` },
+          { status: 502 },
+        );
+      }
+      stripeCanceled = !result.alreadyGone;
+    }
+
+    await db.subscription.delete({ where: { id } });
+
     await logAdminActivity({
       adminId: session.user.id,
       action: "SUBSCRIPTION_DELETED",
       entityType: "SUBSCRIPTION",
       entityId: id,
-      description: `Admin deleted subscription for tenant ${subscription.tenantId}`,
+      description: `Admin deleted subscription for tenant ${subscription.tenantId}${stripeCanceled ? ` (Stripe sub ${subscription.stripeId} canceled immediately)` : ""}`,
       metadata: {
         tenantId: subscription.tenantId,
+        stripeId: subscription.stripeId,
+        stripeCanceled,
       },
       ipAddress: request.headers.get("x-forwarded-for") || undefined,
       userAgent: request.headers.get("user-agent") || undefined,
     });
- 
-    return NextResponse.json({ success: true });
+
+    return NextResponse.json({ success: true, stripeCanceled });
   } catch (error) {
     console.error("[Admin API] Error deleting subscriber:", error);
     return NextResponse.json(
